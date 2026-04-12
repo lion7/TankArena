@@ -37,6 +37,7 @@ gradle :game-core:jvmTest
 ## Notes
 
 - The current vertical slice intentionally uses placeholder shapes instead of migrated art.
+- Current slice adds: projectile-vs-tank collision damage, projectile TTL explosions, and a client-side keyboard action mapper class.
 - Gameplay parity with legacy systems (weapons/AI/modes/editor) is TODO and tracked in the rewrite plan.
 
 

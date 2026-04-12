@@ -100,3 +100,5 @@ Contains editor domain scaffolding only for now:
 - **Current status:** foundational vertical slice only.
 - **Not a full port yet:** gameplay/content parity with legacy Tank Arena is still in progress.
 - **Definition of done for full port:** mode parity + map/editor parity + deterministic replay-compatible simulation + local multiplayer + production-ready asset/audio integration.
+
+- Follow-up chunk: added projectile collision damage + TTL explosion behavior in `game-core`, and extracted client keyboard intent mapping into a dedicated action mapper class.

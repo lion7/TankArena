@@ -1,5 +1,7 @@
 package com.tankarena.core
 
+import kotlin.math.hypot
+
 /**
  * Core deterministic state. Keep free from rendering/engine objects.
  */
@@ -24,28 +26,48 @@ class GameSimulation(
         worldWidth = 320f,
         worldHeight = 240f,
         entities = listOf(
-            TankEntity(
-                id = 1,
-                position = Vec2(160f, 120f),
-                playerId = 0,
-            ),
+            TankEntity(id = 1, position = Vec2(160f, 120f), playerId = 0),
+            TankEntity(id = 2, position = Vec2(160f, 50f), playerId = 1),
         ),
     )
 
     fun step(state: GameState, intents: List<PlayerIntent>): GameState {
-        val player0Actions = intents.firstOrNull { it.playerId == 0 }?.activeActions.orEmpty()
+        val actionsByPlayer = intents.associate { it.playerId to it.activeActions }
+        val tanks = state.entities.filterIsInstance<TankEntity>()
+        val projectiles = state.entities.filterIsInstance<ProjectileEntity>()
+        val explosions = state.entities.filterIsInstance<ExplosionEntity>()
 
-        val updatedEntities = state.entities.flatMap { entity ->
-            when (entity) {
-                is TankEntity -> updateTank(entity, state, player0Actions)
-                is ProjectileEntity -> updateProjectile(entity)
-                is ExplosionEntity -> updateExplosion(entity)
+        val movedTanks = tanks.map { tank ->
+            val actions = actionsByPlayer[tank.playerId].orEmpty()
+            updateTank(tank, state, actions)
+        }
+
+        val spawnedProjectiles = movedTanks.mapNotNull { tank ->
+            val actions = actionsByPlayer[tank.playerId].orEmpty()
+            if (tank.alive && PlayerAction.FirePrimary in actions) createPlaceholderProjectile(tank) else null
+        }
+
+        val (resolvedProjectiles, collisionExplosions, damagedTankIds) = resolveProjectiles(
+            tanks = movedTanks,
+            projectiles = projectiles + spawnedProjectiles,
+            state = state,
+        )
+
+        val resolvedTanks = movedTanks.map { tank ->
+            val hits = damagedTankIds[tank.id] ?: 0
+            if (hits == 0 || !tank.alive) {
+                tank
+            } else {
+                val newHealth = (tank.health - hits).coerceAtLeast(0)
+                tank.copy(health = newHealth, alive = newHealth > 0)
             }
         }
 
+        val liveExplosions = explosions.flatMap { updateExplosion(it) }
+
         val next = state.copy(
             tick = state.tick + 1,
-            entities = updatedEntities,
+            entities = resolvedTanks + resolvedProjectiles + liveExplosions + collisionExplosions,
         )
 
         val modeRules = extensions.gameModes[next.modeId]
@@ -56,7 +78,9 @@ class GameSimulation(
         tank: TankEntity,
         state: GameState,
         actions: Set<PlayerAction>,
-    ): List<Entity> {
+    ): TankEntity {
+        if (!tank.alive) return tank.copy(velocity = Vec2.ZERO)
+
         val x = (if (PlayerAction.MoveRight in actions) 1 else 0) -
             (if (PlayerAction.MoveLeft in actions) 1 else 0)
         val y = (if (PlayerAction.MoveDown in actions) 1 else 0) -
@@ -69,14 +93,7 @@ class GameSimulation(
             state = state,
         )
 
-        val spawnProjectile = PlayerAction.FirePrimary in actions
-        val updatedTank = tank.copy(position = newPosition, velocity = velocity)
-
-        return if (spawnProjectile) {
-            listOf(updatedTank, createPlaceholderProjectile(updatedTank))
-        } else {
-            listOf(updatedTank)
-        }
+        return tank.copy(position = newPosition, velocity = velocity)
     }
 
     private fun createPlaceholderProjectile(tank: TankEntity): ProjectileEntity {
@@ -90,23 +107,65 @@ class GameSimulation(
         )
     }
 
-    private fun updateProjectile(projectile: ProjectileEntity): List<Entity> {
-        val next = projectile.copy(
-            position = projectile.position + (projectile.velocity * fixedDeltaSeconds),
-            ttlTicks = projectile.ttlTicks - 1,
-        )
-        return if (next.ttlTicks <= 0) {
-            nextEntityId += 1
-            listOf(
-                ExplosionEntity(
-                    id = nextEntityId,
-                    position = projectile.position,
-                    ttlTicks = 12,
-                ),
+    private data class ProjectileResolution(
+        val projectiles: List<ProjectileEntity>,
+        val explosions: List<ExplosionEntity>,
+        val damagedTankIds: Map<Long, Int>,
+    )
+
+    private fun resolveProjectiles(
+        tanks: List<TankEntity>,
+        projectiles: List<ProjectileEntity>,
+        state: GameState,
+    ): ProjectileResolution {
+        val remainingProjectiles = mutableListOf<ProjectileEntity>()
+        val explosions = mutableListOf<ExplosionEntity>()
+        val damaged = mutableMapOf<Long, Int>()
+
+        for (projectile in projectiles) {
+            val movedProjectile = projectile.copy(
+                position = projectile.position + (projectile.velocity * fixedDeltaSeconds),
+                ttlTicks = projectile.ttlTicks - 1,
             )
-        } else {
-            listOf(next)
+
+            val hitTank = tanks.firstOrNull { tank ->
+                tank.alive &&
+                    tank.id != movedProjectile.ownerTankId &&
+                    distance(tank.position, movedProjectile.position) <= (tank.radius + movedProjectile.radius)
+            }
+
+            when {
+                hitTank != null -> {
+                    damaged[hitTank.id] = (damaged[hitTank.id] ?: 0) + movedProjectile.damage
+                    explosions += createExplosion(movedProjectile.position)
+                }
+
+                movedProjectile.ttlTicks <= 0 -> {
+                    explosions += createExplosion(movedProjectile.position)
+                }
+
+                outOfWorld(movedProjectile.position, state) -> {
+                    explosions += createExplosion(movedProjectile.position)
+                }
+
+                else -> remainingProjectiles += movedProjectile
+            }
         }
+
+        return ProjectileResolution(
+            projectiles = remainingProjectiles,
+            explosions = explosions,
+            damagedTankIds = damaged,
+        )
+    }
+
+    private fun createExplosion(position: Vec2): ExplosionEntity {
+        nextEntityId += 1
+        return ExplosionEntity(
+            id = nextEntityId,
+            position = position,
+            ttlTicks = 12,
+        )
     }
 
     private fun updateExplosion(explosion: ExplosionEntity): List<Entity> {
@@ -118,4 +177,9 @@ class GameSimulation(
         x = position.x.coerceIn(0f, state.worldWidth),
         y = position.y.coerceIn(0f, state.worldHeight),
     )
+
+    private fun outOfWorld(position: Vec2, state: GameState): Boolean =
+        position.x < 0f || position.x > state.worldWidth || position.y < 0f || position.y > state.worldHeight
+
+    private fun distance(a: Vec2, b: Vec2): Float = hypot(a.x - b.x, a.y - b.y)
 }

@@ -104,6 +104,7 @@ class TankArenaSimulation(
                     TankState(
                         id = 1,
                         playerIndex = 0,
+                        tankType = 0,
                         position = Int2(widthPixels / 2, heightPixels / 2),
                         facing = Int2(0, -1),
                         velocity = Int2(0, 0),
@@ -115,6 +116,8 @@ class TankArenaSimulation(
                 turrets = listOf(
                     TurretState(
                         id = 2,
+                        turretType = 0,
+                        direction = 0,
                         position = Int2(widthPixels / 2 + 128, heightPixels / 2),
                         cooldownTicks = 0,
                     ),
@@ -124,4 +127,3 @@ class TankArenaSimulation(
         }
     }
 }
-

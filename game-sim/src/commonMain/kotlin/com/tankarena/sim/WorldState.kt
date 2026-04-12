@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 data class TankState(
     val id: Long,
     val playerIndex: Int,
+    val tankType: Int = 0,
     val position: Int2,
     val facing: Int2,
     val velocity: Int2,
@@ -21,6 +22,8 @@ data class TankState(
 @Serializable
 data class TurretState(
     val id: Long,
+    val turretType: Int = 0,
+    val direction: Int = 0,
     val position: Int2,
     val cooldownTicks: Int,
 )
@@ -51,4 +54,3 @@ data class WorldState(
 
 fun EntityId.asLong(): Long = value
 fun Tick.asLong(): Long = value
-

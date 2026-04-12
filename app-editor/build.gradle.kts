@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    application
+    alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.compose.compiler)
 }
 
 dependencies {
@@ -9,9 +10,12 @@ dependencies {
     implementation(project(":game-render-kubriko"))
     implementation(project(":game-sim"))
     implementation(project(":game-ui-compose"))
+    implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
 }
 
-application {
-    mainClass.set("com.tankarena.app.editor.MainKt")
+compose.desktop {
+    application {
+        mainClass = "com.tankarena.app.editor.MainKt"
+    }
 }
-

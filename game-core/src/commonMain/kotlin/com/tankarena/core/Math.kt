@@ -1,7 +1,9 @@
 package com.tankarena.core
 
 import kotlin.math.abs
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class Int2(
     val x: Int,
     val y: Int,
@@ -21,4 +23,3 @@ fun toroidalDelta(from: Int, to: Int, size: Int): Int {
     val wrappedNegative = direct - size
     return listOf(direct, wrappedPositive, wrappedNegative).minBy { abs(it) }
 }
-

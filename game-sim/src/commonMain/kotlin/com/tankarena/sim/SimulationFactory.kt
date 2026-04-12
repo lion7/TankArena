@@ -23,6 +23,7 @@ object SimulationFactory {
                 TankState(
                     id = index + 1L,
                     playerIndex = index,
+                    tankType = start.properties["startType"]?.toIntOrNull() ?: index,
                     position = Int2(start.x, start.y),
                     facing = start.properties.directionToFacing(),
                     velocity = Int2(0, 0),
@@ -36,6 +37,7 @@ object SimulationFactory {
                 TankState(
                     id = 1,
                     playerIndex = 0,
+                    tankType = 0,
                     position = Int2(bounds.widthPixels / 2, bounds.heightPixels / 2),
                     facing = Int2(0, -1),
                     velocity = Int2(0, 0),
@@ -51,6 +53,8 @@ object SimulationFactory {
             .mapIndexed { index, turret ->
                 TurretState(
                     id = 10_000L + index,
+                    turretType = turret.properties["turretType"]?.toIntOrNull() ?: 0,
+                    direction = turret.properties["direction"]?.toIntOrNull() ?: 0,
                     position = Int2(turret.x, turret.y),
                     cooldownTicks = 0,
                 )

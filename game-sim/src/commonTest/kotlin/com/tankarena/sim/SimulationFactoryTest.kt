@@ -52,9 +52,10 @@ class SimulationFactoryTest {
         assertEquals(1, state.tanks.size)
         assertEquals(66, state.tanks.single().position.x)
         assertEquals(99, state.tanks.single().position.y)
+        assertEquals(0, state.tanks.single().tankType)
         assertEquals(1, state.turrets.size)
         assertEquals(132, state.turrets.single().position.x)
         assertEquals(165, state.turrets.single().position.y)
+        assertEquals(0, state.turrets.single().turretType)
     }
 }
-

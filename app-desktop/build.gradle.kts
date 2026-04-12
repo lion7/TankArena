@@ -1,17 +1,24 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    application
+    alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.compose.compiler)
 }
 
 dependencies {
+    implementation(project(":game-core"))
     implementation(project(":game-content"))
     implementation(project(":game-input"))
+    implementation(project(":game-legacy"))
     implementation(project(":game-render-kubriko"))
     implementation(project(":game-sim"))
     implementation(project(":game-ui-compose"))
+    implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
+    implementation(libs.kotlinx.serialization.json)
 }
 
-application {
-    mainClass.set("com.tankarena.app.desktop.MainKt")
+compose.desktop {
+    application {
+        mainClass = "com.tankarena.app.desktop.MainKt"
+    }
 }
-

@@ -205,4 +205,4 @@ Objectstruct binary compatibility is compiler/packing sensitive.
 2. Add `LegacyAssetRegistry` in client module linking map tile IDs to atlas regions.
 3. Replace placeholder rectangles with extracted sprite assets in KorGE renderer.
 4. Add `SoundId` enum + event-driven audio API boundary (`game-core` emits, client plays).
-5. Add map import CLI task in Gradle for batch conversion and verification report.
+5. Add map import CLI task in Amper for batch conversion and verification report.

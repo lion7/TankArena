@@ -1,0 +1,24 @@
+product: jvm/app
+
+dependencies:
+  - ../game-core
+  - ../game-content
+  - ../game-input
+  - ../game-legacy
+  - ../game-render-kubriko
+  - ../game-sim
+  - ../game-ui-compose
+  - $compose.desktop.currentOs
+  - $compose.material3
+
+settings:
+  kotlin:
+    version: 2.3.20
+    serialization:
+      format: json
+      version: 1.11.0
+  compose:
+    enabled: true
+    version: 1.10.0
+  jvm:
+    mainClass: com.tankarena.app.desktop.MainKt

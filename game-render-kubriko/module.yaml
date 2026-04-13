@@ -1,0 +1,19 @@
+product:
+  type: lib
+  platforms: [jvm]
+
+dependencies:
+  - ../game-core
+  - ../game-content
+  - ../game-sim
+  - $compose.desktop.currentOs
+  - io.github.pandulapeter.kubriko:engine-desktop:0.0.8
+  - io.github.pandulapeter.kubriko:plugin-keyboard-input-desktop:0.0.8
+  - io.github.pandulapeter.kubriko:plugin-sprites-desktop:0.0.8
+
+settings:
+  kotlin:
+    version: 2.3.20
+  compose:
+    enabled: true
+    version: 1.10.0

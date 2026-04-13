@@ -1,0 +1,16 @@
+product:
+  type: lib
+  platforms: [jvm]
+
+dependencies:
+  - ../game-content
+  - ../game-input
+  - $compose.desktop.currentOs
+  - $compose.material3
+
+settings:
+  kotlin:
+    version: 2.3.20
+  compose:
+    enabled: true
+    version: 1.10.0

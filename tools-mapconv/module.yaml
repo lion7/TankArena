@@ -1,0 +1,14 @@
+product: jvm/app
+
+dependencies:
+  - ../game-content
+  - ../game-legacy
+
+settings:
+  kotlin:
+    version: 2.3.20
+    serialization:
+      format: json
+      version: 1.11.0
+  jvm:
+    mainClass: com.tankarena.tools.mapconv.MainKt

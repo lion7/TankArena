@@ -1,0 +1,14 @@
+product:
+  type: lib
+  platforms: [jvm]
+
+dependencies:
+  - ../game-core
+  - ../game-content
+
+settings:
+  kotlin:
+    version: 2.3.20
+    serialization:
+      format: json
+      version: 1.11.0

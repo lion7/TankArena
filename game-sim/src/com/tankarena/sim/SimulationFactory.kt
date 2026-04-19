@@ -5,6 +5,7 @@ import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.ObjectKinds
 import com.tankarena.content.WeaponType
 import com.tankarena.core.Int2
+import com.tankarena.sim.runtime.SimulationHost
 
 object SimulationFactory {
     private const val DEFAULT_TURRET_DELAY_TICKS = 75
@@ -100,20 +101,18 @@ object SimulationFactory {
                 )
             }
 
-        val passability = Passability.fromMap(map)
         val spawnPoints = tanks.associate { it.id to it.position }
 
-        return TankArenaSimulation(
-            initialState = WorldState(
-                bounds = bounds,
-                tanks = tanks,
-                turrets = turrets,
-                goals = goals,
-                mission = MissionProgress(mode = mode),
-            ),
-            passability = passability,
+        val host = SimulationHost(
+            bounds = bounds,
+            initialMode = mode,
+            initialTanks = tanks,
+            initialTurrets = turrets,
+            initialGoals = goals,
+            map = map,
             spawnPoints = spawnPoints,
         )
+        return TankArenaSimulation(host = host)
     }
 }
 

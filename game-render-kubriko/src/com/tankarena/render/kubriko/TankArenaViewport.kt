@@ -16,11 +16,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.pandulapeter.kubriko.Kubriko
 import com.pandulapeter.kubriko.KubrikoViewport
 import com.pandulapeter.kubriko.actor.body.BoxBody
 import com.pandulapeter.kubriko.actor.traits.Dynamic
 import com.pandulapeter.kubriko.actor.traits.Visible
+import com.pandulapeter.kubriko.collision.CollisionManager
 import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
 import com.pandulapeter.kubriko.manager.ActorManager
 import com.pandulapeter.kubriko.manager.Manager
@@ -61,6 +63,7 @@ fun TankArenaViewport(
     map: CanonicalMapDefinition?,
     worldState: WorldState,
     modifier: Modifier = Modifier,
+    debugCollisionOverlay: Boolean = false,
 ) {
     val runtime = remember(map?.metadata?.name) {
         TankArenaKubrikoRuntime(map = map, initialState = worldState)
@@ -70,8 +73,9 @@ fun TankArenaViewport(
         onDispose(runtime::dispose)
     }
 
-    LaunchedEffect(runtime, map, worldState) {
+    LaunchedEffect(runtime, map, worldState, debugCollisionOverlay) {
         runtime.sync(map = map, state = worldState)
+        runtime.setDebugCollisionOverlayEnabled(debugCollisionOverlay)
     }
 
     KubrikoViewport(
@@ -93,13 +97,24 @@ private class TankArenaKubrikoRuntime(
     )
     private val terrainActor = TerrainActor(snapshot, spriteManager, sprites)
     private val entityActor = EntityActor(snapshot, spriteManager, sprites)
+    private val debugOverlayActor = DebugCollisionOverlayActor(snapshot)
     private val actorManager = ActorManager.newInstance(
-        initialActors = listOf(terrainActor, entityActor),
+        initialActors = listOf(terrainActor, entityActor, debugOverlayActor),
         shouldUpdateActorsWhileNotRunning = false,
         shouldPutFarAwayActorsToSleep = false,
         invisibleActorMinimumRefreshTimeInMillis = 16,
         isLoggingEnabled = false,
         instanceNameForLogging = "tank-arena-actors",
+    )
+    // Non-authoritative collision manager: registered here so the client engine
+    // mirrors the server's manager wiring, but it is **not** the source of
+    // truth for gameplay. The simulation runs CollisionDispatch on the
+    // server-authoritative SimulationHost. This instance only exists so that a
+    // future visual proxy (e.g. spawn-flash or shield bubble overlap effects)
+    // can hook into the client's tick loop the standard Kubriko way.
+    private val collisionManager = CollisionManager.newInstance(
+        isLoggingEnabled = false,
+        instanceNameForLogging = "tank-arena-collision-debug",
     )
     private val viewportManager = ViewportManager.newInstance(
         aspectRatioMode = ViewportManager.AspectRatioMode.Fixed(
@@ -132,6 +147,7 @@ private class TankArenaKubrikoRuntime(
             stateManager,
             viewportManager,
             spriteManager,
+            collisionManager,
             actorManager,
         ),
         isLoggingEnabled = false,
@@ -143,8 +159,13 @@ private class TankArenaKubrikoRuntime(
         snapshot.worldState = state
         terrainActor.syncBounds(state)
         entityActor.syncBounds(state)
+        debugOverlayActor.syncBounds(state)
         preloadFrameSprites(map, state)
         positionCamera(map, state)
+    }
+
+    fun setDebugCollisionOverlayEnabled(enabled: Boolean) {
+        debugOverlayActor.enabled = enabled
     }
 
     fun dispose() {
@@ -459,6 +480,85 @@ private fun createWorldBody(state: WorldState): BoxBody = BoxBody(
         state.bounds.heightPixels.toFloat().sceneUnit,
     ),
 )
+
+/**
+ * Optional debug overlay that draws collision-mask outlines for tanks,
+ * turrets, and solid map tiles using the same conventions as the
+ * server-authoritative [com.tankarena.sim.runtime.SimulationHost]. Drawn
+ * straight from the [WorldState] snapshot — no gameplay decisions are made
+ * here. Toggled via the `debugCollisionOverlay` flag on [TankArenaViewport].
+ */
+private class DebugCollisionOverlayActor(
+    private val snapshot: RuntimeSnapshot,
+) : Visible {
+
+    override var body: BoxBody = createWorldBody(snapshot.worldState)
+    override val layerIndex: Int = 100
+
+    var enabled: Boolean = false
+
+    fun syncBounds(state: WorldState) {
+        body = createWorldBody(state)
+    }
+
+    override fun DrawScope.draw() {
+        if (!enabled) return
+        val world = snapshot.worldState
+        val map = snapshot.map
+        val tankSide = (LEGACY_TILE_SIZE - 4).toFloat()
+        val stroke = Stroke(width = 1f)
+
+        if (map != null) {
+            val width = map.metadata.widthTiles
+            val height = map.metadata.heightTiles
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val index = x + y * width
+                    if (map.layers.solid[index] < 0) continue
+                    drawRect(
+                        color = Color(0xAAFF3355),
+                        topLeft = Offset(x * TILE_SIZE, y * TILE_SIZE),
+                        size = Size(TILE_SIZE, TILE_SIZE),
+                        style = stroke,
+                    )
+                }
+            }
+        }
+
+        for (tank in world.tanks) {
+            val cx = tank.position.x.toFloat()
+            val cy = tank.position.y.toFloat()
+            drawRect(
+                color = if (tank.isAlive) Color(0xAA66FFAA) else Color(0x66666666),
+                topLeft = Offset(cx - tankSide / 2f, cy - tankSide / 2f),
+                size = Size(tankSide, tankSide),
+                style = stroke,
+            )
+        }
+
+        for (turret in world.turrets) {
+            val cx = turret.position.x.toFloat()
+            val cy = turret.position.y.toFloat()
+            drawRect(
+                color = Color(0xAAFFAA33),
+                topLeft = Offset(cx - tankSide / 2f, cy - tankSide / 2f),
+                size = Size(tankSide, tankSide),
+                style = stroke,
+            )
+        }
+
+        for (projectile in world.projectiles) {
+            val cx = projectile.position.x.toFloat()
+            val cy = projectile.position.y.toFloat()
+            drawCircle(
+                color = Color(0xAA33CCFF),
+                radius = 2f,
+                center = Offset(cx, cy),
+                style = stroke,
+            )
+        }
+    }
+}
 
 private fun DrawScope.drawSprite(
     image: ImageBitmap,

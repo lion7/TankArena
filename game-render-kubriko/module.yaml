@@ -10,6 +10,7 @@ dependencies:
   - io.github.pandulapeter.kubriko:engine-desktop:0.0.8
   - io.github.pandulapeter.kubriko:plugin-keyboard-input-desktop:0.0.8
   - io.github.pandulapeter.kubriko:plugin-sprites-desktop:0.0.8
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.0.8
 
 settings:
   kotlin:

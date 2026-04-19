@@ -6,6 +6,9 @@ dependencies:
   - ../game-core
   - ../game-content
   - ../game-input
+  - $compose.desktop.currentOs
+  - io.github.pandulapeter.kubriko:engine-desktop:0.0.8
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.0.8
 
 settings:
   kotlin:
@@ -13,3 +16,6 @@ settings:
     serialization:
       format: json
       version: 1.11.0
+  compose:
+    enabled: true
+    version: 1.10.0

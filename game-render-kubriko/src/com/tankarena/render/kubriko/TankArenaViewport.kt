@@ -286,29 +286,57 @@ private class EntityActor(
     }
 
     private fun DrawScope.drawTank(tank: TankState) {
+        if (!tank.isAlive) {
+            drawProjectileExplosion(tank.position.x.toFloat(), tank.position.y.toFloat())
+            return
+        }
         val animationColumn = ((snapshot.worldState.tick / 6L) % 8L).toInt()
-        val frame = LegacyAssetRegistry.resolveTankFrame(
+        val bodyFrame = LegacyAssetRegistry.resolveTankFrame(
             variant = tank.tankType,
             facingX = tank.facing.x,
             facingY = tank.facing.y,
             animationFrame = animationColumn,
         )
-        val image = assets.get(frame.sheet.assetId)
-        if (image == null) {
+        val bodyImage = assets.get(bodyFrame.sheet.assetId)
+        if (bodyImage == null) {
             drawRect(
                 color = Color(0xFF6DD3FF),
                 topLeft = Offset(tank.position.x.toFloat() - 12f, tank.position.y.toFloat() - 12f),
                 size = Size(24f, 24f),
             )
-            return
+        } else {
+            drawFrame(
+                image = bodyImage,
+                frame = bodyFrame,
+                centerX = tank.position.x.toFloat(),
+                centerY = tank.position.y.toFloat(),
+                width = LEGACY_TILE_SIZE,
+                height = LEGACY_TILE_SIZE,
+            )
         }
+
+        // Overlay the turret on top of the body using the independent turret facing.
+        val turretDirection = directionFromFacing(tank.turretFacing)
+        val turretFrame = LegacyAssetRegistry.resolveTurretFrame(
+            turretType = tank.tankType,
+            direction = turretDirection,
+        )
+        val turretImage = assets.get(turretFrame.sheet.assetId) ?: return
         drawFrame(
-            image = image,
-            frame = frame,
+            image = turretImage,
+            frame = turretFrame,
             centerX = tank.position.x.toFloat(),
             centerY = tank.position.y.toFloat(),
             width = LEGACY_TILE_SIZE,
             height = LEGACY_TILE_SIZE,
+        )
+    }
+
+    private fun DrawScope.drawProjectileExplosion(x: Float, y: Float) {
+        drawRect(
+            color = Color(0xCCFF7733),
+            topLeft = Offset(x - 14f, y - 14f),
+            size = Size(28f, 28f),
         )
     }
 
@@ -385,6 +413,22 @@ private fun frameAt(sheet: com.tankarena.content.SpriteSheetDefinition, column: 
         width = sheet.frameWidth,
         height = sheet.frameHeight,
     )
+}
+
+private fun directionFromFacing(facing: com.tankarena.core.Int2): Int {
+    val sx = facing.x.coerceIn(-1, 1)
+    val sy = facing.y.coerceIn(-1, 1)
+    return when {
+        sx == 0 && sy < 0 -> 0
+        sx > 0 && sy < 0 -> 2
+        sx > 0 && sy == 0 -> 4
+        sx > 0 && sy > 0 -> 6
+        sx == 0 && sy > 0 -> 8
+        sx < 0 && sy > 0 -> 10
+        sx < 0 && sy == 0 -> 12
+        sx < 0 && sy < 0 -> 14
+        else -> 0
+    }
 }
 
 private fun DrawScope.drawFrame(

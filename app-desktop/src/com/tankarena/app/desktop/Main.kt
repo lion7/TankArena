@@ -25,7 +25,12 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
+import com.tankarena.ui.compose.hud.HudOverlay
+import kotlin.math.sign
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.tankarena.content.CanonicalMapDefinition
@@ -148,12 +153,36 @@ private fun GameplayScreen(
                 .aspectRatio(aspectRatio)
                 .border(width = 2.dp, color = RetroColors.PanelBorderOuter, shape = RectangleShape)
                 .padding(2.dp)
-                .background(Color.Black),
+                .background(Color.Black)
+                .onSizeChanged { size -> controls.updateViewportSize(size.width, size.height) }
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.type == PointerEventType.Move ||
+                                event.type == PointerEventType.Enter ||
+                                event.type == PointerEventType.Press
+                            ) {
+                                val pos = event.changes.firstOrNull()?.position
+                                if (pos != null) {
+                                    controls.updateMousePosition(pos.x, pos.y)
+                                }
+                            }
+                        }
+                    }
+                },
         ) {
             TankArenaViewport(
                 map = map,
                 worldState = worldState,
                 modifier = Modifier.fillMaxSize(),
+            )
+            HudOverlay(
+                world = worldState,
+                missionCode = map.metadata.missionCode,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 6.dp),
             )
         }
     }
@@ -183,6 +212,13 @@ private class DesktopControls {
     var steer: Int = 0
     var firePrimary: Boolean = false
 
+    private var aimX: Int = 0
+    private var aimY: Int = -1
+    private var viewportWidthPx: Int = 0
+    private var viewportHeightPx: Int = 0
+    private var mouseX: Float = 0f
+    private var mouseY: Float = 0f
+
     fun handle(event: KeyEvent): Boolean {
         val pressed = event.type == KeyEventType.KeyDown
         when (event.key) {
@@ -196,6 +232,34 @@ private class DesktopControls {
         return true
     }
 
+    fun updateViewportSize(width: Int, height: Int) {
+        viewportWidthPx = width
+        viewportHeightPx = height
+        recomputeAim()
+    }
+
+    fun updateMousePosition(x: Float, y: Float) {
+        mouseX = x
+        mouseY = y
+        recomputeAim()
+    }
+
+    private fun recomputeAim() {
+        if (viewportWidthPx <= 0 || viewportHeightPx <= 0) return
+        // Camera follows tank 0, so the player tank renders at viewport center.
+        val dx = mouseX - viewportWidthPx / 2f
+        val dy = mouseY - viewportHeightPx / 2f
+        // Apply a small dead zone so the turret does not jitter when the cursor sits near the tank.
+        val deadZone = 12f
+        val newAimX = if (kotlin.math.abs(dx) < deadZone) 0 else dx.sign.toInt()
+        val newAimY = if (kotlin.math.abs(dy) < deadZone) 0 else dy.sign.toInt()
+        // Avoid (0, 0) which would tell the sim "no aim"; preserve previous direction in that case.
+        if (newAimX != 0 || newAimY != 0) {
+            aimX = newAimX
+            aimY = newAimY
+        }
+    }
+
     fun toIntentFrame(): PlayerIntentFrame {
         val fireNow = firePrimary
         firePrimary = false
@@ -203,8 +267,8 @@ private class DesktopControls {
             throttle = throttle,
             steer = steer,
             firePrimary = fireNow,
-            aimY = if (throttle != 0) throttle else 0,
-            aimX = if (steer != 0) steer else 0,
+            aimX = aimX,
+            aimY = aimY,
         )
     }
 
@@ -212,5 +276,9 @@ private class DesktopControls {
         throttle = 0
         steer = 0
         firePrimary = false
+        aimX = 0
+        aimY = -1
+        mouseX = 0f
+        mouseY = 0f
     }
 }

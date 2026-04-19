@@ -6,6 +6,7 @@ dependencies:
   - ../game-content
   - ../game-input
   - ../game-legacy
+  - ../game-sim
   - $compose.desktop.currentOs
   - $compose.material3
 

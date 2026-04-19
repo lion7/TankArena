@@ -36,6 +36,7 @@ import androidx.compose.ui.window.application
 import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.core.FixedStepClock
 import com.tankarena.input.PlayerIntentFrame
+import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.sim.MissionMode
 import com.tankarena.sim.SimulationEvent
@@ -192,14 +193,16 @@ private fun GameplayScreen(
     }
 
     TiledPanelBackground(modifier = Modifier.fillMaxSize()) {
-        val aspectRatio = map.metadata.widthTiles.toFloat() /
-            map.metadata.heightTiles.toFloat().coerceAtLeast(1f)
+        // The original DOS playfield is 640x400 pixels (a 4:3 framebuffer
+        // minus the 80px HUD strip). Pinning the same ratio keeps every
+        // mission rendering with the legacy on-screen tile size, regardless
+        // of the actual map dimensions.
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(32.dp)
                 .fillMaxHeight()
-                .aspectRatio(aspectRatio)
+                .aspectRatio(LEGACY_PLAYFIELD_ASPECT_RATIO)
                 .border(width = 2.dp, color = RetroColors.PanelBorderOuter, shape = RectangleShape)
                 .padding(2.dp)
                 .background(Color.Black)

@@ -113,14 +113,42 @@ This confirms the sprite system is **name-indexed atlas chunks**, not one monoli
 - legacy renderer is 8-bit indexed palette-based
 - `DATA/NIGHT.PAL` and `DATA/NIGHT.LNK` provide night-mode remap pipeline
 
-## 3.4 Existing extracted assets already available
-`unpacked/sprites/*.png` and `unpacked/backgrounds/*.bmp` already provide a modern baseline reuse path.
+## 3.4 Sprite extraction pipeline (current implementation)
+The Compose desktop port now ships every legacy 33x33 picture as a Compose
+Multiplatform drawable resource. The build-time pipeline lives in
+[`tools-mapconv`](../tools-mapconv) and runs as:
 
-### Recommended sprite/tile migration
-1. Prefer `unpacked/` assets as source of truth for near-term port velocity.
-2. Build KorGE atlases from extracted PNGs (tank*, plane*, copter*, walls, floors, icons, etc.).
-3. Preserve mapping table from legacy symbolic ids (`TAN01-1` style) to new atlas regions in a Kotlin registry file.
-4. For strict visual parity modes later, optionally add direct `.DAT/.IDX` decoder to compare exact frame extraction.
+```
+amper run -m tools-mapconv -- extract-pictures-png \
+    DATA \
+    game-render-kubriko/composeResources/drawable \
+    game-content/src/com/tankarena/content/GeneratedLegacyPictureCatalog.kt \
+    src/data/pictures.c
+```
+
+Steps performed by `LegacyPicturesPngExtractor`:
+1. Decode `DATA/PALETTE.DAT` (Allegro 6-bit RGB → 8-bit ARGB).
+2. Walk `DATA/PICTURES.IDX` (16-byte records: 12-byte ASCII name + 4-byte
+   little-endian offset). 2 960 sprites total.
+3. Read 1 089 bytes from `DATA/PICTURES.DAT` per entry, treating palette
+   index `0xFF` as transparent (matches `tank->pic[dir]+x2+y2*b_size != 0xff`
+   in `src/check/hitobj.c`).
+4. Emit one PNG per legacy name to
+   `game-render-kubriko/composeResources/drawable/pic_<safe>.png`, where the
+   safe key is produced by `LegacyResourceNaming.safeKey` (single-underscore
+   escapes for `@`, `_`, `~`, `^`, `.`, `-`).
+5. Regenerate `GeneratedLegacyPictureCatalog` so each `pc{world}` entry from
+   `src/data/pictures.c` ships all three variant names (intact / damaged /
+   dead) plus a `legacyName → resourceKey` map. Lists are emitted as chunked
+   builder methods to stay under JVM's 64 KB per-method bytecode limit.
+
+At runtime, `LegacySpriteResources` (in `game-content`) maps simulation
+state to legacy picture names following `init_pictures` (`TAN%02ld-%ld`,
+`TUR%ld-%ld`, `EXP%d`, …). The `LegacySpriteCatalog` in
+`game-render-kubriko` resolves those names to `DrawableResource` handles
+through `Res.allDrawableResources` and feeds Kubriko's stock
+`SpriteManager` for preload/get; tiles and entities draw with
+`FilterQuality.None` so the pixel art stays crisp.
 
 ---
 
@@ -201,8 +229,18 @@ Objectstruct binary compatibility is compiler/packing sensitive.
 ---
 
 ## 8) Recommended immediate implementation tasks (next coding chunks)
-1. Add `legacy-map-reader` package in `game-core` or `game-editor` with parser for header+layers.
-2. Add `LegacyAssetRegistry` in client module linking map tile IDs to atlas regions.
-3. Replace placeholder rectangles with extracted sprite assets in KorGE renderer.
-4. Add `SoundId` enum + event-driven audio API boundary (`game-core` emits, client plays).
-5. Add map import CLI task in Amper for batch conversion and verification report.
+1. Add `legacy-map-reader` package in `game-core` or `game-editor` with parser for header+layers — **done** in `game-legacy/LegacyMapParser`.
+2. Add a name-indexed sprite registry — **done** as
+   `LegacySpriteResources` (data) + `LegacySpriteCatalog` (Compose
+   resources). Replaces the previous heuristic `LegacyAssetRegistry` /
+   `SpriteSheets` model, which has been deleted.
+3. Replace placeholder rectangles with extracted sprite assets in the
+   Compose desktop renderer — **done** in `TankArenaViewport` via the
+   Kubriko `SpriteManager` plugin.
+4. Drive the Kubriko `ViewportManager` from the legacy 640x400 playfield
+   so small maps render at the same on-screen tile size as the original —
+   **done** (`LEGACY_PLAYFIELD_ASPECT_RATIO`).
+5. Add `SoundId` enum + event-driven audio API boundary (`game-core`
+   emits, client plays).
+6. Add map import CLI task in Amper for batch conversion and verification
+   report.

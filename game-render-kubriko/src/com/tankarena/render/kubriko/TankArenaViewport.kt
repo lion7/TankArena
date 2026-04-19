@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
@@ -26,23 +27,34 @@ import com.pandulapeter.kubriko.manager.Manager
 import com.pandulapeter.kubriko.manager.MetadataManager
 import com.pandulapeter.kubriko.manager.StateManager
 import com.pandulapeter.kubriko.manager.ViewportManager
+import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.pandulapeter.kubriko.types.FrameRate
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.pandulapeter.kubriko.types.SceneSize
 import com.tankarena.content.CanonicalMapDefinition
-import com.tankarena.content.LegacyAssetRegistry
 import com.tankarena.content.LEGACY_TILE_SIZE
-import com.tankarena.content.SpriteFrameRef
-import com.tankarena.content.TileLayerKind
+import com.tankarena.content.LegacyPictureVariant
+import com.tankarena.content.LegacySpriteResources
+import com.tankarena.content.TankArenaWorld
 import com.tankarena.sim.ProjectileState
 import com.tankarena.sim.TankState
 import com.tankarena.sim.TurretState
 import com.tankarena.sim.WorldState
+import org.jetbrains.compose.resources.DrawableResource
 import kotlin.math.max
+import kotlin.math.min
 
 private const val TILE_SIZE = LEGACY_TILE_SIZE.toFloat()
-private const val VIEWPORT_WIDTH = 640f
-private const val VIEWPORT_HEIGHT = 400f
+
+// The original DOS game reserved a 640x480 framebuffer with the bottom 80px
+// dedicated to the HUD strip. The actual playfield is therefore 640x400. We
+// match that aspect ratio so legacy maps render at the same on-screen tile
+// size as the original.
+private const val LEGACY_PLAYFIELD_WIDTH = 640f
+private const val LEGACY_PLAYFIELD_HEIGHT = 400f
+/** Aspect ratio of the legacy 640x400 playfield (the 640x480 framebuffer minus the 80px HUD). */
+const val LEGACY_PLAYFIELD_ASPECT_RATIO: Float =
+    LEGACY_PLAYFIELD_WIDTH / LEGACY_PLAYFIELD_HEIGHT
 
 @Composable
 fun TankArenaViewport(
@@ -51,11 +63,7 @@ fun TankArenaViewport(
     modifier: Modifier = Modifier,
 ) {
     val runtime = remember(map?.metadata?.name) {
-        TankArenaKubrikoRuntime(
-            map = map,
-            initialState = worldState,
-            assets = DesktopBitmapCache(),
-        )
+        TankArenaKubrikoRuntime(map = map, initialState = worldState)
     }
 
     DisposableEffect(runtime) {
@@ -76,12 +84,15 @@ fun TankArenaViewport(
 private class TankArenaKubrikoRuntime(
     map: CanonicalMapDefinition?,
     initialState: WorldState,
-    private val assets: DesktopBitmapCache,
 ) {
+    private val sprites = LegacySpriteCatalog.shared
     private val snapshot = RuntimeSnapshot(map = map, worldState = initialState)
-
-    private val terrainActor = TerrainActor(snapshot, assets)
-    private val entityActor = EntityActor(snapshot, assets)
+    private val spriteManager = SpriteManager.newInstance(
+        isLoggingEnabled = false,
+        instanceNameForLogging = "tank-arena-sprites",
+    )
+    private val terrainActor = TerrainActor(snapshot, spriteManager, sprites)
+    private val entityActor = EntityActor(snapshot, spriteManager, sprites)
     private val actorManager = ActorManager.newInstance(
         initialActors = listOf(terrainActor, entityActor),
         shouldUpdateActorsWhileNotRunning = false,
@@ -92,8 +103,8 @@ private class TankArenaKubrikoRuntime(
     )
     private val viewportManager = ViewportManager.newInstance(
         aspectRatioMode = ViewportManager.AspectRatioMode.Fixed(
-            ratio = VIEWPORT_WIDTH / VIEWPORT_HEIGHT,
-            width = VIEWPORT_WIDTH.sceneUnit,
+            ratio = LEGACY_PLAYFIELD_ASPECT_RATIO,
+            width = LEGACY_PLAYFIELD_WIDTH.sceneUnit,
             alignment = Alignment.Center,
         ),
         initialScaleFactor = 1f,
@@ -120,6 +131,7 @@ private class TankArenaKubrikoRuntime(
             metadataManager,
             stateManager,
             viewportManager,
+            spriteManager,
             actorManager,
         ),
         isLoggingEnabled = false,
@@ -131,18 +143,85 @@ private class TankArenaKubrikoRuntime(
         snapshot.worldState = state
         terrainActor.syncBounds(state)
         entityActor.syncBounds(state)
-        state.tanks.firstOrNull()?.let { tank ->
-            viewportManager.setCameraPosition(
-                SceneOffset(
-                    x = (tank.position.x - VIEWPORT_WIDTH / 2f).sceneUnit,
-                    y = (tank.position.y - VIEWPORT_HEIGHT / 2f).sceneUnit,
-                )
-            )
-        }
+        preloadFrameSprites(map, state)
+        positionCamera(map, state)
     }
 
     fun dispose() {
         kubriko.dispose()
+    }
+
+    private fun preloadFrameSprites(map: CanonicalMapDefinition?, state: WorldState) {
+        val resources = LinkedHashSet<DrawableResource>()
+        if (map != null) {
+            val world = map.metadata.world
+            val width = map.metadata.widthTiles
+            val height = map.metadata.heightTiles
+            for (index in 0 until width * height) {
+                addTileSprite(resources, world, map.layers.base[index])
+                addTileSprite(resources, world, map.layers.solid[index])
+                addTileSprite(resources, world, map.layers.top[index])
+            }
+        }
+        for (tank in state.tanks) {
+            val direction = LegacySpriteResources.direction16FromFacing(tank.facing.x, tank.facing.y)
+            val frame = LegacySpriteResources.tankBodyFrameForFacing(direction)
+            sprites.findResource(LegacySpriteResources.nameForTankBody(tank.tankType, frame))
+                ?.let(resources::add)
+            val turretDirection = LegacySpriteResources.direction16FromFacing(
+                tank.turretFacing.x,
+                tank.turretFacing.y,
+            )
+            val turretFrame = LegacySpriteResources.turretFrameForDirection(turretDirection)
+            sprites.findResource(LegacySpriteResources.nameForTurret(tank.tankType, turretFrame))
+                ?.let(resources::add)
+        }
+        for (turret in state.turrets) {
+            val frame = LegacySpriteResources.turretFrameForDirection(turret.direction)
+            sprites.findResource(LegacySpriteResources.nameForTurret(turret.turretType, frame))
+                ?.let(resources::add)
+        }
+        if (resources.isNotEmpty()) {
+            spriteManager.preload(resources)
+        }
+    }
+
+    private fun addTileSprite(
+        target: MutableSet<DrawableResource>,
+        world: TankArenaWorld,
+        tileId: Int,
+    ) {
+        if (tileId < 0) return
+        val name = LegacySpriteResources.nameForTile(world, tileId, LegacyPictureVariant.INTACT)
+            ?: return
+        sprites.findResource(name)?.let(target::add)
+    }
+
+    private fun positionCamera(map: CanonicalMapDefinition?, state: WorldState) {
+        val bounds = state.bounds
+        val mapFitsInsideViewport = bounds.widthPixels <= LEGACY_PLAYFIELD_WIDTH &&
+            bounds.heightPixels <= LEGACY_PLAYFIELD_HEIGHT
+        val target = when {
+            mapFitsInsideViewport -> SceneOffset(
+                x = (bounds.widthPixels / 2f).sceneUnit,
+                y = (bounds.heightPixels / 2f).sceneUnit,
+            )
+            else -> {
+                val tank = state.tanks.firstOrNull()
+                if (tank != null) {
+                    SceneOffset(
+                        x = tank.position.x.toFloat().sceneUnit,
+                        y = tank.position.y.toFloat().sceneUnit,
+                    )
+                } else {
+                    SceneOffset(
+                        x = (bounds.widthPixels / 2f).sceneUnit,
+                        y = (bounds.heightPixels / 2f).sceneUnit,
+                    )
+                }
+            }
+        }
+        viewportManager.setCameraPosition(target)
     }
 }
 
@@ -153,7 +232,8 @@ private class RuntimeSnapshot(
 
 private class TerrainActor(
     private val snapshot: RuntimeSnapshot,
-    private val assets: DesktopBitmapCache,
+    private val spriteManager: SpriteManager,
+    private val sprites: LegacySpriteCatalog,
 ) : Visible {
     override var body: BoxBody = createWorldBody(snapshot.worldState)
 
@@ -180,6 +260,7 @@ private class TerrainActor(
 
         val width = map.metadata.widthTiles
         val height = map.metadata.heightTiles
+        val theme = map.metadata.world
         for (y in 0 until height) {
             for (x in 0 until width) {
                 val index = x + y * width
@@ -188,44 +269,28 @@ private class TerrainActor(
                 val base = map.layers.base[index]
                 val solid = map.layers.solid[index]
                 val top = map.layers.top[index]
-                val world = map.metadata.world
 
-                if (base >= 0) {
-                    drawTile(LegacyAssetRegistry.resolveTileFrame(TileLayerKind.BASE, base, world), px, py, 1f)
-                }
-                if (solid >= 0) {
-                    drawTile(LegacyAssetRegistry.resolveTileFrame(TileLayerKind.SOLID, solid, world), px, py, 0.94f)
-                }
-                if (top >= 0) {
-                    drawTile(LegacyAssetRegistry.resolveTileFrame(TileLayerKind.TOP, top, world), px, py, 0.55f)
-                }
+                if (base >= 0) drawTile(theme, base, px, py)
+                if (solid >= 0) drawTile(theme, solid, px, py)
+                if (top >= 0) drawTile(theme, top, px, py)
             }
         }
     }
 
-    private fun DrawScope.drawTile(
-        frame: SpriteFrameRef,
-        x: Float,
-        y: Float,
-        alpha: Float,
-    ) {
-        val image = assets.get(frame.sheet.assetId)
+    private fun DrawScope.drawTile(world: TankArenaWorld, tileId: Int, x: Float, y: Float) {
+        val name = LegacySpriteResources.nameForTile(world, tileId, LegacyPictureVariant.INTACT)
+            ?: return
+        val resource = sprites.findResource(name) ?: return
+        val image = spriteManager.get(resource)
         if (image == null) {
             drawRect(
-                color = tileColor(frame.column + frame.row * 10, layerBias = 0).copy(alpha = alpha),
+                color = fallbackTileColor(tileId),
                 topLeft = Offset(x, y),
                 size = Size(TILE_SIZE, TILE_SIZE),
             )
             return
         }
-        drawImage(
-            image = image,
-            srcOffset = IntOffset(frame.x, frame.y),
-            srcSize = IntSize(frame.width, frame.height),
-            dstOffset = IntOffset(x.toInt(), y.toInt()),
-            dstSize = IntSize(LEGACY_TILE_SIZE, LEGACY_TILE_SIZE),
-            alpha = alpha,
-        )
+        drawSprite(image, x, y, TILE_SIZE.toInt(), TILE_SIZE.toInt())
     }
 
     private fun DrawScope.drawGrid() {
@@ -251,8 +316,8 @@ private class TerrainActor(
         }
     }
 
-    private fun tileColor(tile: Int, layerBias: Int): Color {
-        val seed = max(tile + layerBias * 17, 0)
+    private fun fallbackTileColor(tileId: Int): Color {
+        val seed = max(tileId, 0)
         val r = 40 + (seed * 53) % 140
         val g = 50 + (seed * 29) % 120
         val b = 60 + (seed * 11) % 100
@@ -262,7 +327,8 @@ private class TerrainActor(
 
 private class EntityActor(
     private val snapshot: RuntimeSnapshot,
-    private val assets: DesktopBitmapCache,
+    private val spriteManager: SpriteManager,
+    private val sprites: LegacySpriteCatalog,
 ) : Visible, Dynamic {
     override var body: BoxBody = createWorldBody(snapshot.worldState)
     override val layerIndex: Int = 2
@@ -287,44 +353,58 @@ private class EntityActor(
 
     private fun DrawScope.drawTank(tank: TankState) {
         if (!tank.isAlive) {
-            drawProjectileExplosion(tank.position.x.toFloat(), tank.position.y.toFloat())
+            val stage = (snapshot.worldState.tick.toInt().coerceAtLeast(0)) % 5
+            val explosionResource = sprites.findResource(LegacySpriteResources.nameForExplosion(stage))
+            val image = explosionResource?.let(spriteManager::get)
+            if (image != null) {
+                drawSpriteCentered(
+                    image,
+                    centerX = tank.position.x.toFloat(),
+                    centerY = tank.position.y.toFloat(),
+                    width = LEGACY_TILE_SIZE,
+                    height = LEGACY_TILE_SIZE,
+                )
+            } else {
+                drawRect(
+                    color = Color(0xCCFF7733),
+                    topLeft = Offset(tank.position.x.toFloat() - 14f, tank.position.y.toFloat() - 14f),
+                    size = Size(28f, 28f),
+                )
+            }
             return
         }
-        val animationColumn = ((snapshot.worldState.tick / 6L) % 8L).toInt()
-        val bodyFrame = LegacyAssetRegistry.resolveTankFrame(
-            variant = tank.tankType,
-            facingX = tank.facing.x,
-            facingY = tank.facing.y,
-            animationFrame = animationColumn,
-        )
-        val bodyImage = assets.get(bodyFrame.sheet.assetId)
-        if (bodyImage == null) {
-            drawRect(
-                color = Color(0xFF6DD3FF),
-                topLeft = Offset(tank.position.x.toFloat() - 12f, tank.position.y.toFloat() - 12f),
-                size = Size(24f, 24f),
-            )
-        } else {
-            drawFrame(
-                image = bodyImage,
-                frame = bodyFrame,
+
+        val direction = LegacySpriteResources.direction16FromFacing(tank.facing.x, tank.facing.y)
+        val bodyFrame = LegacySpriteResources.tankBodyFrameForFacing(direction)
+        val bodyName = LegacySpriteResources.nameForTankBody(tank.tankType, bodyFrame)
+        val bodyResource = sprites.findResource(bodyName)
+        val bodyImage = bodyResource?.let(spriteManager::get)
+        if (bodyImage != null) {
+            drawSpriteCentered(
+                bodyImage,
                 centerX = tank.position.x.toFloat(),
                 centerY = tank.position.y.toFloat(),
                 width = LEGACY_TILE_SIZE,
                 height = LEGACY_TILE_SIZE,
             )
+        } else {
+            drawRect(
+                color = Color(0xFF6DD3FF),
+                topLeft = Offset(tank.position.x.toFloat() - 12f, tank.position.y.toFloat() - 12f),
+                size = Size(24f, 24f),
+            )
         }
 
-        // Overlay the turret on top of the body using the independent turret facing.
-        val turretDirection = directionFromFacing(tank.turretFacing)
-        val turretFrame = LegacyAssetRegistry.resolveTurretFrame(
-            turretType = tank.tankType,
-            direction = turretDirection,
+        val turretDirection = LegacySpriteResources.direction16FromFacing(
+            tank.turretFacing.x,
+            tank.turretFacing.y,
         )
-        val turretImage = assets.get(turretFrame.sheet.assetId) ?: return
-        drawFrame(
-            image = turretImage,
-            frame = turretFrame,
+        val turretFrame = LegacySpriteResources.turretFrameForDirection(turretDirection)
+        val turretName = LegacySpriteResources.nameForTurret(tank.tankType, turretFrame)
+        val turretResource = sprites.findResource(turretName) ?: return
+        val turretImage = spriteManager.get(turretResource) ?: return
+        drawSpriteCentered(
+            turretImage,
             centerX = tank.position.x.toFloat(),
             centerY = tank.position.y.toFloat(),
             width = LEGACY_TILE_SIZE,
@@ -332,20 +412,11 @@ private class EntityActor(
         )
     }
 
-    private fun DrawScope.drawProjectileExplosion(x: Float, y: Float) {
-        drawRect(
-            color = Color(0xCCFF7733),
-            topLeft = Offset(x - 14f, y - 14f),
-            size = Size(28f, 28f),
-        )
-    }
-
     private fun DrawScope.drawTurret(turret: TurretState) {
-        val frame = LegacyAssetRegistry.resolveTurretFrame(
-            turretType = turret.turretType,
-            direction = turret.direction,
-        )
-        val image = assets.get(frame.sheet.assetId)
+        val frame = LegacySpriteResources.turretFrameForDirection(turret.direction)
+        val name = LegacySpriteResources.nameForTurret(turret.turretType, frame)
+        val resource = sprites.findResource(name)
+        val image = resource?.let(spriteManager::get)
         if (image == null) {
             drawRect(
                 color = Color(0xFFFFB454),
@@ -354,9 +425,8 @@ private class EntityActor(
             )
             return
         }
-        drawFrame(
-            image = image,
-            frame = frame,
+        drawSpriteCentered(
+            image,
             centerX = turret.position.x.toFloat(),
             centerY = turret.position.y.toFloat(),
             width = LEGACY_TILE_SIZE,
@@ -365,23 +435,19 @@ private class EntityActor(
     }
 
     private fun DrawScope.drawProjectile(projectile: ProjectileState) {
-        val frame = LegacyAssetRegistry.resolveProjectileFrame()
-        val image = assets.get(frame.sheet.assetId)
-        if (image == null) {
-            drawRect(
-                color = Color(0xFFFF645A),
-                topLeft = Offset(projectile.position.x.toFloat() - 3f, projectile.position.y.toFloat() - 3f),
-                size = Size(6f, 6f),
-            )
-            return
-        }
-        drawFrame(
-            image = image,
-            frame = frame,
-            centerX = projectile.position.x.toFloat(),
-            centerY = projectile.position.y.toFloat(),
-            width = 12,
-            height = 12,
+        // The legacy engine renders main-cannon bullets as a 5-pixel cross in
+        // black; no sprite lookup needed. Mirror that with a small black plus.
+        val cx = projectile.position.x.toFloat()
+        val cy = projectile.position.y.toFloat()
+        drawRect(
+            color = Color.Black,
+            topLeft = Offset(cx - 0.5f, cy - 1.5f),
+            size = Size(1f, 3f),
+        )
+        drawRect(
+            color = Color.Black,
+            topLeft = Offset(cx - 1.5f, cy - 0.5f),
+            size = Size(3f, 1f),
         )
     }
 }
@@ -394,56 +460,37 @@ private fun createWorldBody(state: WorldState): BoxBody = BoxBody(
     ),
 )
 
-private data class FrameRect(
-    val x: Int,
-    val y: Int,
-    val width: Int,
-    val height: Int,
-)
-
-private val SpriteFrameRef.x: Int get() = column * sheet.frameWidth
-private val SpriteFrameRef.y: Int get() = row * sheet.frameHeight
-private val SpriteFrameRef.width: Int get() = sheet.frameWidth
-private val SpriteFrameRef.height: Int get() = sheet.frameHeight
-
-private fun frameAt(sheet: com.tankarena.content.SpriteSheetDefinition, column: Int, row: Int): FrameRect {
-    return FrameRect(
-        x = column * sheet.frameWidth,
-        y = row * sheet.frameHeight,
-        width = sheet.frameWidth,
-        height = sheet.frameHeight,
+private fun DrawScope.drawSprite(
+    image: ImageBitmap,
+    x: Float,
+    y: Float,
+    width: Int,
+    height: Int,
+) {
+    val srcWidth = min(image.width, LEGACY_TILE_SIZE)
+    val srcHeight = min(image.height, LEGACY_TILE_SIZE)
+    drawImage(
+        image = image,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(srcWidth, srcHeight),
+        dstOffset = IntOffset(x.toInt(), y.toInt()),
+        dstSize = IntSize(width, height),
+        filterQuality = FilterQuality.None,
     )
 }
 
-private fun directionFromFacing(facing: com.tankarena.core.Int2): Int {
-    val sx = facing.x.coerceIn(-1, 1)
-    val sy = facing.y.coerceIn(-1, 1)
-    return when {
-        sx == 0 && sy < 0 -> 0
-        sx > 0 && sy < 0 -> 2
-        sx > 0 && sy == 0 -> 4
-        sx > 0 && sy > 0 -> 6
-        sx == 0 && sy > 0 -> 8
-        sx < 0 && sy > 0 -> 10
-        sx < 0 && sy == 0 -> 12
-        sx < 0 && sy < 0 -> 14
-        else -> 0
-    }
-}
-
-private fun DrawScope.drawFrame(
+private fun DrawScope.drawSpriteCentered(
     image: ImageBitmap,
-    frame: SpriteFrameRef,
     centerX: Float,
     centerY: Float,
     width: Int,
     height: Int,
 ) {
-    drawImage(
+    drawSprite(
         image = image,
-        srcOffset = IntOffset(frame.x, frame.y),
-        srcSize = IntSize(frame.width, frame.height),
-        dstOffset = IntOffset((centerX - width / 2f).toInt(), (centerY - height / 2f).toInt()),
-        dstSize = IntSize(width, height),
+        x = centerX - width / 2f,
+        y = centerY - height / 2f,
+        width = width,
+        height = height,
     )
 }

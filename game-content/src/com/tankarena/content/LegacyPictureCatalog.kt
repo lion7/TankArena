@@ -1,48 +1,24 @@
 package com.tankarena.content
 
-data class LegacyPictureEntry(
-    val index: Int,
-    val primaryName: String,
-)
-
-class LegacyWorldPictureCatalog internal constructor(
-    private val names: List<String>,
+/**
+ * One row of the legacy `pc{world}` arrays from `src/data/pictures.c`.
+ * Each row owns up to three picture names (intact / damaged / dead) so the
+ * renderer can swap variants without re-reading the legacy source.
+ */
+data class LegacyPictureRecord(
+    val nameVariants: List<String>,
 ) {
-    val pictureCount: Int
-        get() = names.size
-
-    val entries: List<LegacyPictureEntry> by lazy {
-        names.mapIndexed { index, name ->
-            LegacyPictureEntry(index = index, primaryName = name)
-        }
-    }
-
-    fun entryAt(index: Int): LegacyPictureEntry? = entries.getOrNull(index)
-
-    fun findByName(name: String): LegacyPictureEntry? {
-        return entries.firstOrNull { it.primaryName == name }
-    }
-
-    fun entriesForFamily(familyKey: String): List<LegacyPictureEntry> {
-        return entries.filter { legacyPictureFamilyKey(it.primaryName) == familyKey }
+    val primaryName: String get() = nameVariants.first()
+    fun nameForVariant(variant: LegacyPictureVariant): String {
+        // The legacy engine falls back through the variant list when later
+        // entries are missing (e.g. tiles that never become "dead").
+        return nameVariants.getOrNull(variant.ordinal) ?: nameVariants.last()
     }
 }
 
-object LegacyPictureCatalog {
-    fun forWorld(world: TankArenaWorld): LegacyWorldPictureCatalog = when (world) {
-        TankArenaWorld.DESERT -> LegacyWorldPictureCatalog(GeneratedLegacyPictureCatalog.desertNames)
-        TankArenaWorld.TEMPERATE -> LegacyWorldPictureCatalog(GeneratedLegacyPictureCatalog.temperateNames)
-        TankArenaWorld.CITY -> LegacyWorldPictureCatalog(GeneratedLegacyPictureCatalog.cityNames)
-        TankArenaWorld.NIGHT -> LegacyWorldPictureCatalog(GeneratedLegacyPictureCatalog.nightNames)
-    }
+enum class LegacyPictureVariant {
+    INTACT,
+    DAMAGED,
+    DEAD,
 }
 
-internal fun legacyPictureFamilyKey(name: String): String {
-    val cleaned = name
-        .trim()
-        .trimStart('@', '_', '^', '~')
-        .substringBefore('.')
-
-    val withoutTrailingDigits = cleaned.replace(Regex("""\d+$"""), "")
-    return withoutTrailingDigits.ifBlank { cleaned.ifBlank { "UNKNOWN" } }
-}

@@ -15,6 +15,7 @@ fun main(args: Array<String>) {
         Usage:
           mapconv map <legacy-map-file> <output-json-file>
           mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>
+          mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <src/data/pictures.c>
         """.trimIndent()
     }
 
@@ -31,6 +32,18 @@ fun main(args: Array<String>) {
             output.parentFile?.mkdirs()
             output.writeText(json.encodeToString(canonical))
             println("Converted ${input.name} -> ${output.absolutePath}")
+        }
+
+        "extract-pictures-png" -> {
+            require(args.size >= 5) {
+                "Usage: mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <src/data/pictures.c>"
+            }
+            LegacyPicturesPngExtractor.run(
+                dataDir = File(args[1]),
+                outputDrawableDir = File(args[2]),
+                outputCatalogFile = File(args[3]),
+                picturesSourceFile = File(args[4]),
+            )
         }
 
         "extract-pictures" -> {

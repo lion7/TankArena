@@ -12,8 +12,12 @@ object SimulationFactory {
     private const val DEFAULT_TURRET_RANGE_PIXELS = 8 * LEGACY_TILE_SIZE
     private const val INITIAL_ARMOR = 100
     private const val INITIAL_FUEL = 100
+    private const val DEFAULT_GOAL_CONTRIBUTION = 25
 
-    fun fromCanonicalMap(map: CanonicalMapDefinition): TankArenaSimulation {
+    fun fromCanonicalMap(
+        map: CanonicalMapDefinition,
+        mode: MissionMode = MissionMode.SINGLE_PLAYER_VS_COMPUTER,
+    ): TankArenaSimulation {
         val bounds = WorldBounds(
             widthPixels = map.metadata.widthTiles * LEGACY_TILE_SIZE,
             heightPixels = map.metadata.heightTiles * LEGACY_TILE_SIZE,
@@ -79,6 +83,23 @@ object SimulationFactory {
                 )
             }
 
+        val goals = map.objects
+            .filter { it.kind == ObjectKinds.GOAL }
+            .mapIndexed { index, goal ->
+                val radius = goal.properties["radius"]?.toIntOrNull()
+                    ?.takeIf { it > 0 } ?: LEGACY_TILE_SIZE
+                val who = goal.properties["who"]?.toIntOrNull() ?: 0
+                val contribution = goal.properties["goalContribution"]?.toIntOrNull()
+                    ?.takeIf { it > 0 } ?: DEFAULT_GOAL_CONTRIBUTION
+                GoalState(
+                    id = 20_000L + index,
+                    position = Int2(goal.x, goal.y),
+                    radius = radius,
+                    who = who,
+                    contribution = contribution,
+                )
+            }
+
         val passability = Passability.fromMap(map)
         val spawnPoints = tanks.associate { it.id to it.position }
 
@@ -87,6 +108,8 @@ object SimulationFactory {
                 bounds = bounds,
                 tanks = tanks,
                 turrets = turrets,
+                goals = goals,
+                mission = MissionProgress(mode = mode),
             ),
             passability = passability,
             spawnPoints = spawnPoints,

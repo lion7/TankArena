@@ -37,10 +37,14 @@ import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.core.FixedStepClock
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.render.kubriko.TankArenaViewport
+import com.tankarena.sim.MissionMode
+import com.tankarena.sim.SimulationEvent
 import com.tankarena.sim.SimulationFactory
 import com.tankarena.sim.WorldState
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GameMode
+import com.tankarena.ui.compose.MissionOutcome
+import com.tankarena.ui.compose.menu.DebriefScreen
 import com.tankarena.ui.compose.menu.GameModeMenuScreen
 import com.tankarena.ui.compose.menu.MainMenuScreen
 import com.tankarena.ui.compose.menu.MissionCatalog
@@ -48,6 +52,7 @@ import com.tankarena.ui.compose.menu.MissionEntry
 import com.tankarena.ui.compose.menu.MissionSelectScreen
 import com.tankarena.ui.compose.menu.RetroColors
 import com.tankarena.ui.compose.menu.TiledPanelBackground
+import com.tankarena.ui.compose.menu.findByCode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -105,7 +110,7 @@ fun main() = application {
                             missions = missions,
                             onSelect = { mission ->
                                 controls.resetAll()
-                                screen = DesktopShellScreen.Playing(mission, GameMode.PLAYER_VS_PLAYER)
+                                screen = DesktopShellScreen.Playing(mission, GameMode.SINGLE_PLAYER_VS_COMPUTER)
                             },
                             onCancel = { screen = DesktopShellScreen.GameModeSelect },
                         )
@@ -113,8 +118,33 @@ fun main() = application {
 
                     is DesktopShellScreen.Playing -> GameplayScreen(
                         mission = current.mission,
+                        mode = current.mode,
                         controls = controls,
+                        onMissionEnd = { outcome ->
+                            controls.resetAll()
+                            screen = DesktopShellScreen.Debrief(current.mission, current.mode, outcome)
+                        },
                     )
+
+                    is DesktopShellScreen.Debrief -> {
+                        val nextMission = missions
+                            .orEmpty()
+                            .findByCode(current.mission.canonical.metadata.nextMissionCode)
+                        DebriefScreen(
+                            mission = current.mission,
+                            outcome = current.outcome,
+                            nextMission = nextMission,
+                            onNextMission = { next ->
+                                controls.resetAll()
+                                screen = DesktopShellScreen.Playing(next, current.mode)
+                            },
+                            onRetry = {
+                                controls.resetAll()
+                                screen = DesktopShellScreen.Playing(current.mission, current.mode)
+                            },
+                            onBackToMenu = exitToMainMenu,
+                        )
+                    }
 
                     DesktopShellScreen.Editor -> MainMenuScreen(
                         onStartNewGame = { screen = DesktopShellScreen.GameModeSelect },
@@ -129,15 +159,34 @@ fun main() = application {
 @Composable
 private fun GameplayScreen(
     mission: MissionEntry,
+    mode: GameMode,
     controls: DesktopControls,
+    onMissionEnd: (MissionOutcome) -> Unit,
 ) {
     val map: CanonicalMapDefinition = mission.canonical
-    val simulation = remember(mission.mapFile) { SimulationFactory.fromCanonicalMap(map) }
+    val simulation = remember(mission.mapFile, mode) {
+        SimulationFactory.fromCanonicalMap(map, mode = mode.toMissionMode())
+    }
     var worldState by remember(simulation) { mutableStateOf<WorldState>(simulation.currentState()) }
 
     LaunchedEffect(simulation) {
+        var consumed = false
         while (true) {
-            worldState = simulation.tick(mapOf(0 to controls.toIntentFrame())).current
+            val result = simulation.tick(mapOf(0 to controls.toIntentFrame()))
+            worldState = result.current
+            if (!consumed) {
+                val outcome = result.events.firstNotNullOfOrNull { event ->
+                    when (event) {
+                        SimulationEvent.MissionWon -> MissionOutcome.WON
+                        SimulationEvent.MissionLost -> MissionOutcome.LOST
+                        else -> null
+                    }
+                }
+                if (outcome != null) {
+                    consumed = true
+                    onMissionEnd(outcome)
+                }
+            }
             delay(FixedStepClock.MILLIS_PER_TICK)
         }
     }
@@ -186,6 +235,12 @@ private fun GameplayScreen(
             )
         }
     }
+}
+
+private fun GameMode.toMissionMode(): MissionMode = when (this) {
+    GameMode.PLAYER_VS_PLAYER -> MissionMode.PLAYER_VS_PLAYER
+    GameMode.SINGLE_PLAYER_VS_COMPUTER -> MissionMode.SINGLE_PLAYER_VS_COMPUTER
+    GameMode.DUAL_PLAYER_VS_COMPUTER -> MissionMode.DUAL_VS_COMPUTER
 }
 
 private fun handleGlobalKeys(

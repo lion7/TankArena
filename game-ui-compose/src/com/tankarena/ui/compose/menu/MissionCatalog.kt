@@ -50,6 +50,9 @@ object MissionCatalog {
     }
 }
 
+fun List<MissionEntry>.findByCode(code: String?): MissionEntry? =
+    code?.takeIf { it.isNotBlank() }?.let { c -> firstOrNull { it.code.equals(c, ignoreCase = true) } }
+
 private fun String.summarize(maxChars: Int = 90): String {
     if (isEmpty()) return ""
     val firstLine = lineSequence()

@@ -40,7 +40,7 @@ fun HudOverlay(
     val armor = player?.armor ?: 0
     val fuel = player?.fuel ?: 0
     val livesRemaining = player?.lives ?: 0
-    val missionGoal = 0
+    val missionGoal = world.mission.goalGood
 
     Row(
         modifier = modifier

@@ -8,10 +8,17 @@ enum class GameMode {
     DUAL_PLAYER_VS_COMPUTER,
 }
 
+enum class MissionOutcome { WON, LOST }
+
 sealed interface DesktopShellScreen {
     data object MainMenu : DesktopShellScreen
     data object GameModeSelect : DesktopShellScreen
     data object MissionSelect : DesktopShellScreen
     data class Playing(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
+    data class Debrief(
+        val mission: MissionEntry,
+        val mode: GameMode,
+        val outcome: MissionOutcome,
+    ) : DesktopShellScreen
     data object Editor : DesktopShellScreen
 }

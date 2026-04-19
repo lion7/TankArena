@@ -27,6 +27,9 @@ sealed interface SimulationEvent {
     data class TankHit(val tankId: Long, val damage: Int) : SimulationEvent
     data class TankDestroyed(val tankId: Long) : SimulationEvent
     data class TankRespawned(val tankId: Long) : SimulationEvent
+    data class GoalReached(val goalId: Long, val tankId: Long, val contribution: Int) : SimulationEvent
+    data object MissionWon : SimulationEvent
+    data object MissionLost : SimulationEvent
 }
 
 private const val TANK_HALF = LEGACY_TILE_SIZE / 2 - 2
@@ -84,13 +87,84 @@ class TankArenaSimulation(
         // 5. Apply death and respawn lifecycle.
         val tanksAfterLifecycle = tanksAfterHits.map { tank -> applyLifecycle(tank, events) }
 
+        // 6. Resolve goal pickups against the post-movement tanks.
+        val (updatedGoals, missionAfterGoals) = collectGoals(
+            goals = state.goals,
+            tanks = tanksAfterLifecycle,
+            mission = state.mission,
+            events = events,
+        )
+
+        // 7. Evaluate mission win/loss conditions.
+        val finalMission = evaluateMission(missionAfterGoals, tanksAfterLifecycle, events)
+
         state = state.copy(
             tick = state.tick + 1,
             tanks = tanksAfterLifecycle,
             turrets = updatedTurrets,
             projectiles = movedProjectiles,
+            goals = updatedGoals,
+            mission = finalMission,
         )
         return SimulationResult(previous = previous, current = state, events = events)
+    }
+
+    private fun collectGoals(
+        goals: List<GoalState>,
+        tanks: List<TankState>,
+        mission: MissionProgress,
+        events: MutableList<SimulationEvent>,
+    ): Pair<List<GoalState>, MissionProgress> {
+        if (goals.isEmpty()) return goals to mission
+        if (mission.status != MissionStatus.IN_PROGRESS) return goals to mission
+
+        var goalGood = mission.goalGood
+        var goalBad = mission.goalBad
+        val updated = goals.map { goal ->
+            if (goal.isClaimed) return@map goal
+            // For now act on "good" goals (who == 0); other variants are imported
+            // but not yet wired into a behavior, mirroring the legacy modify_goal_counter.
+            val claimingTank = tanks.firstOrNull { tank ->
+                tank.isAlive && tank.playerIndex >= 0 && withinRadius(tank.position, goal.position, goal.radius)
+            }
+            if (claimingTank == null) return@map goal
+            events += SimulationEvent.GoalReached(
+                goalId = goal.id,
+                tankId = claimingTank.id,
+                contribution = goal.contribution,
+            )
+            when (goal.who) {
+                0 -> goalGood = (goalGood + goal.contribution).coerceIn(0, 100)
+                else -> goalBad = (goalBad + goal.contribution).coerceIn(0, 100)
+            }
+            goal.copy(isClaimed = true)
+        }
+        return updated to mission.copy(goalGood = goalGood, goalBad = goalBad)
+    }
+
+    private fun evaluateMission(
+        mission: MissionProgress,
+        tanks: List<TankState>,
+        events: MutableList<SimulationEvent>,
+    ): MissionProgress {
+        if (mission.status != MissionStatus.IN_PROGRESS) return mission
+        if (mission.goalGood >= 100) {
+            events += SimulationEvent.MissionWon
+            return mission.copy(status = MissionStatus.WON)
+        }
+        val playerTanks = tanks.filter { it.playerIndex >= 0 }
+        if (playerTanks.isNotEmpty() && playerTanks.all { !it.isAlive && it.lives <= 0 }) {
+            events += SimulationEvent.MissionLost
+            return mission.copy(status = MissionStatus.LOST)
+        }
+        return mission
+    }
+
+    private fun withinRadius(a: Int2, b: Int2, radius: Int): Boolean {
+        val dx = (a.x - b.x).toLong()
+        val dy = (a.y - b.y).toLong()
+        val r = radius.toLong()
+        return dx * dx + dy * dy <= r * r
     }
 
     private fun updateTank(
@@ -273,9 +347,17 @@ class TankArenaSimulation(
     private fun applyLifecycle(tank: TankState, events: MutableList<SimulationEvent>): TankState {
         if (tank.isAlive && tank.armor <= 0) {
             events += SimulationEvent.TankDestroyed(tank.id)
-            return tank.copy(isAlive = false, respawnInTicks = RESPAWN_TICKS)
+            val newLives = (tank.lives - 1).coerceAtLeast(0)
+            return if (newLives > 0) {
+                tank.copy(isAlive = false, respawnInTicks = RESPAWN_TICKS, lives = newLives)
+            } else {
+                // Permanently dead: sentinel respawnInTicks = -1 prevents the
+                // respawn countdown from ever firing again.
+                tank.copy(isAlive = false, respawnInTicks = -1, lives = 0)
+            }
         }
         if (!tank.isAlive) {
+            if (tank.respawnInTicks <= 0) return tank
             val remaining = tank.respawnInTicks - 1
             if (remaining <= 0) {
                 val spawn = spawnPoints[tank.id] ?: tank.position

@@ -10,6 +10,30 @@ import kotlinx.serialization.Serializable
 enum class ProjectileOwnerKind { TANK, TURRET }
 
 @Serializable
+enum class MissionMode { SINGLE_PLAYER_VS_COMPUTER, DUAL_VS_COMPUTER, PLAYER_VS_PLAYER }
+
+@Serializable
+enum class MissionStatus { IN_PROGRESS, WON, LOST }
+
+@Serializable
+data class MissionProgress(
+    val mode: MissionMode = MissionMode.SINGLE_PLAYER_VS_COMPUTER,
+    val goalGood: Int = 0,
+    val goalBad: Int = 0,
+    val status: MissionStatus = MissionStatus.IN_PROGRESS,
+)
+
+@Serializable
+data class GoalState(
+    val id: Long,
+    val position: Int2,
+    val radius: Int,
+    val who: Int,
+    val contribution: Int,
+    val isClaimed: Boolean = false,
+)
+
+@Serializable
 data class TankState(
     val id: Long,
     val playerIndex: Int,
@@ -63,6 +87,8 @@ data class WorldState(
     val tanks: List<TankState> = emptyList(),
     val turrets: List<TurretState> = emptyList(),
     val projectiles: List<ProjectileState> = emptyList(),
+    val goals: List<GoalState> = emptyList(),
+    val mission: MissionProgress = MissionProgress(),
 )
 
 fun EntityId.asLong(): Long = value

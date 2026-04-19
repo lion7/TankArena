@@ -1,12 +1,17 @@
 package com.tankarena.ui.compose
 
-enum class DesktopShellScreen {
-    TITLE,
-    PLAYING,
-    EDITOR,
+import com.tankarena.ui.compose.menu.MissionEntry
+
+enum class GameMode {
+    PLAYER_VS_PLAYER,
+    SINGLE_PLAYER_VS_COMPUTER,
+    DUAL_PLAYER_VS_COMPUTER,
 }
 
-data class DesktopShellState(
-    val screen: DesktopShellScreen = DesktopShellScreen.TITLE,
-)
-
+sealed interface DesktopShellScreen {
+    data object MainMenu : DesktopShellScreen
+    data object GameModeSelect : DesktopShellScreen
+    data object MissionSelect : DesktopShellScreen
+    data class Playing(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
+    data object Editor : DesktopShellScreen
+}

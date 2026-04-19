@@ -5,6 +5,7 @@ product:
 dependencies:
   - ../game-content
   - ../game-input
+  - ../game-legacy
   - $compose.desktop.currentOs
   - $compose.material3
 

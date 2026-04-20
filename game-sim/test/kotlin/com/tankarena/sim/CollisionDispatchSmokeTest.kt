@@ -8,15 +8,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Smoke coverage for the Kubriko-style [com.tankarena.sim.runtime.CollisionDispatch]
- * loop: tank-vs-wall stop, tank-vs-tank mutual push, projectile owner filter,
- * goal claim idempotency, and projectile-vs-wall removal + Explosion event.
- */
 class CollisionDispatchSmokeTest {
-
     @Test
-    fun `tank cannot push through a single wall and slides along it on Y`() {
+    fun `tank cannot push through a single wall while driving diagonally`() {
         val map = TestMaps.verticalWall(widthTiles = 5, heightTiles = 5, wallX = 3).copy(
             objects = listOf(
                 AuthoredObject(
@@ -24,22 +18,17 @@ class CollisionDispatchSmokeTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "6"),
                 ),
             ),
         )
         val sim = SimulationFactory.fromCanonicalMap(map)
 
-        repeat(40) { sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1, throttle = 1))) }
+        repeat(40) { sim.tick(mapOf(0 to PlayerIntentFrame(forward = true))) }
         val tank = sim.currentState().tanks.single()
 
-        assertTrue(
-            tank.position.x < 3 * LEGACY_TILE_SIZE,
-            "tank x=${tank.position.x} should not have crossed wall left edge ${3 * LEGACY_TILE_SIZE}",
-        )
-        assertTrue(
-            tank.position.y > 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
-            "tank should still slide along the y axis",
-        )
+        assertTrue(tank.position.x < 3 * LEGACY_TILE_SIZE)
+        assertTrue(tank.position.y > 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2)
     }
 
     @Test
@@ -51,12 +40,14 @@ class CollisionDispatchSmokeTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = 2 * LEGACY_TILE_SIZE,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "b",
                     kind = ObjectKinds.PLAYER_START,
                     x = 2 * LEGACY_TILE_SIZE + 24,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "12"),
                 ),
             ),
         )
@@ -65,18 +56,14 @@ class CollisionDispatchSmokeTest {
         repeat(20) {
             sim.tick(
                 mapOf(
-                    0 to PlayerIntentFrame(steer = 1),
-                    1 to PlayerIntentFrame(steer = -1),
+                    0 to PlayerIntentFrame(forward = true),
+                    1 to PlayerIntentFrame(forward = true),
                 ),
             )
         }
         val tanks = sim.currentState().tanks.sortedBy { it.playerIndex }
         val gap = tanks[1].position.x - tanks[0].position.x
-        // Tanks may not pass through each other.
-        assertTrue(
-            gap >= 2 * (LEGACY_TILE_SIZE / 2 - 2),
-            "tanks should remain at least 2*TANK_HALF apart, gap=$gap",
-        )
+        assertTrue(gap >= 2 * (LEGACY_TILE_SIZE / 2 - 2), "gap=$gap")
     }
 
     @Test
@@ -88,23 +75,22 @@ class CollisionDispatchSmokeTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "12"),
                 ),
             ),
         )
         val sim = SimulationFactory.fromCanonicalMap(map)
 
-        // Aim left and fire: the projectile spawns at the tank's left edge.
-        // It should pass cleanly past the tank without inflicting damage.
-        sim.tick(mapOf(0 to PlayerIntentFrame(aimX = -1, firePrimary = true)))
+        sim.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         val initialArmor = sim.currentState().tanks.single().armor
-        repeat(8) { sim.tick(mapOf(0 to PlayerIntentFrame(aimX = -1))) }
+        repeat(8) { sim.tick(emptyMap()) }
 
         val tank = sim.currentState().tanks.single()
-        assertEquals(initialArmor, tank.armor, "owner tank must not take damage from its own bullet")
+        assertEquals(initialArmor, tank.armor)
     }
 
     @Test
-    fun `goal collection is idempotent — driving over the same goal twice stays at one event`() {
+    fun `goal collection is idempotent when driving over the same goal twice`() {
         val map = TestMaps.empty(widthTiles = 6, heightTiles = 3).copy(
             objects = listOf(
                 AuthoredObject(
@@ -112,6 +98,7 @@ class CollisionDispatchSmokeTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "g",
@@ -125,10 +112,10 @@ class CollisionDispatchSmokeTest {
 
         var goalEvents = 0
         repeat(60) {
-            val result = sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1)))
+            val result = sim.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             goalEvents += result.events.count { it is SimulationEvent.GoalReached }
         }
-        assertEquals(1, goalEvents, "goal should only emit GoalReached once")
+        assertEquals(1, goalEvents)
         assertTrue(sim.currentState().goals.single().isClaimed)
     }
 
@@ -141,18 +128,19 @@ class CollisionDispatchSmokeTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
             ),
         )
         val sim = SimulationFactory.fromCanonicalMap(map)
 
-        sim.tick(mapOf(0 to PlayerIntentFrame(aimX = 1, firePrimary = true)))
+        sim.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         var explosions = 0
         repeat(30) {
-            val result = sim.tick(mapOf(0 to PlayerIntentFrame(aimX = 1)))
+            val result = sim.tick(emptyMap())
             explosions += result.events.count { it is SimulationEvent.Explosion }
         }
-        assertTrue(explosions >= 1, "projectile must emit Explosion when it hits the wall")
-        assertTrue(sim.currentState().projectiles.isEmpty(), "wall-bound projectile should be cleaned up")
+        assertTrue(explosions >= 1)
+        assertTrue(sim.currentState().projectiles.isEmpty())
     }
 }

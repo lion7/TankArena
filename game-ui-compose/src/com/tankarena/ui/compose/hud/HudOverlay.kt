@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -20,28 +19,20 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tankarena.sim.WorldState
+import com.tankarena.protocol.HudState
 
 /**
  * Top-of-arena HUD overlay matching the legacy strip:
  *  ARMOR FUEL    MISSION TANK
  *   xx   xx       x       x
  *
- * Pure function of [WorldState] plus the active mission code; safe to recompose every tick.
+ * Pure function of authoritative replicated HUD data; safe to recompose every tick.
  */
 @Composable
 fun HudOverlay(
-    world: WorldState,
-    missionCode: String,
+    hudState: HudState,
     modifier: Modifier = Modifier,
-    playerIndex: Int = 0,
 ) {
-    val player = world.tanks.firstOrNull { it.playerIndex == playerIndex }
-    val armor = player?.armor ?: 0
-    val fuel = player?.fuel ?: 0
-    val livesRemaining = player?.lives ?: 0
-    val missionGoal = world.mission.goalGood
-
     Row(
         modifier = modifier
             .background(HudColors.Background)
@@ -49,16 +40,16 @@ fun HudOverlay(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        HudGauge(label = "ARMOR", value = armor.coerceAtLeast(0).toString().padStart(2, '0'))
+        HudGauge(label = "ARMOR", value = hudState.armor.coerceAtLeast(0).toString().padStart(2, '0'))
         Spacer(modifier = Modifier.width(8.dp))
-        HudGauge(label = "FUEL", value = fuel.coerceAtLeast(0).toString().padStart(2, '0'))
+        HudGauge(label = "FUEL", value = hudState.fuel.coerceAtLeast(0).toString().padStart(2, '0'))
         Spacer(modifier = Modifier.width(20.dp))
-        HudGauge(label = "MISSION", value = missionGoal.toString())
+        HudGauge(label = "MISSION", value = hudState.missionProgress.toString())
         Spacer(modifier = Modifier.width(8.dp))
-        HudGauge(label = "TANK", value = livesRemaining.toString())
+        HudGauge(label = "TANK", value = hudState.lives.toString())
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = missionCode,
+            text = hudState.missionCode,
             style = HudTypography.Small,
             color = HudColors.Subtitle,
         )

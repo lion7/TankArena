@@ -22,7 +22,7 @@ class MissionLostTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = playerStart.first,
                     y = playerStart.second,
-                    properties = mapOf("lives" to "1"),
+                    properties = mapOf("lives" to "1", "direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "t1",

@@ -21,14 +21,14 @@ class LivesLifecycleTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = playerStart.first,
                     y = playerStart.second,
-                    properties = mapOf("lives" to "2"),
+                    properties = mapOf("lives" to "2", "direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "p1",
                     kind = ObjectKinds.PLAYER_START,
                     x = enemyStart.first,
                     y = enemyStart.second,
-                    properties = mapOf("lives" to "9"),
+                    properties = mapOf("lives" to "9", "direction" to "12"),
                 ),
             ),
         )
@@ -39,7 +39,7 @@ class LivesLifecycleTest {
         for (tick in 0 until 1200) {
             val result = sim.tick(
                 mapOf(
-                    1 to PlayerIntentFrame(aimX = -1, firePrimary = tick % 6 == 0),
+                    1 to PlayerIntentFrame(firePrimary = tick % 6 == 0),
                 ),
             )
             deathCount += result.events.count {

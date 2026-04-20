@@ -17,6 +17,7 @@ class TurretFireTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "t1",
@@ -55,6 +56,7 @@ class TurretFireTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "t1",

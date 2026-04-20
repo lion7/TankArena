@@ -25,26 +25,26 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
-import com.tankarena.ui.compose.hud.HudOverlay
-import kotlin.math.sign
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import com.tankarena.content.AuthoredObject
 import com.tankarena.content.CanonicalMapDefinition
+import com.tankarena.content.ObjectKinds
 import com.tankarena.core.FixedStepClock
-import com.tankarena.input.PlayerIntentFrame
+import com.tankarena.protocol.FrameEnvelope
+import com.tankarena.protocol.InputFrame
+import com.tankarena.protocol.PlayerEvent
+import com.tankarena.protocol.PlayerFrame
 import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.sim.MissionMode
-import com.tankarena.sim.SimulationEvent
-import com.tankarena.sim.SimulationFactory
-import com.tankarena.sim.WorldState
+import com.tankarena.sim.runtime.LocalMatchHost
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
+import com.tankarena.ui.compose.hud.HudOverlay
+import com.tankarena.ui.compose.hud.RadarOverlay
 import com.tankarena.ui.compose.menu.DebriefScreen
 import com.tankarena.ui.compose.menu.GameModeMenuScreen
 import com.tankarena.ui.compose.menu.MainMenuScreen
@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 fun main() = application {
     val controls = remember { DesktopControls() }
     var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.MainMenu) }
+    var selectedMode by remember { mutableStateOf(GameMode.SINGLE_PLAYER_VS_COMPUTER) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val exitToMainMenu: () -> Unit = {
@@ -71,12 +72,7 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "Tank Arena Rewrite",
         onPreviewKeyEvent = { event ->
-            handleGlobalKeys(
-                event = event,
-                screen = screen,
-                controls = controls,
-                onExitToMenu = exitToMainMenu,
-            )
+            handleGlobalKeys(event, screen, controls, exitToMainMenu)
         },
     ) {
         MaterialTheme {
@@ -96,7 +92,18 @@ fun main() = application {
                             }
                         }
                         GameModeMenuScreen(
-                            onSelectPlayerVsPlayer = { screen = DesktopShellScreen.MissionSelect },
+                            onSelectPlayerVsPlayer = {
+                                selectedMode = GameMode.PLAYER_VS_PLAYER
+                                screen = DesktopShellScreen.MissionSelect
+                            },
+                            onSelectSinglePlayer = {
+                                selectedMode = GameMode.SINGLE_PLAYER_VS_COMPUTER
+                                screen = DesktopShellScreen.MissionSelect
+                            },
+                            onSelectDualVsComputer = {
+                                selectedMode = GameMode.DUAL_PLAYER_VS_COMPUTER
+                                screen = DesktopShellScreen.MissionSelect
+                            },
                             onCancel = { screen = DesktopShellScreen.MainMenu },
                         )
                     }
@@ -111,7 +118,7 @@ fun main() = application {
                             missions = missions,
                             onSelect = { mission ->
                                 controls.resetAll()
-                                screen = DesktopShellScreen.Playing(mission, GameMode.SINGLE_PLAYER_VS_COMPUTER)
+                                screen = DesktopShellScreen.Playing(mission, selectedMode)
                             },
                             onCancel = { screen = DesktopShellScreen.GameModeSelect },
                         )
@@ -128,9 +135,7 @@ fun main() = application {
                     )
 
                     is DesktopShellScreen.Debrief -> {
-                        val nextMission = missions
-                            .orEmpty()
-                            .findByCode(current.mission.canonical.metadata.nextMissionCode)
+                        val nextMission = missions.orEmpty().findByCode(current.mission.canonical.metadata.nextMissionCode)
                         DebriefScreen(
                             mission = current.mission,
                             outcome = current.outcome,
@@ -164,25 +169,27 @@ private fun GameplayScreen(
     controls: DesktopControls,
     onMissionEnd: (MissionOutcome) -> Unit,
 ) {
-    val map: CanonicalMapDefinition = mission.canonical
-    val simulation = remember(mission.mapFile, mode) {
-        SimulationFactory.fromCanonicalMap(map, mode = mode.toMissionMode())
-    }
-    var worldState by remember(simulation) { mutableStateOf<WorldState>(simulation.currentState()) }
+    val map = remember(mission.mapFile, mode) { materializePlayableMission(mission.canonical, mode) }
+    val host = remember(map, mode) { LocalMatchHost(map = map, mode = mode.toMissionMode()) }
+    var envelope by remember(host) { mutableStateOf<FrameEnvelope>(host.currentFrameEnvelope()) }
+    val playerFrame = envelope.playerFrames.firstOrNull()
 
-    LaunchedEffect(simulation) {
+    LaunchedEffect(host) {
+        var inputSequence = 0L
         var consumed = false
         while (true) {
-            val result = simulation.tick(mapOf(0 to controls.toIntentFrame()))
-            worldState = result.current
+            host.submitInput(controls.toInputFrame(playerId = 0, inputSequence = inputSequence++))
+            envelope = host.tick()
             if (!consumed) {
-                val outcome = result.events.firstNotNullOfOrNull { event ->
-                    when (event) {
-                        SimulationEvent.MissionWon -> MissionOutcome.WON
-                        SimulationEvent.MissionLost -> MissionOutcome.LOST
-                        else -> null
+                val outcome = envelope.playerFrames
+                    .flatMap { it.playerEvents }
+                    .firstNotNullOfOrNull { event ->
+                        when (event) {
+                            PlayerEvent.MissionWon -> MissionOutcome.WON
+                            PlayerEvent.MissionLost -> MissionOutcome.LOST
+                            else -> null
+                        }
                     }
-                }
                 if (outcome != null) {
                     consumed = true
                     onMissionEnd(outcome)
@@ -193,49 +200,39 @@ private fun GameplayScreen(
     }
 
     TiledPanelBackground(modifier = Modifier.fillMaxSize()) {
-        // The original DOS playfield is 640x400 pixels (a 4:3 framebuffer
-        // minus the 80px HUD strip). Pinning the same ratio keeps every
-        // mission rendering with the legacy on-screen tile size, regardless
-        // of the actual map dimensions.
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(32.dp)
                 .fillMaxHeight()
                 .aspectRatio(LEGACY_PLAYFIELD_ASPECT_RATIO)
-                .border(width = 2.dp, color = RetroColors.PanelBorderOuter, shape = RectangleShape)
+                .border(2.dp, RetroColors.PanelBorderOuter, RectangleShape)
                 .padding(2.dp)
-                .background(Color.Black)
-                .onSizeChanged { size -> controls.updateViewportSize(size.width, size.height) }
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            if (event.type == PointerEventType.Move ||
-                                event.type == PointerEventType.Enter ||
-                                event.type == PointerEventType.Press
-                            ) {
-                                val pos = event.changes.firstOrNull()?.position
-                                if (pos != null) {
-                                    controls.updateMousePosition(pos.x, pos.y)
-                                }
-                            }
-                        }
-                    }
-                },
+                .background(Color.Black),
         ) {
-            TankArenaViewport(
-                map = map,
-                worldState = worldState,
-                modifier = Modifier.fillMaxSize(),
-            )
-            HudOverlay(
-                world = worldState,
-                missionCode = map.metadata.missionCode,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 6.dp),
-            )
+            if (playerFrame != null) {
+                TankArenaViewport(
+                    map = map,
+                    playerFrame = playerFrame,
+                    worldWidth = map.metadata.widthTiles * 33,
+                    worldHeight = map.metadata.heightTiles * 33,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                HudOverlay(
+                    hudState = playerFrame.hudState,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 6.dp),
+                )
+                RadarOverlay(
+                    playerFrame = playerFrame,
+                    worldWidth = map.metadata.widthTiles * 33,
+                    worldHeight = map.metadata.heightTiles * 33,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                )
+            }
         }
     }
 }
@@ -266,77 +263,96 @@ private fun handleGlobalKeys(
 }
 
 private class DesktopControls {
-    var throttle: Int = 0
-    var steer: Int = 0
-    var firePrimary: Boolean = false
-
-    private var aimX: Int = 0
-    private var aimY: Int = -1
-    private var viewportWidthPx: Int = 0
-    private var viewportHeightPx: Int = 0
-    private var mouseX: Float = 0f
-    private var mouseY: Float = 0f
+    private var forward: Boolean = false
+    private var reverse: Boolean = false
+    private var turnLeft: Boolean = false
+    private var turnRight: Boolean = false
+    private var aimLeft: Boolean = false
+    private var aimRight: Boolean = false
+    private var firePrimary: Boolean = false
+    private var fireSecondary: Boolean = false
 
     fun handle(event: KeyEvent): Boolean {
         val pressed = event.type == KeyEventType.KeyDown
         when (event.key) {
-            Key.DirectionUp, Key.W -> throttle = if (pressed) -1 else if (throttle == -1) 0 else throttle
-            Key.DirectionDown, Key.S -> throttle = if (pressed) 1 else if (throttle == 1) 0 else throttle
-            Key.DirectionLeft, Key.A -> steer = if (pressed) -1 else if (steer == -1) 0 else steer
-            Key.DirectionRight, Key.D -> steer = if (pressed) 1 else if (steer == 1) 0 else steer
-            Key.Spacebar -> firePrimary = pressed
+            Key.W -> forward = pressed
+            Key.S -> reverse = pressed
+            Key.A -> turnLeft = pressed
+            Key.D -> turnRight = pressed
+            Key.Q -> aimLeft = pressed
+            Key.E -> aimRight = pressed
+            Key.CtrlLeft -> firePrimary = pressed
+            Key.ShiftLeft -> fireSecondary = pressed
             else -> return false
         }
         return true
     }
 
-    fun updateViewportSize(width: Int, height: Int) {
-        viewportWidthPx = width
-        viewportHeightPx = height
-        recomputeAim()
-    }
-
-    fun updateMousePosition(x: Float, y: Float) {
-        mouseX = x
-        mouseY = y
-        recomputeAim()
-    }
-
-    private fun recomputeAim() {
-        if (viewportWidthPx <= 0 || viewportHeightPx <= 0) return
-        // Camera follows tank 0, so the player tank renders at viewport center.
-        val dx = mouseX - viewportWidthPx / 2f
-        val dy = mouseY - viewportHeightPx / 2f
-        // Apply a small dead zone so the turret does not jitter when the cursor sits near the tank.
-        val deadZone = 12f
-        val newAimX = if (kotlin.math.abs(dx) < deadZone) 0 else dx.sign.toInt()
-        val newAimY = if (kotlin.math.abs(dy) < deadZone) 0 else dy.sign.toInt()
-        // Avoid (0, 0) which would tell the sim "no aim"; preserve previous direction in that case.
-        if (newAimX != 0 || newAimY != 0) {
-            aimX = newAimX
-            aimY = newAimY
-        }
-    }
-
-    fun toIntentFrame(): PlayerIntentFrame {
-        val fireNow = firePrimary
-        firePrimary = false
-        return PlayerIntentFrame(
-            throttle = throttle,
-            steer = steer,
-            firePrimary = fireNow,
-            aimX = aimX,
-            aimY = aimY,
-        )
-    }
+    fun toInputFrame(playerId: Int, inputSequence: Long): InputFrame = InputFrame(
+        playerId = playerId,
+        inputSequence = inputSequence,
+        forward = forward,
+        reverse = reverse,
+        turnLeft = turnLeft,
+        turnRight = turnRight,
+        aimLeft = aimLeft,
+        aimRight = aimRight,
+        firePrimary = firePrimary,
+        fireSecondary = fireSecondary,
+    )
 
     fun resetAll() {
-        throttle = 0
-        steer = 0
+        forward = false
+        reverse = false
+        turnLeft = false
+        turnRight = false
+        aimLeft = false
+        aimRight = false
         firePrimary = false
-        aimX = 0
-        aimY = -1
-        mouseX = 0f
-        mouseY = 0f
+        fireSecondary = false
     }
+}
+
+private fun materializePlayableMission(map: CanonicalMapDefinition, mode: GameMode): CanonicalMapDefinition {
+    if (!map.metadata.missionCode.equals("BEGIN1", ignoreCase = true)) return map
+    val objects = buildList {
+        add(
+            AuthoredObject(
+                id = "begin1-player",
+                kind = ObjectKinds.PLAYER_START,
+                x = 2 * 33 + 16,
+                y = 9 * 33 + 16,
+                properties = mapOf(
+                    "direction" to "0",
+                    "lives" to if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) "3" else "1",
+                ),
+            ),
+        )
+        add(
+            AuthoredObject(
+                id = "begin1-enforcer",
+                kind = ObjectKinds.ENFORCER,
+                x = 9 * 33 + 16,
+                y = 2 * 33 + 16,
+                properties = mapOf(
+                    "direction" to "8",
+                    "tankType" to "0",
+                    "armor" to "100",
+                    "lives" to "1",
+                ),
+            ),
+        )
+        if (mode == GameMode.PLAYER_VS_PLAYER || mode == GameMode.DUAL_PLAYER_VS_COMPUTER) {
+            add(
+                AuthoredObject(
+                    id = "begin1-player-2",
+                    kind = ObjectKinds.PLAYER_START,
+                    x = 3 * 33 + 16,
+                    y = 9 * 33 + 16,
+                    properties = mapOf("direction" to "0", "lives" to "3"),
+                ),
+            )
+        }
+    }
+    return map.copy(objects = objects)
 }

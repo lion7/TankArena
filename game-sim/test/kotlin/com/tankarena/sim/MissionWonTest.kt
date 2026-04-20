@@ -21,6 +21,7 @@ class MissionWonTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = playerStart.first,
                     y = playerStart.second,
+                    properties = mapOf("direction" to "4"),
                 ),
                 goalAt("g1", goalA, contribution = 60),
                 goalAt("g2", goalB, contribution = 60),
@@ -30,7 +31,7 @@ class MissionWonTest {
 
         var missionWonCount = 0
         repeat(400) {
-            val result = sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1)))
+            val result = sim.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             missionWonCount += result.events.count { it == SimulationEvent.MissionWon }
         }
 

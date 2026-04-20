@@ -18,19 +18,20 @@ class DamageTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "b",
                     kind = ObjectKinds.PLAYER_START,
                     x = 5 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "12"),
                 ),
             ),
         )
         val sim = SimulationFactory.fromCanonicalMap(map)
 
-        // Player 0 fires right toward player 1.
-        sim.tick(mapOf(0 to PlayerIntentFrame(aimX = 1, firePrimary = true)))
+        sim.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
 
         var sawHit = false
         repeat(40) {
@@ -52,12 +53,14 @@ class DamageTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "b",
                     kind = ObjectKinds.PLAYER_START,
                     x = 5 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "12"),
                 ),
             ),
         )
@@ -69,7 +72,7 @@ class DamageTest {
         // Fire until destroyed, then stop firing and wait for respawn.
         for (tick in 0 until 400) {
             val firing = !destroyedSeen && tick % 12 == 0
-            val result = sim.tick(mapOf(0 to PlayerIntentFrame(aimX = 1, firePrimary = firing)))
+            val result = sim.tick(mapOf(0 to PlayerIntentFrame(firePrimary = firing)))
             if (result.events.any { it is SimulationEvent.TankDestroyed }) destroyedSeen = true
             if (result.events.any { it is SimulationEvent.TankRespawned }) {
                 respawnSeen = true

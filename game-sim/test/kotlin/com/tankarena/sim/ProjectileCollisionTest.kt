@@ -19,17 +19,16 @@ class ProjectileCollisionTest {
                         kind = ObjectKinds.PLAYER_START,
                         x = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                         y = LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        properties = mapOf("direction" to "4"),
                     ),
                 ),
             )
         val sim = SimulationFactory.fromCanonicalMap(map)
 
-        // Aim right and fire.
-        sim.tick(mapOf(0 to PlayerIntentFrame(aimX = 1, firePrimary = true)))
-        // A projectile is now in flight; let it travel and hit the wall.
+        sim.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         var sawExplosion = false
         repeat(30) {
-            val result = sim.tick(mapOf(0 to PlayerIntentFrame(aimX = 1)))
+            val result = sim.tick(emptyMap())
             if (result.events.any { it is SimulationEvent.Explosion }) sawExplosion = true
         }
 

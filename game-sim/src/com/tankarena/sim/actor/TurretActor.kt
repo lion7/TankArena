@@ -7,10 +7,10 @@ import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
 import com.pandulapeter.kubriko.types.SceneSize
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.core.Int2
+import com.tankarena.core.LegacyDirections
 import com.tankarena.sim.ProjectileOwnerKind
 import com.tankarena.sim.SimulationEvent
 import com.tankarena.sim.TurretState
-import kotlin.math.sign
 
 private const val TURRET_HALF = LEGACY_TILE_SIZE / 2 - 2
 private const val PROJECTILE_SPEED = 8
@@ -93,31 +93,19 @@ internal class TurretActor(
     }
 
     private fun directionToTarget(from: Int2, to: Int2): Int {
-        val dx = (to.x - from.x).sign
-        val dy = (to.y - from.y).sign
-        return when {
-            dx == 0 && dy < 0 -> 0
-            dx > 0 && dy < 0 -> 2
-            dx > 0 && dy == 0 -> 4
-            dx > 0 && dy > 0 -> 6
-            dx == 0 && dy > 0 -> 8
-            dx < 0 && dy > 0 -> 10
-            dx < 0 && dy == 0 -> 12
-            dx < 0 && dy < 0 -> 14
-            else -> 0
-        }
+        return LegacyDirections.fromFacing(
+            facingX = (to.x - from.x).coerceIn(-1, 1),
+            facingY = (to.y - from.y).coerceIn(-1, 1),
+        )
     }
 
     private fun stepDirection(current: Int, desired: Int): Int {
-        if (current == desired) return current
-        val diff = ((desired - current + 16) % 16)
-        val step = if (diff <= 8) 1 else -1
-        return ((current + step + 16) % 16)
+        return LegacyDirections.stepToward(current, desired)
     }
 
     private fun projectileVelocityFromDirection(direction: Int): Pair<Int, Int> {
-        val (dx, dy) = DIRECTION_VECTORS[((direction % 16) + 16) % 16]
-        return dx * PROJECTILE_SPEED to dy * PROJECTILE_SPEED
+        val (vx, vy) = LegacyDirections.toVelocityStep(direction, PROJECTILE_SPEED.toFloat())
+        return vx.toInt() to vy.toInt()
     }
 
     companion object {
@@ -130,25 +118,6 @@ internal class TurretActor(
             fireDelayTicks = state.fireDelayTicks,
             rangePixels = state.rangePixels,
             damage = state.damage,
-        )
-
-        private val DIRECTION_VECTORS: Array<Pair<Int, Int>> = arrayOf(
-            0 to -1,   // 0: up
-            1 to -2,   // 1: up-right (more up)
-            1 to -1,   // 2: up-right
-            2 to -1,   // 3: right (more right)
-            1 to 0,    // 4: right
-            2 to 1,    // 5: right (more right)
-            1 to 1,    // 6: down-right
-            1 to 2,    // 7: down (more down)
-            0 to 1,    // 8: down
-            -1 to 2,   // 9
-            -1 to 1,   // 10: down-left
-            -2 to 1,   // 11
-            -1 to 0,   // 12: left
-            -2 to -1,  // 13
-            -1 to -1,  // 14: up-left
-            -1 to -2,  // 15
         )
     }
 }

@@ -20,6 +20,7 @@ class GoalReachedTest {
                     kind = ObjectKinds.PLAYER_START,
                     x = playerStart.first,
                     y = playerStart.second,
+                    properties = mapOf("direction" to "4"),
                 ),
                 AuthoredObject(
                     id = "g",
@@ -36,10 +37,9 @@ class GoalReachedTest {
         )
         val sim = SimulationFactory.fromCanonicalMap(map)
 
-        // Drive right toward the goal until we either reach it or run out of ticks.
         var reachedEvents = 0
         repeat(200) {
-            val result = sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1)))
+            val result = sim.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             reachedEvents += result.events.count { it is SimulationEvent.GoalReached }
         }
 

@@ -15,10 +15,9 @@ class CollisionTest {
     @Test
     fun `tank cannot enter a solid tile to the right`() {
         val map = TestMaps.withSingleSolidAt(widthTiles = 5, heightTiles = 3, solidX = 3, solidY = 1)
-        val sim = SimulationFactory.fromCanonicalMap(map.copy(objects = playerAt(centerOfTile(1, 1))))
+        val sim = SimulationFactory.fromCanonicalMap(map.copy(objects = playerAt(centerOfTile(1, 1), direction = 4)))
 
-        // Drive right (steer +1) for many ticks; should slide up to but not into the wall.
-        repeat(40) { sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1))) }
+        repeat(40) { sim.tick(mapOf(0 to PlayerIntentFrame(forward = true))) }
         val tank = sim.currentState().tanks.single()
 
         // Tank position should not have entered the solid tile (tile 3 starts at x = 3*33 = 99).
@@ -36,9 +35,9 @@ class CollisionTest {
     fun `tank can drive freely when no walls block`() {
         val map = TestMaps.empty(widthTiles = 6, heightTiles = 3)
         val start = centerOfTile(1, 1)
-        val sim = SimulationFactory.fromCanonicalMap(map.copy(objects = playerAt(start)))
+        val sim = SimulationFactory.fromCanonicalMap(map.copy(objects = playerAt(start, direction = 4)))
 
-        repeat(5) { sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1))) }
+        repeat(5) { sim.tick(mapOf(0 to PlayerIntentFrame(forward = true))) }
 
         val tank = sim.currentState().tanks.single()
         assertTrue(tank.position.x > start.first)
@@ -49,9 +48,9 @@ class CollisionTest {
         // Wall on the right at column 3, tank at column 1, drive diagonally down-right.
         val map = TestMaps.verticalWall(widthTiles = 5, heightTiles = 5, wallX = 3)
         val start = centerOfTile(1, 2)
-        val sim = SimulationFactory.fromCanonicalMap(map.copy(objects = playerAt(start)))
+        val sim = SimulationFactory.fromCanonicalMap(map.copy(objects = playerAt(start, direction = 6)))
 
-        repeat(20) { sim.tick(mapOf(0 to PlayerIntentFrame(steer = 1, throttle = 1))) }
+        repeat(20) { sim.tick(mapOf(0 to PlayerIntentFrame(forward = true))) }
 
         val tank = sim.currentState().tanks.single()
         // X should be blocked at the wall.
@@ -60,12 +59,13 @@ class CollisionTest {
         assertTrue(tank.position.y > start.second)
     }
 
-    private fun playerAt(position: Pair<Int, Int>): List<AuthoredObject> = listOf(
+    private fun playerAt(position: Pair<Int, Int>, direction: Int): List<AuthoredObject> = listOf(
         AuthoredObject(
             id = "p1",
             kind = ObjectKinds.PLAYER_START,
             x = position.first,
             y = position.second,
+            properties = mapOf("direction" to direction.toString()),
         ),
     )
 

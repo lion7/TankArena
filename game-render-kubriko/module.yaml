@@ -5,6 +5,7 @@ product:
 dependencies:
   - ../game-core
   - ../game-content
+  - ../game-protocol
   - ../game-sim
   - $compose.desktop.currentOs
   - io.github.pandulapeter.kubriko:engine-desktop:0.0.8

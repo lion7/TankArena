@@ -5,6 +5,7 @@ import com.pandulapeter.kubriko.collision.CollisionDetector
 import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.core.Int2
+import com.tankarena.core.LegacyDirections
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.sim.GoalState
 import com.tankarena.sim.MissionProgress
@@ -69,7 +70,11 @@ internal class SimulationHost(
 
         // 1. Distribute inputs to tanks.
         for (tank in tanks) {
-            val input = playerInputs[tank.playerIndex] ?: PlayerIntentFrame()
+            val input = if (tank.playerIndex >= 0) {
+                playerInputs[tank.playerIndex] ?: PlayerIntentFrame()
+            } else {
+                buildAiIntent(tank)
+            }
             tank.applyIntent(input)
         }
 
@@ -147,7 +152,7 @@ internal class SimulationHost(
                 tank.isAlive = true
                 tank.armor = INITIAL_ARMOR
                 tank.fuel = INITIAL_FUEL
-                tank.velocity = Int2(0, 0)
+                tank.stopMotion()
                 tank.respawnInTicks = 0
                 tank.primaryCooldownTicks = 0
                 tank.teleportTo(tank.spawnPoint)
@@ -194,11 +199,54 @@ internal class SimulationHost(
             mission = mission.copy(status = MissionStatus.WON)
             return
         }
+        val enemyTanks = tanks.filter { it.playerIndex < 0 }
+        if (enemyTanks.isNotEmpty() && enemyTanks.all { !it.isAlive && it.lives <= 0 }) {
+            events += SimulationEvent.MissionWon
+            mission = mission.copy(status = MissionStatus.WON)
+            return
+        }
         val playerTanks = tanks.filter { it.playerIndex >= 0 }
         if (playerTanks.isNotEmpty() && playerTanks.all { !it.isAlive && it.lives <= 0 }) {
             events += SimulationEvent.MissionLost
             mission = mission.copy(status = MissionStatus.LOST)
         }
+    }
+
+    private fun buildAiIntent(tank: TankActor): PlayerIntentFrame {
+        val target = tanks
+            .filter { it.playerIndex >= 0 && it.isAlive }
+            .minByOrNull { candidate ->
+                val dx = candidate.positionX - tank.positionX
+                val dy = candidate.positionY - tank.positionY
+                dx * dx + dy * dy
+            } ?: return PlayerIntentFrame()
+
+        val dx = target.positionX - tank.positionX
+        val dy = target.positionY - tank.positionY
+        val desiredDirection = LegacyDirections.fromFacing(
+            facingX = dx.coerceIn(-1, 1),
+            facingY = dy.coerceIn(-1, 1),
+        )
+        val desiredHullTurn = turnToward(tank.bodyDirection, desiredDirection)
+        val desiredTurretTurn = turnToward(tank.turretDirection, desiredDirection)
+        val distanceSq = dx * dx + dy * dy
+        val shouldAdvance = distanceSq > (LEGACY_TILE_SIZE * 4) * (LEGACY_TILE_SIZE * 4)
+        return PlayerIntentFrame(
+            forward = shouldAdvance,
+            turnLeft = desiredHullTurn < 0,
+            turnRight = desiredHullTurn > 0,
+            aimLeft = desiredTurretTurn < 0,
+            aimRight = desiredTurretTurn > 0,
+            firePrimary = desiredTurretTurn == 0 && distanceSq <= (LEGACY_TILE_SIZE * 8) * (LEGACY_TILE_SIZE * 8),
+        )
+    }
+
+    private fun turnToward(current: Int, desired: Int): Int {
+        val normalizedCurrent = LegacyDirections.normalize(current)
+        val normalizedDesired = LegacyDirections.normalize(desired)
+        if (normalizedCurrent == normalizedDesired) return 0
+        val diff = (normalizedDesired - normalizedCurrent + 16) % 16
+        return if (diff <= 8) 1 else -1
     }
 
     private fun withinRadius(a: Int2, b: Int2, radius: Int): Boolean {

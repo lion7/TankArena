@@ -5,6 +5,7 @@ import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.ObjectKinds
 import com.tankarena.content.WeaponType
 import com.tankarena.core.Int2
+import com.tankarena.core.LegacyDirections
 import com.tankarena.sim.runtime.SimulationHost
 
 object SimulationFactory {
@@ -28,21 +29,21 @@ object SimulationFactory {
             .filter { it.kind == ObjectKinds.PLAYER_START }
             .sortedBy { it.id }
 
-        val tanks = if (playerStarts.isNotEmpty()) {
+        val playerTanks = if (playerStarts.isNotEmpty()) {
             playerStarts.mapIndexed { index, start ->
-                val facing = start.properties.directionToFacing()
+                val direction = start.properties.direction()
                 TankState(
                     id = index + 1L,
                     playerIndex = index,
                     tankType = start.properties["startType"]?.toIntOrNull() ?: index,
                     position = Int2(start.x, start.y),
-                    facing = facing,
-                    turretFacing = facing,
-                    velocity = Int2(0, 0),
+                    bodyDirection = direction,
+                    turretDirection = direction,
                     armor = INITIAL_ARMOR,
                     fuel = INITIAL_FUEL,
                     selectedWeapon = WeaponType.MAIN_CANNON,
                     lives = start.properties["lives"]?.toIntOrNull() ?: 3,
+                    team = 0,
                 )
             }
         } else {
@@ -52,15 +53,36 @@ object SimulationFactory {
                     playerIndex = 0,
                     tankType = 0,
                     position = Int2(bounds.widthPixels / 2, bounds.heightPixels / 2),
-                    facing = Int2(0, -1),
-                    turretFacing = Int2(0, -1),
-                    velocity = Int2(0, 0),
+                    bodyDirection = 0,
+                    turretDirection = 0,
                     armor = INITIAL_ARMOR,
                     fuel = INITIAL_FUEL,
                     selectedWeapon = WeaponType.MAIN_CANNON,
+                    team = 0,
                 ),
             )
         }
+
+        val enemyTanks = map.objects
+            .filter { it.kind == ObjectKinds.ENFORCER }
+            .mapIndexed { index, enemy ->
+                val direction = enemy.properties.direction()
+                TankState(
+                    id = 1_000L + index,
+                    playerIndex = -1 - index,
+                    tankType = enemy.properties["tankType"]?.toIntOrNull() ?: 0,
+                    position = Int2(enemy.x, enemy.y),
+                    bodyDirection = direction,
+                    turretDirection = direction,
+                    armor = enemy.properties["armor"]?.toIntOrNull() ?: INITIAL_ARMOR,
+                    fuel = enemy.properties["fuel"]?.toIntOrNull() ?: INITIAL_FUEL,
+                    selectedWeapon = WeaponType.MAIN_CANNON,
+                    lives = enemy.properties["lives"]?.toIntOrNull() ?: 1,
+                    team = 1,
+                )
+            }
+
+        val tanks = playerTanks + enemyTanks
 
         val turrets = map.objects
             .filter { it.kind == ObjectKinds.TURRET }
@@ -116,12 +138,4 @@ object SimulationFactory {
     }
 }
 
-private fun Map<String, String>.directionToFacing(): Int2 {
-    return when (this["direction"]?.toIntOrNull()) {
-        0 -> Int2(0, -1)
-        4 -> Int2(1, 0)
-        8 -> Int2(0, 1)
-        12 -> Int2(-1, 0)
-        else -> Int2(0, -1)
-    }
-}
+private fun Map<String, String>.direction(): Int = this["direction"]?.toIntOrNull()?.let(LegacyDirections::normalize) ?: 0

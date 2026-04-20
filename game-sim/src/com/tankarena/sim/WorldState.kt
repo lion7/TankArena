@@ -3,6 +3,7 @@ package com.tankarena.sim
 import com.tankarena.content.WeaponType
 import com.tankarena.core.EntityId
 import com.tankarena.core.Int2
+import com.tankarena.core.LegacyDirections
 import com.tankarena.core.Tick
 import kotlinx.serialization.Serializable
 
@@ -39,9 +40,13 @@ data class TankState(
     val playerIndex: Int,
     val tankType: Int = 0,
     val position: Int2,
-    val facing: Int2,
-    val turretFacing: Int2 = facing,
-    val velocity: Int2,
+    val bodyDirection: Int = 0,
+    val turretDirection: Int = bodyDirection,
+    val facing: Int2 = LegacyDirections.toFacing(bodyDirection),
+    val turretFacing: Int2 = LegacyDirections.toFacing(turretDirection),
+    val velocity: Int2 = Int2(0, 0),
+    val velocityX: Float = velocity.x.toFloat(),
+    val velocityY: Float = velocity.y.toFloat(),
     val armor: Int,
     val fuel: Int,
     val selectedWeapon: WeaponType,
@@ -49,6 +54,7 @@ data class TankState(
     val isAlive: Boolean = true,
     val respawnInTicks: Int = 0,
     val lives: Int = 3,
+    val team: Int = 0,
 )
 
 @Serializable

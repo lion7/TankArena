@@ -9,7 +9,7 @@ import com.pandulapeter.kubriko.types.SceneSize
 /**
  * Static collidable representing a single solid map tile (or a synthetic
  * boundary segment along the playfield edges). Walls only participate as
- * `Collidable` — the actual terrain rendering is handled in bulk by the
+ * `Collidable` ï¿½ the actual terrain rendering is handled in bulk by the
  * client's `TerrainActor`, so we deliberately do NOT implement `Visible`.
  */
 internal class WallActor(

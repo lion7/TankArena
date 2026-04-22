@@ -2,6 +2,7 @@ package com.tankarena.app.desktop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,6 +20,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.key.Key
@@ -25,6 +30,8 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -38,6 +45,7 @@ import com.tankarena.protocol.PlayerEvent
 import com.tankarena.protocol.PlayerFrame
 import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
+import com.tankarena.render.kubriko.ViewportGeometry
 import com.tankarena.sim.MissionMode
 import com.tankarena.sim.runtime.LocalMatchHost
 import com.tankarena.ui.compose.DesktopShellScreen
@@ -172,6 +180,8 @@ private fun GameplayScreen(
     val map = remember(mission.mapFile, mode) { materializePlayableMission(mission.canonical, mode) }
     val host = remember(map, mode) { LocalMatchHost(map = map, mode = mode.toMissionMode()) }
     var envelope by remember(host) { mutableStateOf<FrameEnvelope>(host.currentFrameEnvelope()) }
+    var viewportRect by remember { mutableStateOf(Rect.Zero) }
+    var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
     val playerFrame = envelope.playerFrames.firstOrNull()
 
     LaunchedEffect(host) {
@@ -200,6 +210,8 @@ private fun GameplayScreen(
     }
 
     TiledPanelBackground(modifier = Modifier.fillMaxSize()) {
+        val worldWidth = map.metadata.widthTiles * 33
+        val worldHeight = map.metadata.heightTiles * 33
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -214,10 +226,17 @@ private fun GameplayScreen(
                 TankArenaViewport(
                     map = map,
                     playerFrame = playerFrame,
-                    worldWidth = map.metadata.widthTiles * 33,
-                    worldHeight = map.metadata.heightTiles * 33,
-                    modifier = Modifier.fillMaxSize(),
+                    worldWidth = worldWidth,
+                    worldHeight = worldHeight,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coordinates ->
+                            viewportRect = coordinates.boundsInParent()
+                        },
+                    onGeometryChanged = { viewportGeometry = it },
                 )
+            }
+            if (playerFrame != null) {
                 HudOverlay(
                     hudState = playerFrame.hudState,
                     modifier = Modifier
@@ -226,13 +245,109 @@ private fun GameplayScreen(
                 )
                 RadarOverlay(
                     playerFrame = playerFrame,
-                    worldWidth = map.metadata.widthTiles * 33,
-                    worldHeight = map.metadata.heightTiles * 33,
+                    worldWidth = worldWidth,
+                    worldHeight = worldHeight,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp),
                 )
+                ViewportDebugOverlay(
+                    playerFrame = playerFrame,
+                    geometry = viewportGeometry,
+                    viewportRect = viewportRect,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ViewportDebugOverlay(
+    playerFrame: PlayerFrame,
+    geometry: ViewportGeometry?,
+    viewportRect: Rect,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRect(
+                color = Color(0xFF00D7FF),
+                style = Stroke(width = 1f),
+            )
+            if (viewportRect != Rect.Zero) {
+                drawRect(
+                    color = Color(0xFFFFD54F),
+                    topLeft = viewportRect.topLeft,
+                    size = viewportRect.size,
+                    style = Stroke(width = 2f),
+                )
+            }
+            if (geometry != null && viewportRect != Rect.Zero) {
+                val viewportSceneWidth = playerFrame.camera.width.toFloat()
+                val viewportSceneHeight = playerFrame.camera.height.toFloat()
+                val sceneLeft = geometry.cameraCenterX - viewportSceneWidth / 2f
+                val sceneTop = geometry.cameraCenterY - viewportSceneHeight / 2f
+                val scaleX = viewportRect.width / viewportSceneWidth
+                val scaleY = viewportRect.height / viewportSceneHeight
+                val worldLeft = viewportRect.left + (geometry.renderOffsetX - sceneLeft) * scaleX
+                val worldTop = viewportRect.top + (geometry.renderOffsetY - sceneTop) * scaleY
+                val worldWidthPx = geometry.worldWidth * scaleX
+                val worldHeightPx = geometry.worldHeight * scaleY
+                drawRect(
+                    color = Color(0xFF4CAF50),
+                    topLeft = Offset(worldLeft, worldTop),
+                    size = androidx.compose.ui.geometry.Size(worldWidthPx, worldHeightPx),
+                    style = Stroke(width = 2f),
+                )
+                val cameraCenter = Offset(
+                    x = viewportRect.left + viewportRect.width / 2f,
+                    y = viewportRect.top + viewportRect.height / 2f,
+                )
+                drawLine(
+                    color = Color(0xFFFF5252),
+                    start = Offset(cameraCenter.x - 8f, cameraCenter.y),
+                    end = Offset(cameraCenter.x + 8f, cameraCenter.y),
+                    strokeWidth = 2f,
+                )
+                drawLine(
+                    color = Color(0xFFFF5252),
+                    start = Offset(cameraCenter.x, cameraCenter.y - 8f),
+                    end = Offset(cameraCenter.x, cameraCenter.y + 8f),
+                    strokeWidth = 2f,
+                )
+            }
+        }
+        if (geometry != null) {
+            Text(
+                text = buildString {
+                    append("viewport=")
+                    append(viewportRect.width.toInt())
+                    append("x")
+                    append(viewportRect.height.toInt())
+                    append(" scene=")
+                    append(geometry.sceneWidth)
+                    append("x")
+                    append(geometry.sceneHeight)
+                    append(" world=")
+                    append(geometry.worldWidth)
+                    append("x")
+                    append(geometry.worldHeight)
+                    append(" offset=")
+                    append(geometry.renderOffsetX.toInt())
+                    append(",")
+                    append(geometry.renderOffsetY.toInt())
+                    append(" camera=")
+                    append(geometry.cameraCenterX.toInt())
+                    append(",")
+                    append(geometry.cameraCenterY.toInt())
+                },
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .background(Color(0xCC101010))
+                    .padding(6.dp),
+            )
         }
     }
 }

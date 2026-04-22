@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tankarena.protocol.HudState
+import com.tankarena.protocol.snapshot.HudState
 
 /**
  * Top-of-arena HUD overlay matching the legacy strip:

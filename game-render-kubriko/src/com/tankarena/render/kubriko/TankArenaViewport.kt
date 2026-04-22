@@ -18,21 +18,29 @@ import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.pandulapeter.kubriko.types.FrameRate
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.CanonicalMapDefinition
-import com.tankarena.protocol.PlayerFrame
+import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.ServerFrame
+import com.tankarena.protocol.snapshot.WorldSnapshot
 
 @Composable
 fun TankArenaViewport(
     map: CanonicalMapDefinition?,
-    playerFrame: PlayerFrame,
+    serverFrame: ServerFrame,
+    playerId: Int,
     worldWidth: Int,
     worldHeight: Int,
     modifier: Modifier = Modifier,
     onGeometryChanged: (ViewportGeometry) -> Unit = {},
 ) {
-    val runtime = remember(map?.metadata?.name, playerFrame.playerId) {
+    val playerView = serverFrame.playerViews.firstOrNull { it.playerId == playerId }
+        ?: serverFrame.playerViews.firstOrNull()
+        ?: return
+
+    val runtime = remember(map?.metadata?.name, playerView.playerId) {
         TankArenaKubrikoRuntime(
             map = map,
-            initialFrame = playerFrame,
+            initialView = playerView,
+            initialWorld = serverFrame.world,
             worldWidth = worldWidth,
             worldHeight = worldHeight,
         )
@@ -42,8 +50,8 @@ fun TankArenaViewport(
         onDispose(runtime::dispose)
     }
 
-    LaunchedEffect(runtime, map, playerFrame, worldWidth, worldHeight) {
-        runtime.sync(map, playerFrame, worldWidth, worldHeight)
+    LaunchedEffect(runtime, map, serverFrame, worldWidth, worldHeight) {
+        runtime.sync(map, playerView, serverFrame.world, worldWidth, worldHeight)
         onGeometryChanged(runtime.geometry)
     }
 
@@ -56,15 +64,16 @@ fun TankArenaViewport(
 
 private class TankArenaKubrikoRuntime(
     map: CanonicalMapDefinition?,
-    initialFrame: PlayerFrame,
+    initialView: PlayerView,
+    initialWorld: WorldSnapshot,
     worldWidth: Int,
     worldHeight: Int,
 ) {
     private val sprites = LegacySpriteCatalog.shared
     private val snapshot = RuntimeSnapshot(
         map = map,
-        playerFrame = initialFrame,
-        geometry = resolveViewportGeometry(initialFrame, worldWidth, worldHeight),
+        playerView = initialView,
+        geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight),
     )
     private val spriteManager = SpriteManager.newInstance(
         isLoggingEnabled = false,
@@ -123,18 +132,24 @@ private class TankArenaKubrikoRuntime(
     )
 
     init {
-        sync(map, initialFrame, worldWidth, worldHeight)
+        sync(map, initialView, initialWorld, worldWidth, worldHeight)
     }
 
     val geometry: ViewportGeometry
         get() = snapshot.geometry
 
-    fun sync(map: CanonicalMapDefinition?, playerFrame: PlayerFrame, worldWidth: Int, worldHeight: Int) {
+    fun sync(
+        map: CanonicalMapDefinition?,
+        playerView: PlayerView,
+        world: WorldSnapshot,
+        worldWidth: Int,
+        worldHeight: Int,
+    ) {
         snapshot.map = map
-        snapshot.playerFrame = playerFrame
-        snapshot.geometry = resolveViewportGeometry(playerFrame, worldWidth, worldHeight)
+        snapshot.playerView = playerView
+        snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight)
         terrainActor.syncBounds()
-        replicatedActorScene.sync(playerFrame)
+        replicatedActorScene.sync(world)
         preloadSceneSprites(map)
         viewportManager.setCameraPosition(
             SceneOffset(

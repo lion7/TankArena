@@ -16,7 +16,7 @@ import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacyPictureVariant
 import com.tankarena.content.LegacySpriteResources
 import com.tankarena.content.TankArenaWorld
-import com.tankarena.protocol.PlayerFrame
+import com.tankarena.protocol.snapshot.PlayerView
 import org.jetbrains.compose.resources.DrawableResource
 import kotlin.math.max
 import kotlin.math.min
@@ -41,7 +41,7 @@ data class ViewportGeometry(
 
 internal class RuntimeSnapshot(
     var map: CanonicalMapDefinition?,
-    var playerFrame: PlayerFrame,
+    var playerView: PlayerView,
     var geometry: ViewportGeometry,
 ) {
     val sceneWidth: Int
@@ -58,12 +58,12 @@ internal class RuntimeSnapshot(
 }
 
 internal fun resolveViewportGeometry(
-    playerFrame: PlayerFrame,
+    playerView: PlayerView,
     worldWidth: Int,
     worldHeight: Int,
 ): ViewportGeometry {
-    val viewportWidth = playerFrame.camera.width.toFloat()
-    val viewportHeight = playerFrame.camera.height.toFloat()
+    val viewportWidth = playerView.cameraWidth.toFloat()
+    val viewportHeight = playerView.cameraHeight.toFloat()
     val sceneWidth = max(worldWidth.toFloat(), LEGACY_PLAYFIELD_WIDTH)
     val sceneHeight = max(worldHeight.toFloat(), LEGACY_PLAYFIELD_HEIGHT)
     val renderOffsetX = ((sceneWidth - worldWidth) / 2f).coerceAtLeast(0f)
@@ -74,14 +74,14 @@ internal fun resolveViewportGeometry(
     val cameraCenterX = if (sceneWidth <= viewportWidth) {
         sceneCenterX
     } else {
-        (playerFrame.camera.centerX + renderOffsetX)
+        (playerView.cameraCenterX + renderOffsetX)
             .coerceIn(viewportWidth / 2f, sceneWidth - viewportWidth / 2f)
     }
 
     val cameraCenterY = if (sceneHeight <= viewportHeight) {
         sceneCenterY
     } else {
-        (playerFrame.camera.centerY + renderOffsetY)
+        (playerView.cameraCenterY + renderOffsetY)
             .coerceIn(viewportHeight / 2f, sceneHeight - viewportHeight / 2f)
     }
 

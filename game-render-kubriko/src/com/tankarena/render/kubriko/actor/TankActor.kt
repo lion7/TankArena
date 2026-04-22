@@ -7,8 +7,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacySpriteResources
-import com.tankarena.protocol.ActorView
 import com.tankarena.protocol.Team
+import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.render.kubriko.RuntimeSnapshot
 import com.tankarena.render.kubriko.drawSprite
@@ -30,14 +30,14 @@ internal class TankActor(
     private var bodyDirection: Int = 0
     private var turretDirection: Int = 0
 
-    fun sync(actor: ActorView) {
-        team = actor.team
-        tankType = actor.tankType
-        bodyDirection = actor.bodyDirection
-        turretDirection = actor.turretDirection
+    fun sync(state: TankState) {
+        team = state.team
+        tankType = state.tankType
+        bodyDirection = state.bodyDirection
+        turretDirection = state.turretDirection
         setCenter(
-            x = snapshot.renderOffsetX + actor.x,
-            y = snapshot.renderOffsetY + actor.y,
+            x = snapshot.renderOffsetX + state.x,
+            y = snapshot.renderOffsetY + state.y,
         )
     }
 

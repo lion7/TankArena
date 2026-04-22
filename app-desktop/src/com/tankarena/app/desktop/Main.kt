@@ -39,10 +39,10 @@ import com.tankarena.content.AuthoredObject
 import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.content.ObjectKinds
 import com.tankarena.core.FixedStepClock
-import com.tankarena.protocol.FrameEnvelope
 import com.tankarena.protocol.InputFrame
-import com.tankarena.protocol.PlayerEvent
-import com.tankarena.protocol.PlayerFrame
+import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.render.kubriko.ViewportGeometry
@@ -179,27 +179,26 @@ private fun GameplayScreen(
 ) {
     val map = remember(mission.mapFile, mode) { materializePlayableMission(mission.canonical, mode) }
     val host = remember(map, mode) { LocalMatchHost(map = map, mode = mode.toMissionMode()) }
-    var envelope by remember(host) { mutableStateOf<FrameEnvelope>(host.currentFrameEnvelope()) }
+    var serverFrame by remember(host) { mutableStateOf<ServerFrame>(host.currentServerFrame()) }
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
-    val playerFrame = envelope.playerFrames.firstOrNull()
+    val playerView = serverFrame.playerViews.firstOrNull()
 
     LaunchedEffect(host) {
         var inputSequence = 0L
         var consumed = false
         while (true) {
             host.submitInput(controls.toInputFrame(playerId = 0, inputSequence = inputSequence++))
-            envelope = host.tick()
+            host.tick()
+            serverFrame = host.lastServerFrame ?: serverFrame
             if (!consumed) {
-                val outcome = envelope.playerFrames
-                    .flatMap { it.playerEvents }
-                    .firstNotNullOfOrNull { event ->
-                        when (event) {
-                            PlayerEvent.MissionWon -> MissionOutcome.WON
-                            PlayerEvent.MissionLost -> MissionOutcome.LOST
-                            else -> null
-                        }
+                val outcome = serverFrame.world.events.firstNotNullOfOrNull { event ->
+                    when (event) {
+                        is GameEvent.MissionWon -> MissionOutcome.WON
+                        is GameEvent.MissionLost -> MissionOutcome.LOST
+                        else -> null
                     }
+                }
                 if (outcome != null) {
                     consumed = true
                     onMissionEnd(outcome)
@@ -222,10 +221,11 @@ private fun GameplayScreen(
                 .padding(2.dp)
                 .background(Color.Black),
         ) {
-            if (playerFrame != null) {
+            if (playerView != null) {
                 TankArenaViewport(
                     map = map,
-                    playerFrame = playerFrame,
+                    serverFrame = serverFrame,
+                    playerId = playerView.playerId,
                     worldWidth = worldWidth,
                     worldHeight = worldHeight,
                     modifier = Modifier
@@ -235,16 +235,14 @@ private fun GameplayScreen(
                         },
                     onGeometryChanged = { viewportGeometry = it },
                 )
-            }
-            if (playerFrame != null) {
                 HudOverlay(
-                    hudState = playerFrame.hudState,
+                    hudState = playerView.hud,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 6.dp),
                 )
                 RadarOverlay(
-                    playerFrame = playerFrame,
+                    playerView = playerView,
                     worldWidth = worldWidth,
                     worldHeight = worldHeight,
                     modifier = Modifier
@@ -252,7 +250,7 @@ private fun GameplayScreen(
                         .padding(8.dp),
                 )
                 ViewportDebugOverlay(
-                    playerFrame = playerFrame,
+                    playerView = playerView,
                     geometry = viewportGeometry,
                     viewportRect = viewportRect,
                     modifier = Modifier.fillMaxSize(),
@@ -264,7 +262,7 @@ private fun GameplayScreen(
 
 @Composable
 private fun ViewportDebugOverlay(
-    playerFrame: PlayerFrame,
+    playerView: PlayerView,
     geometry: ViewportGeometry?,
     viewportRect: Rect,
     modifier: Modifier = Modifier,
@@ -284,8 +282,8 @@ private fun ViewportDebugOverlay(
                 )
             }
             if (geometry != null && viewportRect != Rect.Zero) {
-                val viewportSceneWidth = playerFrame.camera.width.toFloat()
-                val viewportSceneHeight = playerFrame.camera.height.toFloat()
+                val viewportSceneWidth = playerView.cameraWidth.toFloat()
+                val viewportSceneHeight = playerView.cameraHeight.toFloat()
                 val sceneLeft = geometry.cameraCenterX - viewportSceneWidth / 2f
                 val sceneTop = geometry.cameraCenterY - viewportSceneHeight / 2f
                 val scaleX = viewportRect.width / viewportSceneWidth

@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacySpriteResources
-import com.tankarena.protocol.ActorView
+import com.tankarena.protocol.snapshot.TurretState
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.render.kubriko.RuntimeSnapshot
 import com.tankarena.render.kubriko.drawSprite
@@ -27,12 +27,12 @@ internal class TurretActor(
     private var turretType: Int = 0
     private var turretDirection: Int = 0
 
-    fun sync(actor: ActorView) {
-        turretType = actor.tankType
-        turretDirection = actor.turretDirection
+    fun sync(state: TurretState) {
+        turretType = state.turretType
+        turretDirection = state.turretDirection
         setCenter(
-            x = snapshot.renderOffsetX + actor.x,
-            y = snapshot.renderOffsetY + actor.y,
+            x = snapshot.renderOffsetX + state.x,
+            y = snapshot.renderOffsetY + state.y,
         )
     }
 

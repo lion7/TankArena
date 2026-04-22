@@ -4,7 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.tankarena.protocol.ProjectileView
+import com.tankarena.protocol.snapshot.ProjectileState
 import com.tankarena.render.kubriko.RuntimeSnapshot
 
 private const val PROJECTILE_BODY_SIZE = 3
@@ -18,10 +18,10 @@ internal class ProjectileActor(
     width = PROJECTILE_BODY_SIZE,
     height = PROJECTILE_BODY_SIZE,
 ) {
-    fun sync(projectile: ProjectileView) {
+    fun sync(state: ProjectileState) {
         setCenter(
-            x = snapshot.renderOffsetX + projectile.x,
-            y = snapshot.renderOffsetY + projectile.y,
+            x = snapshot.renderOffsetX + state.x,
+            y = snapshot.renderOffsetY + state.y,
         )
     }
 

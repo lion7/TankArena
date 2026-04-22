@@ -13,12 +13,12 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Canvas
-import com.tankarena.protocol.PlayerFrame
 import com.tankarena.protocol.Team
+import com.tankarena.protocol.snapshot.PlayerView
 
 @Composable
 fun RadarOverlay(
-    playerFrame: PlayerFrame,
+    playerView: PlayerView,
     worldWidth: Int,
     worldHeight: Int,
     modifier: Modifier = Modifier,
@@ -31,7 +31,7 @@ fun RadarOverlay(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawRect(Color(0x2200FF66), style = Stroke(width = 1f))
-            playerFrame.radarContacts.forEach { contact ->
+            playerView.radar.forEach { contact ->
                 val px = if (worldWidth <= 0) 0f else size.width * contact.approximateX / worldWidth.toFloat()
                 val py = if (worldHeight <= 0) 0f else size.height * contact.approximateY / worldHeight.toFloat()
                 drawCircle(

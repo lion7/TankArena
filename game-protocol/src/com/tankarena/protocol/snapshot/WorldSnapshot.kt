@@ -22,6 +22,8 @@ data class PlayerView(
     val controlledActorId: Long?,
     val cameraCenterX: Int,
     val cameraCenterY: Int,
+    val cameraWidth: Int = 640,
+    val cameraHeight: Int = 400,
     val hud: HudState,
     val radar: List<RadarContact> = emptyList(),
 )
@@ -31,6 +33,7 @@ data class HudState(
     val armor: Int = 0,
     val fuel: Int = 0,
     val lives: Int = 0,
+    val missionProgress: Int = 0,
     val missionCode: String = "",
     val statusText: String = "",
 )
@@ -41,6 +44,7 @@ data class RadarContact(
     val approximateX: Int,
     val approximateY: Int,
     val kind: RadarContactKind,
+    val team: com.tankarena.protocol.Team = com.tankarena.protocol.Team.NEUTRAL,
 )
 
 @Serializable

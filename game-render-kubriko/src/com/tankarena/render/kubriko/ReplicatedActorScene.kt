@@ -3,10 +3,12 @@ package com.tankarena.render.kubriko
 import com.pandulapeter.kubriko.actor.Actor
 import com.pandulapeter.kubriko.manager.ActorManager
 import com.pandulapeter.kubriko.sprites.SpriteManager
-import com.tankarena.protocol.ActorType
-import com.tankarena.protocol.ActorView
-import com.tankarena.protocol.PlayerFrame
-import com.tankarena.protocol.ProjectileView
+import com.tankarena.protocol.snapshot.GoalState
+import com.tankarena.protocol.snapshot.ProjectileState
+import com.tankarena.protocol.snapshot.TankState
+import com.tankarena.protocol.snapshot.TurretState
+import com.tankarena.protocol.snapshot.WallState
+import com.tankarena.protocol.snapshot.WorldSnapshot
 import com.tankarena.render.kubriko.actor.GoalActor
 import com.tankarena.render.kubriko.actor.ProjectileActor
 import com.tankarena.render.kubriko.actor.TankActor
@@ -24,78 +26,67 @@ internal class ReplicatedActorScene(
     private val goals = LinkedHashMap<Long, GoalActor>()
     private val projectiles = LinkedHashMap<Long, ProjectileActor>()
 
-    fun sync(playerFrame: PlayerFrame) {
-        syncActors(playerFrame.replicatedActors)
-        syncProjectiles(playerFrame.replicatedProjectiles)
-    }
-
-    fun collectSpriteResources(target: MutableSet<DrawableResource>) {
-        tanks.values.forEach { it.collectSpriteResources(target) }
-        turrets.values.forEach { it.collectSpriteResources(target) }
-    }
-
-    private fun syncActors(actors: List<ActorView>) {
+    fun sync(world: WorldSnapshot) {
         val tankIds = LinkedHashSet<Long>()
         val turretIds = LinkedHashSet<Long>()
         val goalIds = LinkedHashSet<Long>()
+        val projectileIds = LinkedHashSet<Long>()
 
-        for (actor in actors) {
-            when (actor.type) {
-                ActorType.TANK -> {
-                    tankIds += actor.id
-                    tanks.getOrPut(actor.id) {
+        for (state in world.actors) {
+            when (state) {
+                is TankState -> {
+                    tankIds += state.actorId
+                    tanks.getOrPut(state.actorId) {
                         TankActor(
-                            id = actor.id,
+                            id = state.actorId,
                             snapshot = snapshot,
                             spriteManager = spriteManager,
                             sprites = sprites,
                         ).also { actorManager.add(it) }
-                    }.sync(actor)
+                    }.sync(state)
                 }
-
-                ActorType.TURRET -> {
-                    turretIds += actor.id
-                    turrets.getOrPut(actor.id) {
+                is TurretState -> {
+                    turretIds += state.actorId
+                    turrets.getOrPut(state.actorId) {
                         TurretActor(
-                            id = actor.id,
+                            id = state.actorId,
                             snapshot = snapshot,
                             spriteManager = spriteManager,
                             sprites = sprites,
                         ).also { actorManager.add(it) }
-                    }.sync(actor)
+                    }.sync(state)
                 }
-
-                ActorType.GOAL -> {
-                    goalIds += actor.id
-                    goals.getOrPut(actor.id) {
+                is GoalState -> {
+                    goalIds += state.actorId
+                    goals.getOrPut(state.actorId) {
                         GoalActor(
-                            id = actor.id,
+                            id = state.actorId,
                             snapshot = snapshot,
                         ).also { actorManager.add(it) }
-                    }.sync(actor)
+                    }.sync(state)
                 }
-
-                else -> Unit
+                is ProjectileState -> {
+                    projectileIds += state.actorId
+                    projectiles.getOrPut(state.actorId) {
+                        ProjectileActor(
+                            id = state.actorId,
+                            snapshot = snapshot,
+                        ).also { actorManager.add(it) }
+                    }.sync(state)
+                }
+                is WallState -> Unit
             }
         }
 
         prune(tanks, tankIds)
         prune(turrets, turretIds)
         prune(goals, goalIds)
+        prune(projectiles, projectileIds)
     }
 
-    private fun syncProjectiles(projectiles: List<ProjectileView>) {
-        val projectileIds = LinkedHashSet<Long>()
-        for (projectile in projectiles) {
-            projectileIds += projectile.id
-            this.projectiles.getOrPut(projectile.id) {
-                ProjectileActor(
-                    id = projectile.id,
-                    snapshot = snapshot,
-                ).also { actorManager.add(it) }
-            }.sync(projectile)
-        }
-        prune(this.projectiles, projectileIds)
+    fun collectSpriteResources(target: MutableSet<DrawableResource>) {
+        tanks.values.forEach { it.collectSpriteResources(target) }
+        turrets.values.forEach { it.collectSpriteResources(target) }
     }
 
     private fun <T : Actor> prune(actorsById: MutableMap<Long, T>, keepIds: Set<Long>) {

@@ -207,10 +207,13 @@ internal class ReplicationBuilder(
                     controlledActorId = controlledTank.id,
                     cameraCenterX = camera.centerX,
                     cameraCenterY = camera.centerY,
+                    cameraWidth = camera.width,
+                    cameraHeight = camera.height,
                     hud = SnapshotHudState(
                         armor = controlledTank.armor,
                         fuel = controlledTank.fuel,
                         lives = controlledTank.lives,
+                        missionProgress = state.mission.goalGood,
                         missionCode = map.metadata.missionCode,
                         statusText = state.mission.status.name,
                     ),
@@ -243,6 +246,7 @@ internal class ReplicationBuilder(
                     approximateX = tank.position.x / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
                     approximateY = tank.position.y / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
                     kind = RadarContactKind.TANK,
+                    team = tank.team.toProtocolTeam(),
                 )
             } + state.turrets
             .filterNot { insideViewport(camera, it.position.x, it.position.y) }
@@ -252,6 +256,7 @@ internal class ReplicationBuilder(
                     approximateX = turret.position.x / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
                     approximateY = turret.position.y / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
                     kind = RadarContactKind.TURRET,
+                    team = Team.ENEMY,
                 )
             }
     }

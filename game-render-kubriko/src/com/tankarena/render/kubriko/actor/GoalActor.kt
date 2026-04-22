@@ -4,8 +4,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.tankarena.content.LEGACY_TILE_SIZE
-import com.tankarena.protocol.ActorView
 import com.tankarena.protocol.Team
+import com.tankarena.protocol.snapshot.GoalState
 import com.tankarena.render.kubriko.RuntimeSnapshot
 
 internal class GoalActor(
@@ -19,11 +19,11 @@ internal class GoalActor(
 ) {
     private var team: Team = Team.NEUTRAL
 
-    fun sync(actor: ActorView) {
-        team = actor.team
+    fun sync(state: GoalState) {
+        team = state.team
         setCenter(
-            x = snapshot.renderOffsetX + actor.x,
-            y = snapshot.renderOffsetY + actor.y,
+            x = snapshot.renderOffsetX + state.x,
+            y = snapshot.renderOffsetY + state.y,
         )
     }
 

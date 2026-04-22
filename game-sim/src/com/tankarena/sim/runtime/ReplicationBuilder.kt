@@ -14,6 +14,20 @@ import com.tankarena.protocol.PlayerFrame
 import com.tankarena.protocol.ProjectileView
 import com.tankarena.protocol.RadarContact
 import com.tankarena.protocol.Team
+import com.tankarena.protocol.snapshot.ActorState
+import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.GoalState
+import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.ProjectileOwnerKind
+import com.tankarena.protocol.snapshot.ProjectileState
+import com.tankarena.protocol.snapshot.ServerFrame
+import com.tankarena.protocol.snapshot.TankState
+import com.tankarena.protocol.snapshot.TurretState
+import com.tankarena.protocol.snapshot.WorldSnapshot
+import com.tankarena.protocol.snapshot.HudState as SnapshotHudState
+import com.tankarena.protocol.snapshot.RadarContact as SnapshotRadarContact
+import com.tankarena.protocol.snapshot.RadarContactKind
+import com.tankarena.sim.ProjectileOwnerKind as SimProjectileOwnerKind
 import com.tankarena.sim.SimulationEvent
 import com.tankarena.sim.WorldState
 
@@ -115,6 +129,158 @@ internal class ReplicationBuilder(
         )
     }
 
+    /**
+     * New-shape snapshot. Co-emitted alongside [build] while consumers migrate; once all
+     * consumers read [ServerFrame] the legacy [FrameEnvelope] path is deleted.
+     */
+    fun buildServerFrame(state: WorldState, events: List<SimulationEvent>): ServerFrame {
+        val actors = buildList<ActorState> {
+            state.tanks.forEach { tank ->
+                add(
+                    TankState(
+                        actorId = tank.id,
+                        team = tank.team.toProtocolTeam(),
+                        tankType = tank.tankType,
+                        x = tank.position.x,
+                        y = tank.position.y,
+                        vx = tank.velocityX,
+                        vy = tank.velocityY,
+                        bodyDirection = tank.bodyDirection,
+                        turretDirection = tank.turretDirection,
+                        armor = tank.armor,
+                        alive = tank.isAlive,
+                        primaryCooldownTicks = tank.primaryCooldownTicks,
+                    )
+                )
+            }
+            state.turrets.forEach { turret ->
+                add(
+                    TurretState(
+                        actorId = turret.id,
+                        team = Team.ENEMY,
+                        turretType = turret.turretType,
+                        x = turret.position.x,
+                        y = turret.position.y,
+                        turretDirection = turret.direction,
+                        primaryCooldownTicks = turret.cooldownTicks,
+                    )
+                )
+            }
+            state.projectiles.forEach { projectile ->
+                add(
+                    ProjectileState(
+                        actorId = projectile.id,
+                        ownerId = projectile.ownerId,
+                        x = projectile.position.x,
+                        y = projectile.position.y,
+                        vx = projectile.velocity.x,
+                        vy = projectile.velocity.y,
+                        ownerKind = projectile.ownerKind.toSnapshotOwnerKind(),
+                    )
+                )
+            }
+            state.goals.forEach { goal ->
+                add(
+                    GoalState(
+                        actorId = goal.id,
+                        team = Team.NEUTRAL,
+                        x = goal.position.x,
+                        y = goal.position.y,
+                        captured = goal.isClaimed,
+                    )
+                )
+            }
+        }
+
+        val playerViews = state.tanks
+            .filter { it.playerIndex >= 0 }
+            .sortedBy { it.playerIndex }
+            .map { controlledTank ->
+                val camera = CameraView(
+                    centerX = controlledTank.position.x,
+                    centerY = controlledTank.position.y,
+                    width = LEGACY_VIEWPORT_WIDTH,
+                    height = LEGACY_VIEWPORT_HEIGHT,
+                )
+                PlayerView(
+                    playerId = controlledTank.playerIndex,
+                    controlledActorId = controlledTank.id,
+                    cameraCenterX = camera.centerX,
+                    cameraCenterY = camera.centerY,
+                    hud = SnapshotHudState(
+                        armor = controlledTank.armor,
+                        fuel = controlledTank.fuel,
+                        lives = controlledTank.lives,
+                        missionCode = map.metadata.missionCode,
+                        statusText = state.mission.status.name,
+                    ),
+                    radar = buildSnapshotRadar(state, camera, controlledTank.id),
+                )
+            }
+
+        return ServerFrame(
+            tick = state.tick,
+            world = WorldSnapshot(
+                tick = state.tick,
+                actors = actors,
+                events = mapSnapshotEvents(events),
+            ),
+            playerViews = playerViews,
+        )
+    }
+
+    private fun buildSnapshotRadar(
+        state: WorldState,
+        camera: CameraView,
+        controlledActorId: Long,
+    ): List<SnapshotRadarContact> {
+        return state.tanks
+            .filter { it.id != controlledActorId && it.isAlive }
+            .filterNot { insideViewport(camera, it.position.x, it.position.y) }
+            .map { tank ->
+                SnapshotRadarContact(
+                    actorId = tank.id,
+                    approximateX = tank.position.x / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
+                    approximateY = tank.position.y / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
+                    kind = RadarContactKind.TANK,
+                )
+            } + state.turrets
+            .filterNot { insideViewport(camera, it.position.x, it.position.y) }
+            .map { turret ->
+                SnapshotRadarContact(
+                    actorId = turret.id,
+                    approximateX = turret.position.x / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
+                    approximateY = turret.position.y / LEGACY_TILE_SIZE * LEGACY_TILE_SIZE,
+                    kind = RadarContactKind.TURRET,
+                )
+            }
+    }
+
+    private fun mapSnapshotEvents(events: List<SimulationEvent>): List<GameEvent> {
+        return events.mapNotNull { event ->
+            when (event) {
+                is SimulationEvent.FireProjectile -> GameEvent.Fired(
+                    actorId = event.ownerId,
+                    x = event.origin.x,
+                    y = event.origin.y,
+                )
+                is SimulationEvent.Explosion -> GameEvent.Exploded(
+                    x = event.position.x,
+                    y = event.position.y,
+                )
+                is SimulationEvent.TankHit -> GameEvent.DamageTaken(
+                    actorId = event.tankId,
+                    amount = event.damage,
+                )
+                is SimulationEvent.TankDestroyed -> GameEvent.TankDestroyed(actorId = event.tankId)
+                is SimulationEvent.TankRespawned -> GameEvent.TankSpawned(actorId = event.tankId)
+                SimulationEvent.MissionWon -> GameEvent.MissionWon(playerId = -1)
+                SimulationEvent.MissionLost -> GameEvent.MissionLost(playerId = -1)
+                else -> null
+            }
+        }
+    }
+
     private fun buildRadarContacts(
         state: WorldState,
         camera: CameraView,
@@ -191,4 +357,9 @@ private fun Int.toProtocolTeam(): Team = when (this) {
     0 -> Team.PLAYER
     1 -> Team.ENEMY
     else -> Team.NEUTRAL
+}
+
+private fun SimProjectileOwnerKind.toSnapshotOwnerKind(): ProjectileOwnerKind = when (this) {
+    SimProjectileOwnerKind.TANK -> ProjectileOwnerKind.TANK
+    SimProjectileOwnerKind.TURRET -> ProjectileOwnerKind.TURRET
 }

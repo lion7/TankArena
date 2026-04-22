@@ -5,6 +5,7 @@ import com.tankarena.core.FixedStepClock
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.FrameEnvelope
 import com.tankarena.protocol.InputFrame
+import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.sim.MissionMode
 import com.tankarena.sim.SimulationFactory
 
@@ -33,11 +34,27 @@ class LocalMatchHost(
         val result = simulation.tick(
             latestInputs.mapValues { (_, frame) -> frame.toIntentFrame() },
         )
+        lastServerFrame = replication.buildServerFrame(
+            state = result.current,
+            events = result.events,
+        )
         return replication.build(
             state = result.current,
             events = result.events,
         )
     }
+
+    /**
+     * Most recent snapshot in the new wire shape. Populated each [tick]; null before the
+     * first tick. Exposed for consumers migrating off the legacy [FrameEnvelope].
+     */
+    var lastServerFrame: ServerFrame? = null
+        private set
+
+    fun currentServerFrame(): ServerFrame = replication.buildServerFrame(
+        state = simulation.currentState(),
+        events = emptyList(),
+    )
 }
 
 private fun InputFrame.toIntentFrame(): PlayerIntentFrame = PlayerIntentFrame(

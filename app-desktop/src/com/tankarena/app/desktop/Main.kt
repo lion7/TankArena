@@ -189,8 +189,7 @@ private fun GameplayScreen(
         var consumed = false
         while (true) {
             host.submitInput(controls.toInputFrame(playerId = 0, inputSequence = inputSequence++))
-            host.tick()
-            serverFrame = host.lastServerFrame ?: serverFrame
+            serverFrame = host.tick()
             if (!consumed) {
                 val outcome = serverFrame.world.events.firstNotNullOfOrNull { event ->
                     when (event) {

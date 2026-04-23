@@ -1,6 +1,2 @@
-.idea/
-.gradle/
-.amper-cache/
-.cache/
+.*
 build/
-.codex

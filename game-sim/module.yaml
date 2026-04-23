@@ -2,14 +2,18 @@ product:
   type: lib
   platforms: [jvm]
 
+repositories:
+  - mavenLocal
+
 dependencies:
   - ../game-core
   - ../game-content
   - ../game-input
   - ../game-protocol
   - $compose.desktop.currentOs
-  - io.github.pandulapeter.kubriko:engine-desktop:0.0.8
-  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.0.8
+  - io.github.pandulapeter.kubriko:engine-desktop:0.1.1
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.1.1
+  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.1.1
 
 settings:
   kotlin:

@@ -79,7 +79,7 @@ class ServerMatchPrototype private constructor(
     val missionCode: String get() = map.metadata.missionCode
 
     fun initialize() {
-        kubriko.initialize()
+        tickSource.start()
         awaitActorsPopulated(expectedSize = initialActors.size)
         for (actor in actorManager.allActors.value) {
             actorIds.getOrPut(actor) { nextActorId++ }

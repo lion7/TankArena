@@ -26,13 +26,13 @@ class TerrainSlideManagerTest {
             worldWidthPixels = 640,
             worldHeightPixels = 480,
         )
-        val tickSource = TickSource.manual() as ManualTickSource
+        val tickSource = TickSource.manual()
         val kubriko = Kubriko.newInstance(
             actorManager,
             slideManager,
             tickSource = tickSource,
         )
-        kubriko.initialize()
+        tickSource.start()
         awaitActor(actorManager, resolvable)
 
         tickSource.tick(33)
@@ -53,9 +53,9 @@ class TerrainSlideManagerTest {
             shouldPutFarAwayActorsToSleep = false,
         )
         val slideManager = TerrainSlideManager(worldWidthPixels = 320, worldHeightPixels = 240)
-        val tickSource = TickSource.manual() as ManualTickSource
+        val tickSource = TickSource.manual()
         val kubriko = Kubriko.newInstance(actorManager, slideManager, tickSource = tickSource)
-        kubriko.initialize()
+        tickSource.start()
         awaitActor(actorManager, resolvable)
         awaitActor(actorManager, nonResolvable)
 
@@ -79,14 +79,14 @@ class TerrainSlideManagerTest {
             shouldPutFarAwayActorsToSleep = false,
         )
         val slideManager = TerrainSlideManager(worldWidthPixels = 100, worldHeightPixels = 100)
-        val tickSource = TickSource.manual() as ManualTickSource
+        val tickSource = TickSource.manual()
         val kubriko = Kubriko.newInstance(
             actorManager,
             earlier,
             slideManager,
             tickSource = tickSource,
         )
-        kubriko.initialize()
+        tickSource.start()
         awaitActor(actorManager, resolvable)
 
         tickSource.tick(33)

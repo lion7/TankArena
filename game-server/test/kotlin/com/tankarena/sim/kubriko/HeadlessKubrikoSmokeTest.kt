@@ -13,12 +13,12 @@ class HeadlessKubrikoSmokeTest {
     @Test
     fun `manual tick source drives a custom Manager's onUpdate`() {
         val tracker = TickCountingManager()
-        val tickSource = TickSource.manual() as com.pandulapeter.kubriko.helpers.ManualTickSource
+        val tickSource = TickSource.manual()
         val kubriko = Kubriko.newInstance(
             tracker,
             tickSource = tickSource,
         )
-        kubriko.initialize()
+        tickSource.start()
         assertTrue(tracker.wasInitialized, "custom Manager should have received onInitialize")
 
         repeat(5) { tickSource.tick(33) }
@@ -33,13 +33,13 @@ class HeadlessKubrikoSmokeTest {
     @Test
     fun `freshly constructed Kubriko does not tick until initialize is called`() {
         val tracker = TickCountingManager()
-        val tickSource = TickSource.manual() as com.pandulapeter.kubriko.helpers.ManualTickSource
+        val tickSource = TickSource.manual()
         val kubriko = Kubriko.newInstance(
             tracker,
             tickSource = tickSource,
         )
         assertFalse(tracker.wasInitialized)
-        kubriko.initialize()
+        tickSource.start()
         assertTrue(tracker.wasInitialized)
         kubriko.dispose()
     }

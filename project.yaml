@@ -3,6 +3,7 @@ modules:
   - game-content
   - game-input
   - game-sim
+  - game-server
   - game-protocol
   - game-legacy
   - game-render-kubriko

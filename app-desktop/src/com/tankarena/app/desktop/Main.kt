@@ -46,8 +46,7 @@ import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.render.kubriko.ViewportGeometry
-import com.tankarena.sim.MissionMode
-import com.tankarena.sim.runtime.LocalMatchHost
+import com.tankarena.sim.kubriko.server.LocalMatchClient
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
@@ -178,7 +177,7 @@ private fun GameplayScreen(
     onMissionEnd: (MissionOutcome) -> Unit,
 ) {
     val map = remember(mission.mapFile, mode) { materializePlayableMission(mission.canonical, mode) }
-    val host = remember(map, mode) { LocalMatchHost(map = map, mode = mode.toMissionMode()) }
+    val host = remember(map, mode) { LocalMatchClient.fromCanonicalMap(map) }
     var serverFrame by remember(host) { mutableStateOf<ServerFrame>(host.currentServerFrame()) }
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
@@ -347,12 +346,6 @@ private fun ViewportDebugOverlay(
             )
         }
     }
-}
-
-private fun GameMode.toMissionMode(): MissionMode = when (this) {
-    GameMode.PLAYER_VS_PLAYER -> MissionMode.PLAYER_VS_PLAYER
-    GameMode.SINGLE_PLAYER_VS_COMPUTER -> MissionMode.SINGLE_PLAYER_VS_COMPUTER
-    GameMode.DUAL_PLAYER_VS_COMPUTER -> MissionMode.DUAL_VS_COMPUTER
 }
 
 private fun handleGlobalKeys(

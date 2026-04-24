@@ -24,7 +24,10 @@ class LocalMatchClientTest {
         assertEquals(0L, initial.tick)
         assertEquals(initial.tick, initial.world.tick)
         assertTrue(initial.world.actors.any { it is TankState })
-        assertTrue(initial.playerViews.isEmpty(), "prototype frames carry no player views yet")
+        assertEquals(1, initial.playerViews.size, "one player view per controlled tank")
+        val view = initial.playerViews.single()
+        assertEquals(0, view.playerId)
+        assertTrue(view.hud.missionCode.isNotEmpty(), "HUD carries the mission code")
 
         client.dispose()
     }

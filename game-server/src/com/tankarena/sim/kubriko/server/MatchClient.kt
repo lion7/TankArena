@@ -1,6 +1,7 @@
 package com.tankarena.sim.kubriko.server
 
 import com.tankarena.content.CanonicalMapDefinition
+import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.protocol.snapshot.WorldSnapshot
@@ -22,7 +23,14 @@ class LocalMatchClient private constructor(
         latestInputs[input.playerId] = input
     }
 
-    override fun tick(): ServerFrame = toServerFrame(prototype.tick())
+    override fun tick(): ServerFrame {
+        val intents = if (latestInputs.isEmpty()) {
+            emptyMap()
+        } else {
+            latestInputs.mapValues { (_, frame) -> frame.toIntent() }
+        }
+        return toServerFrame(prototype.tick(intents))
+    }
 
     override fun currentServerFrame(): ServerFrame = toServerFrame(prototype.snapshot())
 
@@ -33,7 +41,7 @@ class LocalMatchClient private constructor(
     private fun toServerFrame(world: WorldSnapshot): ServerFrame = ServerFrame(
         tick = world.tick,
         world = world,
-        playerViews = emptyList(),
+        playerViews = prototype.buildPlayerViews(),
     )
 
     companion object {
@@ -44,3 +52,17 @@ class LocalMatchClient private constructor(
         }
     }
 }
+
+private fun InputFrame.toIntent(): PlayerIntentFrame = PlayerIntentFrame(
+    forward = forward,
+    reverse = reverse,
+    turnLeft = turnLeft,
+    turnRight = turnRight,
+    aimLeft = aimLeft,
+    aimRight = aimRight,
+    firePrimary = firePrimary,
+    fireSecondary = fireSecondary,
+    shield = shield,
+    cycleWeaponLeft = cycleWeaponLeft,
+    cycleWeaponRight = cycleWeaponRight,
+)

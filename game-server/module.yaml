@@ -1,17 +1,19 @@
-product: jvm/app
+product:
+  type: lib
+  platforms: [jvm]
+
+repositories:
+  - mavenLocal
 
 dependencies:
   - ../game-core
   - ../game-content
   - ../game-input
-  - ../game-legacy
   - ../game-protocol
-  - ../game-render-kubriko
-  - ../game-sim
-  - ../game-server
-  - ../game-ui-compose
   - $compose.desktop.currentOs
-  - $compose.material3
+  - io.github.pandulapeter.kubriko:engine-desktop:0.1.1
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.1.1
+  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.1.1
 
 settings:
   kotlin:
@@ -22,5 +24,3 @@ settings:
   compose:
     enabled: true
     version: 1.10.0
-  jvm:
-    mainClass: com.tankarena.app.desktop.MainKt

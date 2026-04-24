@@ -1,6 +1,13 @@
 # Tank Arena Full Rewrite Status
 
-As of April 19, 2026.
+As of April 24, 2026.
+
+> **2026-04 update:** the module layout described in section 3 is being
+> collapsed from 11 modules down to 5, and the authoritative simulation is
+> moving onto a headless Kubriko instance. See [section 15](#15-module-collapse-and-authoritative-server-2026-04) for the current plan,
+> what has already landed, and what is still pending. Earlier sections are
+> retained as the original intent and are annotated inline where the new
+> direction supersedes them.
 
 This document is the single high-level reference for the Kotlin rewrite of Tank Arena. It combines:
 - the original rewrite intent
@@ -40,6 +47,11 @@ Important boundary decisions:
 - Networking is deferred, but the architecture must not block it later.
 
 ## 3. What The Original Plan Was
+
+> Superseded in 2026-04 by the module-collapse plan — see [section 15](#15-module-collapse-and-authoritative-server-2026-04).
+> The 11-module split below is kept for historical context; the target layout
+> is now five modules (`:game-protocol`, `:game-content`, `:game-server`,
+> `:game-client`, `:game-editor`).
 
 The original rewrite plan was to build a disciplined modular codebase with a strict split between simulation, content, runtime rendering, UI, and legacy import tooling.
 
@@ -190,6 +202,13 @@ Status:
 - still focused on the current implemented slice rather than full conversion parity
 
 ### 6.6 Simulation
+
+> A second, authoritative Kubriko-based simulation now lives in the new
+> `:game-server` module (see [section 15](#15-module-collapse-and-authoritative-server-2026-04)).
+> The `:game-sim` summary below describes the earlier pure-Kotlin slice
+> that is still in the tree; new gameplay work is landing on `:game-server`
+> and `:game-sim` is scheduled for deletion once the client consumes
+> server snapshots exclusively.
 
 Implemented in `:game-sim`:
 - deterministic fixed-step simulation scaffold
@@ -436,9 +455,12 @@ Done:
 - map turret target acquisition (nearest alive tank within imported range)
 - per-tick rotation toward the target using the legacy 16-step compass
 - cooldown-gated firing using the imported delay/power values
+- first-pass intent-driven AI for mobile enemy tanks on the new
+  `:game-server` prototype: they pick the nearest opposing tank, steer
+  body + turret toward it via `PlayerIntentFrame`, and fire when aligned
+  and in range (see [section 15](#15-module-collapse-and-authoritative-server-2026-04))
 
 Missing:
-- intent-driven AI controller model for mobile units
 - navigation and waypoint logic
 - combat decisions beyond "shoot the closest tank"
 - per-mode AI behavior
@@ -633,3 +655,163 @@ For more focused detail, see:
 - `docs/rewrite/testing-strategy.md`
 - `docs/rewrite/risk-register.md`
 - `docs/rewrite/amper-migration.md`
+
+## 15. Module Collapse And Authoritative Server (2026-04)
+
+### 15.1 Why The Layout Is Changing
+
+The 11-module split described in section 3 was scaffolding. In practice it
+produced more boundary cost than value: many modules held only a handful of
+files, `:game-sim` and `:game-render-kubriko` each had to re-express the
+same actor model on their side of the wire, and there was no single seam
+where a future networked server could slot in. The rewrite is now
+consolidating to five modules with a clear client/server split, and making
+the server authoritative on a headless Kubriko instance so single-player
+and networked play share the same code path.
+
+### 15.2 Target Module Layout
+
+Five modules replace the previous eleven:
+
+- `:game-protocol` — absorbs `:game-core` and `:game-input`. Pure Kotlin
+  wire types: math, timing, IDs, `PlayerIntentFrame` / `InputFrame`,
+  `WorldSnapshot`, the `ActorState` sealed hierarchy keyed by stable
+  `actorId: Long`, `GameEvent`, `PlayerView` / `HudState` / `RadarContact`
+  / `ServerFrame`. No Compose or Kubriko dependencies.
+- `:game-content` — absorbs `:game-legacy` and `:tools-mapconv`. Owns
+  sprite sheets, the generated legacy picture catalog, sounds, scene JSON
+  files, per-map metadata sidecars, and the legacy `.MAP` importer (now
+  emitting Kubriko scenes plus metadata rather than a bespoke canonical
+  map schema). Also owns the shared `SerializableMetadata` typeId
+  registry used by server, client, and editor.
+- `:game-server` — new. Headless Kubriko instance running
+  `ActorManager`, `CollisionManager`, `SerializationManager`, a custom
+  `TerrainSlideManager` (axis-by-axis sliding response, since Kubriko's
+  `CollisionManager` only detects overlap), and a mission evaluator.
+  Server actors (`ServerTankActor`, `ServerTurretActor`,
+  `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`)
+  implement `Collidable` plus Kubriko `Serializable<T>`, so each `save()`
+  produces the matching `:game-protocol` `ActorState` — one type that
+  plays both the scene-load and the per-tick replication role.
+  `PhysicsManager` is deferred to when explosives land (Box2D floats fight
+  grid-locked kinematic tanks; reserved for debris/knockback later).
+- `:game-client` — absorbs `:game-render-kubriko`, `:game-ui-compose`,
+  and `:app-desktop`. Client-side Kubriko instance whose actors only
+  render/audio and get mutated each tick by `ClientScene.sync(snapshot)`,
+  matching actors by stable `actorId`. Input capture converts to
+  `InputFrame` and submits via `MatchClient`.
+- `:game-editor` — replaces `:app-editor`. Thin Compose-Desktop wrapper
+  embedding Kubriko's `SceneEditor` composable (from
+  `/var/projects/kubriko/tools/scene-editor`), re-using the same
+  `SerializableMetadata` registry so placed actors round-trip with the
+  server and client.
+
+Replication contract: the server walks `actorManager.allActors` each tick,
+calls `save()` on every `Serializable`, wraps the results in a
+`WorldSnapshot` with the stable `actorId` assigned at spawn. The client
+keeps `Map<Long, ClientActor>`; it spawns new render actors for unseen
+IDs, calls `sync(state)` on existing ones, and removes actors whose IDs
+vanished. Single-player boots `LocalMatchClient(ServerMatchPrototype)` in
+process; networked play will drop a `RemoteMatchClient` into the same
+seam.
+
+### 15.3 Headless Tick And Scene Format Caveats
+
+Two assumptions this plan depends on, both verified against
+`/var/projects/kubriko`:
+
+- Kubriko's public headless `tick(Int)` API and `Kubriko.newInstance` are
+  a **fork-only** feature in the local Kubriko at `/var/projects/kubriko`.
+  Upstream Kubriko does not ship them. A rebase on upstream would block
+  this plan; the local fork must stay the source of truth.
+- A Tank Arena map **is** a Kubriko scene JSON, produced by the scene
+  editor's `SerializationManager.serializeActors` and loaded on a
+  headless server with `deserializeActors(json)`. There is no parallel
+  canonical map schema. That couples shipped content to the fork's
+  serialization format: if the format shifts, every scene regenerates —
+  so the legacy `.MAP` importer is kept as a first-class tool, not a
+  one-shot.
+
+### 15.4 What Has Landed
+
+Completed as of 2026-04-24 on `:game-server` (still hosted inside the
+`game-server/` directory at the repo root; old `:game-sim` remains
+untouched alongside it pending client migration):
+
+- headless Kubriko host spun up per match in `ServerMatchPrototype`
+- `CanonicalSceneBuilder` converting legacy-imported canonical maps into
+  a Kubriko scene JSON on the fly for the prototype (the permanent path
+  is the importer writing scene JSON at import time — see 15.5)
+- `TerrainSlideManager` implementing axis-by-axis MTV sliding response
+  after `CollisionManager.onUpdate`
+- tank actor with intent-driven hull and turret direction, acceleration
+  and friction, primary-fire cooldown, MTV collision response against
+  walls and other tanks
+- projectile actor with owner-kind tagging, TTL, out-of-bounds flushing,
+  and owner immunity for tank-fired shots
+- turret actor driven externally each tick (target acquisition, rotation
+  via `stepToward`, cooldown-gated fire in the same projectile pool)
+- goal actor capture with once-only claim semantics, contribution
+  accumulation, and `GameEvent.MissionWon` on reaching 100%
+- tank lifecycle: damage → `GameEvent.DamageTaken`, destruction →
+  `GameEvent.TankDestroyed` with lives decrement, 60-tick respawn
+  countdown, respawn → `GameEvent.TankSpawned`; mission loss when all
+  player tanks exhaust lives; mission win when all enemy tanks/turrets
+  are dead
+- first-pass AI for mobile enemy tanks — picks nearest opposing tank,
+  steers body and turret via `PlayerIntentFrame`, fires when aligned and
+  in range
+- `PlayerView` generation (camera on controlled tank, HUD mirroring
+  armor/fuel/lives/mission progress/mission code/status text, radar of
+  other tanks/turrets/goals); `LocalMatchClient` populates
+  `ServerFrame.playerViews`
+- `:game-server` module extracted with its own `module.yaml` and test
+  directory; `:app-desktop` now depends on `:game-server` and boots
+  `LocalMatchClient.fromCanonicalMap(map)` in place of `LocalMatchHost`
+- test coverage on the server covers bootstrap, tick round-trip,
+  collision sliding, firing with cooldown, wall cleanup, turret aim,
+  goal capture, tank lifecycle (destroy + respawn + MissionWon),
+  AI motion and fire, and PlayerView HUD/radar wiring (37 tests green)
+
+### 15.5 What Is Still Pending
+
+The collapse itself is partly done. Remaining steps, in planned order:
+
+1. fold `:game-core` and `:game-input` into `:game-protocol`
+2. rewrite the legacy `.MAP` importer in `:game-legacy` to emit Kubriko
+   scene JSON plus a `MapMetadata.json` sidecar; delete the
+   `CanonicalMap*` schema in `:game-content`; regenerate shipped maps
+3. fold `:game-legacy` and `:tools-mapconv` into `:game-content/import/`
+   (the `tools-mapconv` entry point becomes an Amper product inside
+   `:game-content`)
+4. fold `:game-render-kubriko`, `:game-ui-compose`, and `:app-desktop`
+   into `:game-client`; evolve `ReplicatedActorScene` into
+   `ClientScene.sync(snapshot)`; keep two Amper products (`desktop`
+   game, WASM deferred)
+5. rename `:app-editor` → `:game-editor`, embed Kubriko's `SceneEditor`
+   composable, wire it to the shared `SerializableMetadata` registry,
+   and confirm an edited scene boots on the server and plays on the
+   client
+6. delete `:game-sim` once `:game-client` consumes server snapshots
+   exclusively
+
+### 15.6 Impact On The Earlier Gap Analysis And Delivery Sequence
+
+Where section 9 and the delivery sequence in sections 10–11 assumed the
+original 11-module layout, the new direction changes the following:
+
+- AI for mobile units has moved from "missing" to "first-pass landed"
+  (section 9.7 updated inline).
+- Tank-vs-tank collision has landed on the server via MTV response
+  (section 9.4's "tank vs tank collision" item is resolved on the
+  server; the client-side rendering path will inherit it through
+  replication once `:game-client` lands).
+- The "protocol / replay / future networking" gap in section 9.12 is
+  partly addressed: `WorldSnapshot` / `ServerFrame` / `PlayerView` /
+  `GameEvent` are now the authoritative tick output, which is the shape
+  replay and networking will consume.
+- Phase F's editor work (section 10) now reuses Kubriko's scene editor
+  rather than building a bespoke one, which narrows scope considerably.
+- The delivery sequence in section 11 still stands directionally, but
+  items 2–3 (broaden combat, audio plumbing) should be implemented on
+  the new `:game-server` actors rather than on the retiring `:game-sim`.

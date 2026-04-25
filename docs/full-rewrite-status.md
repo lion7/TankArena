@@ -1,13 +1,15 @@
 # Tank Arena Full Rewrite Status
 
-As of April 24, 2026.
+As of April 25, 2026.
 
-> **2026-04 update:** the module layout described in section 3 is being
-> collapsed from 11 modules down to 5, and the authoritative simulation is
-> moving onto a headless Kubriko instance. See [section 15](#15-module-collapse-and-authoritative-server-2026-04) for the current plan,
-> what has already landed, and what is still pending. Earlier sections are
-> retained as the original intent and are annotated inline where the new
-> direction supersedes them.
+> **2026-04 update:** the module layout described in section 3 has been
+> collapsed from 11 modules down to 6, and the authoritative simulation is
+> running on a headless Kubriko instance. The remaining gap to the 5-module
+> target is the `:app-editor` → `:game-editor` rename in step 8. See
+> [section 15](#15-module-collapse-and-authoritative-server-2026-04) for the
+> current plan, what has already landed, and what is still pending. Earlier
+> sections are retained as the original intent and are annotated inline
+> where the new direction supersedes them.
 
 This document is the single high-level reference for the Kotlin rewrite of Tank Arena. It combines:
 - the original rewrite intent
@@ -203,12 +205,13 @@ Status:
 
 ### 6.6 Simulation
 
-> A second, authoritative Kubriko-based simulation now lives in the new
-> `:game-server` module (see [section 15](#15-module-collapse-and-authoritative-server-2026-04)).
-> The `:game-sim` summary below describes the earlier pure-Kotlin slice
-> that is still in the tree; new gameplay work is landing on `:game-server`
-> and `:game-sim` is scheduled for deletion once the client consumes
-> server snapshots exclusively.
+> The authoritative Kubriko-based simulation now lives in the
+> `:game-server` module and is the only simulation in the tree. The old
+> `:game-sim` module described below was deleted in step 7 once
+> `:game-client` consumed server snapshots exclusively (see
+> [section 15](#15-module-collapse-and-authoritative-server-2026-04)).
+> The summary below is retained as historical context for the original
+> pure-Kotlin slice it described.
 
 Implemented in `:game-sim`:
 - deterministic fixed-step simulation scaffold
@@ -734,9 +737,10 @@ Two assumptions this plan depends on, both verified against
 
 ### 15.4 What Has Landed
 
-Completed as of 2026-04-24 on `:game-server` (still hosted inside the
-`game-server/` directory at the repo root; old `:game-sim` remains
-untouched alongside it pending client migration):
+Completed as of 2026-04-25 — six of the eight planned steps have shipped
+and the module count is down from 11 to 6 (`:game-content`,
+`:game-protocol`, `:game-server`, `:game-client`, `:app-editor`,
+`:tools-mapconv`):
 
 - headless Kubriko host spun up per match in `ServerMatchPrototype`
 - `CanonicalSceneBuilder` converting legacy-imported canonical maps into
@@ -771,29 +775,57 @@ untouched alongside it pending client migration):
 - test coverage on the server covers bootstrap, tick round-trip,
   collision sliding, firing with cooldown, wall cleanup, turret aim,
   goal capture, tank lifecycle (destroy + respawn + MissionWon),
-  AI motion and fire, and PlayerView HUD/radar wiring (37 tests green)
+  AI motion and fire, PlayerView HUD/radar wiring, scene-JSON round
+  trips, and bootstrapping from generated scene files (40 tests green)
+- `:game-core` and `:game-input` folded into `:game-protocol`
+  (mechanical move; package paths unchanged so imports did not churn)
+- legacy `.MAP` importer rewritten in `:game-server` as
+  `LegacyToSceneJson.convert(canonical)`, emitting a Kubriko scene JSON
+  plus a `MapSceneSidecar` (metadata + mission text + import notes);
+  `tools-mapconv scene` and `scene-all` subcommands regenerated all 121
+  shipped maps into `game-content/resources/scenes/scene_*.json` +
+  `metadata_*.json`; `ServerMatchPrototype.fromSceneJson(scene, metadata)`
+  is the new bootstrap path that needs no `CanonicalMap*` types
+- `:game-legacy` and `:tools-mapconv`'s library code folded into
+  `:game-content` (`com.tankarena.legacy.*` and
+  `com.tankarena.tools.mapconv.*` now live there). `:tools-mapconv`
+  remains as a thin Amper module containing only the CLI `Main.kt`,
+  since Amper is one-product-per-module and the entry point still needs
+  to be a `jvm/app`
+- `:game-render-kubriko`, `:game-ui-compose`, and `:app-desktop` folded
+  into `:game-client` (`jvm/app`, `mainClass com.tankarena.app.desktop.MainKt`);
+  composeResources/drawable/ moved with them; `ReplicatedActorScene`
+  renamed to `ClientScene` (it was already syncing by stable
+  `actorId`); `:game-sim` deleted entirely now that no module depends on
+  it; `:app-editor` stripped to a content+protocol stub awaiting step 8
 
 ### 15.5 What Is Still Pending
 
-The collapse itself is partly done. Remaining steps, in planned order:
+Two structural items remain before the rewrite hits the 5-module target:
 
-1. fold `:game-core` and `:game-input` into `:game-protocol`
-2. rewrite the legacy `.MAP` importer in `:game-legacy` to emit Kubriko
-   scene JSON plus a `MapMetadata.json` sidecar; delete the
-   `CanonicalMap*` schema in `:game-content`; regenerate shipped maps
-3. fold `:game-legacy` and `:tools-mapconv` into `:game-content/import/`
-   (the `tools-mapconv` entry point becomes an Amper product inside
-   `:game-content`)
-4. fold `:game-render-kubriko`, `:game-ui-compose`, and `:app-desktop`
-   into `:game-client`; evolve `ReplicatedActorScene` into
-   `ClientScene.sync(snapshot)`; keep two Amper products (`desktop`
-   game, WASM deferred)
-5. rename `:app-editor` → `:game-editor`, embed Kubriko's `SceneEditor`
-   composable, wire it to the shared `SerializableMetadata` registry,
-   and confirm an edited scene boots on the server and plays on the
-   client
-6. delete `:game-sim` once `:game-client` consumes server snapshots
-   exclusively
+1. rename `:app-editor` → `:game-editor`, embed Kubriko's `SceneEditor`
+   composable from `/var/projects/kubriko/tools/scene-editor`, wire it
+   to the shared `SerializableMetadata` registry, and confirm an edited
+   scene boots on the server and plays on the client (step 8 of the
+   collapse plan)
+2. delete the `CanonicalMap*` schema in `:game-content` and the few
+   remaining consumers (`MissionCatalog`, `TankArenaViewport`,
+   `RenderSceneSupport`, the `CanonicalSceneBuilder` /
+   `fromCanonicalMap` bridge, and the test fixtures in `:game-server`).
+   Deferred from step 5 to keep that step focused; landing it requires
+   switching the client menu and viewport bootstrap to consume the
+   shipped scene JSON + `MapSceneSidecar` directly, plus rewriting the
+   server test fixtures to construct scene JSON without going through
+   `CanonicalMapDefinition`. The legacy `.MAP` importer can keep
+   `CanonicalMap` as an internal intermediate or drop it; either is
+   fine
+
+Folding `tools-mapconv` itself "inside `:game-content` as an Amper
+product" (the original step 6 ambition) was not done — Amper is
+one-product-per-module, so `:tools-mapconv` remains as a one-file CLI
+module that calls into `:game-content`'s import library. That gives
+the same effective layout (the importer code is in `:game-content`)
+without fighting the build system.
 
 ### 15.6 Impact On The Earlier Gap Analysis And Delivery Sequence
 

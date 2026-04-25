@@ -3,7 +3,6 @@ modules:
   - game-sim
   - game-server
   - game-protocol
-  - game-legacy
   - game-render-kubriko
   - game-ui-compose
   - app-desktop

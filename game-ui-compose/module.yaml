@@ -4,7 +4,6 @@ product:
 
 dependencies:
   - ../game-content
-  - ../game-legacy
   - ../game-protocol
   - ../game-sim
   - $compose.desktop.currentOs

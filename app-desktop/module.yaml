@@ -2,7 +2,6 @@ product: jvm/app
 
 dependencies:
   - ../game-content
-  - ../game-legacy
   - ../game-protocol
   - ../game-render-kubriko
   - ../game-sim

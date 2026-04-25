@@ -11,7 +11,7 @@ import javax.imageio.ImageIO
  * and emits one transparent PNG per registered sprite, plus a regenerated
  * Kotlin catalog with all variant names sourced from `src/data/pictures.c`.
  */
-internal object LegacyPicturesPngExtractor {
+object LegacyPicturesPngExtractor {
 
     private const val TILE_SIZE = 33
     private const val TILE_BYTES = TILE_SIZE * TILE_SIZE

@@ -2,7 +2,7 @@ package com.tankarena.tools.mapconv
 
 import java.io.File
 
-internal object LegacyPictureCatalogExtractor {
+object LegacyPictureCatalogExtractor {
     private val worlds = listOf(
         "DESERT" to "pc0",
         "TEMPERATE" to "pc1",

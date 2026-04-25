@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "SCRAMBLE",
+        "widthTiles": 52,
+        "heightTiles": 36,
+        "missionCode": "SCRAMBLE",
+        "nextMissionCode": "DEFEND AND STRIKE",
+        "randomBonus": false,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Your first day at the desert outpost.\n\nA small enemy base nearby is launching\nan attack. Kill all the airplanes\nand destroy the base.",
+        "success": "Not bad for a first day on the job!\n\nYou are transferred to a bigger base,\ncongratulations!",
+        "failure": "Use your firepower from your crocodiles!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 17400.",
+        "Unsupported legacy object type 0 encountered 22 time(s) during import."
+    ]
+}

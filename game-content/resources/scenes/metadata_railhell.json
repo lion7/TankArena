@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "RAILHELL",
+        "widthTiles": 80,
+        "heightTiles": 12,
+        "missionCode": "RAILWAY TO HELL",
+        "nextMissionCode": "TRUCK BASE",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Your objective is simple:\n\nMake it to east side of the map before\nthe train arrives. Use any methods you\nsee fit, just don't attack the train,\nsince it will have to give you access\nto the end of the level.",
+        "success": "This one was too easy, wasn't it?",
+        "failure": "Run like hell..."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 26448.",
+        "Unsupported legacy object type 0 encountered 11 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 5 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 6 time(s) during import."
+    ]
+}

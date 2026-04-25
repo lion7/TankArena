@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "NUKE",
+        "widthTiles": 28,
+        "heightTiles": 28,
+        "missionCode": "NUKE",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL_VS_COMPUTER",
+        "legacyMapVersion": 5
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 151728.",
+        "Unsupported legacy object type 0 encountered 6 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 195 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 5 time(s) during import."
+    ]
+}

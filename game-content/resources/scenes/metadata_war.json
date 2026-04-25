@@ -1,0 +1,27 @@
+{
+    "metadata": {
+        "name": "WAR",
+        "widthTiles": 12,
+        "heightTiles": 12,
+        "missionCode": "WAR",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6264.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 2 time(s) during import."
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "RACE9",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "M RACE",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 122496.",
+        "Unsupported legacy object type 5 encountered 145 time(s) during import."
+    ]
+}

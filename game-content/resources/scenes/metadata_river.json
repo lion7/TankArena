@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "RIVER",
+        "widthTiles": 100,
+        "heightTiles": 30,
+        "missionCode": "FUEL RAID",
+        "nextMissionCode": "INTERDICTION",
+        "randomBonus": false,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Destroy fuel supply in both the base\nand airport.",
+        "success": "Fuel destroyed! The enemy is on to you,\nproceed to secret island and wait for\ninstructions.",
+        "failure": "Unlock the passage through the river\nin the first base."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 22272.",
+        "Unsupported legacy object type 0 encountered 10 time(s) during import."
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "WEAPON",
+        "widthTiles": 100,
+        "heightTiles": 100,
+        "missionCode": "WEAPON SUPPLY",
+        "nextMissionCode": "THE BIG BANG",
+        "randomBonus": false,
+        "world": "DESERT",
+        "night": true,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Your troops have been fighting for months to\nrecover a captured area. The enemy is getting\nweaker and weaker but rumours are that the enemy\nhas developed a radical new weapon. The new\nweapon will be supplied tonight.\n\nTo cover up the operation the enemy is launching\nan attack to your base.\n\nIntelligence has reported that the convoy is\nmoving from the north-west to the south-east.\n\nStop the attack to your base and prevent the\nconvoy from reaching it's destination. Destroy\nmost of the convoy support tanks also.\n\nIf you succeed this one the enemy will certainly\nbe too weak to win and the war will be over!",
+        "success": "Congratulations you stopped the enemy!\n\nThe enemy surrendered.",
+        "failure": "The enemy has succeeded in transferring the\nsecret weapon. With this weapon the enemy\nwill again rule this area.\n\nNext time you try this mission try to use\nyour two tanks for the purposes they were\nbuilt for. Don't waste your time to much\non slaying the attackers of your base."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 35496.",
+        "Unsupported legacy object type 0 encountered 19 time(s) during import."
+    ]
+}

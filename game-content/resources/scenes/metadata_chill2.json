@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "CHILL2",
+        "widthTiles": 12,
+        "heightTiles": 12,
+        "missionCode": "CHILL2",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DONT_CARE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 4176."
+    ]
+}

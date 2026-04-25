@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BEGIN1",
+        "widthTiles": 12,
+        "heightTiles": 12,
+        "missionCode": "BEGIN1",
+        "nextMissionCode": "BEGIN2",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "This is your first mission:\n\nTry to knock out the cars.",
+        "success": "Let's try the next one!",
+        "failure": "You must be a complete moron to fail this one!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 3480.",
+        "Unsupported legacy object type 0 encountered 5 time(s) during import."
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BASKET",
+        "widthTiles": 20,
+        "heightTiles": 12,
+        "missionCode": "BASKETBALL",
+        "nextMissionCode": "FOOTBALL",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL_VS_COMPUTER",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Welcome to the world championships ice hockey!\n\nThe objective of this mission is that you push\nthe \"balls\" into the opponents pit. The player\nwho pushes in most balls wins.\n\nIt is required that you play this game in god\nmode, start the game with:\n\ntank -god -loadsofweapons\n\nYou have got to keep the score yourself.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6960.",
+        "Unsupported legacy object type 0 encountered 10 time(s) during import."
+    ]
+}

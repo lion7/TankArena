@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "PLANES1",
+        "widthTiles": 60,
+        "heightTiles": 60,
+        "missionCode": "OUR PLANES BASE 1 DEF",
+        "nextMissionCode": "OUR PLANES BASE 2 ATT",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 67512.",
+        "Unsupported legacy object type 0 encountered 58 time(s) during import."
+    ]
+}

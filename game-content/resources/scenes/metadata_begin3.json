@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BEGIN3",
+        "widthTiles": 20,
+        "heightTiles": 20,
+        "missionCode": "BEGIN3",
+        "nextMissionCode": "BEGIN4",
+        "randomBonus": false,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Now for the bigger weapons!\n\nDestroy the base within the inpenetratable walls!",
+        "success": "You hit them hard!",
+        "failure": "Killed yourself?"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 696.",
+        "Unsupported legacy object type 0 encountered 1 time(s) during import."
+    ]
+}

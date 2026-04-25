@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BEGIN4",
+        "widthTiles": 12,
+        "heightTiles": 12,
+        "missionCode": "BEGIN4",
+        "nextMissionCode": "COMBAT1",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Use homing rockets to take out the cars,\nhold fire and use arrow keys to lock\na target. Don't move!",
+        "success": "Well done, your first real mission awaits!",
+        "failure": "I told you not to move!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6264.",
+        "Unsupported legacy object type 0 encountered 5 time(s) during import."
+    ]
+}

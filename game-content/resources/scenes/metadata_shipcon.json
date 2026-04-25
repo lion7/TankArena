@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "SHIPCON",
+        "widthTiles": 100,
+        "heightTiles": 100,
+        "missionCode": "SHIP CONVOY",
+        "nextMissionCode": "BAY BOMBING",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "It is the second day that you're serving\non the carrier.\n\nAn enemy fleet has been spotted in the\nvicinity. We are not sure of their full\nlocation so... Seek and Destroy.",
+        "success": "Good work! We will now move to a hostile\narea to make an attack.",
+        "failure": "Use your mortars more carefully!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 80040.",
+        "Unsupported legacy object type 0 encountered 15 time(s) during import."
+    ]
+}

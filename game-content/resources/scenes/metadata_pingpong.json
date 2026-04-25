@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "PINGPONG",
+        "widthTiles": 12,
+        "heightTiles": 8,
+        "missionCode": "PUT",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Ever played pingpong? Well here's your chance!",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 1392."
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "INTRDCT3",
+        "widthTiles": 100,
+        "heightTiles": 52,
+        "missionCode": "COUNTERSTRIKE",
+        "nextMissionCode": "SHIP CONVOY",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "The time is ripe. Strike and obliterate the enemy\nbases totally. It has had time to install some\nadditional defences, however, so take care.\n\nWe have developed a new technology which should be\nof some assistance. We call it the warp core.\nTwo have been installed - one to take you to each\nenemy base. Take care in their use as you will\nemerge in highly hostile territory.\n\nGo for it, commander!",
+        "success": "You blew the bases into little bits!\n\nAnd you're promoted to serve on a\ncarrier.",
+        "failure": "Bummer!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 23664.",
+        "Unsupported legacy object type 0 encountered 14 time(s) during import."
+    ]
+}

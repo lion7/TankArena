@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "4FOLD",
+        "widthTiles": 16,
+        "heightTiles": 16,
+        "missionCode": "4FOLD",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DONT_CARE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 1392."
+    ]
+}

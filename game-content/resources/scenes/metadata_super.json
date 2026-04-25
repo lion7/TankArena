@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "SUPER",
+        "widthTiles": 32,
+        "heightTiles": 32,
+        "missionCode": "THE BIG BANG",
+        "nextMissionCode": "THE BIG BANG",
+        "randomBonus": true,
+        "world": "NIGHT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "WOW! That was hard! And look at the time!\n\nOh no! It's 3 minutes before closing time!\n\nAnd you haven't shopped yet!\n\nYou need the following stuff:\n\n* 4 Apples\n* 1 Pack of toilet paper\n* 2 Bottles of cola\n* 3 Onions\n* 1 Bag of M&M's\n* 1 Pack of cigarettes\n* 1 Sausage\n* 1 Crate of beer\n* 2 Packs cookies\n* 1 Pack of washing powder\n* 2 Choclate bars\n* 1 Bottle of wine\n\nBut be careful because you don't have\nmuch money. Look for the bargains!",
+        "success": "Congratulations!\n\nYou finished the final level of Tank Arena!\n\nYou're now an official Tank Arena guru!",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 73776.",
+        "Unsupported legacy object type 0 encountered 19 time(s) during import."
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BEGIN2",
+        "widthTiles": 12,
+        "heightTiles": 12,
+        "missionCode": "BEGIN2",
+        "nextMissionCode": "BEGIN3",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "The next one is a little bit harder.",
+        "success": "Good work!",
+        "failure": ":-("
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 3480.",
+        "Unsupported legacy object type 0 encountered 5 time(s) during import."
+    ]
+}

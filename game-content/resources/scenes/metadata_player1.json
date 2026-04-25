@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "Player1",
+        "widthTiles": 72,
+        "heightTiles": 8,
+        "missionCode": "PLAYER1",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": true,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 49416.",
+        "Unsupported legacy object type 0 encountered 3 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 33 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 2 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 16 time(s) during import."
+    ]
+}

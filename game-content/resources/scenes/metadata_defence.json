@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "DEFENCE",
+        "widthTiles": 72,
+        "heightTiles": 72,
+        "missionCode": "DEFEND AND STRIKE",
+        "nextMissionCode": "FUEL RAID",
+        "randomBonus": false,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Another attack is being made to your base,\nagain you must kill the attackers and\ndestroy everything they came from.",
+        "success": "Not bad for a first day on the job! To\navoid these attacks in the future, we're\ngoing to attack a major fuel depot.",
+        "failure": "Pick the fastest tank first to weaken the\nattackers."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 27144.",
+        "Unsupported legacy object type 0 encountered 25 time(s) during import."
+    ]
+}

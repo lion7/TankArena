@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "COMBAT3",
+        "widthTiles": 32,
+        "heightTiles": 32,
+        "missionCode": "COMBAT3",
+        "nextMissionCode": "COVERT",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Take out even more tanks!",
+        "success": "Your training is over, now get to work!",
+        "failure": "Come on, the next mission will be for\nreal!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6264.",
+        "Unsupported legacy object type 0 encountered 9 time(s) during import."
+    ]
+}

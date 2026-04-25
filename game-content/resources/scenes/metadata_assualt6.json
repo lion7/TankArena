@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "ASSUALT6",
+        "widthTiles": 52,
+        "heightTiles": 8,
+        "missionCode": "ASSUALT6",
+        "nextMissionCode": "ASSUALT7",
+        "randomBonus": true,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": true,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 20880.",
+        "Unsupported legacy object type 0 encountered 5 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 4 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 2 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 12 time(s) during import."
+    ]
+}

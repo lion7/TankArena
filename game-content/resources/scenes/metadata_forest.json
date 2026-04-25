@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "FOREST",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "FOREST",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": true,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Lots of Forest, not a lot of enemys.\n\nMission: Destroy the base in the top left corner.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 68208.",
+        "Unsupported legacy object type 0 encountered 8 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 75 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 6 time(s) during import."
+    ]
+}

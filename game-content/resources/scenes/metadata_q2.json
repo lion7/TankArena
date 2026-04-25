@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "Q2",
+        "widthTiles": 40,
+        "heightTiles": 100,
+        "missionCode": "TOTAL WIPEOUT",
+        "nextMissionCode": "DESTRUCTION DERBY",
+        "randomBonus": false,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Now that the forward air base has been destroyed\nyou must advance with all firepower available.\nDestroy all enemy tanks, plane, trains,\nhelecopters, ships and jets. Don't bother\nwith the buildings as we will use whats left\nof them for our base.",
+        "success": "Congratulations. Have a day off!",
+        "failure": "Try to nuke the train!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 60552.",
+        "Unsupported legacy object type 0 encountered 43 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 14 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 5 time(s) during import."
+    ]
+}

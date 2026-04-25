@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "ZULU",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "ZULU ALERT",
+        "nextMissionCode": "ZULU",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": true,
+        "publicPassword": true,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Zulu alert!\n\nThis level is very suitable for 2 player versus\ncomputer mode.\n\nBlast away!",
+        "success": "Again!",
+        "failure": "Maybe you want to take out the power plant\nand transportation units first."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 90480.",
+        "Unsupported legacy object type 0 encountered 47 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 6 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 11 time(s) during import."
+    ]
+}

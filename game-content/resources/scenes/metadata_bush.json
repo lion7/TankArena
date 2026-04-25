@@ -1,0 +1,27 @@
+{
+    "metadata": {
+        "name": "BUSH",
+        "widthTiles": 24,
+        "heightTiles": 24,
+        "missionCode": "BUSH",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Battle for weapons!\n\nThere are a lot of weapons in the middle\nof this map, try to get there first!",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 5568.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 5 time(s) during import."
+    ]
+}

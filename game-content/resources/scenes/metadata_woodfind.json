@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "WOODFIND",
+        "widthTiles": 28,
+        "heightTiles": 28,
+        "missionCode": "WOODFIND",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "The flags are hidden somewhere in the woods.\n\nGo find!",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 68208.",
+        "Unsupported legacy object type 5 encountered 88 time(s) during import."
+    ]
+}

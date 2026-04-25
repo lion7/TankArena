@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "ABOMB",
+        "widthTiles": 28,
+        "heightTiles": 28,
+        "missionCode": "SPIKE",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Destroy eachother by driving over the black\nplatforms.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 19488."
+    ]
+}

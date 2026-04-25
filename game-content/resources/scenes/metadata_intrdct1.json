@@ -1,0 +1,28 @@
+{
+    "metadata": {
+        "name": "INTRDCT1",
+        "widthTiles": 100,
+        "heightTiles": 52,
+        "missionCode": "INTERDICTION",
+        "nextMissionCode": "DEFENSIVE",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "You've been discovered! The enemy is planning\nan attack!\n\nIntelligence has informed us that there are two\ncrucial convoys passing here today - a train to\nthe south and a van to the northeast. Both\ncontain material that could be vital in the\nenemy's attempt to construct a base to the west.\nDestroy them both immediately, before the train\ncan reach the safety of the mountain pass and the\nvan arrive at the enemy base. Good luck.\n\nOne final note - be careful with your ammunition\nas we are currently awaiting an overdue supply\nconvoy. Weapons are a little on the scarce side\nbut should suffice nonetheless.",
+        "success": "Congratulations on stopping the enemy, but\nbe prepared, the enemy will be attacking\nsoon!",
+        "failure": "Be quick to complete this mission!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 20880.",
+        "Unsupported legacy object type 0 encountered 11 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 7 time(s) during import."
+    ]
+}

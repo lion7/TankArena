@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "TRUCK",
+        "widthTiles": 36,
+        "heightTiles": 28,
+        "missionCode": "TRUCK BASE",
+        "nextMissionCode": "ABOMB CITY",
+        "randomBonus": false,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Destroy enemy outpost. Look for a missing\ntruck containing an a-bomb.",
+        "success": "Outpost destroyed! The truck got away\nto the city.",
+        "failure": "Try to use your weapons better!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 9744.",
+        "Unsupported legacy object type 0 encountered 9 time(s) during import."
+    ]
+}

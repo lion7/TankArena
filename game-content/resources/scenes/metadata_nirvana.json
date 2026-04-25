@@ -1,0 +1,27 @@
+{
+    "metadata": {
+        "name": "Nirvana",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "TERRITOR",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DONT_CARE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 36888.",
+        "Unsupported legacy object type 0 encountered 25 time(s) during import.",
+        "Unsupported legacy object type 1 encountered 1 time(s) during import."
+    ]
+}

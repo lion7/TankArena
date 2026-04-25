@@ -1,0 +1,28 @@
+{
+    "metadata": {
+        "name": "Q1",
+        "widthTiles": 40,
+        "heightTiles": 100,
+        "missionCode": "PINPOINT BOMBING",
+        "nextMissionCode": "TOTAL WIPEOUT",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "We're going to take over this area.\n\nDestroy the forward air base to the north!",
+        "success": "Good work, you destroyed the base,\nnow we will continue.",
+        "failure": "Lost your airplanes? Don't!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 54288.",
+        "Unsupported legacy object type 0 encountered 45 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 5 time(s) during import."
+    ]
+}

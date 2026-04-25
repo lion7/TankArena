@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BAY",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "BAY BOMBING",
+        "nextMissionCode": "PINPOINT BOMBING",
+        "randomBonus": true,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "We have entered hostile waters, destroy\neverything that shoots!\n\nYou'll be leading some squadrons into the \nenemy bay. \n\nTry to catch the basterds sleeping...",
+        "success": "Congratulations! You are very impressive!\nWe ask you to do a pinpoint mission.",
+        "failure": "Use your invisibilities and your a-bomb."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 34104.",
+        "Unsupported legacy object type 0 encountered 30 time(s) during import."
+    ]
+}

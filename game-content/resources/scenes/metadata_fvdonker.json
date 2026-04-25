@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "FVDONKER",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "FVDONKER",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "TEMPERATE",
+        "night": true,
+        "publicPassword": false,
+        "modeCompatibility": "DONT_CARE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 1392."
+    ]
+}

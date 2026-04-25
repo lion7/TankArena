@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "ROADRAGE",
+        "widthTiles": 52,
+        "heightTiles": 52,
+        "missionCode": "DESTRUCTION DERBY",
+        "nextMissionCode": "LABYRINTH",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "To take your mind off the job you go\nstockcar racing!\n\nPush your opponents over the ridge!",
+        "success": "Nice driving!",
+        "failure": "Try again!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6264.",
+        "Unsupported legacy object type 0 encountered 9 time(s) during import."
+    ]
+}

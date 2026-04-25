@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "Fight1",
+        "widthTiles": 32,
+        "heightTiles": 32,
+        "missionCode": "FIGHT1",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 5568."
+    ]
+}

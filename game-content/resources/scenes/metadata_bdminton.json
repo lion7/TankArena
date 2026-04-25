@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "BDMINTON",
+        "widthTiles": 20,
+        "heightTiles": 16,
+        "missionCode": "BADMINTON",
+        "nextMissionCode": "BASKETBALL",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL_VS_COMPUTER",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Welcome to badminton!\n\nThis level was designed for god mode, so\nplease start the game with:\n\ntank -god -loadsofweapons\n\nAfter that you'll have to hit the race\ncar so that it will jump over to the\nopponents side. If it goes into the pit\nyou win!\n\nSimple?",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 2088.",
+        "Unsupported legacy object type 0 encountered 3 time(s) during import."
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "COVERT",
+        "widthTiles": 32,
+        "heightTiles": 32,
+        "missionCode": "COVERT",
+        "nextMissionCode": "RAILWAY TO HELL",
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Recently after a nuclear bomb hit the Los\nAlamos test site, you've been assigned to\na small island in Frech Polynesia. The bomb\nseemed to have came from that island.\n\nYou've been given a Hovertank (Destroyer)\nloaded with weapons. Your mission is to\nget on the island by bridge (the bridge will\nbe dynamited when you're there), escape the\nlocal defenses and place a remote controlled\nbomb on the nuclear weapons to detonate them.\n\nYou must go by tunnel into the base, place the\ntime bombs, then get out by the small opening\nand detonate the bombs.\n\n- Warning -\nThe only defense of this island is an LRM-1.\nIt has been refitted to fire mortars.\nDestroy this fast if you want to survive.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6264.",
+        "Unsupported legacy object type 0 encountered 2 time(s) during import."
+    ]
+}

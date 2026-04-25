@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "FVPONG",
+        "widthTiles": 20,
+        "heightTiles": 20,
+        "missionCode": "FVPONG",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DONT_CARE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 2784."
+    ]
+}

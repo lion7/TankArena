@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "HOCKEY",
+        "widthTiles": 20,
+        "heightTiles": 20,
+        "missionCode": "ICE HOCKEY",
+        "nextMissionCode": "BADMINTON",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL_VS_COMPUTER",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Welcome to the world championships ice hockey!\n\nThe objective of this mission is that you shoot\nthe \"puck\" in the opponents goal.\n\nSince you will have to hit your opponent quite\noften it is required that you play this game\nin god mode, start the game with:\n\ntank -god -loadsofweapons\n\nAlso I suggest you play the game in high\nresolution mode.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 4872.",
+        "Unsupported legacy object type 0 encountered 3 time(s) during import."
+    ]
+}

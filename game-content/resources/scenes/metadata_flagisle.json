@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "FLAGISLE",
+        "widthTiles": 50,
+        "heightTiles": 50,
+        "missionCode": "DUAL",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Capture the flag!\n\nThe flag is hidden somewhere in the middle of the\nmap. Use the teleports to travel quickly to your\nopponents base.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 6264."
+    ]
+}

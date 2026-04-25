@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "RACE1",
+        "widthTiles": 20,
+        "heightTiles": 100,
+        "missionCode": "RACE1",
+        "nextMissionCode": null,
+        "randomBonus": false,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 1392."
+    ]
+}

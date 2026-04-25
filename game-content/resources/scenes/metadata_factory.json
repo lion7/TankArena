@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "FACTORY",
+        "widthTiles": 72,
+        "heightTiles": 72,
+        "missionCode": "ESCAPE THE FACTORY",
+        "nextMissionCode": "WEAPON SUPPLY",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Your mission is to free all of your\nfriends. Blow up all locks to free\nthem and to open the exit.",
+        "success": "Good work, but while you were freeing\nyour friends, the enemy has constructed\na secret weapon.",
+        "failure": "Use the reflecting walls and fueldumps\nto destroy the enemy."
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 70296.",
+        "Unsupported legacy object type 0 encountered 28 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 8 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 3 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 13 time(s) during import."
+    ]
+}

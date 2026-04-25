@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "4 VS 4",
+        "widthTiles": 32,
+        "heightTiles": 12,
+        "missionCode": "4 VS 4",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": true,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 5568."
+    ]
+}

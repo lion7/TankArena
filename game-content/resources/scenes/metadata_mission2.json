@@ -1,0 +1,27 @@
+{
+    "metadata": {
+        "name": "MISSION2",
+        "widthTiles": 120,
+        "heightTiles": 120,
+        "missionCode": "MISSION TWO",
+        "nextMissionCode": "MISSION THREE",
+        "randomBonus": false,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE_OR_DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 142680.",
+        "Unsupported legacy object type 0 encountered 124 time(s) during import.",
+        "Unsupported legacy object type 1 encountered 10 time(s) during import."
+    ]
+}

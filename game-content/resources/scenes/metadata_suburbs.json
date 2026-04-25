@@ -1,0 +1,29 @@
+{
+    "metadata": {
+        "name": "SUBURBS",
+        "widthTiles": 100,
+        "heightTiles": 100,
+        "missionCode": "SUBURBS",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "DESERT",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL_VS_COMPUTER",
+        "legacyMapVersion": 5
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 247776.",
+        "Unsupported legacy object type 0 encountered 19 time(s) during import.",
+        "Unsupported legacy object type 5 encountered 248 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 10 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 58 time(s) during import."
+    ]
+}

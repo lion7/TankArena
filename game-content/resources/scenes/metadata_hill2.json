@@ -1,0 +1,25 @@
+{
+    "metadata": {
+        "name": "HILL2",
+        "widthTiles": 12,
+        "heightTiles": 12,
+        "missionCode": "HILL2",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": true,
+        "modeCompatibility": "DONT_CARE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 1392."
+    ]
+}

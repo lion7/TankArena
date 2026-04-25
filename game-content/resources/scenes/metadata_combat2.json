@@ -1,0 +1,26 @@
+{
+    "metadata": {
+        "name": "COMBAT2",
+        "widthTiles": 32,
+        "heightTiles": 32,
+        "missionCode": "COMBAT2",
+        "nextMissionCode": "COMBAT3",
+        "randomBonus": true,
+        "world": "CITY",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "SINGLE",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Take out more enemy tanks!",
+        "success": "Splendid!",
+        "failure": "Again!"
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 3480.",
+        "Unsupported legacy object type 0 encountered 5 time(s) during import."
+    ]
+}

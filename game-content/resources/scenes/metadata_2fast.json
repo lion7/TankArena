@@ -1,0 +1,27 @@
+{
+    "metadata": {
+        "name": "2FAST",
+        "widthTiles": 28,
+        "heightTiles": 28,
+        "missionCode": "UNKNOWN",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "Capture The Flag\n----------------\n\nThe idea with this map is that Player 2 has a\nvery fast tank, but with almost no firepower.\nPlayer 1 has all the firepower, but is very\nslow. The powerful tank has to defend the\nflag, and the weak tank has to race around\nand try to steal it.\n\nHint : Player 2 can use the teleport in a\ncritical situation.\n\nRecommended Playing :\n\nPLAYER 1 : Everything but the mouse.\nPLAYER 2 : Mouse.\n\nMade by : Simon Pedersen (96h334@mail.novehs.dk)",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 10440.",
+        "Unsupported legacy object type 8 encountered 1 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 3 time(s) during import."
+    ]
+}

@@ -1,0 +1,28 @@
+{
+    "metadata": {
+        "name": "MBASE",
+        "widthTiles": 32,
+        "heightTiles": 28,
+        "missionCode": "DEATHPIT",
+        "nextMissionCode": null,
+        "randomBonus": true,
+        "world": "TEMPERATE",
+        "night": false,
+        "publicPassword": false,
+        "modeCompatibility": "DUAL",
+        "legacyMapVersion": 6
+    },
+    "missionText": {
+        "briefing": "the flag is hidden somewhere in a military base.\ncapture and return the flag.",
+        "success": "",
+        "failure": ""
+    },
+    "importNotes": [
+        "Imported from legacy .MAP file.",
+        "Legacy object blob decoded for a supported subset of object types.",
+        "Remaining raw object bytes: 22968.",
+        "Unsupported legacy object type 0 encountered 9 time(s) during import.",
+        "Unsupported legacy object type 8 encountered 2 time(s) during import.",
+        "Unsupported legacy object type 9 encountered 10 time(s) during import."
+    ]
+}

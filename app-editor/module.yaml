@@ -2,9 +2,7 @@ product: jvm/app
 
 dependencies:
   - ../game-content
-  - ../game-render-kubriko
-  - ../game-sim
-  - ../game-ui-compose
+  - ../game-protocol
   - $compose.desktop.currentOs
   - $compose.material3
 

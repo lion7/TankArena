@@ -2,8 +2,8 @@ package com.tankarena.render.kubriko
 
 import com.tankarena.content.LegacyResourceNaming
 import com.tankarena.content.LegacySpriteResources
-import game_render_kubriko.generated.resources.Res
-import game_render_kubriko.generated.resources.allDrawableResources
+import game_client.generated.resources.Res
+import game_client.generated.resources.allDrawableResources
 import org.jetbrains.compose.resources.DrawableResource
 
 /**

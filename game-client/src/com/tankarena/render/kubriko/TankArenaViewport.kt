@@ -124,7 +124,7 @@ private class TankArenaKubrikoRuntime(
         instanceNameForLogging = "tank-arena-runtime",
     )
 
-    private val replicatedActorScene = ReplicatedActorScene(
+    private val clientScene = ClientScene(
         snapshot = snapshot,
         actorManager = actorManager,
         spriteManager = spriteManager,
@@ -149,7 +149,7 @@ private class TankArenaKubrikoRuntime(
         snapshot.playerView = playerView
         snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight)
         terrainActor.syncBounds()
-        replicatedActorScene.sync(world)
+        clientScene.sync(world)
         preloadSceneSprites(map)
         viewportManager.setCameraPosition(
             SceneOffset(
@@ -175,7 +175,7 @@ private class TankArenaKubrikoRuntime(
                 addTileSprite(resources, world, map.layers.top[index], sprites)
             }
         }
-        replicatedActorScene.collectSpriteResources(resources)
+        clientScene.collectSpriteResources(resources)
         if (resources.isNotEmpty()) {
             spriteManager.preload(resources)
         }

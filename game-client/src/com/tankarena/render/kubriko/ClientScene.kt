@@ -15,7 +15,7 @@ import com.tankarena.render.kubriko.actor.TankActor
 import com.tankarena.render.kubriko.actor.TurretActor
 import org.jetbrains.compose.resources.DrawableResource
 
-internal class ReplicatedActorScene(
+internal class ClientScene(
     private val snapshot: RuntimeSnapshot,
     private val actorManager: ActorManager,
     private val spriteManager: SpriteManager,

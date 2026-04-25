@@ -1,10 +1,7 @@
 modules:
   - game-content
-  - game-sim
-  - game-server
   - game-protocol
-  - game-render-kubriko
-  - game-ui-compose
-  - app-desktop
+  - game-server
+  - game-client
   - app-editor
   - tools-mapconv

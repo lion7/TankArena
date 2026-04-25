@@ -119,7 +119,7 @@ class LegacySpriteResourcesTest {
                 )
             }
         }
-        // All 9 turret variants × 5 sprite frames.
+        // All 9 turret variants ï¿½ 5 sprite frames.
         for (turretIndex in 0 until 9) {
             for (frame in 0 until 5) {
                 val name = LegacySpriteResources.nameForTurret(turretIndex, frame)
@@ -141,8 +141,8 @@ class LegacySpriteResourcesTest {
 
     private fun locateDrawableResources(): java.io.File {
         val candidates = sequenceOf(
-            "../game-render-kubriko/composeResources/drawable",
-            "game-render-kubriko/composeResources/drawable",
+            "../game-client/composeResources/drawable",
+            "game-client/composeResources/drawable",
         )
         for (candidate in candidates) {
             val file = java.io.File(candidate).absoluteFile

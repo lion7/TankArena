@@ -1,6 +1,4 @@
-product:
-  type: lib
-  platforms: [jvm]
+product: jvm/app
 
 repositories:
   - mavenLocal
@@ -8,8 +6,9 @@ repositories:
 dependencies:
   - ../game-content
   - ../game-protocol
-  - ../game-sim
+  - ../game-server
   - $compose.desktop.currentOs
+  - $compose.material3
   - io.github.pandulapeter.kubriko:engine-desktop:0.1.1
   - io.github.pandulapeter.kubriko:plugin-keyboard-input-desktop:0.1.1
   - io.github.pandulapeter.kubriko:plugin-sprites-desktop:0.1.1
@@ -18,6 +17,11 @@ dependencies:
 settings:
   kotlin:
     version: 2.3.20
+    serialization:
+      format: json
+      version: 1.11.0
   compose:
     enabled: true
     version: 1.10.0
+  jvm:
+    mainClass: com.tankarena.app.desktop.MainKt

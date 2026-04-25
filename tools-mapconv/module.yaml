@@ -3,6 +3,7 @@ product: jvm/app
 dependencies:
   - ../game-content
   - ../game-legacy
+  - ../game-server
 
 settings:
   kotlin:

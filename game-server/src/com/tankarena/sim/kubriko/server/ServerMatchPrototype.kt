@@ -14,6 +14,7 @@ import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.content.LEGACY_TILE_SIZE
+import com.tankarena.content.MapMetadata
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
@@ -37,7 +38,7 @@ import kotlinx.coroutines.withTimeout
 private const val MILLIS_PER_TICK: Int = 33
 
 class ServerMatchPrototype private constructor(
-    private val map: CanonicalMapDefinition,
+    private val mapMetadata: MapMetadata,
     private val initialActors: List<Serializable<*>>,
 ) {
 
@@ -45,8 +46,8 @@ class ServerMatchPrototype private constructor(
     private val serializationManager = SerializableMetadata.newSerializationManagerInstance(
         *tankArenaSerializableMetadata,
     )
-    private val worldWidthPixels: Int = map.metadata.widthTiles * LEGACY_TILE_SIZE
-    private val worldHeightPixels: Int = map.metadata.heightTiles * LEGACY_TILE_SIZE
+    private val worldWidthPixels: Int = mapMetadata.widthTiles * LEGACY_TILE_SIZE
+    private val worldHeightPixels: Int = mapMetadata.heightTiles * LEGACY_TILE_SIZE
     private val kubriko: Kubriko = Kubriko.newInstance(
         ActorManager.newInstance(
             initialActors = initialActors,
@@ -76,7 +77,7 @@ class ServerMatchPrototype private constructor(
 
     val worldWidth: Int get() = worldWidthPixels
     val worldHeight: Int get() = worldHeightPixels
-    val missionCode: String get() = map.metadata.missionCode
+    val missionCode: String get() = mapMetadata.missionCode
 
     fun initialize() {
         tickSource.start()
@@ -552,7 +553,15 @@ class ServerMatchPrototype private constructor(
             )
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            return ServerMatchPrototype(map = map, initialActors = actors)
+            return ServerMatchPrototype(mapMetadata = map.metadata, initialActors = actors)
+        }
+
+        fun fromSceneJson(sceneJson: String, mapMetadata: MapMetadata): ServerMatchPrototype {
+            val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
+                *tankArenaSerializableMetadata,
+            )
+            val actors = serializationManagerForBuild.deserializeActors(sceneJson)
+            return ServerMatchPrototype(mapMetadata = mapMetadata, initialActors = actors)
         }
     }
 }

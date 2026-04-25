@@ -4,7 +4,6 @@ product:
 
 dependencies:
   - ../game-content
-  - ../game-input
   - ../game-legacy
   - ../game-protocol
   - ../game-sim

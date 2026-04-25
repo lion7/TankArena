@@ -1,9 +1,7 @@
 product: jvm/app
 
 dependencies:
-  - ../game-core
   - ../game-content
-  - ../game-input
   - ../game-legacy
   - ../game-protocol
   - ../game-render-kubriko

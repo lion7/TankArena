@@ -6,9 +6,7 @@ repositories:
   - mavenLocal
 
 dependencies:
-  - ../game-core
   - ../game-content
-  - ../game-input
   - ../game-protocol
   - $compose.desktop.currentOs
   - io.github.pandulapeter.kubriko:engine-desktop:0.1.1

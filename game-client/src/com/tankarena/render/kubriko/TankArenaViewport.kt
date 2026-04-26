@@ -111,6 +111,10 @@ private class TankArenaKubrikoRuntime(
         isLoggingEnabled = false,
         instanceNameForLogging = "tank-arena-metadata",
     )
+    private val scenePreloadManager = ScenePreloadManager(
+        isLoggingEnabled = false,
+        instanceNameForLogging = "tank-arena-preload",
+    )
 
     val kubriko: Kubriko = Kubriko.newInstance(
         manager = arrayOf<Manager>(
@@ -119,6 +123,7 @@ private class TankArenaKubrikoRuntime(
             viewportManager,
             spriteManager,
             actorManager,
+            scenePreloadManager,
         ),
         isLoggingEnabled = false,
         instanceNameForLogging = "tank-arena-runtime",
@@ -178,7 +183,7 @@ private class TankArenaKubrikoRuntime(
         }
         clientScene.collectSpriteResources(resources)
         if (resources.isNotEmpty()) {
-            spriteManager.preload(resources)
+            scenePreloadManager.requestPreload(resources)
         }
     }
 }

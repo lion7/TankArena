@@ -35,10 +35,15 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import com.tankarena.content.AuthoredObject
-import com.tankarena.content.CanonicalMapDefinition
-import com.tankarena.content.ObjectKinds
+import com.pandulapeter.kubriko.actor.body.BoxBody
+import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
+import com.pandulapeter.kubriko.serialization.SerializableMetadata
+import com.pandulapeter.kubriko.types.SceneOffset
+import com.pandulapeter.kubriko.types.SceneSize
+import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.core.FixedStepClock
+import com.tankarena.sim.kubriko.server.ServerTankActor
+import com.tankarena.sim.kubriko.server.tankArenaSerializableMetadata
 import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PlayerView
@@ -142,7 +147,7 @@ fun main() = application {
                     )
 
                     is DesktopShellScreen.Debrief -> {
-                        val nextMission = missions.orEmpty().findByCode(current.mission.canonical.metadata.nextMissionCode)
+                        val nextMission = missions.orEmpty().findByCode(current.mission.sidecar.metadata.nextMissionCode)
                         DebriefScreen(
                             mission = current.mission,
                             outcome = current.outcome,
@@ -176,8 +181,10 @@ private fun GameplayScreen(
     controls: DesktopControls,
     onMissionEnd: (MissionOutcome) -> Unit,
 ) {
-    val map = remember(mission.mapFile, mode) { materializePlayableMission(mission.canonical, mode) }
-    val host = remember(map, mode) { LocalMatchClient.fromCanonicalMap(map) }
+    val playable = remember(mission.mapFile, mode) { materializePlayableMission(mission, mode) }
+    val host = remember(playable, mode) {
+        LocalMatchClient.fromSceneJson(playable.sceneJson, playable.sidecar.metadata)
+    }
     var serverFrame by remember(host) { mutableStateOf<ServerFrame>(host.currentServerFrame()) }
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
@@ -207,8 +214,8 @@ private fun GameplayScreen(
     }
 
     TiledPanelBackground(modifier = Modifier.fillMaxSize()) {
-        val worldWidth = map.metadata.widthTiles * 33
-        val worldHeight = map.metadata.heightTiles * 33
+        val worldWidth = playable.sidecar.metadata.widthTiles * 33
+        val worldHeight = playable.sidecar.metadata.heightTiles * 33
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -221,7 +228,7 @@ private fun GameplayScreen(
         ) {
             if (playerView != null) {
                 TankArenaViewport(
-                    map = map,
+                    sidecar = playable.sidecar,
                     serverFrame = serverFrame,
                     playerId = playerView.playerId,
                     worldWidth = worldWidth,
@@ -418,46 +425,72 @@ private class DesktopControls {
     }
 }
 
-private fun materializePlayableMission(map: CanonicalMapDefinition, mode: GameMode): CanonicalMapDefinition {
-    if (!map.metadata.missionCode.equals("BEGIN1", ignoreCase = true)) return map
-    val objects = buildList {
-        add(
-            AuthoredObject(
-                id = "begin1-player",
-                kind = ObjectKinds.PLAYER_START,
-                x = 2 * 33 + 16,
-                y = 9 * 33 + 16,
-                properties = mapOf(
-                    "direction" to "0",
-                    "lives" to if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) "3" else "1",
-                ),
-            ),
-        )
-        add(
-            AuthoredObject(
-                id = "begin1-enforcer",
-                kind = ObjectKinds.ENFORCER,
-                x = 9 * 33 + 16,
-                y = 2 * 33 + 16,
-                properties = mapOf(
-                    "direction" to "8",
-                    "tankType" to "0",
-                    "armor" to "100",
-                    "lives" to "1",
-                ),
-            ),
-        )
-        if (mode == GameMode.PLAYER_VS_PLAYER || mode == GameMode.DUAL_PLAYER_VS_COMPUTER) {
-            add(
-                AuthoredObject(
-                    id = "begin1-player-2",
-                    kind = ObjectKinds.PLAYER_START,
-                    x = 3 * 33 + 16,
-                    y = 9 * 33 + 16,
-                    properties = mapOf("direction" to "0", "lives" to "3"),
-                ),
-            )
-        }
+private const val TANK_FOOTPRINT_PX = LEGACY_TILE_SIZE - 4
+
+private fun materializePlayableMission(entry: MissionEntry, mode: GameMode): MissionEntry {
+    if (!entry.sidecar.metadata.missionCode.equals("BEGIN1", ignoreCase = true)) return entry
+    val serializationManager = SerializableMetadata.newSerializationManagerInstance(*tankArenaSerializableMetadata)
+    val baseActors = serializationManager.deserializeActors(entry.sceneJson)
+    val playerLives = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) 3 else 1
+    val extras = mutableListOf<ServerTankActor>()
+    extras.add(tankActor(
+        cx = 2 * 33 + 16,
+        cy = 9 * 33 + 16,
+        playerIndex = 0,
+        team = 0,
+        bodyDirection = 0,
+        lives = playerLives,
+    ))
+    extras.add(tankActor(
+        cx = 9 * 33 + 16,
+        cy = 2 * 33 + 16,
+        playerIndex = -1,
+        team = 1,
+        bodyDirection = 8,
+        lives = 1,
+    ))
+    if (mode == GameMode.PLAYER_VS_PLAYER || mode == GameMode.DUAL_PLAYER_VS_COMPUTER) {
+        extras.add(tankActor(
+            cx = 3 * 33 + 16,
+            cy = 9 * 33 + 16,
+            playerIndex = 1,
+            team = 0,
+            bodyDirection = 0,
+            lives = 3,
+        ))
     }
-    return map.copy(objects = objects)
+    @Suppress("UNCHECKED_CAST")
+    val combined = baseActors + (extras as List<com.pandulapeter.kubriko.serialization.Serializable<*>>)
+    val patchedSceneJson = serializationManager.serializeActors(combined)
+    return entry.copy(sceneJson = patchedSceneJson)
 }
+
+private fun tankActor(
+    cx: Int,
+    cy: Int,
+    playerIndex: Int,
+    team: Int,
+    bodyDirection: Int,
+    lives: Int,
+): ServerTankActor = ServerTankActor(
+    ServerTankActor.State(
+        body = BoxBody(
+            initialPosition = SceneOffset(
+                (cx - TANK_FOOTPRINT_PX / 2).toFloat().sceneUnit,
+                (cy - TANK_FOOTPRINT_PX / 2).toFloat().sceneUnit,
+            ),
+            initialSize = SceneSize(
+                TANK_FOOTPRINT_PX.toFloat().sceneUnit,
+                TANK_FOOTPRINT_PX.toFloat().sceneUnit,
+            ),
+        ),
+        bodyDirection = bodyDirection,
+        turretDirection = bodyDirection,
+        playerIndex = playerIndex,
+        tankType = 0,
+        armor = 100,
+        fuel = 100,
+        lives = lives,
+        team = team,
+    ),
+)

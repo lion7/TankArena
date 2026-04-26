@@ -11,10 +11,10 @@ import com.pandulapeter.kubriko.actor.body.BoxBody
 import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.pandulapeter.kubriko.types.SceneSize
-import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacyPictureVariant
 import com.tankarena.content.LegacySpriteResources
+import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.TankArenaWorld
 import com.tankarena.protocol.snapshot.PlayerView
 import org.jetbrains.compose.resources.DrawableResource
@@ -40,7 +40,7 @@ data class ViewportGeometry(
 )
 
 internal class RuntimeSnapshot(
-    var map: CanonicalMapDefinition?,
+    var sidecar: MapSceneSidecar?,
     var playerView: PlayerView,
     var geometry: ViewportGeometry,
 ) {

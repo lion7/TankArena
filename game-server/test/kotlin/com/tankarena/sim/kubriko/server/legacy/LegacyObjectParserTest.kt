@@ -1,4 +1,4 @@
-package com.tankarena.legacy
+package com.tankarena.sim.kubriko.server.legacy
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

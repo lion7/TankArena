@@ -1,11 +1,16 @@
 # Tank Arena Full Rewrite Status
 
-As of April 25, 2026.
+As of April 26, 2026.
 
 > **2026-04 update:** the module layout described in section 3 has been
-> collapsed from 11 modules down to 6, and the authoritative simulation is
-> running on a headless Kubriko instance. The remaining gap to the 5-module
-> target is the `:app-editor` → `:game-editor` rename in step 8. See
+> collapsed from 11 modules down to the 6-module target (`:game-protocol`,
+> `:game-content`, `:game-server`, `:game-client`, `:game-editor`,
+> `:tools-mapconv`), and the authoritative simulation is running on a
+> headless Kubriko instance. `:game-editor` embeds Kubriko's `SceneEditor`
+> against the same actor metadata the server uses. The `CanonicalMap*`
+> schema has been removed from `:game-content`; the runtime client and
+> editor now consume `MapSceneSidecar` (with embedded `TileLayers`) plus
+> Kubriko scene JSON directly. See
 > [section 15](#15-module-collapse-and-authoritative-server-2026-04) for the
 > current plan, what has already landed, and what is still pending. Earlier
 > sections are retained as the original intent and are annotated inline
@@ -798,27 +803,47 @@ and the module count is down from 11 to 6 (`:game-content`,
   renamed to `ClientScene` (it was already syncing by stable
   `actorId`); `:game-sim` deleted entirely now that no module depends on
   it; `:app-editor` stripped to a content+protocol stub awaiting step 8
+- `:app-editor` renamed to `:game-editor` and rewired as a thin Compose-
+  Desktop wrapper around Kubriko's `SceneEditor` (step 8). The five
+  `Server*Actor` types in `:game-server` (Wall, Tank, Turret, Goal —
+  Projectile stays plain `Serializable<T>` since it is never
+  hand-placed) now implement `Editable<T>`, which lets the editor reuse
+  the same `State` data classes the server bootstraps from. The plan's
+  "editor must not depend on `:game-server`" guidance was relaxed in
+  favour of sharing the State definitions; `:game-editor` depends on
+  `:game-server` purely for the actor classes/typeIds — no server
+  managers run in the editor's Kubriko instance. The editor opens
+  `game-content/resources/scenes/` by default so existing imported
+  scenes can be edited round-trip
 
 ### 15.5 What Is Still Pending
 
-Two structural items remain before the rewrite hits the 5-module target:
+The structural rewrite is complete. All eight steps of the collapse plan
+plus the deferred `CanonicalMap*` cleanup have landed; the remaining work
+is gameplay/feature-level rather than module-shape.
 
-1. rename `:app-editor` → `:game-editor`, embed Kubriko's `SceneEditor`
-   composable from `/var/projects/kubriko/tools/scene-editor`, wire it
-   to the shared `SerializableMetadata` registry, and confirm an edited
-   scene boots on the server and plays on the client (step 8 of the
-   collapse plan)
-2. delete the `CanonicalMap*` schema in `:game-content` and the few
-   remaining consumers (`MissionCatalog`, `TankArenaViewport`,
-   `RenderSceneSupport`, the `CanonicalSceneBuilder` /
-   `fromCanonicalMap` bridge, and the test fixtures in `:game-server`).
-   Deferred from step 5 to keep that step focused; landing it requires
-   switching the client menu and viewport bootstrap to consume the
-   shipped scene JSON + `MapSceneSidecar` directly, plus rewriting the
-   server test fixtures to construct scene JSON without going through
-   `CanonicalMapDefinition`. The legacy `.MAP` importer can keep
-   `CanonicalMap` as an internal intermediate or drop it; either is
-   fine
+Historical note (resolved): this section previously tracked the
+`CanonicalMap*` deletion. It landed on 2026-04-26:
+
+1. `CanonicalMapDefinition`, `AuthoredObject`, and `ObjectKinds` are gone
+   from `:game-content`. `MapSceneSidecar` now carries `tileLayers`,
+   `metadata`, `missionText`, and `importNotes`, and is the only map
+   metadata the runtime client and editor consume. The legacy `.MAP`
+   importer survives as a server-internal intermediate in
+   `:game-server/.../legacy/` (`CanonicalMapDefinition` +
+   `LegacyCanonicalConverter` + `LegacyObjectParser`) — it is no longer
+   exported across module boundaries, only used by `LegacyMapImporter`
+   (the new `(bytes, name) -> ImportedMission(sidecar, sceneJson)`
+   facade) and by the existing `:game-server` test DSL. The client
+   menu now stores `(sidecar, sceneJson)` per `MissionEntry` and boots
+   the in-process server through `LocalMatchClient.fromSceneJson`. The
+   `BEGIN1` playable-mission shim now patches scene JSON directly by
+   deserializing → injecting `ServerTankActor` instances → re-serializing
+   with the shared `tankArenaSerializableMetadata` registry.
+   `:game-content` retains only the data types every module needs:
+   `MapMetadata`, `MissionText`, `TileLayers`, `GameModeCompatibility`,
+   `TankArenaWorld`, plus `MapSceneSidecar` and the legacy raw-byte
+   `LegacyMapParser` / `LegacyMapData` / `LegacyMapHeader`
 
 Folding `tools-mapconv` itself "inside `:game-content` as an Amper
 product" (the original step 6 ambition) was not done — Amper is

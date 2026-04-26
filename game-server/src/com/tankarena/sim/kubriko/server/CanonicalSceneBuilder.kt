@@ -7,9 +7,9 @@ import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.pandulapeter.kubriko.serialization.SerializationManager
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.pandulapeter.kubriko.types.SceneSize
-import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.content.LEGACY_TILE_SIZE
-import com.tankarena.content.ObjectKinds
+import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
+import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 
 private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 private const val TURRET_FOOTPRINT: Int = LEGACY_TILE_SIZE

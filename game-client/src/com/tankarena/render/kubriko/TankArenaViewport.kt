@@ -17,14 +17,14 @@ import com.pandulapeter.kubriko.manager.ViewportManager
 import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.pandulapeter.kubriko.types.FrameRate
 import com.pandulapeter.kubriko.types.SceneOffset
-import com.tankarena.content.CanonicalMapDefinition
+import com.tankarena.content.MapSceneSidecar
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.protocol.snapshot.WorldSnapshot
 
 @Composable
 fun TankArenaViewport(
-    map: CanonicalMapDefinition?,
+    sidecar: MapSceneSidecar?,
     serverFrame: ServerFrame,
     playerId: Int,
     worldWidth: Int,
@@ -36,9 +36,9 @@ fun TankArenaViewport(
         ?: serverFrame.playerViews.firstOrNull()
         ?: return
 
-    val runtime = remember(map?.metadata?.name, playerView.playerId) {
+    val runtime = remember(sidecar?.metadata?.name, playerView.playerId) {
         TankArenaKubrikoRuntime(
-            map = map,
+            sidecar = sidecar,
             initialView = playerView,
             initialWorld = serverFrame.world,
             worldWidth = worldWidth,
@@ -50,8 +50,8 @@ fun TankArenaViewport(
         onDispose(runtime::dispose)
     }
 
-    LaunchedEffect(runtime, map, serverFrame, worldWidth, worldHeight) {
-        runtime.sync(map, playerView, serverFrame.world, worldWidth, worldHeight)
+    LaunchedEffect(runtime, sidecar, serverFrame, worldWidth, worldHeight) {
+        runtime.sync(sidecar, playerView, serverFrame.world, worldWidth, worldHeight)
         onGeometryChanged(runtime.geometry)
     }
 
@@ -63,7 +63,7 @@ fun TankArenaViewport(
 }
 
 private class TankArenaKubrikoRuntime(
-    map: CanonicalMapDefinition?,
+    sidecar: MapSceneSidecar?,
     initialView: PlayerView,
     initialWorld: WorldSnapshot,
     worldWidth: Int,
@@ -71,7 +71,7 @@ private class TankArenaKubrikoRuntime(
 ) {
     private val sprites = LegacySpriteCatalog.shared
     private val snapshot = RuntimeSnapshot(
-        map = map,
+        sidecar = sidecar,
         playerView = initialView,
         geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight),
     )
@@ -132,25 +132,25 @@ private class TankArenaKubrikoRuntime(
     )
 
     init {
-        sync(map, initialView, initialWorld, worldWidth, worldHeight)
+        sync(sidecar, initialView, initialWorld, worldWidth, worldHeight)
     }
 
     val geometry: ViewportGeometry
         get() = snapshot.geometry
 
     fun sync(
-        map: CanonicalMapDefinition?,
+        sidecar: MapSceneSidecar?,
         playerView: PlayerView,
         world: WorldSnapshot,
         worldWidth: Int,
         worldHeight: Int,
     ) {
-        snapshot.map = map
+        snapshot.sidecar = sidecar
         snapshot.playerView = playerView
         snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight)
         terrainActor.syncBounds()
         clientScene.sync(world)
-        preloadSceneSprites(map)
+        preloadSceneSprites(sidecar)
         viewportManager.setCameraPosition(
             SceneOffset(
                 snapshot.geometry.cameraCenterX.sceneUnit,
@@ -163,16 +163,17 @@ private class TankArenaKubrikoRuntime(
         kubriko.dispose()
     }
 
-    private fun preloadSceneSprites(map: CanonicalMapDefinition?) {
+    private fun preloadSceneSprites(sidecar: MapSceneSidecar?) {
         val resources = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
-        if (map != null) {
-            val world = map.metadata.world
-            val width = map.metadata.widthTiles
-            val height = map.metadata.heightTiles
+        val tiles = sidecar?.tileLayers
+        if (sidecar != null && tiles != null) {
+            val world = sidecar.metadata.world
+            val width = sidecar.metadata.widthTiles
+            val height = sidecar.metadata.heightTiles
             for (index in 0 until width * height) {
-                addTileSprite(resources, world, map.layers.base[index], sprites)
-                addTileSprite(resources, world, map.layers.solid[index], sprites)
-                addTileSprite(resources, world, map.layers.top[index], sprites)
+                addTileSprite(resources, world, tiles.base[index], sprites)
+                addTileSprite(resources, world, tiles.solid[index], sprites)
+                addTileSprite(resources, world, tiles.top[index], sprites)
             }
         }
         clientScene.collectSpriteResources(resources)

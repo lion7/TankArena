@@ -2,6 +2,7 @@ package com.tankarena.tools.mapconv
 
 import com.tankarena.legacy.LegacyMapParser
 import com.tankarena.sim.kubriko.server.LegacyToSceneJson
+import com.tankarena.sim.kubriko.server.legacy.LegacyCanonicalConverter
 import java.io.File
 import kotlinx.serialization.json.Json
 
@@ -31,7 +32,7 @@ fun main(args: Array<String>) {
             val output = File(args[2])
             val parser = LegacyMapParser()
             val legacy = parser.parse(input.readBytes(), input.nameWithoutExtension)
-            val canonical = parser.toCanonical(input.nameWithoutExtension, legacy)
+            val canonical = LegacyCanonicalConverter.convert(input.nameWithoutExtension, legacy)
             output.parentFile?.mkdirs()
             output.writeText(json.encodeToString(canonical))
             println("Converted ${input.name} -> ${output.absolutePath}")
@@ -103,7 +104,7 @@ fun main(args: Array<String>) {
             val output = File(args[1])
             val parser = LegacyMapParser()
             val legacy = parser.parse(input.readBytes(), input.nameWithoutExtension)
-            val canonical = parser.toCanonical(input.nameWithoutExtension, legacy)
+            val canonical = LegacyCanonicalConverter.convert(input.nameWithoutExtension, legacy)
             output.parentFile?.mkdirs()
             output.writeText(json.encodeToString(canonical))
             println("Converted ${input.name} -> ${output.absolutePath}")
@@ -115,7 +116,7 @@ private fun convertSingleToScene(input: File, outputDir: File) {
     val parser = LegacyMapParser()
     val name = input.nameWithoutExtension
     val legacy = parser.parse(input.readBytes(), name)
-    val canonical = parser.toCanonical(name, legacy)
+    val canonical = LegacyCanonicalConverter.convert(name, legacy)
     val converted = LegacyToSceneJson.convert(canonical)
     val baseName = sanitizeFileName(name)
     val sceneFile = File(outputDir, "scene_${baseName}.json")

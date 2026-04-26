@@ -1,11 +1,6 @@
 package com.tankarena.legacy
 
-import com.tankarena.content.CanonicalMapDefinition
-import com.tankarena.content.GameModeCompatibility
-import com.tankarena.content.MapMetadata
-import com.tankarena.content.MissionText
 import com.tankarena.content.TankArenaWorld
-import com.tankarena.content.TileLayers
 
 class LegacyMapParser {
     fun parse(bytes: ByteArray, mapName: String): LegacyMapData {
@@ -47,55 +42,6 @@ class LegacyMapParser {
         )
     }
 
-    fun toCanonical(mapName: String, legacy: LegacyMapData): CanonicalMapDefinition {
-        val objectBlob = legacy.rawObjectBlobSize.takeIf { it > 0 }?.let {
-            legacy.rawObjectBlob
-        } ?: ByteArray(0)
-        val parsedObjects = LegacyObjectParser.parseObjects(
-            blob = objectBlob,
-            objectSize = legacy.header.objectSize,
-        )
-        val notes = buildList {
-            add("Imported from legacy .MAP file.")
-            if (legacy.rawObjectBlobSize > 0) {
-                add("Legacy object blob decoded for a supported subset of object types.")
-                add("Remaining raw object bytes: ${legacy.rawObjectBlobSize}.")
-            }
-            addAll(parsedObjects.notes)
-        }
-        return CanonicalMapDefinition(
-            metadata = MapMetadata(
-                name = mapName,
-                widthTiles = legacy.header.widthTiles,
-                heightTiles = legacy.header.heightTiles,
-                missionCode = legacy.header.missionCode,
-                nextMissionCode = legacy.header.nextMissionCode.ifBlank { null },
-                randomBonus = legacy.header.randomBonus,
-                world = legacy.header.background.toWorld(),
-                night = legacy.header.night,
-                publicPassword = legacy.header.publicPassword,
-                modeCompatibility = legacy.header.mapType.toModeCompatibility(),
-                legacyMapVersion = legacy.header.mapVersion,
-            ),
-            layers = TileLayers(
-                base = legacy.terrain0,
-                solid = legacy.terrain1,
-                top = legacy.terrain2,
-                goalLayer = legacy.goalLayer,
-                bonusLayer = legacy.bonusLayer,
-                manTypeLayer = legacy.manTypeLayer,
-                manAmountLayer = legacy.manAmountLayer,
-            ),
-            missionText = MissionText(
-                briefing = legacy.briefingText,
-                success = legacy.successText,
-                failure = legacy.failureText,
-            ),
-            objects = parsedObjects.objects,
-            importNotes = notes,
-        )
-    }
-
     private fun readHeader(bytes: ByteArray): LegacyMapHeader {
         val cursor = LittleEndianCursor(bytes)
         return LegacyMapHeader(
@@ -114,7 +60,7 @@ class LegacyMapParser {
             objectSize = cursor.readShort(),
             shareware = cursor.readUnsignedByte() != 0,
             lock = run {
-                cursor.readUnsignedByte() // legacy extra char
+                cursor.readUnsignedByte()
                 cursor.readShort() != 0
             },
         )
@@ -123,7 +69,6 @@ class LegacyMapParser {
     private fun selectHeaderBytes(headerBytes: ByteArray): ByteArray {
         val plain = readHeader(headerBytes)
         if (plain.isSane()) return headerBytes
-
         val unlockedBytes = headerBytes.xorProtected()
         val unlocked = readHeader(unlockedBytes)
         require(unlocked.isSane()) { "Unable to parse a sane legacy header from map bytes." }
@@ -154,28 +99,20 @@ class LegacyMapParser {
         return segment.copyOf(cut).decodeToString().trim()
     }
 
-    private fun Int.toWorld(): TankArenaWorld = when (this) {
-        1 -> TankArenaWorld.TEMPERATE
-        2 -> TankArenaWorld.CITY
-        3 -> TankArenaWorld.NIGHT
-        else -> TankArenaWorld.DESERT
-    }
-
-    private fun Int.toModeCompatibility(): GameModeCompatibility = when (this) {
-        1 -> GameModeCompatibility.DUAL
-        2 -> GameModeCompatibility.SINGLE
-        3 -> GameModeCompatibility.DUAL_VS_COMPUTER
-        4 -> GameModeCompatibility.SINGLE_OR_DUAL
-        else -> GameModeCompatibility.DONT_CARE
-    }
-
     companion object {
         private const val HEADER_SIZE = 84
         private const val PROTECT_MASK = 0x34312E33
     }
 }
 
-private fun LegacyMapHeader.isSane(): Boolean {
+internal fun Int.toLegacyWorld(): TankArenaWorld = when (this) {
+    1 -> TankArenaWorld.TEMPERATE
+    2 -> TankArenaWorld.CITY
+    3 -> TankArenaWorld.NIGHT
+    else -> TankArenaWorld.DESERT
+}
+
+internal fun LegacyMapHeader.isSane(): Boolean {
     return widthTiles in 1..200 &&
         heightTiles in 1..200 &&
         missionTextOffsets.size == 4 &&
@@ -184,7 +121,7 @@ private fun LegacyMapHeader.isSane(): Boolean {
         objectSize in 0..4096
 }
 
-private class LittleEndianCursor(
+internal class LittleEndianCursor(
     private val bytes: ByteArray,
     private var position: Int = 0,
 ) {

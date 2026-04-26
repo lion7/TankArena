@@ -1,6 +1,4 @@
-product:
-  type: lib
-  platforms: [jvm]
+product: jvm/app
 
 repositories:
   - mavenLocal
@@ -8,10 +6,13 @@ repositories:
 dependencies:
   - ../game-content
   - ../game-protocol
+  - ../game-server
   - $compose.desktop.currentOs
+  - $compose.material3
   - io.github.pandulapeter.kubriko:engine-desktop:0.1.1
   - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.1.1
   - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.1.1
+  - io.github.pandulapeter.kubriko:tool-scene-editor-desktop:0.1.1
   - io.github.pandulapeter.kubriko:tool-scene-editor-api-desktop:0.1.1
 
 settings:
@@ -23,3 +24,5 @@ settings:
   compose:
     enabled: true
     version: 1.10.0
+  jvm:
+    mainClass: com.tankarena.app.editor.MainKt

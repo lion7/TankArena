@@ -3,6 +3,7 @@ package com.tankarena.sim.kubriko.server
 import com.pandulapeter.kubriko.actor.body.BoxBody
 import com.pandulapeter.kubriko.collision.Collidable
 import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
+import com.pandulapeter.kubriko.sceneEditor.Editable
 import com.pandulapeter.kubriko.serialization.Serializable
 import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
 import com.tankarena.core.LegacyDirections
@@ -14,7 +15,7 @@ private const val RANGE_PIXELS: Int = 240
 private const val PRIMARY_DAMAGE: Int = 25
 private const val PROJECTILE_SPEED: Float = 8f
 
-class ServerTurretActor internal constructor(state: State) : Collidable, Serializable<ServerTurretActor> {
+class ServerTurretActor internal constructor(state: State) : Collidable, Editable<ServerTurretActor> {
 
     override val body: BoxBody = state.body
     override val collisionMask: BoxCollisionMask = BoxCollisionMask(

@@ -25,25 +25,25 @@ internal class TerrainActor(
     }
 
     override fun DrawScope.draw() {
-        val map = snapshot.map
+        val sidecar = snapshot.sidecar
         drawRect(
             color = Color(0xFF0B1020),
             topLeft = Offset.Zero,
             size = Size(snapshot.sceneWidth.toFloat(), snapshot.sceneHeight.toFloat()),
             style = Fill,
         )
-        if (map == null) return
-        val width = map.metadata.widthTiles
-        val height = map.metadata.heightTiles
-        val theme = map.metadata.world
+        val tiles = sidecar?.tileLayers ?: return
+        val width = sidecar.metadata.widthTiles
+        val height = sidecar.metadata.heightTiles
+        val theme = sidecar.metadata.world
         for (y in 0 until height) {
             for (x in 0 until width) {
                 val index = x + y * width
                 val px = snapshot.renderOffsetX + x * TILE_SIZE
                 val py = snapshot.renderOffsetY + y * TILE_SIZE
-                drawTile(theme, map.layers.base[index], px, py)
-                drawTile(theme, map.layers.solid[index], px, py)
-                drawTile(theme, map.layers.top[index], px, py)
+                drawTile(theme, tiles.base[index], px, py)
+                drawTile(theme, tiles.solid[index], px, py)
+                drawTile(theme, tiles.top[index], px, py)
             }
         }
     }

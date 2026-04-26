@@ -1,7 +1,8 @@
 package com.tankarena.sim.kubriko.server
 
-import com.tankarena.content.CanonicalMapDefinition
+import com.tankarena.content.MapMetadata
 import com.tankarena.input.PlayerIntentFrame
+import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.protocol.snapshot.WorldSnapshot
@@ -45,7 +46,13 @@ class LocalMatchClient private constructor(
     )
 
     companion object {
-        fun fromCanonicalMap(map: CanonicalMapDefinition): LocalMatchClient {
+        fun fromSceneJson(sceneJson: String, metadata: MapMetadata): LocalMatchClient {
+            val prototype = ServerMatchPrototype.fromSceneJson(sceneJson, metadata)
+            prototype.initialize()
+            return LocalMatchClient(prototype)
+        }
+
+        internal fun fromCanonicalMap(map: CanonicalMapDefinition): LocalMatchClient {
             val prototype = ServerMatchPrototype.fromCanonicalMap(map)
             prototype.initialize()
             return LocalMatchClient(prototype)

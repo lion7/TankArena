@@ -3,5 +3,5 @@ modules:
   - game-protocol
   - game-server
   - game-client
-  - app-editor
+  - game-editor
   - tools-mapconv

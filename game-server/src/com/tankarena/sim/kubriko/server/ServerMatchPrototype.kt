@@ -12,9 +12,9 @@ import com.pandulapeter.kubriko.manager.ActorManager
 import com.pandulapeter.kubriko.serialization.Serializable
 import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.pandulapeter.kubriko.types.SceneOffset
-import com.tankarena.content.CanonicalMapDefinition
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
+import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
@@ -547,7 +547,7 @@ class ServerMatchPrototype private constructor(
     }
 
     companion object {
-        fun fromCanonicalMap(map: CanonicalMapDefinition): ServerMatchPrototype {
+        internal fun fromCanonicalMap(map: CanonicalMapDefinition): ServerMatchPrototype {
             val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
                 *tankArenaSerializableMetadata,
             )

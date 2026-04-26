@@ -1,11 +1,11 @@
 package com.tankarena.sim.kubriko.server
 
-import com.tankarena.content.AuthoredObject
-import com.tankarena.content.CanonicalMapDefinition
+import com.tankarena.sim.kubriko.server.legacy.AuthoredObject
+import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.MissionText
-import com.tankarena.content.ObjectKinds
+import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 import com.tankarena.content.TileLayers
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.GameEvent

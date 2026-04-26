@@ -38,38 +38,8 @@ data class TileLayers(
 )
 
 @Serializable
-data class AuthoredObject(
-    val id: String,
-    val kind: String,
-    val x: Int,
-    val y: Int,
-    val properties: Map<String, String> = emptyMap(),
-)
-
-object ObjectKinds {
-    const val PLAYER_START = "player_start"
-    const val TURRET = "turret"
-    const val FLAG = "flag"
-    const val GOAL = "goal"
-    const val LOCK = "lock"
-    const val WARP = "warp"
-    const val PRODUCT = "product"
-    const val DESTROYER = "destroyer"
-    const val ENFORCER = "enforcer"
-}
-
-@Serializable
 data class MissionText(
     val briefing: String = "",
     val success: String = "",
     val failure: String = "",
-)
-
-@Serializable
-data class CanonicalMapDefinition(
-    val metadata: MapMetadata,
-    val layers: TileLayers,
-    val missionText: MissionText,
-    val objects: List<AuthoredObject>,
-    val importNotes: List<String> = emptyList(),
 )

@@ -6,6 +6,7 @@ import com.pandulapeter.kubriko.collision.Collidable
 import com.pandulapeter.kubriko.collision.CollisionDetector
 import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
 import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
+import com.pandulapeter.kubriko.sceneEditor.Editable
 import com.pandulapeter.kubriko.serialization.Serializable
 import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
 import com.pandulapeter.kubriko.types.SceneOffset
@@ -35,11 +36,11 @@ internal const val RESPAWN_DELAY_TICKS: Int = 60
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2
 
-class ServerTankActor internal constructor(state: State) :
+class ServerTankActor(state: State) :
     CollisionDetector,
     Dynamic,
     Resolvable,
-    Serializable<ServerTankActor> {
+    Editable<ServerTankActor> {
 
     override val body: BoxBody = state.body
     override val collisionMask: BoxCollisionMask = BoxCollisionMask(

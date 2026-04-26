@@ -55,8 +55,8 @@ fun DebriefScreen(
         MissionOutcome.LOST -> "MISSION FAILED"
     }
     val body = when (outcome) {
-        MissionOutcome.WON -> mission.canonical.missionText.success
-        MissionOutcome.LOST -> mission.canonical.missionText.failure
+        MissionOutcome.WON -> mission.sidecar.missionText.success
+        MissionOutcome.LOST -> mission.sidecar.missionText.failure
     }.ifBlank {
         when (outcome) {
             MissionOutcome.WON -> "Objective complete. Stand by for new orders."

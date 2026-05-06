@@ -1,19 +1,16 @@
 product: jvm/app
 
-repositories:
-  - mavenLocal
-
 dependencies:
   - ../game-content
   - ../game-protocol
   - ../game-server
   - $compose.desktop.currentOs
   - $compose.material3
-  - io.github.pandulapeter.kubriko:engine-desktop:0.1.1
-  - io.github.pandulapeter.kubriko:plugin-keyboard-input-desktop:0.1.1
-  - io.github.pandulapeter.kubriko:plugin-sprites-desktop:0.1.1
-  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.1.1
-  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.1.1
+  - io.github.pandulapeter.kubriko:engine-desktop:0.1.2
+  - io.github.pandulapeter.kubriko:plugin-keyboard-input-desktop:0.1.2
+  - io.github.pandulapeter.kubriko:plugin-sprites-desktop:0.1.2
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.1.2
+  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.1.2
 
 settings:
   kotlin:

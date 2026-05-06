@@ -34,11 +34,15 @@ private const val PROJECTILE_SPEED: Float = 8f
 private const val PRIMARY_DAMAGE: Int = 25
 private const val CHAIN_DAMAGE: Int = 10
 private const val CHAIN_PROJECTILE_TTL: Int = 21
+private const val MINE_DAMAGE: Int = 7
+private const val MINE_DEPLOY_COOLDOWN_TICKS: Int = 30
 internal const val RESPAWN_DELAY_TICKS: Int = 300
 
 const val WEAPON_MAIN: Int = 0
 const val WEAPON_CHAIN: Int = 1
+const val WEAPON_MINE: Int = 3
 internal const val INITIAL_CHAIN_AMMO: Int = 1500
+internal const val INITIAL_MINE_AMMO: Int = 7
 
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2
@@ -80,6 +84,10 @@ class ServerTankActor(state: State) :
         private set
     var chainAmmo: Int = state.chainAmmo
         private set
+    var mineAmmo: Int = state.mineAmmo
+        private set
+    var mineDeployCooldownTicks: Int = state.mineDeployCooldownTicks
+        private set
     var currentWeapon: Int = state.currentWeapon
         private set
     private var weaponCycleCooldownTicks: Int = 0
@@ -111,6 +119,7 @@ class ServerTankActor(state: State) :
     private var pendingResolveY: Int = 0
     private var pendingDamageThisTick: Int = 0
     private var pendingFireRequest: FireRequest? = null
+    private var pendingMineRequest: MineRequest? = null
     private var destroyedThisTick: Boolean = false
     private var spawnedThisTick: Boolean = false
     private var damageEventAmount: Int = 0
@@ -122,6 +131,13 @@ class ServerTankActor(state: State) :
         val velocityY: Int,
         val damage: Int,
         val ttlTicks: Int,
+    )
+
+    data class MineRequest(
+        val originX: Int,
+        val originY: Int,
+        val damage: Int,
+        val radius: Int,
     )
 
     fun applyIntent(intent: PlayerIntentFrame) {
@@ -190,6 +206,12 @@ class ServerTankActor(state: State) :
     fun drainFireRequest(): FireRequest? {
         val request = pendingFireRequest
         pendingFireRequest = null
+        return request
+    }
+
+    fun drainMineRequest(): MineRequest? {
+        val request = pendingMineRequest
+        pendingMineRequest = null
         return request
     }
 
@@ -265,6 +287,8 @@ class ServerTankActor(state: State) :
         primaryCooldownTicks = primaryCooldownTicks,
         chainCooldownTicks = chainCooldownTicks,
         chainAmmo = chainAmmo,
+        mineAmmo = mineAmmo,
+        mineDeployCooldownTicks = mineDeployCooldownTicks,
         currentWeapon = currentWeapon,
         respawnInTicks = respawnInTicks,
         maxArmor = maxArmor,
@@ -361,11 +385,25 @@ class ServerTankActor(state: State) :
     private fun stepFire() {
         primaryCooldownTicks = (primaryCooldownTicks - 1).coerceAtLeast(0)
         chainCooldownTicks = (chainCooldownTicks - 1).coerceAtLeast(0)
+        mineDeployCooldownTicks = (mineDeployCooldownTicks - 1).coerceAtLeast(0)
         if (!pendingIntent.firePrimary || armor <= 0) return
         when (currentWeapon) {
             WEAPON_MAIN -> fireMainCannon()
             WEAPON_CHAIN -> fireChainGun()
+            WEAPON_MINE -> deployMine()
         }
+    }
+
+    private fun deployMine() {
+        if (mineDeployCooldownTicks > 0 || mineAmmo <= 0) return
+        pendingMineRequest = MineRequest(
+            originX = positionX,
+            originY = positionY,
+            damage = MINE_DAMAGE,
+            radius = LIGHT_MINE_RADIUS_PX,
+        )
+        mineAmmo -= 1
+        mineDeployCooldownTicks = MINE_DEPLOY_COOLDOWN_TICKS
     }
 
     private fun fireMainCannon() {
@@ -412,7 +450,11 @@ class ServerTankActor(state: State) :
     }
 
     private fun nextOwnedWeapon(current: Int, step: Int): Int {
-        val cycle = listOf(WEAPON_MAIN) + listOfNotNull(WEAPON_CHAIN.takeIf { chainAmmo > 0 })
+        val cycle = buildList {
+            add(WEAPON_MAIN)
+            if (chainAmmo > 0) add(WEAPON_CHAIN)
+            if (mineAmmo > 0) add(WEAPON_MINE)
+        }
         if (cycle.size <= 1) return WEAPON_MAIN
         val index = cycle.indexOf(current).takeIf { it >= 0 } ?: 0
         val next = ((index + step) % cycle.size + cycle.size) % cycle.size
@@ -481,6 +523,8 @@ class ServerTankActor(state: State) :
         @SerialName("primaryCooldownTicks") val primaryCooldownTicks: Int = 0,
         @SerialName("chainCooldownTicks") val chainCooldownTicks: Int = 0,
         @SerialName("chainAmmo") val chainAmmo: Int = INITIAL_CHAIN_AMMO,
+        @SerialName("mineAmmo") val mineAmmo: Int = INITIAL_MINE_AMMO,
+        @SerialName("mineDeployCooldownTicks") val mineDeployCooldownTicks: Int = 0,
         @SerialName("currentWeapon") val currentWeapon: Int = WEAPON_MAIN,
         @SerialName("respawnInTicks") val respawnInTicks: Int = 0,
         @SerialName("maxArmor") val maxArmor: Int = 0,

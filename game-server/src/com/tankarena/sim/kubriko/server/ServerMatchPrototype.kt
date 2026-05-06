@@ -104,7 +104,11 @@ class ServerMatchPrototype private constructor(
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
         removeDeadProjectiles()
+        triggerMineContacts()
+        drainMineDetonations()
+        removeDeadMines()
         drainFireRequests()
+        drainMineRequests()
         drainTankLifecycleEvents()
         collectGoals()
         evaluateMission()
@@ -113,6 +117,25 @@ class ServerMatchPrototype private constructor(
     }
 
     fun snapshot(): WorldSnapshot = buildSnapshot(drainEvents = false)
+
+    internal fun snapshotMines(): List<ServerMineActor> =
+        actorManager.allActors.value.filterIsInstance<ServerMineActor>()
+
+    internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int) {
+        val mine = ServerMineActor(
+            ServerMineActor.State(
+                body = PointBody(initialPosition = SceneOffset(x.toFloat().sceneUnit, y.toFloat().sceneUnit)),
+                ownerActorId = 0L,
+                damage = damage,
+                radius = radius,
+                activationTicksRemaining = 0,
+            ),
+        )
+        val expected = actorManager.allActors.value.size + 1
+        actorManager.add(listOf(mine))
+        awaitActorCount(expected)
+        actorIds.getOrPut(mine) { nextActorId++ }
+    }
 
     fun buildPlayerViews(): List<PlayerView> {
         val all = actorManager.allActors.value
@@ -378,6 +401,78 @@ class ServerMatchPrototype private constructor(
         for (projectile in doomed) {
             actorIds.remove(projectile)
         }
+    }
+
+    private fun triggerMineContacts() {
+        val mines = actorManager.allActors.value.filterIsInstance<ServerMineActor>().filter { it.isActive && !it.isDead }
+        if (mines.isEmpty()) return
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
+        for (mine in mines) {
+            val triggerRadius = mine.radius + SERVER_TANK_HALF
+            val victim = tanks.firstOrNull { tank ->
+                withinRadius(tank.positionX, tank.positionY, mine.positionX, mine.positionY, triggerRadius)
+            } ?: continue
+            victim.queueDamage(mine.damage)
+            mine.detonateOn(victim)
+        }
+    }
+
+    private fun drainMineDetonations() {
+        for (actor in actorManager.allActors.value) {
+            if (actor !is ServerMineActor) continue
+            val det = actor.drainDetonation() ?: continue
+            pendingEvents += GameEvent.Exploded(det.x, det.y)
+        }
+    }
+
+    private fun removeDeadMines() {
+        val doomed = actorManager.allActors.value
+            .filterIsInstance<ServerMineActor>()
+            .filter { it.isDead }
+        if (doomed.isEmpty()) return
+        val expected = actorManager.allActors.value.size - doomed.size
+        actorManager.remove(doomed)
+        awaitActorCount(expected)
+        for (mine in doomed) actorIds.remove(mine)
+    }
+
+    private fun drainMineRequests() {
+        val spawns = mutableListOf<ServerMineActor>()
+        for (tank in tanksByPlayerIndex.values) {
+            val request = tank.drainMineRequest() ?: continue
+            spawns += mineFromRequest(tank, request)
+        }
+        for (actor in actorManager.allActors.value) {
+            if (actor is ServerTankActor && actor.playerIndex < 0) {
+                val request = actor.drainMineRequest() ?: continue
+                spawns += mineFromRequest(actor, request)
+            }
+        }
+        if (spawns.isEmpty()) return
+        val expected = actorManager.allActors.value.size + spawns.size
+        actorManager.add(spawns)
+        awaitActorCount(expected)
+        for (mine in spawns) actorIds.getOrPut(mine) { nextActorId++ }
+    }
+
+    private fun mineFromRequest(
+        owner: ServerTankActor,
+        request: ServerTankActor.MineRequest,
+    ): ServerMineActor {
+        val ownerActorId = actorIds[owner] ?: 0L
+        return ServerMineActor(
+            ServerMineActor.State(
+                body = PointBody(
+                    initialPosition = SceneOffset(
+                        request.originX.toFloat().sceneUnit,
+                        request.originY.toFloat().sceneUnit,
+                    ),
+                ),
+                ownerActorId = ownerActorId,
+                damage = request.damage,
+                radius = request.radius,
+            ),
+        )
     }
 
     private fun drainFireRequests() {

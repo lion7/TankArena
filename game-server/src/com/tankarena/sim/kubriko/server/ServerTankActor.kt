@@ -38,15 +38,20 @@ private const val MINE_DAMAGE: Int = 7
 private const val MINE_DEPLOY_COOLDOWN_TICKS: Int = 30
 private const val ROCKET_DAMAGE: Int = 10
 private const val ROCKET_FIRE_COOLDOWN_TICKS: Int = 200
+private const val MORTAR_DAMAGE: Int = 15
+private const val MORTAR_FIRE_COOLDOWN_TICKS: Int = 100
+private const val MORTAR_LAUNCH_SPEED: Float = 6f
 internal const val RESPAWN_DELAY_TICKS: Int = 300
 
 const val WEAPON_MAIN: Int = 0
 const val WEAPON_CHAIN: Int = 1
 const val WEAPON_MINE: Int = 3
 const val WEAPON_ROCKET: Int = 4
+const val WEAPON_MORTAR: Int = 5
 internal const val INITIAL_CHAIN_AMMO: Int = 1500
 internal const val INITIAL_MINE_AMMO: Int = 7
 internal const val INITIAL_ROCKET_AMMO: Int = 3
+internal const val INITIAL_MORTAR_AMMO: Int = 3
 
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2
@@ -96,6 +101,10 @@ class ServerTankActor(state: State) :
         private set
     var rocketCooldownTicks: Int = state.rocketCooldownTicks
         private set
+    var mortarAmmo: Int = state.mortarAmmo
+        private set
+    var mortarCooldownTicks: Int = state.mortarCooldownTicks
+        private set
     var currentWeapon: Int = state.currentWeapon
         private set
     private var weaponCycleCooldownTicks: Int = 0
@@ -129,6 +138,7 @@ class ServerTankActor(state: State) :
     private var pendingFireRequest: FireRequest? = null
     private var pendingMineRequest: MineRequest? = null
     private var pendingRocketRequest: RocketRequest? = null
+    private var pendingMortarRequest: MortarRequest? = null
     private var destroyedThisTick: Boolean = false
     private var spawnedThisTick: Boolean = false
     private var damageEventAmount: Int = 0
@@ -155,6 +165,15 @@ class ServerTankActor(state: State) :
         val initialVelocityX: Float,
         val initialVelocityY: Float,
         val damage: Int,
+    )
+
+    data class MortarRequest(
+        val originX: Int,
+        val originY: Int,
+        val velocityX: Float,
+        val velocityY: Float,
+        val damage: Int,
+        val maxRadius: Int,
     )
 
     fun applyIntent(intent: PlayerIntentFrame) {
@@ -238,6 +257,12 @@ class ServerTankActor(state: State) :
         return request
     }
 
+    fun drainMortarRequest(): MortarRequest? {
+        val request = pendingMortarRequest
+        pendingMortarRequest = null
+        return request
+    }
+
     override fun onCollisionDetected(collidables: List<Collidable>) {
         for (other in collidables) {
             when (other) {
@@ -314,6 +339,8 @@ class ServerTankActor(state: State) :
         mineDeployCooldownTicks = mineDeployCooldownTicks,
         rocketAmmo = rocketAmmo,
         rocketCooldownTicks = rocketCooldownTicks,
+        mortarAmmo = mortarAmmo,
+        mortarCooldownTicks = mortarCooldownTicks,
         currentWeapon = currentWeapon,
         respawnInTicks = respawnInTicks,
         maxArmor = maxArmor,
@@ -412,13 +439,31 @@ class ServerTankActor(state: State) :
         chainCooldownTicks = (chainCooldownTicks - 1).coerceAtLeast(0)
         mineDeployCooldownTicks = (mineDeployCooldownTicks - 1).coerceAtLeast(0)
         rocketCooldownTicks = (rocketCooldownTicks - 1).coerceAtLeast(0)
+        mortarCooldownTicks = (mortarCooldownTicks - 1).coerceAtLeast(0)
         if (!pendingIntent.firePrimary || armor <= 0) return
         when (currentWeapon) {
             WEAPON_MAIN -> fireMainCannon()
             WEAPON_CHAIN -> fireChainGun()
             WEAPON_MINE -> deployMine()
             WEAPON_ROCKET -> fireRocket()
+            WEAPON_MORTAR -> fireMortar()
         }
+    }
+
+    private fun fireMortar() {
+        if (mortarCooldownTicks > 0 || mortarAmmo <= 0) return
+        val (fx, fy) = LegacyDirections.unitVector(turretDirection)
+        val barrelOffset = SERVER_TANK_HALF + 2
+        pendingMortarRequest = MortarRequest(
+            originX = positionX + (fx * barrelOffset).toInt(),
+            originY = positionY + (fy * barrelOffset).toInt(),
+            velocityX = fx * MORTAR_LAUNCH_SPEED,
+            velocityY = fy * MORTAR_LAUNCH_SPEED,
+            damage = MORTAR_DAMAGE,
+            maxRadius = MORTAR_MAX_RADIUS_PX,
+        )
+        mortarCooldownTicks = MORTAR_FIRE_COOLDOWN_TICKS
+        mortarAmmo -= 1
     }
 
     private fun fireRocket() {
@@ -498,6 +543,7 @@ class ServerTankActor(state: State) :
             if (chainAmmo > 0) add(WEAPON_CHAIN)
             if (mineAmmo > 0) add(WEAPON_MINE)
             if (rocketAmmo > 0) add(WEAPON_ROCKET)
+            if (mortarAmmo > 0) add(WEAPON_MORTAR)
         }
         if (cycle.size <= 1) return WEAPON_MAIN
         val index = cycle.indexOf(current).takeIf { it >= 0 } ?: 0
@@ -571,6 +617,8 @@ class ServerTankActor(state: State) :
         @SerialName("mineDeployCooldownTicks") val mineDeployCooldownTicks: Int = 0,
         @SerialName("rocketAmmo") val rocketAmmo: Int = INITIAL_ROCKET_AMMO,
         @SerialName("rocketCooldownTicks") val rocketCooldownTicks: Int = 0,
+        @SerialName("mortarAmmo") val mortarAmmo: Int = INITIAL_MORTAR_AMMO,
+        @SerialName("mortarCooldownTicks") val mortarCooldownTicks: Int = 0,
         @SerialName("currentWeapon") val currentWeapon: Int = WEAPON_MAIN,
         @SerialName("respawnInTicks") val respawnInTicks: Int = 0,
         @SerialName("maxArmor") val maxArmor: Int = 0,

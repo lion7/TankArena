@@ -11,6 +11,7 @@ object TankArenaTypeIds {
     const val PROJECTILE: String = "tankArenaProjectile"
     const val MINE: String = "tankArenaMine"
     const val ROCKET: String = "tankArenaRocket"
+    const val MORTAR: String = "tankArenaMortar"
 }
 
 private val sceneJson = Json { ignoreUnknownKeys = true }
@@ -23,4 +24,5 @@ val tankArenaSerializableMetadata: Array<SerializableMetadata<*>> = arrayOf(
     SerializableMetadata(TankArenaTypeIds.PROJECTILE) { sceneJson.decodeFromString<ServerProjectileActor.State>(it) },
     SerializableMetadata(TankArenaTypeIds.MINE) { sceneJson.decodeFromString<ServerMineActor.State>(it) },
     SerializableMetadata(TankArenaTypeIds.ROCKET) { sceneJson.decodeFromString<ServerRocketActor.State>(it) },
+    SerializableMetadata(TankArenaTypeIds.MORTAR) { sceneJson.decodeFromString<ServerMortarActor.State>(it) },
 )

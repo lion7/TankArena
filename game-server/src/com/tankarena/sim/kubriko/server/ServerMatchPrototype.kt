@@ -104,16 +104,20 @@ class ServerMatchPrototype private constructor(
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
         flushOutOfBoundsRockets()
+        flushOutOfBoundsMortars()
         removeDeadProjectiles()
         triggerMineContacts()
         triggerRocketContacts()
         drainMineDetonations()
         drainRocketExplosions()
+        drainMortarExplosions()
         removeDeadMines()
         removeDeadRockets()
+        removeDeadMortars()
         drainFireRequests()
         drainMineRequests()
         drainRocketRequests()
+        drainMortarRequests()
         drainTankLifecycleEvents()
         collectGoals()
         evaluateMission()
@@ -128,6 +132,16 @@ class ServerMatchPrototype private constructor(
 
     internal fun snapshotRockets(): List<ServerRocketActor> =
         actorManager.allActors.value.filterIsInstance<ServerRocketActor>()
+
+    internal fun snapshotMortars(): List<ServerMortarActor> =
+        actorManager.allActors.value.filterIsInstance<ServerMortarActor>()
+
+    internal fun injectMortarExplosionForTest(x: Int, y: Int, radius: Int, damage: Int) {
+        applyMortarAreaDamage(
+            ServerMortarActor.Explosion(x, y, radius, damage),
+            owner = null,
+        )
+    }
 
     internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int) {
         val mine = ServerMineActor(
@@ -490,6 +504,90 @@ class ServerMatchPrototype private constructor(
         )
         rocket.ownerRef = owner
         return rocket
+    }
+
+    private fun flushOutOfBoundsMortars() {
+        for (actor in actorManager.allActors.value) {
+            if (actor is ServerMortarActor) actor.markOutOfBoundsIfNeeded(worldWidthPixels, worldHeightPixels)
+        }
+    }
+
+    private fun drainMortarExplosions() {
+        for (actor in actorManager.allActors.value) {
+            if (actor !is ServerMortarActor) continue
+            val explosion = actor.drainExplosion() ?: continue
+            applyMortarAreaDamage(explosion, actor.ownerRef)
+            pendingEvents += GameEvent.Exploded(explosion.x, explosion.y)
+        }
+    }
+
+    private fun applyMortarAreaDamage(explosion: ServerMortarActor.Explosion, owner: ServerTankActor?) {
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
+        for (tank in tanks) {
+            val dx = (tank.positionX - explosion.x).toLong()
+            val dy = (tank.positionY - explosion.y).toLong()
+            val distSq = dx * dx + dy * dy
+            val r = explosion.radius.toLong()
+            if (distSq > r * r) continue
+            val distance = kotlin.math.sqrt(distSq.toDouble()).toInt()
+            // Linear falloff from full damage at center to zero at the edge.
+            val scaled = (explosion.damage.toFloat() * (1f - distance.toFloat() / explosion.radius.toFloat())).toInt()
+            if (scaled <= 0) continue
+            tank.queueDamage(scaled)
+        }
+        @Suppress("UNUSED_VARIABLE") val unusedOwner = owner // placeholder for future friendly-fire toggles
+    }
+
+    private fun removeDeadMortars() {
+        val doomed = actorManager.allActors.value.filterIsInstance<ServerMortarActor>().filter { it.isDead }
+        if (doomed.isEmpty()) return
+        val expected = actorManager.allActors.value.size - doomed.size
+        actorManager.remove(doomed)
+        awaitActorCount(expected)
+        for (mortar in doomed) actorIds.remove(mortar)
+    }
+
+    private fun drainMortarRequests() {
+        val spawns = mutableListOf<ServerMortarActor>()
+        for (tank in tanksByPlayerIndex.values) {
+            val request = tank.drainMortarRequest() ?: continue
+            spawns += mortarFromRequest(tank, request)
+        }
+        for (actor in actorManager.allActors.value) {
+            if (actor is ServerTankActor && actor.playerIndex < 0) {
+                val request = actor.drainMortarRequest() ?: continue
+                spawns += mortarFromRequest(actor, request)
+            }
+        }
+        if (spawns.isEmpty()) return
+        val expected = actorManager.allActors.value.size + spawns.size
+        actorManager.add(spawns)
+        awaitActorCount(expected)
+        for (mortar in spawns) actorIds.getOrPut(mortar) { nextActorId++ }
+    }
+
+    private fun mortarFromRequest(
+        owner: ServerTankActor,
+        request: ServerTankActor.MortarRequest,
+    ): ServerMortarActor {
+        val ownerActorId = actorIds[owner] ?: 0L
+        val mortar = ServerMortarActor(
+            ServerMortarActor.State(
+                body = PointBody(
+                    initialPosition = SceneOffset(
+                        request.originX.toFloat().sceneUnit,
+                        request.originY.toFloat().sceneUnit,
+                    ),
+                ),
+                ownerActorId = ownerActorId,
+                damage = request.damage,
+                maxRadius = request.maxRadius,
+                velocityX = request.velocityX,
+                velocityY = request.velocityY,
+            ),
+        )
+        mortar.ownerRef = owner
+        return mortar
     }
 
     private fun pickRocketTarget(owner: ServerTankActor): ServerTankActor? {

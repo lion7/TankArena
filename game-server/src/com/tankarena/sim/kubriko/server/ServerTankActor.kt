@@ -28,9 +28,17 @@ private const val MAX_REVERSE_SPEED: Float = 2.25f
 private const val TURN_COOLDOWN_TICKS: Int = 7
 private const val TURRET_TURN_COOLDOWN_TICKS: Int = 7
 private const val PRIMARY_COOLDOWN_TICKS: Int = 70
+private const val CHAIN_COOLDOWN_TICKS: Int = 10
+private const val WEAPON_CYCLE_COOLDOWN_TICKS: Int = 12
 private const val PROJECTILE_SPEED: Float = 8f
 private const val PRIMARY_DAMAGE: Int = 25
+private const val CHAIN_DAMAGE: Int = 10
+private const val CHAIN_PROJECTILE_TTL: Int = 21
 internal const val RESPAWN_DELAY_TICKS: Int = 300
+
+const val WEAPON_MAIN: Int = 0
+const val WEAPON_CHAIN: Int = 1
+internal const val INITIAL_CHAIN_AMMO: Int = 1500
 
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2
@@ -68,6 +76,13 @@ class ServerTankActor(state: State) :
     val team: Int = state.team
     var primaryCooldownTicks: Int = state.primaryCooldownTicks
         private set
+    var chainCooldownTicks: Int = state.chainCooldownTicks
+        private set
+    var chainAmmo: Int = state.chainAmmo
+        private set
+    var currentWeapon: Int = state.currentWeapon
+        private set
+    private var weaponCycleCooldownTicks: Int = 0
     var respawnInTicks: Int = state.respawnInTicks
         private set
 
@@ -106,6 +121,7 @@ class ServerTankActor(state: State) :
         val velocityX: Int,
         val velocityY: Int,
         val damage: Int,
+        val ttlTicks: Int,
     )
 
     fun applyIntent(intent: PlayerIntentFrame) {
@@ -128,6 +144,7 @@ class ServerTankActor(state: State) :
             pendingIntent = PlayerIntentFrame()
             return
         }
+        stepWeaponCycle()
         stepHullTurn()
         stepTurretTurn()
         applyAcceleration()
@@ -246,6 +263,9 @@ class ServerTankActor(state: State) :
         velocityX = velocityX,
         velocityY = velocityY,
         primaryCooldownTicks = primaryCooldownTicks,
+        chainCooldownTicks = chainCooldownTicks,
+        chainAmmo = chainAmmo,
+        currentWeapon = currentWeapon,
         respawnInTicks = respawnInTicks,
         maxArmor = maxArmor,
         maxFuel = maxFuel,
@@ -340,18 +360,63 @@ class ServerTankActor(state: State) :
 
     private fun stepFire() {
         primaryCooldownTicks = (primaryCooldownTicks - 1).coerceAtLeast(0)
-        if (!pendingIntent.firePrimary || primaryCooldownTicks > 0 || armor <= 0) return
+        chainCooldownTicks = (chainCooldownTicks - 1).coerceAtLeast(0)
+        if (!pendingIntent.firePrimary || armor <= 0) return
+        when (currentWeapon) {
+            WEAPON_MAIN -> fireMainCannon()
+            WEAPON_CHAIN -> fireChainGun()
+        }
+    }
+
+    private fun fireMainCannon() {
+        if (primaryCooldownTicks > 0) return
+        pendingFireRequest = buildFireRequest(damage = PRIMARY_DAMAGE, ttl = PROJECTILE_TTL_TICKS)
+        primaryCooldownTicks = PRIMARY_COOLDOWN_TICKS
+    }
+
+    private fun fireChainGun() {
+        if (chainCooldownTicks > 0 || chainAmmo <= 0) return
+        pendingFireRequest = buildFireRequest(damage = CHAIN_DAMAGE, ttl = CHAIN_PROJECTILE_TTL)
+        chainCooldownTicks = CHAIN_COOLDOWN_TICKS
+        chainAmmo -= 1
+    }
+
+    private fun buildFireRequest(damage: Int, ttl: Int): FireRequest {
         val (fx, fy) = LegacyDirections.unitVector(turretDirection)
         val (vx, vy) = LegacyDirections.toVelocityStep(turretDirection, PROJECTILE_SPEED)
         val barrelOffset = SERVER_TANK_HALF + 2
-        pendingFireRequest = FireRequest(
+        return FireRequest(
             originX = positionX + (fx * barrelOffset).toInt(),
             originY = positionY + (fy * barrelOffset).toInt(),
             velocityX = vx.toInt().let { if (it == 0 && vx != 0f) (if (vx > 0) 1 else -1) else it },
             velocityY = vy.toInt().let { if (it == 0 && vy != 0f) (if (vy > 0) 1 else -1) else it },
-            damage = PRIMARY_DAMAGE,
+            damage = damage,
+            ttlTicks = ttl,
         )
-        primaryCooldownTicks = PRIMARY_COOLDOWN_TICKS
+    }
+
+    private fun stepWeaponCycle() {
+        weaponCycleCooldownTicks = (weaponCycleCooldownTicks - 1).coerceAtLeast(0)
+        if (weaponCycleCooldownTicks > 0) return
+        when {
+            pendingIntent.cycleWeaponRight && !pendingIntent.cycleWeaponLeft -> {
+                currentWeapon = nextOwnedWeapon(currentWeapon, +1)
+                weaponCycleCooldownTicks = WEAPON_CYCLE_COOLDOWN_TICKS
+            }
+
+            pendingIntent.cycleWeaponLeft && !pendingIntent.cycleWeaponRight -> {
+                currentWeapon = nextOwnedWeapon(currentWeapon, -1)
+                weaponCycleCooldownTicks = WEAPON_CYCLE_COOLDOWN_TICKS
+            }
+        }
+    }
+
+    private fun nextOwnedWeapon(current: Int, step: Int): Int {
+        val cycle = listOf(WEAPON_MAIN) + listOfNotNull(WEAPON_CHAIN.takeIf { chainAmmo > 0 })
+        if (cycle.size <= 1) return WEAPON_MAIN
+        val index = cycle.indexOf(current).takeIf { it >= 0 } ?: 0
+        val next = ((index + step) % cycle.size + cycle.size) % cycle.size
+        return cycle[next]
     }
 
     private fun resolveAabbVsAabb(
@@ -414,6 +479,9 @@ class ServerTankActor(state: State) :
         @SerialName("velocityX") val velocityX: Float = 0f,
         @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("primaryCooldownTicks") val primaryCooldownTicks: Int = 0,
+        @SerialName("chainCooldownTicks") val chainCooldownTicks: Int = 0,
+        @SerialName("chainAmmo") val chainAmmo: Int = INITIAL_CHAIN_AMMO,
+        @SerialName("currentWeapon") val currentWeapon: Int = WEAPON_MAIN,
         @SerialName("respawnInTicks") val respawnInTicks: Int = 0,
         @SerialName("maxArmor") val maxArmor: Int = 0,
         @SerialName("maxFuel") val maxFuel: Int = 0,

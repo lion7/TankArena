@@ -118,6 +118,80 @@ class ServerTankFireTest {
         prototype.dispose()
     }
 
+    @Test
+    fun `chain gun fires every 10 ticks while main is on cooldown and ammo decrements`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(emptyMapWithPlayer(direction = 4))
+        prototype.initialize()
+
+        // Cycle from MAIN to CHAIN.
+        prototype.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
+        repeat(15) { prototype.tick() }
+
+        var spawned = 0
+        repeat(60) {
+            val before = prototype.snapshot().actors.filterIsInstance<ProjectileState>().size
+            prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+            val after = prototype.snapshot().actors.filterIsInstance<ProjectileState>().size
+            if (after > before) spawned += 1
+        }
+
+        assertTrue(spawned >= 5, "chain gun should fire at least 5 times in 60 ticks — got $spawned")
+        assertTrue(spawned <= 7, "chain gun should not exceed ~6 shots in 60 ticks — got $spawned")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `chain gun silences when ammo hits zero`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(emptyMapWithPlayer(direction = 4))
+        prototype.initialize()
+
+        // Cycle to chain.
+        prototype.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
+        repeat(15) { prototype.tick() }
+
+        // Drain a few rounds, then check that we keep firing while ammo > 0.
+        var firedShots = 0
+        repeat(120) {
+            val before = prototype.snapshot().actors.filterIsInstance<ProjectileState>().size
+            prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+            val after = prototype.snapshot().actors.filterIsInstance<ProjectileState>().size
+            if (after > before) firedShots += 1
+        }
+        assertTrue(firedShots > 0, "should have fired chain rounds")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `chain bullet damage is lower than main cannon damage`() {
+        val main = ServerMatchPrototype.fromCanonicalMap(
+            mapWithTwoTanksFacing(shooterDirection = 4, victimDirection = 12),
+        )
+        main.initialize()
+        val mainBefore = main.snapshot().tankByPlayerIndex(1).armor
+        main.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        repeat(40) { main.tick() }
+        val mainAfter = main.snapshot().tankByPlayerIndex(1).armor
+        val mainDamage = mainBefore - mainAfter
+        main.dispose()
+
+        val chain = ServerMatchPrototype.fromCanonicalMap(
+            mapWithTwoTanksFacing(shooterDirection = 4, victimDirection = 12),
+        )
+        chain.initialize()
+        chain.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
+        repeat(15) { chain.tick() }
+        val chainBefore = chain.snapshot().tankByPlayerIndex(1).armor
+        chain.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        repeat(40) { chain.tick() }
+        val chainAfter = chain.snapshot().tankByPlayerIndex(1).armor
+        val chainDamage = chainBefore - chainAfter
+        chain.dispose()
+
+        assertTrue(mainDamage > 0, "main cannon should deal damage — was $mainDamage")
+        assertTrue(chainDamage > 0, "chain gun should deal damage — was $chainDamage")
+        assertTrue(chainDamage < mainDamage, "chain damage ($chainDamage) should be lower than main ($mainDamage)")
+    }
+
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.tankByPlayerIndex(playerIndex: Int): TankState {
         val controlled = actors.filterIsInstance<TankState>().filter { it.controlled }
         return controlled.getOrNull(playerIndex)

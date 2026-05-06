@@ -423,6 +423,7 @@ class ServerMatchPrototype private constructor(
                 damage = request.damage,
                 velocityX = request.velocityX,
                 velocityY = request.velocityY,
+                ttlTicks = request.ttlTicks,
             ),
         )
         projectile.ownerRef = owner

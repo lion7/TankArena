@@ -304,7 +304,7 @@ Each task adds runtime behavior for an imported but currently inert object famil
 ## Phase 9 — Replay + determinism
 
 ### T36 — Replay recording
-- **Goal:** record `InputFrame`s + 25 Hz keyframes + `GameEvent`s to disk.
+- **Goal:** record `InputFrame`s + 10 Hz keyframes + `GameEvent`s to disk.
 - **Spec:** [ADR 0002](adrs/0002-fixed-step-50hz.md) §"replay storage"; `:game-protocol` `ReplayProtocol` scaffold.
 - **Touch:** server-side recorder; file format (versioned per T02).
 - **Acceptance:** recording a match produces a deterministic file.

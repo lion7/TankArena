@@ -286,7 +286,7 @@ Use a **server-authoritative simulation**:
 
 - Clients send *inputs* (per tick).
 - Server simulates authoritative state.
-- Server sends snapshots (or state diffs) at a controlled rate (e.g., 10–20 Hz).
+- Server sends snapshots (or state diffs) at a controlled rate (e.g., 10 Hz).
 - Clients render predicted/interpolated state; reconcile on correction.
 
 This works with WebSockets (reliable) and avoids fighting browser UDP limitations. Kool’s documentation explicitly points out that WASM in the browser can incur overhead due to JS-interop calls, so keeping the browser-side simulation lighter and relying on server authority is often a net win. citeturn34search0

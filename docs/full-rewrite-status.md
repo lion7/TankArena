@@ -32,7 +32,7 @@ The rewrite is a full Kotlin rewrite of the original C/Allegro Tank Arena, not a
 - Compose Multiplatform for shell, menus, HUD, editor UI.
 - Kubriko `0.1.2` from Maven Central for the gameplay viewport and the headless server tick.
 - Amper for builds.
-- 100 Hz authoritative server tick to match the legacy game; replay/network snapshots decimated to ~25 Hz / ~20–30 Hz respectively. See [ADR 0002](rewrite/adrs/0002-fixed-step-50hz.md).
+- 100 Hz authoritative server tick to match the legacy game; replay/network snapshots decimated to ~10 Hz. See [ADR 0002](rewrite/adrs/0002-fixed-step-50hz.md).
 
 ## 3. Module Layout
 

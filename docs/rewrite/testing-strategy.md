@@ -21,7 +21,7 @@ The bulk of meaningful coverage sits in `:game-server`, which owns authoritative
 - `MapSceneSidecar` round-trips.
 
 ## Determinism
-The 100 Hz fixed-step simulation tick (ADR 0002) is the basis for replay. Replay storage decimates to 25 Hz keyframe snapshots plus per-tick `InputFrame`s and `GameEvent`s — the server is deterministic given inputs, so dense snapshots are redundant. The replay protocol in `:game-protocol` is in place but full replay recording/playback and checksum validation are still pending — see `full-rewrite-status.md`.
+The 100 Hz fixed-step simulation tick (ADR 0002) is the basis for replay. Replay storage decimates to 10 Hz keyframe snapshots plus per-tick `InputFrame`s and `GameEvent`s — the server is deterministic given inputs, so dense snapshots are redundant. The replay protocol in `:game-protocol` is in place but full replay recording/playback and checksum validation are still pending — see `full-rewrite-status.md`.
 
 ## Smoke
 The `:game-client` Compose/Kubriko viewport is exercised by hand for now; UI smoke tests are pending.

@@ -103,12 +103,17 @@ class ServerMatchPrototype private constructor(
         stepTurrets()
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
+        flushOutOfBoundsRockets()
         removeDeadProjectiles()
         triggerMineContacts()
+        triggerRocketContacts()
         drainMineDetonations()
+        drainRocketExplosions()
         removeDeadMines()
+        removeDeadRockets()
         drainFireRequests()
         drainMineRequests()
+        drainRocketRequests()
         drainTankLifecycleEvents()
         collectGoals()
         evaluateMission()
@@ -120,6 +125,9 @@ class ServerMatchPrototype private constructor(
 
     internal fun snapshotMines(): List<ServerMineActor> =
         actorManager.allActors.value.filterIsInstance<ServerMineActor>()
+
+    internal fun snapshotRockets(): List<ServerRocketActor> =
+        actorManager.allActors.value.filterIsInstance<ServerRocketActor>()
 
     internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int) {
         val mine = ServerMineActor(
@@ -401,6 +409,106 @@ class ServerMatchPrototype private constructor(
         for (projectile in doomed) {
             actorIds.remove(projectile)
         }
+    }
+
+    private fun flushOutOfBoundsRockets() {
+        for (actor in actorManager.allActors.value) {
+            if (actor is ServerRocketActor) actor.markOutOfBoundsIfNeeded(worldWidthPixels, worldHeightPixels)
+        }
+    }
+
+    private fun triggerRocketContacts() {
+        val rockets = actorManager.allActors.value.filterIsInstance<ServerRocketActor>().filter { !it.isDead }
+        if (rockets.isEmpty()) return
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
+        for (rocket in rockets) {
+            val target = tanks.firstOrNull { tank ->
+                tank !== rocket.ownerRef &&
+                    withinRadius(tank.positionX, tank.positionY, rocket.positionX.toInt(), rocket.positionY.toInt(), SERVER_TANK_HALF + 4)
+            } ?: continue
+            rocket.explodeOn(target)
+        }
+    }
+
+    private fun drainRocketExplosions() {
+        for (actor in actorManager.allActors.value) {
+            if (actor !is ServerRocketActor) continue
+            val explosion = actor.drainExplosion() ?: continue
+            pendingEvents += GameEvent.Exploded(explosion.x, explosion.y)
+        }
+    }
+
+    private fun removeDeadRockets() {
+        val doomed = actorManager.allActors.value.filterIsInstance<ServerRocketActor>().filter { it.isDead }
+        if (doomed.isEmpty()) return
+        val expected = actorManager.allActors.value.size - doomed.size
+        actorManager.remove(doomed)
+        awaitActorCount(expected)
+        for (rocket in doomed) actorIds.remove(rocket)
+    }
+
+    private fun drainRocketRequests() {
+        val spawns = mutableListOf<ServerRocketActor>()
+        for (tank in tanksByPlayerIndex.values) {
+            val request = tank.drainRocketRequest() ?: continue
+            spawns += rocketFromRequest(tank, request)
+        }
+        for (actor in actorManager.allActors.value) {
+            if (actor is ServerTankActor && actor.playerIndex < 0) {
+                val request = actor.drainRocketRequest() ?: continue
+                spawns += rocketFromRequest(actor, request)
+            }
+        }
+        if (spawns.isEmpty()) return
+        val expected = actorManager.allActors.value.size + spawns.size
+        actorManager.add(spawns)
+        awaitActorCount(expected)
+        for (rocket in spawns) actorIds.getOrPut(rocket) { nextActorId++ }
+    }
+
+    private fun rocketFromRequest(
+        owner: ServerTankActor,
+        request: ServerTankActor.RocketRequest,
+    ): ServerRocketActor {
+        val ownerActorId = actorIds[owner] ?: 0L
+        val target = pickRocketTarget(owner)
+        val rocket = ServerRocketActor(
+            ServerRocketActor.State(
+                body = PointBody(
+                    initialPosition = SceneOffset(
+                        request.originX.toFloat().sceneUnit,
+                        request.originY.toFloat().sceneUnit,
+                    ),
+                ),
+                ownerActorId = ownerActorId,
+                damage = request.damage,
+                velocityX = request.initialVelocityX,
+                velocityY = request.initialVelocityY,
+                targetX = target?.positionX ?: (request.originX + request.initialVelocityX.toInt() * 100),
+                targetY = target?.positionY ?: (request.originY + request.initialVelocityY.toInt() * 100),
+            ),
+        )
+        rocket.ownerRef = owner
+        return rocket
+    }
+
+    private fun pickRocketTarget(owner: ServerTankActor): ServerTankActor? {
+        var best: ServerTankActor? = null
+        var bestDistSq = Long.MAX_VALUE
+        for (candidate in actorManager.allActors.value) {
+            if (candidate !is ServerTankActor) continue
+            if (candidate === owner) continue
+            if (candidate.armor <= 0) continue
+            if (candidate.team == owner.team) continue
+            val dx = (candidate.positionX - owner.positionX).toLong()
+            val dy = (candidate.positionY - owner.positionY).toLong()
+            val distSq = dx * dx + dy * dy
+            if (distSq < bestDistSq) {
+                best = candidate
+                bestDistSq = distSq
+            }
+        }
+        return best
     }
 
     private fun triggerMineContacts() {

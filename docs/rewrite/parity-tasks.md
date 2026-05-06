@@ -12,13 +12,15 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
+**Progress (as of 2026-05-06):** T01–T06, T08–T12 done on `rewrite`. T07 deliberately deferred while T08+ continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+
 ---
 
 ## Phase 0 — Foundation reconciliation
 
 These unblock every parity task by removing inconsistencies in the engine substrate.
 
-### T01 — Reconcile simulation tick rate to 100 Hz
+### T01 — Reconcile simulation tick rate to 100 Hz ✅ done (10478d4 / 93e22b3)
 - **Goal:** the authoritative server simulates at 100 Hz everywhere; all `*_TICKS` constants are interpreted in 100 Hz units.
 - **Spec:** [`mechanics.md`](../game/mechanics.md) §"Tick Rate"; [ADR 0002](adrs/0002-fixed-step-50hz.md).
 - **Touch:** `game-protocol/.../FixedStepClock.kt` (set `TICKS_PER_SECOND = 100`); `game-server/.../ServerMatchPrototype.kt` (set `MILLIS_PER_TICK = 10`); audit every `*_TICKS` constant on `ServerTankActor`, `ServerProjectileActor`, `ServerTurretActor` against the legacy values referenced in `docs/game/`.
@@ -26,7 +28,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** add `FixedStepClockTest` asserting the 100 Hz constants; update existing cooldown/TTL tests to expect the new tick counts.
 - **Depends on:** —
 
-### T02 — Add a version field to scene metadata and `WorldSnapshot`
+### T02 — Add a version field to scene metadata and `WorldSnapshot` ✅ done (903661c)
 - **Goal:** wire/scene compatibility is detectable at load.
 - **Spec:** [`risk-register.md`](risk-register.md) "Server/Client Replication Coupling".
 - **Touch:** `game-protocol/.../snapshot/WorldSnapshot.kt`; `game-content/.../MapSceneSidecar.kt` (or scene JSON header); deserialization paths in `:game-server` and `:game-client`.
@@ -34,7 +36,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** version-mismatch deserialization test (sidecar + snapshot).
 - **Depends on:** —
 
-### T03 — Editor boundary guard
+### T03 — Editor boundary guard ✅ done (10478d4)
 - **Goal:** `:game-editor` cannot transitively reference `CollisionManager`, `TerrainSlideManager`, or the mission evaluator from `:game-server`.
 - **Spec:** [ADR 0009](adrs/0009-editor-wraps-kubriko-scene-editor.md) §"Boundary rule".
 - **Touch:** add a test in `:game-editor` that scans the runtime classpath for forbidden symbols, or a build assertion in its `module.yaml`.
@@ -42,7 +44,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** the guard itself is the test.
 - **Depends on:** —
 
-### T04 — Round-trip test for every `Server*Actor`
+### T04 — Round-trip test for every `Server*Actor` ✅ done (427338d)
 - **Goal:** silent schema drift in actor `save()` is caught.
 - **Touch:** `game-server/test/.../ActorRoundTripTest.kt`.
 - **Acceptance:** for each `ServerWallActor`, `ServerTankActor`, `ServerTurretActor`, `ServerGoalActor`, `ServerProjectileActor`, the test constructs a non-default instance, calls `save()`, deserializes via `tankArenaSerializableMetadata`, and asserts equality on observable state.
@@ -53,7 +55,8 @@ These unblock every parity task by removing inconsistencies in the engine substr
 
 ## Phase 1 — Finish legacy import, then drop it
 
-### T05 — Parse remaining legacy object families
+### T05 — Parse remaining legacy object families ✅ done (32c8eab)
+- **Note on scope landed:** `LegacyObjectParser` now branches on every authored type the legacy `load_map()` switch handles (`TANK`, `B52`, `MAN`, `MINE`, `BONUS`, `TRAIN`, `WAGON`, `ZEPPELIN`, plus the existing turret/player/warp/flag/lock/goal/destroyer/enforcer/product set). Runtime-spawned types (`ROCKET`, `ABOMB`, `MORTAR`) are silently dropped. New `Server*Actor` types for the new families are intentionally **not** added here — `CanonicalSceneBuilder` falls through to `else -> Unit` for those kinds, and the corresponding actors land in T10/T11/T12/T25 alongside their runtime behavior.
 - **Goal:** every type listed in [`objects.md`](../game/objects.md) §"Object Type Index" is mapped by `LegacyObjectParser` (or explicitly classified as runtime-spawned and therefore skipped) — no shipped map produces a non-empty `MapSceneSidecar.importNotes`.
 - **Spec:** [`objects.md`](../game/objects.md) (full document).
 - **Touch:** `game-server/.../legacy/LegacyObjectParser.kt`, `LegacyCanonicalConverter.kt`, `LegacyToSceneJson.kt`. Add `AuthoredObject` variants and matching `Server*Actor` types where missing (mines, rockets, mortars, B52, zeppelin, train, man, light source, smoke, bonus, A-bomb).
@@ -61,13 +64,14 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** `AllShippedMapsImportClean` integration test that walks `original/*.MAP`, runs `LegacyMapImporter`, and asserts empty `importNotes` for every result.
 - **Depends on:** T01 (cooldown/TTL semantics).
 
-### T06 — Commit regenerated scenes
+### T06 — Commit regenerated scenes ✅ done (0df24ed)
 - **Goal:** the 121 scene + sidecar pairs in `:game-content/resources/scenes/` reflect the full importer.
 - **Touch:** run `tools-mapconv scene-all`; commit the resulting JSON.
 - **Acceptance:** `:game-server` test suite green against the new scenes.
 - **Depends on:** T05.
 
-### T07 — Drop the legacy parsing surface
+### T07 — Drop the legacy parsing surface ⏸ deferred
+- **Status:** intentionally on hold. Phase 2+ tests and `ServerMatchPrototype.fromCanonicalMap` continue to consume `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures. Revisit once weapon/AI/object behavior is stable enough to retire those code paths.
 - **Goal:** legacy parsing is removed from the build.
 - **Spec:** [ADR 0003](adrs/0003-import-once-canonical-map-format.md) §"Decision" drop list.
 - **Touch:** delete `game-content/.../LegacyMap*`, `game-server/.../legacy/*`, `tools-mapconv` scene/scene-all subcommands; move `original/` outside the build's source set; update `architecture.md`, `content-format.md`, `history.md`, `full-rewrite-status.md` to note legacy parsing is gone.
@@ -78,7 +82,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 
 ## Phase 2 — Combat parity on `:game-server`
 
-### T08 — Tank-vs-tank collision polish
+### T08 — Tank-vs-tank collision polish ✅ done (3eb8533)
 - **Goal:** tanks slide cleanly when they push into each other; no jitter, no stuck-overlap.
 - **Spec:** [`mechanics.md`](../game/mechanics.md), [`vehicles.md`](../game/vehicles.md).
 - **Touch:** `TerrainSlideManager` + `ServerTankActor` collision response.
@@ -86,7 +90,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** scenario tests in `:game-server` covering head-on, perpendicular, and three-tank pile-up.
 - **Depends on:** T01.
 
-### T09 — Chain gun
+### T09 — Chain gun ✅ done (5d6b080)
 - **Goal:** chain gun weapon fires a fast burst with the legacy damage/cooldown values.
 - **Spec:** [`weapons.md`](../game/weapons.md) "Chain Gun".
 - **Touch:** new `ProjectileKind.ChainGun` (or weapon select on existing projectile), `ServerTankActor` weapon switching, ammo tracking on `TankState`.
@@ -94,7 +98,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** weapon-fire test pinning fire interval and damage to `weapons.md` values.
 - **Depends on:** T01, T05 (bonus pickups for ammo).
 
-### T10 — Mines
+### T10 — Mines ✅ done (e7632c2)
 - **Goal:** mines deploy under a tank, persist, and detonate on contact with any tank that isn't the owner.
 - **Spec:** [`weapons.md`](../game/weapons.md) "Mines"; [`objects.md`](../game/objects.md) §"Mines".
 - **Touch:** `ServerMineActor` (new), spawn flow on `ServerTankActor`, collision rules, area damage on detonation.
@@ -102,7 +106,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** mine placement, owner immunity, detonation radius.
 - **Depends on:** T01.
 
-### T11 — Rockets (guided)
+### T11 — Rockets (guided) ✅ done (a73ba9e)
 - **Goal:** rockets accelerate toward an aim point with the legacy turn rate.
 - **Spec:** [`weapons.md`](../game/weapons.md) "Rockets"; [`objects.md`](../game/objects.md) §"Rocket".
 - **Touch:** `ServerRocketActor` (new), guidance update step, fuel/TTL.
@@ -110,7 +114,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** turn-rate test, TTL expiry, terrain impact.
 - **Depends on:** T01.
 
-### T12 — Mortars
+### T12 — Mortars ✅ done (219843c)
 - **Goal:** lobbed projectiles with arc + impact area damage.
 - **Spec:** [`weapons.md`](../game/weapons.md) "Mortar".
 - **Touch:** `ServerMortarActor` (new), impact resolver shared with mines/rockets.

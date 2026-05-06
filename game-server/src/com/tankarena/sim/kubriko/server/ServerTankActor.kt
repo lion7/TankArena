@@ -25,13 +25,13 @@ private const val LONGITUDINAL_FRICTION: Float = 0.10f
 private const val LATERAL_FRICTION: Float = 0.18f
 private const val MAX_FORWARD_SPEED: Float = 4.75f
 private const val MAX_REVERSE_SPEED: Float = 2.25f
-private const val TURN_COOLDOWN_TICKS: Int = 2
-private const val TURRET_TURN_COOLDOWN_TICKS: Int = 2
+private const val TURN_COOLDOWN_TICKS: Int = 7
+private const val TURRET_TURN_COOLDOWN_TICKS: Int = 7
 private const val COLLISION_DAMPING: Float = 0.35f
-private const val PRIMARY_COOLDOWN_TICKS: Int = 8
+private const val PRIMARY_COOLDOWN_TICKS: Int = 70
 private const val PROJECTILE_SPEED: Float = 8f
 private const val PRIMARY_DAMAGE: Int = 25
-internal const val RESPAWN_DELAY_TICKS: Int = 60
+internal const val RESPAWN_DELAY_TICKS: Int = 300
 
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2

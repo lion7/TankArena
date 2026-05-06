@@ -10,7 +10,7 @@ import com.tankarena.core.LegacyDirections
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-private const val FIRE_DELAY_TICKS: Int = 30
+private const val FIRE_DELAY_TICKS: Int = 150
 private const val RANGE_PIXELS: Int = 240
 private const val PRIMARY_DAMAGE: Int = 25
 private const val PROJECTILE_SPEED: Float = 8f

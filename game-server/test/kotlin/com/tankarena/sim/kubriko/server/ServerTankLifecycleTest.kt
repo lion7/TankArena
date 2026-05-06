@@ -34,7 +34,7 @@ class ServerTankLifecycleTest {
 
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         var ticks = 0
-        while (ticks < 120 && !(sawDestroyed.seen && sawSpawned.seen)) {
+        while (ticks < 400 && !(sawDestroyed.seen && sawSpawned.seen)) {
             val frame = prototype.tick()
             for (event in frame.events) {
                 if (event is GameEvent.TankDestroyed && event.actorId == victimBefore.actorId) {

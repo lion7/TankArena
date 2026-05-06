@@ -14,7 +14,7 @@ import kotlin.reflect.KClass
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-internal const val PROJECTILE_TTL_TICKS: Int = 50
+internal const val PROJECTILE_TTL_TICKS: Int = 31
 private const val PROJECTILE_RADIUS_PX: Float = 1.5f
 
 class ServerProjectileActor internal constructor(state: State) :

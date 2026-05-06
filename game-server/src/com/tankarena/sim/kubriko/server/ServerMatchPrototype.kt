@@ -35,7 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
-private const val MILLIS_PER_TICK: Int = 33
+private const val MILLIS_PER_TICK: Int = 10
 
 class ServerMatchPrototype private constructor(
     private val mapMetadata: MapMetadata,

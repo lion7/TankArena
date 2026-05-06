@@ -60,13 +60,13 @@ class ServerTankMovementTest {
         val afterFirst = prototype.snapshot().playerTank()
         assertEquals(1, afterFirst.bodyDirection, "first tick with turnRight should step body direction by 1")
 
-        prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true)))
-        val afterSecond = prototype.snapshot().playerTank()
-        assertEquals(1, afterSecond.bodyDirection, "cooldown should keep direction stable on the next tick")
+        repeat(6) { prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true))) }
+        val afterCooldown = prototype.snapshot().playerTank()
+        assertEquals(1, afterCooldown.bodyDirection, "cooldown should keep direction stable for 7 ticks total")
 
         prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true)))
-        val afterThird = prototype.snapshot().playerTank()
-        assertEquals(2, afterThird.bodyDirection, "third tick should step direction again after cooldown")
+        val afterEighth = prototype.snapshot().playerTank()
+        assertEquals(2, afterEighth.bodyDirection, "eighth tick should step direction again after cooldown")
         prototype.dispose()
     }
 

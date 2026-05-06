@@ -39,11 +39,11 @@ class ServerTankFireTest {
         prototype.initialize()
 
         var lastCount = 0
-        repeat(6) {
+        repeat(20) {
             val frame = prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
             lastCount = frame.actors.filterIsInstance<ProjectileState>().size
         }
-        assertEquals(1, lastCount, "cooldown should block repeat fire within 8 ticks")
+        assertEquals(1, lastCount, "cooldown should block repeat fire within PRIMARY_COOLDOWN_TICKS")
         prototype.dispose()
     }
 

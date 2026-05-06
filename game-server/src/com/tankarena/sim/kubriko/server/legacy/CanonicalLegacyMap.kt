@@ -38,4 +38,12 @@ object ObjectKinds {
     const val PRODUCT = "product"
     const val DESTROYER = "destroyer"
     const val ENFORCER = "enforcer"
+    const val AI_TANK = "ai_tank"
+    const val B52 = "b52"
+    const val MAN = "man"
+    const val MINE = "mine"
+    const val BONUS = "bonus"
+    const val TRAIN = "train"
+    const val WAGON = "wagon"
+    const val ZEPPELIN = "zeppelin"
 }

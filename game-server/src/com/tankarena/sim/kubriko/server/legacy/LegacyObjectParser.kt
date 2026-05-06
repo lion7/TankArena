@@ -9,19 +9,38 @@ internal object LegacyObjectParser {
     private const val OFFSET_GC = 68
     private const val OFFSET_UNION = 84
 
+    private const val TYPE_TANK = 0
+    private const val TYPE_B52 = 1
+    private const val TYPE_MAN = 2
     private const val TYPE_TURRET = 3
+    private const val TYPE_ROCKET = 4
+    private const val TYPE_MINE = 5
+    private const val TYPE_ABOMB = 6
+    private const val TYPE_BONUS = 7
+    private const val TYPE_TRAIN = 8
+    private const val TYPE_WAGON = 9
     private const val TYPE_PLAYER = 10
     private const val TYPE_WARP = 11
+    private const val TYPE_MORTAR = 12
     private const val TYPE_FLAG = 13
     private const val TYPE_LOCK = 14
     private const val TYPE_GOAL = 15
     private const val TYPE_DESTROYER = 16
     private const val TYPE_ENFORCER = 17
+    private const val TYPE_ZEPPELIN = 18
     private const val TYPE_PRODUCT = 19
+
+    /**
+     * Types the legacy engine spawns at runtime (rocket projectiles, mortar bursts,
+     * atomic-bomb detonations). load_map() in the original C source never calls a
+     * prepare_*() handler for these, so any occurrence in a .MAP blob is benign and
+     * silently dropped on import.
+     */
+    private val runtimeSpawnedOnly: Set<Int> = setOf(TYPE_ROCKET, TYPE_ABOMB, TYPE_MORTAR)
 
     fun parseObjects(blob: ByteArray, objectSize: Int): LegacyObjectParseResult {
         if (objectSize <= 0 || blob.isEmpty()) {
-            return LegacyObjectParseResult(emptyList(), listOf("No legacy objects were present in the map blob."))
+            return LegacyObjectParseResult(emptyList(), emptyList())
         }
 
         val objects = mutableListOf<AuthoredObject>()
@@ -44,11 +63,10 @@ internal object LegacyObjectParser {
                 continue
             }
 
+            val type = reader.readInt(OFFSET_TYPE)
+            if (type in runtimeSpawnedOnly) continue
             when (val authored = parseObject(index, reader)) {
-                null -> {
-                    val type = reader.readInt(OFFSET_TYPE)
-                    unsupportedCounts[type] = unsupportedCounts.getOrDefault(type, 0) + 1
-                }
+                null -> unsupportedCounts[type] = unsupportedCounts.getOrDefault(type, 0) + 1
                 else -> objects += authored
             }
         }
@@ -67,6 +85,88 @@ internal object LegacyObjectParser {
         val goalContribution = reader.readInt(OFFSET_GC)
 
         return when (type) {
+            TYPE_TANK -> AuthoredObject(
+                id = "legacy-ai-tank-$index",
+                kind = ObjectKinds.AI_TANK,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_B52 -> AuthoredObject(
+                id = "legacy-b52-$index",
+                kind = ObjectKinds.B52,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_MAN -> AuthoredObject(
+                id = "legacy-man-$index",
+                kind = ObjectKinds.MAN,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_MINE -> AuthoredObject(
+                id = "legacy-mine-$index",
+                kind = ObjectKinds.MINE,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "mineType" to reader.readInt(OFFSET_UNION).toString(),
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_BONUS -> AuthoredObject(
+                id = "legacy-bonus-$index",
+                kind = ObjectKinds.BONUS,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "bonusType" to reader.readInt(OFFSET_UNION).toString(),
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_TRAIN -> AuthoredObject(
+                id = "legacy-train-$index",
+                kind = ObjectKinds.TRAIN,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_WAGON -> AuthoredObject(
+                id = "legacy-wagon-$index",
+                kind = ObjectKinds.WAGON,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
+            TYPE_ZEPPELIN -> AuthoredObject(
+                id = "legacy-zeppelin-$index",
+                kind = ObjectKinds.ZEPPELIN,
+                x = x,
+                y = y,
+                properties = mapOf(
+                    "goalContribution" to goalContribution.toString(),
+                ),
+            )
+
             TYPE_PLAYER -> AuthoredObject(
                 id = "legacy-player-$index",
                 kind = ObjectKinds.PLAYER_START,

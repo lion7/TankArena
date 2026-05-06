@@ -14,14 +14,7 @@ object LegacyCanonicalConverter {
             blob = legacy.rawObjectBlobSize.takeIf { it > 0 }?.let { legacy.rawObjectBlob } ?: ByteArray(0),
             objectSize = legacy.header.objectSize,
         )
-        val notes = buildList {
-            add("Imported from legacy .MAP file.")
-            if (legacy.rawObjectBlobSize > 0) {
-                add("Legacy object blob decoded for a supported subset of object types.")
-                add("Remaining raw object bytes: ${legacy.rawObjectBlobSize}.")
-            }
-            addAll(parsedObjects.notes)
-        }
+        val notes = parsedObjects.notes
         return CanonicalMapDefinition(
             metadata = MapMetadata(
                 name = mapName,

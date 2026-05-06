@@ -95,6 +95,106 @@ class ServerTankCollisionTest {
         prototype.dispose()
     }
 
+    @Test
+    fun `perpendicular nudge slides along the contact axis without jitter`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(
+            emptyMap(
+                widthTiles = 8,
+                heightTiles = 5,
+                players = listOf(
+                    AuthoredObject(
+                        id = "mover",
+                        kind = ObjectKinds.PLAYER_START,
+                        x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        properties = mapOf("direction" to "4", "lives" to "3"),
+                    ),
+                    AuthoredObject(
+                        id = "blocker",
+                        kind = ObjectKinds.PLAYER_START,
+                        x = 3 * LEGACY_TILE_SIZE,
+                        y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 - 4,
+                        properties = mapOf("direction" to "0", "lives" to "3"),
+                    ),
+                ),
+            ),
+        )
+        prototype.initialize()
+
+        repeat(60) {
+            prototype.tick(
+                mapOf(
+                    0 to PlayerIntentFrame(forward = true),
+                    1 to PlayerIntentFrame(),
+                ),
+            )
+        }
+
+        val tanks = prototype.snapshot().actors
+            .filterIsInstance<TankState>()
+            .filter { it.controlled }
+            .sortedBy { it.x }
+        assertEquals(2, tanks.size)
+        val gap = abs(tanks[1].x - tanks[0].x)
+        assertTrue(gap >= 2 * SERVER_TANK_HALF, "tanks must not overlap after grazing — gap=$gap")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `three tanks driving forward into a column do not overlap`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(
+            emptyMap(
+                widthTiles = 12,
+                heightTiles = 3,
+                players = listOf(
+                    AuthoredObject(
+                        id = "rear",
+                        kind = ObjectKinds.PLAYER_START,
+                        x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        properties = mapOf("direction" to "4", "lives" to "3"),
+                    ),
+                    AuthoredObject(
+                        id = "middle",
+                        kind = ObjectKinds.PLAYER_START,
+                        x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 + SERVER_TANK_FOOTPRINT + 4,
+                        y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        properties = mapOf("direction" to "4", "lives" to "3"),
+                    ),
+                    AuthoredObject(
+                        id = "front",
+                        kind = ObjectKinds.PLAYER_START,
+                        x = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 + 2 * (SERVER_TANK_FOOTPRINT + 4),
+                        y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                        properties = mapOf("direction" to "4", "lives" to "3"),
+                    ),
+                ),
+            ),
+        )
+        prototype.initialize()
+
+        repeat(60) {
+            prototype.tick(
+                mapOf(
+                    0 to PlayerIntentFrame(forward = true),
+                    1 to PlayerIntentFrame(forward = true),
+                    2 to PlayerIntentFrame(forward = true),
+                ),
+            )
+        }
+
+        val tanks = prototype.snapshot().actors
+            .filterIsInstance<TankState>()
+            .filter { it.controlled }
+            .sortedBy { it.x }
+        assertEquals(3, tanks.size)
+        val gapAB = abs(tanks[1].x - tanks[0].x)
+        val gapBC = abs(tanks[2].x - tanks[1].x)
+        assertTrue(gapAB >= 2 * SERVER_TANK_HALF, "rear and middle must not overlap — gap=$gapAB")
+        assertTrue(gapBC >= 2 * SERVER_TANK_HALF, "middle and front must not overlap — gap=$gapBC")
+        prototype.dispose()
+    }
+
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.singlePlayerTank(): TankState =
         actors.filterIsInstance<TankState>().single { it.controlled }
 

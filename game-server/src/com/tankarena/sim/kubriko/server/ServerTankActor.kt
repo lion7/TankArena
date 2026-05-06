@@ -27,7 +27,6 @@ private const val MAX_FORWARD_SPEED: Float = 4.75f
 private const val MAX_REVERSE_SPEED: Float = 2.25f
 private const val TURN_COOLDOWN_TICKS: Int = 7
 private const val TURRET_TURN_COOLDOWN_TICKS: Int = 7
-private const val COLLISION_DAMPING: Float = 0.35f
 private const val PRIMARY_COOLDOWN_TICKS: Int = 70
 private const val PROJECTILE_SPEED: Float = 8f
 private const val PRIMARY_DAMAGE: Int = 25
@@ -373,12 +372,12 @@ class ServerTankActor(state: State) :
             val sign = if (dx >= 0) 1 else -1
             val push = (overlapX * selfFraction).toInt().coerceAtLeast(1) * sign
             pendingResolveX += push
-            velocityX *= -COLLISION_DAMPING
+            velocityX = if (sign > 0) velocityX.coerceAtLeast(0f) else velocityX.coerceAtMost(0f)
         } else {
             val sign = if (dy >= 0) 1 else -1
             val push = (overlapY * selfFraction).toInt().coerceAtLeast(1) * sign
             pendingResolveY += push
-            velocityY *= -COLLISION_DAMPING
+            velocityY = if (sign > 0) velocityY.coerceAtLeast(0f) else velocityY.coerceAtMost(0f)
         }
     }
 

@@ -1,6 +1,14 @@
 package com.tankarena.protocol.snapshot
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/**
+ * Wire-protocol version carried by every [WorldSnapshot]. Bump on any breaking change to
+ * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
+ * and server versions must fail fast at decode time rather than producing silent drift.
+ */
+const val PROTOCOL_VERSION: Int = 1
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.
@@ -14,7 +22,24 @@ data class WorldSnapshot(
     val tick: Long,
     val actors: List<ActorState> = emptyList(),
     val events: List<GameEvent> = emptyList(),
+    val protocolVersion: Int = PROTOCOL_VERSION,
 )
+
+private val snapshotJson = Json { ignoreUnknownKeys = true }
+
+/**
+ * Decode a [WorldSnapshot] from JSON, failing fast when the encoded snapshot's
+ * [WorldSnapshot.protocolVersion] is newer than [PROTOCOL_VERSION]. Older snapshots
+ * are accepted so legacy replays remain readable.
+ */
+fun decodeWorldSnapshot(json: String): WorldSnapshot {
+    val snapshot = snapshotJson.decodeFromString(WorldSnapshot.serializer(), json)
+    require(snapshot.protocolVersion <= PROTOCOL_VERSION) {
+        "WorldSnapshot protocolVersion=${snapshot.protocolVersion} is newer than the runtime " +
+            "protocolVersion=$PROTOCOL_VERSION; refusing to load."
+    }
+    return snapshot
+}
 
 @Serializable
 data class PlayerView(

@@ -2,6 +2,7 @@ package com.tankarena.sim.kubriko.server
 
 import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.tankarena.content.MapSceneSidecar
+import com.tankarena.content.SCENE_SCHEMA_VERSION
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import kotlinx.serialization.json.Json
 
@@ -33,6 +34,12 @@ object LegacyToSceneJson {
         )
     }
 
-    fun parseSidecar(json: String): MapSceneSidecar =
-        sidecarParseJson.decodeFromString(MapSceneSidecar.serializer(), json)
+    fun parseSidecar(json: String): MapSceneSidecar {
+        val sidecar = sidecarParseJson.decodeFromString(MapSceneSidecar.serializer(), json)
+        require(sidecar.schemaVersion <= SCENE_SCHEMA_VERSION) {
+            "Scene sidecar schemaVersion=${sidecar.schemaVersion} is newer than the runtime " +
+                "schemaVersion=$SCENE_SCHEMA_VERSION; refusing to load."
+        }
+        return sidecar
+    }
 }

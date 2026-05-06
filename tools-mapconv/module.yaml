@@ -6,7 +6,6 @@ dependencies:
 
 settings:
   kotlin:
-    version: 2.3.20
     serialization:
       format: json
       version: 1.11.0

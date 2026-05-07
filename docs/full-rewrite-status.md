@@ -1,6 +1,6 @@
 # Tank Arena Full Rewrite Status
 
-As of 2026-05-06. Reflects parity tasks T01–T06 and T08–T12 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
+As of 2026-05-07. Phase 1 closed — parity tasks T01–T06 and T08–T14 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
 
 This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
 
@@ -66,6 +66,8 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
   - Mines: deployable, 100-tick activation grace period (owner-immunity window), proximity trigger via `triggerMineContacts` over (mine.radius + tank-half).
   - Rockets: nearest-enemy lock at fire-time, accelerate to ROCKET_MAX_SPEED with a per-tick turn-rate clamp, TTL=330 matching the legacy 3300 px range.
   - Mortars: arc travel (`MORTAR_TRAVEL_TICKS=50`), then linear-falloff area damage to `MORTAR_MAX_RADIUS_PX=60`.
+- Area-of-effect (T13): mines, mortars, and rockets all route their detonation through a shared `AreaDamageResolver` that emits a single `GameEvent.Explosion(x, y, radius, kind)` (`ExplosionKind.MINE/MORTAR/ROCKET/ABOMB`) and applies linear falloff from the tank's hull edge so grazing hits still register. Owner immunity is opt-in per weapon (rockets immune, mortars/mines not).
+- Damage model (T14): tank state carries `shield`, `invulnerableTicks`, and existing `armor`/`fuel`. Damage routes through invulnerability (full block) → shield (absorb) → armor; shield decays over time (`SHIELD_DECAY_TICKS=50`); fuel exhaustion blocks acceleration (already enforced); both fields exposed on `HudState` (`shield`, `invulnerableTicks`) and `TankState.invulnerable`. Respawn refills armor/fuel and clears shield/invuln.
 - Projectile: owner-kind tagging, per-weapon TTL, out-of-bounds flushing, owner immunity.
 - Turret: target acquisition, rotation via 16-step compass, cooldown-gated fire using imported delay/power.
 - Goal capture: once-only claim, contribution accumulation, `MissionWon` at 100%.
@@ -100,15 +102,15 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Generated legacy picture catalog extraction.
 
 ### Tests
-- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard. 68 tests green.
+- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard. 73 tests green.
 - Content: legacy parsing, generated asset registry, supported subset of object parsing.
 
 ## 5. What Is Still Prototype-Level
 
 - Movement feel: no terrain-material modifiers; fixed acceleration/friction model.
 - Tank-vs-tank collision slides cleanly, but per-vehicle handling differences (helicopters/planes) are absent.
-- Weapons: main, chain, mines, rockets, mortars are wired (T09–T12); flamethrower, A-bomb, smoke screen, invisibility, extra-speed, light, deployed-men weapons are still missing. Real explosion sprites/effects and the unified `AreaDamageResolver` + `GameEvent.Explosion` from T13 are not landed yet — each new weapon presently runs its own per-tick area-damage pass.
-- Damage model is straight armor-decrement; no shield, invulnerability, or fuel-consumption rules yet.
+- Weapons: main, chain, mines, rockets, mortars are wired (T09–T12) and now share `AreaDamageResolver` + `GameEvent.Explosion` (T13). Flamethrower, A-bomb, smoke screen, invisibility, extra-speed, light, and deployed-men weapons are still missing; client-side explosion sprites/SFX are not yet wired off the new event.
+- Damage model carries shield + invulnerability + fuel-out (T14), but pickups that grant shield/invuln/fuel (Phase 5 objects T20) and shield-pickup HUD affordance are not yet landed.
 - Terrain semantics: top-layer is decoration; no per-material rules (mud/ice/water/sand/runway), no bridge/runway/pit logic.
 - World object behavior: only goals, walls, and turrets execute. Flags, products, locks, warps, destroyers, enforcers, trains, zeppelin, B52, men, bonuses are imported by `LegacyObjectParser` but emit no scene actors yet — `CanonicalSceneBuilder` falls through to `else -> Unit` for these kinds.
 - AI: only "pick nearest, steer, fire when aligned". No pathing, line-of-sight, waypoints, or per-mode behavior.

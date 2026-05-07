@@ -18,6 +18,7 @@ import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
+import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.GoalState
 import com.tankarena.protocol.snapshot.HudState
@@ -127,6 +128,12 @@ class ServerMatchPrototype private constructor(
 
     fun snapshot(): WorldSnapshot = buildSnapshot(drainEvents = false)
 
+    internal fun playerTankForTest(playerIndex: Int): ServerTankActor? = tanksByPlayerIndex[playerIndex]
+
+    internal fun queueDamageForTest(playerIndex: Int, amount: Int) {
+        tanksByPlayerIndex[playerIndex]?.queueDamage(amount)
+    }
+
     internal fun snapshotMines(): List<ServerMineActor> =
         actorManager.allActors.value.filterIsInstance<ServerMineActor>()
 
@@ -137,9 +144,14 @@ class ServerMatchPrototype private constructor(
         actorManager.allActors.value.filterIsInstance<ServerMortarActor>()
 
     internal fun injectMortarExplosionForTest(x: Int, y: Int, radius: Int, damage: Int) {
-        applyMortarAreaDamage(
-            ServerMortarActor.Explosion(x, y, radius, damage),
-            owner = null,
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        pendingEvents += AreaDamageResolver.resolve(
+            tanks = tanks,
+            x = x,
+            y = y,
+            radius = radius,
+            damage = damage,
+            kind = ExplosionKind.MORTAR,
         )
     }
 
@@ -179,6 +191,8 @@ class ServerMatchPrototype private constructor(
                 cameraCenterY = tank.positionY,
                 hud = HudState(
                     armor = tank.armor,
+                    shield = tank.shield,
+                    invulnerableTicks = tank.invulnerableTicks,
                     fuel = tank.fuel,
                     lives = tank.lives,
                     missionProgress = goalGood,
@@ -445,10 +459,20 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun drainRocketExplosions() {
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerRocketActor) continue
             val explosion = actor.drainExplosion() ?: continue
-            pendingEvents += GameEvent.Exploded(explosion.x, explosion.y)
+            pendingEvents += AreaDamageResolver.resolve(
+                tanks = tanks,
+                x = explosion.x,
+                y = explosion.y,
+                radius = ROCKET_BLAST_RADIUS_PX,
+                damage = actor.damage,
+                kind = ExplosionKind.ROCKET,
+                owner = actor.ownerRef,
+                ownerImmune = true,
+            )
         }
     }
 
@@ -513,29 +537,20 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun drainMortarExplosions() {
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerMortarActor) continue
             val explosion = actor.drainExplosion() ?: continue
-            applyMortarAreaDamage(explosion, actor.ownerRef)
-            pendingEvents += GameEvent.Exploded(explosion.x, explosion.y)
+            pendingEvents += AreaDamageResolver.resolve(
+                tanks = tanks,
+                x = explosion.x,
+                y = explosion.y,
+                radius = explosion.radius,
+                damage = explosion.damage,
+                kind = ExplosionKind.MORTAR,
+                owner = actor.ownerRef,
+            )
         }
-    }
-
-    private fun applyMortarAreaDamage(explosion: ServerMortarActor.Explosion, owner: ServerTankActor?) {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
-        for (tank in tanks) {
-            val dx = (tank.positionX - explosion.x).toLong()
-            val dy = (tank.positionY - explosion.y).toLong()
-            val distSq = dx * dx + dy * dy
-            val r = explosion.radius.toLong()
-            if (distSq > r * r) continue
-            val distance = kotlin.math.sqrt(distSq.toDouble()).toInt()
-            // Linear falloff from full damage at center to zero at the edge.
-            val scaled = (explosion.damage.toFloat() * (1f - distance.toFloat() / explosion.radius.toFloat())).toInt()
-            if (scaled <= 0) continue
-            tank.queueDamage(scaled)
-        }
-        @Suppress("UNUSED_VARIABLE") val unusedOwner = owner // placeholder for future friendly-fire toggles
     }
 
     private fun removeDeadMortars() {
@@ -618,16 +633,23 @@ class ServerMatchPrototype private constructor(
             val victim = tanks.firstOrNull { tank ->
                 withinRadius(tank.positionX, tank.positionY, mine.positionX, mine.positionY, triggerRadius)
             } ?: continue
-            victim.queueDamage(mine.damage)
             mine.detonateOn(victim)
         }
     }
 
     private fun drainMineDetonations() {
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerMineActor) continue
             val det = actor.drainDetonation() ?: continue
-            pendingEvents += GameEvent.Exploded(det.x, det.y)
+            pendingEvents += AreaDamageResolver.resolve(
+                tanks = tanks,
+                x = det.x,
+                y = det.y,
+                radius = actor.radius,
+                damage = actor.damage,
+                kind = ExplosionKind.MINE,
+            )
         }
     }
 
@@ -793,6 +815,7 @@ class ServerMatchPrototype private constructor(
                     turretDirection = actor.turretDirection,
                     armor = actor.armor,
                     alive = actor.armor > 0,
+                    invulnerable = actor.invulnerableTicks > 0,
                     controlled = actor.playerIndex >= 0,
                     primaryCooldownTicks = actor.primaryCooldownTicks,
                 )

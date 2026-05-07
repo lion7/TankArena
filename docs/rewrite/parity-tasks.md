@@ -12,7 +12,7 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
-**Progress (as of 2026-05-06):** T01–T06, T08–T12 done on `rewrite`. T07 deliberately deferred while T08+ continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+**Progress (as of 2026-05-07):** Phase 1 closed — T01–T06, T08–T14 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
 
 ---
 
@@ -122,7 +122,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** parametric test over impact radii.
 - **Depends on:** T01.
 
-### T13 — Area damage + explosion event
+### T13 — Area damage + explosion event ✅ done
 - **Goal:** a single shared "apply area damage at point" routine; emits a `GameEvent.Explosion` consumable by client effects + audio.
 - **Spec:** [`mechanics.md`](../game/mechanics.md), [`weapons.md`](../game/weapons.md).
 - **Touch:** new `AreaDamageResolver` in `:game-server`; `GameEvent.Explosion(x, y, radius, kind)` in `:game-protocol`.
@@ -130,7 +130,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** resolver applies falloff correctly across multiple targets.
 - **Depends on:** T10, T11, T12.
 
-### T14 — Damage model: shield, invulnerability, fuel
+### T14 — Damage model: shield, invulnerability, fuel ✅ done
 - **Goal:** tanks track shield + invulnerability timer + fuel; damage routes through shield first; fuel drains while moving.
 - **Spec:** [`mechanics.md`](../game/mechanics.md) §"Damage", [`vehicles.md`](../game/vehicles.md).
 - **Touch:** `ServerTankActor` state + tick step; `TankState` + `HudState` to expose new fields.

@@ -3,12 +3,20 @@ package com.tankarena.protocol.snapshot
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class ExplosionKind { MINE, MORTAR, ROCKET, ABOMB }
+
+@Serializable
 sealed interface GameEvent {
     @Serializable
     data class Fired(val actorId: Long, val x: Int, val y: Int) : GameEvent
 
     @Serializable
-    data class Exploded(val x: Int, val y: Int) : GameEvent
+    data class Explosion(
+        val x: Int,
+        val y: Int,
+        val radius: Int,
+        val kind: ExplosionKind,
+    ) : GameEvent
 
     @Serializable
     data class TankDestroyed(val actorId: Long) : GameEvent

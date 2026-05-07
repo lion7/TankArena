@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 internal const val ROCKET_TTL_TICKS: Int = 330
 internal const val ROCKET_MAX_SPEED: Float = 10f
 internal const val ROCKET_ACCELERATION: Float = 0.5f
+internal const val ROCKET_BLAST_RADIUS_PX: Int = 20
 private const val ROCKET_TURN_RATE_RAD_PER_TICK: Float = 0.10f
 
 class ServerRocketActor internal constructor(state: State) :
@@ -92,9 +93,8 @@ class ServerRocketActor internal constructor(state: State) :
         }
     }
 
-    internal fun explodeOn(victim: ServerTankActor?) {
+    internal fun explodeOn(@Suppress("UNUSED_PARAMETER") victim: ServerTankActor?) {
         if (isDead) return
-        victim?.queueDamage(damage)
         markDead()
     }
 

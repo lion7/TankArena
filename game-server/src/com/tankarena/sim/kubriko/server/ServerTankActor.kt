@@ -42,6 +42,7 @@ private const val MORTAR_DAMAGE: Int = 15
 private const val MORTAR_FIRE_COOLDOWN_TICKS: Int = 100
 private const val MORTAR_LAUNCH_SPEED: Float = 6f
 internal const val RESPAWN_DELAY_TICKS: Int = 300
+private const val SHIELD_DECAY_TICKS: Int = 50
 
 const val WEAPON_MAIN: Int = 0
 const val WEAPON_CHAIN: Int = 1
@@ -83,9 +84,14 @@ class ServerTankActor(state: State) :
     val playerIndex: Int = state.playerIndex
     val tankType: Int = state.tankType
     var armor: Int = state.armor
+    var shield: Int = state.shield
+        private set
+    var invulnerableTicks: Int = state.invulnerableTicks
+        private set
     var fuel: Int = state.fuel
     var lives: Int = state.lives
         private set
+    private var shieldDecayCounter: Int = 0
     val team: Int = state.team
     var primaryCooldownTicks: Int = state.primaryCooldownTicks
         private set
@@ -185,6 +191,16 @@ class ServerTankActor(state: State) :
         pendingDamageThisTick += amount
     }
 
+    fun grantShield(amount: Int) {
+        if (amount <= 0) return
+        shield = (shield + amount).coerceAtMost(255)
+    }
+
+    fun grantInvulnerability(ticks: Int) {
+        if (ticks <= 0) return
+        invulnerableTicks = invulnerableTicks.coerceAtLeast(ticks)
+    }
+
     override fun update(deltaTimeInMilliseconds: Int) {
         if (armor <= 0) {
             velocityX = 0f
@@ -196,6 +212,7 @@ class ServerTankActor(state: State) :
             pendingIntent = PlayerIntentFrame()
             return
         }
+        stepInvulnAndShield()
         stepWeaponCycle()
         stepHullTurn()
         stepTurretTurn()
@@ -213,6 +230,9 @@ class ServerTankActor(state: State) :
         turretDirection = spawnTurretDirection
         armor = maxArmor
         fuel = maxFuel
+        shield = 0
+        invulnerableTicks = 0
+        shieldDecayCounter = 0
         velocityX = 0f
         velocityY = 0f
         primaryCooldownTicks = 0
@@ -300,17 +320,27 @@ class ServerTankActor(state: State) :
             .coerceIn(SERVER_TANK_HALF, worldHeightPixels - SERVER_TANK_HALF - 1)
         if (pendingDamageThisTick > 0) {
             val wasAlive = armor > 0
-            val dealt = pendingDamageThisTick.coerceAtMost(armor)
-            armor = (armor - pendingDamageThisTick).coerceAtLeast(0)
-            if (wasAlive) {
-                if (armor == 0) {
-                    destroyedThisTick = true
-                    lives = (lives - 1).coerceAtLeast(0)
-                    if (lives > 0) respawnInTicks = RESPAWN_DELAY_TICKS
-                    velocityX = 0f
-                    velocityY = 0f
-                } else if (dealt > 0) {
-                    damageEventAmount += dealt
+            var remaining = pendingDamageThisTick
+            if (invulnerableTicks > 0) {
+                remaining = 0
+            } else if (shield > 0) {
+                val absorbed = remaining.coerceAtMost(shield)
+                shield -= absorbed
+                remaining -= absorbed
+            }
+            if (remaining > 0) {
+                val dealt = remaining.coerceAtMost(armor)
+                armor = (armor - remaining).coerceAtLeast(0)
+                if (wasAlive) {
+                    if (armor == 0) {
+                        destroyedThisTick = true
+                        lives = (lives - 1).coerceAtLeast(0)
+                        if (lives > 0) respawnInTicks = RESPAWN_DELAY_TICKS
+                        velocityX = 0f
+                        velocityY = 0f
+                    } else if (dealt > 0) {
+                        damageEventAmount += dealt
+                    }
                 }
             }
         }
@@ -327,6 +357,8 @@ class ServerTankActor(state: State) :
         playerIndex = playerIndex,
         tankType = tankType,
         armor = armor,
+        shield = shield,
+        invulnerableTicks = invulnerableTicks,
         fuel = fuel,
         lives = lives,
         team = team,
@@ -521,6 +553,19 @@ class ServerTankActor(state: State) :
         )
     }
 
+    private fun stepInvulnAndShield() {
+        if (invulnerableTicks > 0) invulnerableTicks -= 1
+        if (shield > 0) {
+            shieldDecayCounter += 1
+            if (shieldDecayCounter >= SHIELD_DECAY_TICKS) {
+                shieldDecayCounter = 0
+                shield -= 1
+            }
+        } else {
+            shieldDecayCounter = 0
+        }
+    }
+
     private fun stepWeaponCycle() {
         weaponCycleCooldownTicks = (weaponCycleCooldownTicks - 1).coerceAtLeast(0)
         if (weaponCycleCooldownTicks > 0) return
@@ -605,6 +650,8 @@ class ServerTankActor(state: State) :
         @SerialName("playerIndex") val playerIndex: Int = -1,
         @SerialName("tankType") val tankType: Int = 0,
         @SerialName("armor") val armor: Int = 100,
+        @SerialName("shield") val shield: Int = 0,
+        @SerialName("invulnerableTicks") val invulnerableTicks: Int = 0,
         @SerialName("fuel") val fuel: Int = 100,
         @SerialName("lives") val lives: Int = 1,
         @SerialName("team") val team: Int = 0,

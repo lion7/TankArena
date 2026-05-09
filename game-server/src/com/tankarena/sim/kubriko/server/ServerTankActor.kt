@@ -156,6 +156,7 @@ class ServerTankActor(state: State) :
         val velocityY: Int,
         val damage: Int,
         val ttlTicks: Int,
+        val weaponKind: Int = WEAPON_MAIN,
     )
 
     data class MineRequest(
@@ -250,6 +251,12 @@ class ServerTankActor(state: State) :
         }
         if (destroyedThisTick) {
             events += com.tankarena.protocol.snapshot.GameEvent.TankDestroyed(actorId)
+            // Emit explosion sound at tank position
+            events += com.tankarena.protocol.snapshot.GameEvent.Sound(
+                kind = com.tankarena.protocol.snapshot.SoundKind.EXPLODE,
+                x = positionX,
+                y = positionY,
+            )
             destroyedThisTick = false
         }
         if (spawnedThisTick) {
@@ -528,18 +535,18 @@ class ServerTankActor(state: State) :
 
     private fun fireMainCannon() {
         if (primaryCooldownTicks > 0) return
-        pendingFireRequest = buildFireRequest(damage = PRIMARY_DAMAGE, ttl = PROJECTILE_TTL_TICKS)
+        pendingFireRequest = buildFireRequest(damage = PRIMARY_DAMAGE, ttl = PROJECTILE_TTL_TICKS, weapon = WEAPON_MAIN)
         primaryCooldownTicks = PRIMARY_COOLDOWN_TICKS
     }
 
     private fun fireChainGun() {
         if (chainCooldownTicks > 0 || chainAmmo <= 0) return
-        pendingFireRequest = buildFireRequest(damage = CHAIN_DAMAGE, ttl = CHAIN_PROJECTILE_TTL)
+        pendingFireRequest = buildFireRequest(damage = CHAIN_DAMAGE, ttl = CHAIN_PROJECTILE_TTL, weapon = WEAPON_CHAIN)
         chainCooldownTicks = CHAIN_COOLDOWN_TICKS
         chainAmmo -= 1
     }
 
-    private fun buildFireRequest(damage: Int, ttl: Int): FireRequest {
+    private fun buildFireRequest(damage: Int, ttl: Int, weapon: Int): FireRequest {
         val (fx, fy) = LegacyDirections.unitVector(turretDirection)
         val (vx, vy) = LegacyDirections.toVelocityStep(turretDirection, PROJECTILE_SPEED)
         val barrelOffset = SERVER_TANK_HALF + 2
@@ -550,6 +557,7 @@ class ServerTankActor(state: State) :
             velocityY = vy.toInt().let { if (it == 0 && vy != 0f) (if (vy > 0) 1 else -1) else it },
             damage = damage,
             ttlTicks = ttl,
+            weaponKind = weapon,
         )
     }
 

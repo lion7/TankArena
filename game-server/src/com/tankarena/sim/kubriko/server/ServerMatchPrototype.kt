@@ -145,14 +145,14 @@ class ServerMatchPrototype private constructor(
 
     internal fun injectMortarExplosionForTest(x: Int, y: Int, radius: Int, damage: Int) {
         val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        pendingEvents += AreaDamageResolver.resolve(
+        pendingEvents.addAll(AreaDamageResolver.resolve(
             tanks = tanks,
             x = x,
             y = y,
             radius = radius,
             damage = damage,
             kind = ExplosionKind.MORTAR,
-        )
+        ))
     }
 
     internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int) {
@@ -463,7 +463,7 @@ class ServerMatchPrototype private constructor(
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerRocketActor) continue
             val explosion = actor.drainExplosion() ?: continue
-            pendingEvents += AreaDamageResolver.resolve(
+            pendingEvents.addAll(AreaDamageResolver.resolve(
                 tanks = tanks,
                 x = explosion.x,
                 y = explosion.y,
@@ -472,7 +472,7 @@ class ServerMatchPrototype private constructor(
                 kind = ExplosionKind.ROCKET,
                 owner = actor.ownerRef,
                 ownerImmune = true,
-            )
+            ))
         }
     }
 
@@ -527,6 +527,14 @@ class ServerMatchPrototype private constructor(
             ),
         )
         rocket.ownerRef = owner
+        
+        // Emit sound event for rocket launch
+        pendingEvents += GameEvent.Sound(
+            kind = com.tankarena.protocol.snapshot.SoundKind.ROCKET,
+            x = request.originX,
+            y = request.originY,
+        )
+        
         return rocket
     }
 
@@ -541,7 +549,7 @@ class ServerMatchPrototype private constructor(
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerMortarActor) continue
             val explosion = actor.drainExplosion() ?: continue
-            pendingEvents += AreaDamageResolver.resolve(
+            pendingEvents.addAll(AreaDamageResolver.resolve(
                 tanks = tanks,
                 x = explosion.x,
                 y = explosion.y,
@@ -549,7 +557,7 @@ class ServerMatchPrototype private constructor(
                 damage = explosion.damage,
                 kind = ExplosionKind.MORTAR,
                 owner = actor.ownerRef,
-            )
+            ))
         }
     }
 
@@ -602,6 +610,14 @@ class ServerMatchPrototype private constructor(
             ),
         )
         mortar.ownerRef = owner
+        
+        // Emit sound event for mortar launch
+        pendingEvents += GameEvent.Sound(
+            kind = com.tankarena.protocol.snapshot.SoundKind.MORTAR,
+            x = request.originX,
+            y = request.originY,
+        )
+        
         return mortar
     }
 
@@ -642,14 +658,14 @@ class ServerMatchPrototype private constructor(
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerMineActor) continue
             val det = actor.drainDetonation() ?: continue
-            pendingEvents += AreaDamageResolver.resolve(
+            pendingEvents.addAll(AreaDamageResolver.resolve(
                 tanks = tanks,
                 x = det.x,
                 y = det.y,
                 radius = actor.radius,
                 damage = actor.damage,
                 kind = ExplosionKind.MINE,
-            )
+            ))
         }
     }
 
@@ -688,7 +704,7 @@ class ServerMatchPrototype private constructor(
         request: ServerTankActor.MineRequest,
     ): ServerMineActor {
         val ownerActorId = actorIds[owner] ?: 0L
-        return ServerMineActor(
+        val mine = ServerMineActor(
             ServerMineActor.State(
                 body = PointBody(
                     initialPosition = SceneOffset(
@@ -701,6 +717,15 @@ class ServerMatchPrototype private constructor(
                 radius = request.radius,
             ),
         )
+        
+        // Emit sound event for mine deployment
+        pendingEvents += GameEvent.Sound(
+            kind = com.tankarena.protocol.snapshot.SoundKind.MINE,
+            x = request.originX,
+            y = request.originY,
+        )
+        
+        return mine
     }
 
     private fun drainFireRequests() {
@@ -750,6 +775,14 @@ class ServerMatchPrototype private constructor(
             ),
         )
         projectile.ownerRef = owner
+        
+        // Emit sound event for firing
+        pendingEvents += GameEvent.Sound(
+            kind = soundKindForWeapon(request.weaponKind),
+            x = request.originX,
+            y = request.originY,
+        )
+        
         return projectile
     }
 
@@ -758,7 +791,7 @@ class ServerMatchPrototype private constructor(
         request: ServerTurretActor.FireRequest,
     ): ServerProjectileActor {
         val ownerActorId = actorIds[owner] ?: 0L
-        return ServerProjectileActor(
+        val projectile = ServerProjectileActor(
             ServerProjectileActor.State(
                 body = PointBody(
                     initialPosition = SceneOffset(
@@ -773,6 +806,28 @@ class ServerMatchPrototype private constructor(
                 velocityY = request.velocityY,
             ),
         )
+        
+        // Emit sound event for turret firing
+        pendingEvents += GameEvent.Sound(
+            kind = com.tankarena.protocol.snapshot.SoundKind.MAIN,
+            x = request.originX,
+            y = request.originY,
+        )
+        
+        return projectile
+    }
+
+    /**
+     * Map weapon kind constants to sound kind enum.
+     */
+    private fun soundKindForWeapon(weaponKind: Int): com.tankarena.protocol.snapshot.SoundKind {
+        return when (weaponKind) {
+            WEAPON_MAIN -> com.tankarena.protocol.snapshot.SoundKind.MAIN
+            WEAPON_CHAIN -> com.tankarena.protocol.snapshot.SoundKind.CHAIN
+            WEAPON_ROCKET -> com.tankarena.protocol.snapshot.SoundKind.ROCKET
+            WEAPON_MORTAR -> com.tankarena.protocol.snapshot.SoundKind.MORTAR
+            else -> com.tankarena.protocol.snapshot.SoundKind.MAIN
+        }
     }
 
     private fun buildSnapshot(drainEvents: Boolean): WorldSnapshot {

@@ -12,7 +12,7 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
-**Progress (as of 2026-05-07):** Phase 1 closed — T01–T06, T08–T14 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+**Progress (as of 2026-05-07):** Phase 1 + Phase 3 closed — T01–T06, T08–T16 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
 
 ---
 
@@ -142,7 +142,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 
 ## Phase 3 — Audio
 
-### T15 — Audio event plumbing
+### T15 — Audio event plumbing ✅ done
 - **Goal:** `:game-protocol` carries audio events; `:game-client` exposes a pluggable backend.
 - **Spec:** [`mechanics.md`](../game/mechanics.md) §"Sound System" (distance attenuation, stereo panning, pitch variation).
 - **Touch:** `GameEvent.Sound(kind, x, y)` in `:game-protocol`; client-side `AudioBackend` interface + a stub.
@@ -150,7 +150,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** server emits the right events; client routes them to the backend.
 - **Depends on:** T13.
 
-### T16 — Default audio backend (desktop)
+### T16 — Default audio backend (desktop) ✅ done
 - **Goal:** working sound playback on desktop with legacy distance/pan/pitch math.
 - **Spec:** [`mechanics.md`](../game/mechanics.md) §"Sound System" (Euclidean distance, 612 px max range, pan formula, pitch 900–1100, ≤32 silenced).
 - **Touch:** `:game-client` audio backend implementation.

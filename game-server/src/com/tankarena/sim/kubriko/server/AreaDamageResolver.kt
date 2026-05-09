@@ -2,12 +2,13 @@ package com.tankarena.sim.kubriko.server
 
 import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.SoundKind
 
 /**
  * Single resolver for every weapon that does area-of-effect damage on detonation
  * (mines, mortars, rockets, A-bombs). Damage falls off linearly from full at the
- * impact center to zero at the edge of the radius. Returns the [GameEvent.Explosion]
- * the caller should publish.
+ * impact center to zero at the edge of the radius. Returns a list of [GameEvent]s
+ * the caller should publish: [GameEvent.Explosion] and [GameEvent.Sound].
  */
 internal object AreaDamageResolver {
 
@@ -20,7 +21,9 @@ internal object AreaDamageResolver {
         kind: ExplosionKind,
         owner: ServerTankActor? = null,
         ownerImmune: Boolean = false,
-    ): GameEvent.Explosion {
+    ): List<GameEvent> {
+        val events = mutableListOf<GameEvent>()
+        
         if (radius > 0 && damage > 0) {
             for (tank in tanks) {
                 if (tank.armor <= 0) continue
@@ -37,6 +40,26 @@ internal object AreaDamageResolver {
                 tank.queueDamage(scaled)
             }
         }
-        return GameEvent.Explosion(x, y, radius, kind)
+        
+        // Always emit explosion event
+        events += GameEvent.Explosion(x, y, radius, kind)
+        
+        // Emit corresponding sound event
+        events += GameEvent.Sound(
+            kind = soundKindForExplosion(kind),
+            x = x,
+            y = y,
+        )
+        
+        return events
+    }
+
+    private fun soundKindForExplosion(kind: ExplosionKind): SoundKind {
+        return when (kind) {
+            ExplosionKind.MINE -> SoundKind.MINE
+            ExplosionKind.MORTAR -> SoundKind.MORTAR
+            ExplosionKind.ROCKET -> SoundKind.SROCKET
+            ExplosionKind.ABOMB -> SoundKind.EXPLODE
+        }
     }
 }

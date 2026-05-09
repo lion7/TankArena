@@ -117,7 +117,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - AI: only "pick nearest, steer, fire when aligned". No pathing, line-of-sight, waypoints, or per-mode behavior.
 - Mission/objective evaluation beyond goal-capture and tank-elimination is not wired.
 - HUD/radar parity: first-pass only (no scoring panel, no weapon select, no debrief polish).
-- Audio: no runtime backend.
+
 - Split-screen, multiple cameras, gamepad, action-mapping/remapping UI: absent.
 - Replay recording/playback and deterministic checksums: scaffolded, not implemented.
 - Save/config/profile UX: absent.
@@ -140,7 +140,7 @@ For the legacy gameplay rules that still need to land, the authoritative descrip
 ## 7. Suggested Delivery Sequence
 
 1. Broaden combat on `:game-server` actors: tank-vs-tank polish, additional weapons (chain gun, mines, rockets, mortars), area damage, explosion/effect sprites.
-2. Audio event plumbing and a basic backend.
+2. ~~Audio event plumbing and a basic backend~~ — done (T15/T16).
 3. Terrain/material rules (mud/ice/water/fuel/armor pickups, bridges, runways).
 4. One end-to-end mission mode with objectives, win/loss evaluation, debrief.
 5. AI for mobile units in that mode (navigation, line-of-sight).

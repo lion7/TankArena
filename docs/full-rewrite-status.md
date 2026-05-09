@@ -1,6 +1,6 @@
 # Tank Arena Full Rewrite Status
 
-As of 2026-05-07. Phase 1 closed — parity tasks T01–T06 and T08–T14 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
+As of 2026-05-09. Phase 1 + Phase 3 closed — parity tasks T01–T06 and T08–T16 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
 
 This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
 
@@ -85,6 +85,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - HUD overlay (ARMOR / FUEL / LIVES / MISSION / TANK + mission code) and radar overlay, both driven by `PlayerView`.
 - Keyboard movement + space-fire input; mouse pointer drives 8-way turret aim (with dead zone).
 - Camera follows the controlled tank.
+- Audio (T15/T16): `AudioBackend` interface with `DesktopAudioBackend` implementation — distance attenuation (Euclidean, 612 px max range), stereo panning, pitch variation (900–1100), ≤32 silenced voices. `AudioManager` routes `GameEvent.Sound` events from the server to the backend. `AudioMathTest` pins the distance/pan/pitch formulas.
 
 ### Editor (`:game-editor`)
 - Thin Compose Desktop app embedding Kubriko's `SceneEditor`.

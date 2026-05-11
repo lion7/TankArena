@@ -1,6 +1,6 @@
 # Tank Arena Full Rewrite Status
 
-As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 closed — parity tasks T01–T06, T08–T28 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
+As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7 closed — parity tasks T01–T06, T08–T32 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
 
 This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
 
@@ -60,6 +60,10 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - `TerrainSlideManager` provides axis-by-axis MTV sliding response.
 - Server actors: `ServerTankActor`, `ServerTurretActor`, `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`, `ServerMineActor`, `ServerRocketActor`, `ServerMortarActor`, `ServerFlagActor`, `ServerProductActor`, `ServerLockActor`, `ServerWarpActor`, `ServerDestroyerActor`, `ServerEnforcerActor`, `ServerTrainActor`, `ServerZeppelinActor`, `ServerB52Actor` — each `Collidable` + `Serializable<T>`; the placed ones are also `Editable<T>`. `ActorRoundTripTest` (T04) pins `save()`/`restore()` for every `Server*Actor` so silent schema drift fails fast.
 - AI subsystem (T26–T28): `TilePathfinder` (A* over solid layer), `LineOfSight` (Bresenham raycast), `WaypointFollower` (path-following between waypoints), `AiModeDispatcher` (mode-specific patrol/aggressive behavior). AI navigates around walls, fires only when target is visible, and patrols waypoints when no enemy is present.
+- Mission evaluation (T29): per-mode win/loss with reason strings (GOALS_CAPTURED, ALL_ENEMIES_ELIMINATED, GOALS_LOST, ALL_LIVES_LOST, PLAYER_ELIMINATED, OPPONENT_ELIMINATED). `GameEvent.MissionResult` emitted once with score, kills, captures, ticks. Kill/capture score tracking.
+- Scoring panel (T30): `HudState` carries score, kills, time; `HudOverlay` displays SCORE, KILLS, TIME (MM:SS).
+- Weapon select (T31): `TankState` carries currentWeapon and ammo counts; `HudOverlay` displays WPN gauge (MAIN/CHAIN/MINE/ROCK/MORT).
+- Debrief polish (T32): debrief screen shows SCORE, KILLS, CAPTURES, TIME stats panel wired from `MissionResult`.
 - Tank: hull/turret directions, acceleration, friction, MTV collision response against walls and other tanks. Tank-vs-tank collision (T08) zeros only the into-contact velocity component, preserving tangential motion — head-on / perpendicular-nudge / three-tank pile-up are exercised in tests.
 - Weapons (T09–T12): `WEAPON_MAIN`, `WEAPON_CHAIN`, `WEAPON_MINE`, `WEAPON_ROCKET`, `WEAPON_MORTAR`, all routed through `firePrimary` with per-weapon cooldowns and ammo. `cycleWeaponLeft/Right` advances through owned weapons, skipping any with empty ammo.
   - Main cannon: 70-tick refire (legacy `weap.speed[0]=70`), TTL=31.
@@ -111,7 +115,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Generated legacy picture catalog extraction.
 
 ### Tests
-- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard, terrain material catalog resolution (32 tests), terrain grid builder layer merging (12 tests), flag capture/return (8 tests), product pickup (6 tests), A* pathfinding (9 tests), line-of-sight raycast (8 tests), waypoint follower (5 tests), AI mode dispatcher (9 tests). 161 tests green.
+- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard, terrain material catalog resolution (32 tests), terrain grid builder layer merging (12 tests), flag capture/return (8 tests), product pickup (6 tests), A* pathfinding (9 tests), line-of-sight raycast (8 tests), waypoint follower (5 tests), AI mode dispatcher (9 tests), mission evaluation per mode (9 tests). 170 tests green.
 - Content: legacy parsing, generated asset registry, supported subset of object parsing.
 
 ## 5. What Is Still Prototype-Level
@@ -123,8 +127,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Terrain semantics (T17/T18): per-material speed multipliers, lava damage, water kill, pit kill are wired. Bridge destruction → water reveal, runway takeoff, and fuel dump flame effects are deferred to later phases.
 - World object behavior: flags, products, locks, warps, destroyers, enforcers, trains, zeppelins, B52 all produce scene actors and execute (T19–T25). Men, bonuses, and authored mines are imported but inert. Lock downstream effects (blow structure/destroy object) are deferred.
 - AI: pathing (A* over solid grid, T26), line-of-sight (Bresenham raycast, T27), waypoint patrol (T28), per-mode behavior (SINGLE/DUALVC patrol, DUAL aggressive). AI navigates around walls, fires only when target is visible, and follows waypoints when no enemy is present.
-- Mission/objective evaluation beyond goal-capture and tank-elimination is not wired.
-- HUD/radar parity: first-pass only (no scoring panel, no weapon select, no debrief polish).
+- HUD/radar parity: scoring panel (T30), weapon select (T31), debrief stats (T32) are wired.
 
 - Split-screen, multiple cameras, gamepad, action-mapping/remapping UI: absent.
 - Replay recording/playback and deterministic checksums: scaffolded, not implemented.

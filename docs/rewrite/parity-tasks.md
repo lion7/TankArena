@@ -12,7 +12,7 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
-**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 closed — T01–T06, T08–T28 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7 closed — T01–T06, T08–T32 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
 
 ---
 
@@ -274,28 +274,28 @@ Each task adds runtime behavior for an imported but currently inert object famil
 
 ## Phase 7 — Mission evaluation, HUD, debrief
 
-### T29 — Full mission/objective evaluation
+### T29 — Full mission/objective evaluation ✅ done (737141b)
 - **Goal:** mission states beyond goal-capture and tank-elimination evaluate per mode.
 - **Spec:** [`overview.md`](../game/overview.md) modes; [`mechanics.md`](../game/mechanics.md) §"Mission".
-- **Touch:** mission evaluator in `:game-server`; emits `MissionWon` / `MissionLost` with reason.
-- **Acceptance:** every mode listed in `overview.md` reaches a win/loss state per spec.
-- **Tests:** one scenario per mode.
+- **Touch:** `evaluateMission()` in `ServerMatchPrototype`; `MissionWon`/`MissionLost` with reason strings; new `GameEvent.MissionResult` (score, kills, captures, ticks); kill/capture score tracking.
+- **Acceptance:** every mode listed in `overview.md` reaches a win/loss state per spec (GOALS_CAPTURED, ALL_ENEMIES_ELIMINATED, GOALS_LOST, ALL_LIVES_LOST, PLAYER_ELIMINATED, OPPONENT_ELIMINATED).
+- **Tests:** `MissionEvaluationTest` (9 tests): one scenario per mode (SINGLE goal capture, SINGLE enemy elimination, SINGLE lives lost, DUAL team0/team1 elimination, DUAL_VS_COMPUTER, DONT_CARE) plus tick count and single-emission tests.
 - **Depends on:** T19, T22, T23, T28.
 
-### T30 — Scoring panel
+### T30 — Scoring panel ✅ done (8f2f43f)
 - **Goal:** HUD shows score, kills, captures, time, per spec.
 - **Spec:** [`mechanics.md`](../game/mechanics.md) HUD section.
 - **Touch:** `HudState` + `:game-client` overlay.
 - **Acceptance:** scoring panel renders and updates each tick.
 - **Depends on:** T29.
 
-### T31 — Weapon select UI
+### T31 — Weapon select UI ✅ done (eb98bf0)
 - **Goal:** HUD lets the player switch weapons via input.
 - **Touch:** `InputFrame.weaponSelect`, `ServerTankActor` weapon switching, client overlay.
 - **Acceptance:** each owned weapon is selectable; HUD reflects selection.
 - **Depends on:** T09–T12.
 
-### T32 — Debrief polish
+### T32 — Debrief polish ✅ done (a4cae77)
 - **Goal:** end-of-mission debrief shows per-spec stats; not just a "you won" flash.
 - **Touch:** `:game-client` debrief screen; `MissionResult` payload from server.
 - **Acceptance:** debrief lists score, time, kills, captures, accuracy.

@@ -104,4 +104,13 @@ sealed interface GameEvent {
      */
     @Serializable
     data class FlagDelivered(val flagActorId: Long, val tankActorId: Long) : GameEvent
+
+    /**
+     * Emitted when a tank picks up a product (supermarket mode).
+     * @param productActorId The product that was collected
+     * @param tankActorId The tank that picked it up
+     * @param price The cash cost deducted
+     */
+    @Serializable
+    data class ProductCollected(val productActorId: Long, val tankActorId: Long, val price: Int) : GameEvent
 }

@@ -25,6 +25,7 @@ import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.FlagState
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.GoalState
+import com.tankarena.protocol.snapshot.ProductState
 import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
@@ -127,6 +128,7 @@ class ServerMatchPrototype private constructor(
         drainMortarRequests()
         drainTankLifecycleEvents()
         collectFlags()
+        collectProducts()
         collectGoals()
         evaluateMission()
         currentTick += 1
@@ -277,6 +279,29 @@ class ServerMatchPrototype private constructor(
             while (actorManager.allActors.value.size != expected) {
                 delay(2)
             }
+        }
+    }
+
+    private fun collectProducts() {
+        if (missionStatus != MissionStatus.IN_PROGRESS) return
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        for (product in actorManager.allActors.value.filterIsInstance<ServerProductActor>()) {
+            if (product.isCollected) continue
+            val size = product.body.size
+            val pos = product.body.position
+            val pcx = (pos.x.raw + size.width.raw / 2f).toInt()
+            val pcy = (pos.y.raw + size.height.raw / 2f).toInt()
+            val pickupRadius = 16
+            val pickup = tanks.firstOrNull { tank ->
+                tank.playerIndex >= 0 && tank.armor > 0 &&
+                    withinRadius(tank.positionX, tank.positionY, pcx, pcy, pickupRadius)
+            } ?: continue
+            product.isCollected = true
+            pendingEvents += GameEvent.ProductCollected(
+                productActorId = actorIds[product] ?: 0L,
+                tankActorId = actorIds[pickup]!!,
+                price = product.price,
+            )
         }
     }
 
@@ -1046,6 +1071,19 @@ class ServerMatchPrototype private constructor(
                     x = (position.x.raw + size.width.raw / 2f).toInt(),
                     y = (position.y.raw + size.height.raw / 2f).toInt(),
                     isCarried = actor.isCarried,
+                )
+            }
+
+            is ServerProductActor -> {
+                val size = actor.body.size
+                val position = actor.body.position
+                ProductState(
+                    actorId = id,
+                    productType = actor.productType,
+                    price = actor.price,
+                    x = (position.x.raw + size.width.raw / 2f).toInt(),
+                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    isCollected = actor.isCollected,
                 )
             }
 

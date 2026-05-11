@@ -120,6 +120,15 @@ object CanonicalSceneBuilder {
                     )
                 }
 
+                ObjectKinds.PRODUCT -> {
+                    sink += productActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        productType = obj.properties["productType"]?.toIntOrNull() ?: 0,
+                        price = obj.properties["price"]?.toIntOrNull() ?: 1,
+                    )
+                }
+
                 else -> Unit
             }
         }
@@ -191,6 +200,7 @@ object CanonicalSceneBuilder {
         )
 
     private const val FLAG_FOOTPRINT: Int = 16
+    private const val PRODUCT_FOOTPRINT: Int = 16
 
     private fun flagActor(cx: Int, cy: Int, flagType: Int, number: Int): ServerFlagActor =
         ServerFlagActor(
@@ -205,6 +215,19 @@ object CanonicalSceneBuilder {
                 carrierActorId = null,
                 homeX = cx,
                 homeY = cy,
+            ),
+        )
+
+    private fun productActor(cx: Int, cy: Int, productType: Int, price: Int): ServerProductActor =
+        ServerProductActor(
+            ServerProductActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - PRODUCT_FOOTPRINT / 2).toFloat().sceneUnit, (cy - PRODUCT_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(PRODUCT_FOOTPRINT.toFloat().sceneUnit, PRODUCT_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                productType = productType,
+                price = price,
+                isCollected = false,
             ),
         )
 }

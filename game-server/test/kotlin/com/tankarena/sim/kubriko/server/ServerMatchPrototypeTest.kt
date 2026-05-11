@@ -148,6 +148,7 @@ class ServerMatchPrototypeTest {
             is GoalState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.ProjectileState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.FlagState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.ProductState -> x.isFinite() && y.isFinite()
         }
     }
 

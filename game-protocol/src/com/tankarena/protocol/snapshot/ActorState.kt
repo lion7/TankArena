@@ -82,4 +82,14 @@ data class FlagState(
 ) : ActorState
 
 @Serializable
+data class ProductState(
+    override val actorId: Long,
+    val productType: Int = 0,
+    val price: Int = 1,
+    val x: Int,
+    val y: Int,
+    val isCollected: Boolean = false,
+) : ActorState
+
+@Serializable
 enum class ProjectileOwnerKind { TANK, TURRET }

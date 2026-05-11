@@ -585,6 +585,10 @@ class ServerMatchPrototype private constructor(
         TilePathfinder(mapMetadata.widthTiles, mapMetadata.heightTiles, solidLayer)
     }
 
+    private val lineOfSight: LineOfSight by lazy {
+        LineOfSight(mapMetadata.widthTiles, mapMetadata.heightTiles, solidLayer)
+    }
+
     private var cachedPath: List<Pair<Int, Int>> = emptyList()
     private var cachedPathTick: Long = -1L
 
@@ -650,7 +654,8 @@ class ServerMatchPrototype private constructor(
         val bodyAligned = self.bodyDirection == bodyDesired
         val turretAligned = self.turretDirection == turretDesired
         val fireRangeSq = (320L * 320L)
-        val fire = turretAligned && distSq <= fireRangeSq && self.primaryCooldownTicks == 0
+        val visible = lineOfSight.hasLineOfSight(self.positionX, self.positionY, target.positionX, target.positionY)
+        val fire = turretAligned && distSq <= fireRangeSq && self.primaryCooldownTicks == 0 && visible
         return com.tankarena.input.PlayerIntentFrame(
             forward = bodyAligned,
             turnLeft = bodyTurn < 0,

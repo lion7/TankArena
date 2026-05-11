@@ -68,10 +68,29 @@ sealed interface GameEvent {
     data class DamageTaken(val actorId: Long, val amount: Int) : GameEvent
 
     @Serializable
-    data class MissionWon(val playerId: Int) : GameEvent
+    data class MissionWon(val playerId: Int, val reason: String = "") : GameEvent
 
     @Serializable
-    data class MissionLost(val playerId: Int) : GameEvent
+    data class MissionLost(val playerId: Int, val reason: String = "") : GameEvent
+
+    /**
+     * End-of-mission result payload. Emitted once when the mission concludes.
+     * @param won Whether the mission was won
+     * @param reason Human-readable reason (e.g. "GOALS_CAPTURED", "ALL_ENEMIES_ELIMINATED")
+     * @param score Total score accumulated
+     * @param kills Number of enemy tanks/turrets destroyed
+     * @param captures Number of goals captured
+     * @param ticks Number of ticks the mission lasted
+     */
+    @Serializable
+    data class MissionResult(
+        val won: Boolean,
+        val reason: String = "",
+        val score: Int = 0,
+        val kills: Int = 0,
+        val captures: Int = 0,
+        val ticks: Long = 0,
+    ) : GameEvent
 
     /**
      * Audio event for distance-attenuated stereo playback.

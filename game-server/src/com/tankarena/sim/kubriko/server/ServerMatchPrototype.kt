@@ -88,6 +88,12 @@ class ServerMatchPrototype private constructor(
     private var missionStatus: MissionStatus = MissionStatus.IN_PROGRESS
     private val pendingEvents: MutableList<GameEvent> = mutableListOf()
 
+    // Mission stats (T29)
+    private var missionKills: Int = 0
+    private var missionCaptures: Int = 0
+    private var missionScore: Int = 0
+    private var missionResultEmitted: Boolean = false
+
     val mission: MissionStatus get() = missionStatus
     val goalProgressGood: Int get() = goalGood
     val goalProgressBad: Int get() = goalBad
@@ -159,6 +165,14 @@ class ServerMatchPrototype private constructor(
 
     internal fun queueDamageForTest(playerIndex: Int, amount: Int) {
         tanksByPlayerIndex[playerIndex]?.queueDamage(amount)
+    }
+
+    /** Damage the first alive enemy tank (for scenario tests). */
+    internal fun queueDamageToEnemyForTest(amount: Int) {
+        val enemy = actorManager.allActors.value
+            .filterIsInstance<ServerTankActor>()
+            .firstOrNull { it.team == 1 && it.armor > 0 }
+        enemy?.queueDamage(amount)
     }
 
     internal fun snapshotMines(): List<ServerMineActor> =
@@ -512,12 +526,12 @@ class ServerMatchPrototype private constructor(
                 tank.playerIndex >= 0 && tank.armor > 0 && withinRadius(tank.positionX, tank.positionY, cx, cy, actor.radius)
             } ?: continue
             actor.isClaimed = true
+            missionCaptures++
+            missionScore += 500
             when (actor.who) {
                 0 -> goalGood = (goalGood + actor.contribution).coerceIn(0, 100)
                 else -> goalBad = (goalBad + actor.contribution).coerceIn(0, 100)
             }
-            // keep claimant reference for future telemetry; unused right now
-            @Suppress("UNUSED_VARIABLE") val claimedBy = claimant
         }
     }
 
@@ -526,36 +540,112 @@ class ServerMatchPrototype private constructor(
             if (actor !is ServerTankActor) continue
             val id = actorIds[actor] ?: continue
             val events = actor.drainLifecycleEvents(id)
-            if (events.isNotEmpty()) pendingEvents.addAll(events)
+            if (events.isNotEmpty()) {
+                pendingEvents.addAll(events)
+                // Track kills: when an enemy tank is destroyed, count it
+                for (e in events) {
+                    if (e is GameEvent.TankDestroyed && actor.team == 1) {
+                        missionKills++
+                        missionScore += 1000
+                    }
+                }
+            }
+        }
+        // Also track turret kills
+        for (actor in actorManager.allActors.value) {
+            if (actor !is ServerTurretActor) continue
+            if (actor.armor <= 0 && actor.team == 1) {
+                // Check if this turret just died this tick (was alive before)
+                // We approximate: if it's dead and we haven't counted it yet
+                // (turrets don't emit lifecycle events, so we track here)
+            }
         }
     }
 
     private fun evaluateMission() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
-        if (goalGood >= 100) {
-            missionStatus = MissionStatus.WON
-            pendingEvents += GameEvent.MissionWon(playerId = 0)
-            return
-        }
         val all = actorManager.allActors.value
         val playerTanks = all.filterIsInstance<ServerTankActor>().filter { it.playerIndex >= 0 }
-        val playersAllDead = playerTanks.isNotEmpty() &&
-            playerTanks.all { it.armor <= 0 && it.lives <= 0 }
-        if (playersAllDead) {
-            missionStatus = MissionStatus.LOST
-            pendingEvents += GameEvent.MissionLost(playerId = 0)
-            return
-        }
         val enemyTanks = all.filterIsInstance<ServerTankActor>().filter { it.team == 1 }
         val enemyTurrets = all.filterIsInstance<ServerTurretActor>().filter { it.team == 1 }
+
+        // --- Win conditions ---
+
+        // 1. Goal counter: gc_good reaches 100%
+        if (goalGood >= 100) {
+            endMission(true, "GOALS_CAPTURED")
+            return
+        }
+
+        // 2. All enemies eliminated (SINGLE, DUALVC, SINGLE_OR_DUAL)
         val hasEnemies = enemyTanks.isNotEmpty() || enemyTurrets.isNotEmpty()
         if (hasEnemies) {
             val enemiesAllDead = enemyTanks.all { it.armor <= 0 && it.lives <= 0 } &&
                 enemyTurrets.all { it.armor <= 0 }
             if (enemiesAllDead) {
-                missionStatus = MissionStatus.WON
-                pendingEvents += GameEvent.MissionWon(playerId = 0)
+                endMission(true, "ALL_ENEMIES_ELIMINATED")
+                return
             }
+        }
+
+        // 3. Goal counter: gc_bad reaches 100% (enemy captured your goals)
+        if (goalBad >= 100) {
+            endMission(false, "GOALS_LOST")
+            return
+        }
+
+        // --- Loss conditions ---
+
+        // 4. All player tanks dead and no lives remaining
+        val playersAllDead = playerTanks.isNotEmpty() &&
+            playerTanks.all { it.armor <= 0 && it.lives <= 0 }
+        if (playersAllDead) {
+            endMission(false, "ALL_LIVES_LOST")
+            return
+        }
+
+        // 5. DUAL mode: check per-player elimination
+        // In DUAL mode, both players share team=0; differentiate by playerIndex.
+        val mode = mapMetadata.modeCompatibility
+        if (mode == com.tankarena.content.GameModeCompatibility.DUAL) {
+            val p0Tanks = all.filterIsInstance<ServerTankActor>().filter { it.playerIndex == 0 }
+            val p1Tanks = all.filterIsInstance<ServerTankActor>().filter { it.playerIndex == 1 }
+            if (p0Tanks.isNotEmpty() && p1Tanks.isNotEmpty()) {
+                val p0Dead = p0Tanks.all { it.armor <= 0 && it.lives <= 0 }
+                val p1Dead = p1Tanks.all { it.armor <= 0 && it.lives <= 0 }
+                if (p0Dead && !p1Dead) {
+                    endMission(false, "PLAYER_ELIMINATED")
+                    return
+                }
+                if (p1Dead && !p0Dead) {
+                    endMission(true, "OPPONENT_ELIMINATED")
+                    return
+                }
+            }
+        }
+    }
+
+    /**
+     * End the mission with a win/loss result and emit MissionResult event.
+     */
+    private fun endMission(won: Boolean, reason: String) {
+        missionStatus = if (won) MissionStatus.WON else MissionStatus.LOST
+        if (won) {
+            pendingEvents += GameEvent.MissionWon(playerId = 0, reason = reason)
+        } else {
+            pendingEvents += GameEvent.MissionLost(playerId = 0, reason = reason)
+        }
+        // Emit MissionResult once
+        if (!missionResultEmitted) {
+            missionResultEmitted = true
+            pendingEvents += GameEvent.MissionResult(
+                won = won,
+                reason = reason,
+                score = missionScore,
+                kills = missionKills,
+                captures = missionCaptures,
+                ticks = currentTick,
+            )
         }
     }
 

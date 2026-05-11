@@ -19,6 +19,10 @@ sealed interface DesktopShellScreen {
         val mission: MissionEntry,
         val mode: GameMode,
         val outcome: MissionOutcome,
+        val score: Int = 0,
+        val kills: Int = 0,
+        val captures: Int = 0,
+        val time: Long = 0,
     ) : DesktopShellScreen
     data object Editor : DesktopShellScreen
 }

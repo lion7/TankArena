@@ -6,6 +6,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,14 +37,22 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.tankarena.ui.compose.MissionOutcome
 
 @Composable
 fun DebriefScreen(
     mission: MissionEntry,
     outcome: MissionOutcome,
+    score: Int = 0,
+    kills: Int = 0,
+    captures: Int = 0,
+    time: Long = 0,
     nextMission: MissionEntry?,
     onNextMission: (MissionEntry) -> Unit,
     onRetry: () -> Unit,
@@ -83,6 +92,10 @@ fun DebriefScreen(
             title = title,
             body = body,
             missionCode = mission.code,
+            score = score,
+            kills = kills,
+            captures = captures,
+            time = time,
             items = items,
             onCancel = onBackToMenu,
             modifier = Modifier.align(Alignment.Center),
@@ -95,6 +108,10 @@ private fun DebriefPanel(
     title: String,
     body: String,
     missionCode: String,
+    score: Int,
+    kills: Int,
+    captures: Int,
+    time: Long,
     items: List<RetroMenuItem>,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -160,6 +177,8 @@ private fun DebriefPanel(
             Spacer(modifier = Modifier.height(8.dp))
             BriefingBox(body = body)
             Spacer(modifier = Modifier.height(8.dp))
+            DebriefStats(score = score, kills = kills, captures = captures, time = time)
+            Spacer(modifier = Modifier.height(8.dp))
             DebriefMenu(
                 items = items,
                 selected = selected,
@@ -177,6 +196,41 @@ private fun DebriefPanel(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+@Composable
+private fun DebriefStats(score: Int, kills: Int, captures: Int, time: Long) {
+    val seconds = time / 100
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    val timeStr = "${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF050B14))
+            .border(width = 1.dp, color = RetroColors.PanelBorderInner, shape = RectangleShape)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            DebriefStatItem(label = "SCORE", value = score.toString())
+            DebriefStatItem(label = "KILLS", value = kills.toString())
+            DebriefStatItem(label = "CAPTURES", value = captures.toString())
+            DebriefStatItem(label = "TIME", value = timeStr)
+        }
+    }
+}
+
+@Composable
+private fun DebriefStatItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = label, color = RetroColors.ItemIdle, style = RetroTypography.Subtitle)
+        Text(text = value, color = RetroColors.ItemSelected, style = RetroTypography.Item)
     }
 }
 

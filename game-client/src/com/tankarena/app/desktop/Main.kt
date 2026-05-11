@@ -140,9 +140,12 @@ fun main() = application {
                         mission = current.mission,
                         mode = current.mode,
                         controls = controls,
-                        onMissionEnd = { outcome ->
+                        onMissionEnd = { outcome, score, kills, captures, time ->
                             controls.resetAll()
-                            screen = DesktopShellScreen.Debrief(current.mission, current.mode, outcome)
+                            screen = DesktopShellScreen.Debrief(
+                                current.mission, current.mode, outcome,
+                                score = score, kills = kills, captures = captures, time = time,
+                            )
                         },
                     )
 
@@ -151,6 +154,10 @@ fun main() = application {
                         DebriefScreen(
                             mission = current.mission,
                             outcome = current.outcome,
+                            score = current.score,
+                            kills = current.kills,
+                            captures = current.captures,
+                            time = current.time,
                             nextMission = nextMission,
                             onNextMission = { next ->
                                 controls.resetAll()
@@ -179,7 +186,7 @@ private fun GameplayScreen(
     mission: MissionEntry,
     mode: GameMode,
     controls: DesktopControls,
-    onMissionEnd: (MissionOutcome) -> Unit,
+    onMissionEnd: (MissionOutcome, score: Int, kills: Int, captures: Int, time: Long) -> Unit,
 ) {
     val playable = remember(mission.mapFile, mode) { materializePlayableMission(mission, mode) }
     val host = remember(playable, mode) {
@@ -204,9 +211,16 @@ private fun GameplayScreen(
                         else -> null
                     }
                 }
+                val result = serverFrame.world.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
                 if (outcome != null) {
                     consumed = true
-                    onMissionEnd(outcome)
+                    onMissionEnd(
+                        outcome,
+                        result?.score ?: 0,
+                        result?.kills ?: 0,
+                        result?.captures ?: 0,
+                        result?.ticks ?: 0,
+                    )
                 }
             }
             delay(FixedStepClock.MILLIS_PER_TICK)

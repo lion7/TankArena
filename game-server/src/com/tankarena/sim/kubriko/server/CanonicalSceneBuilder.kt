@@ -111,6 +111,15 @@ object CanonicalSceneBuilder {
                     )
                 }
 
+                ObjectKinds.FLAG -> {
+                    sink += flagActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        flagType = obj.properties["flagType"]?.toIntOrNull() ?: 0,
+                        number = obj.properties["number"]?.toIntOrNull() ?: 0,
+                    )
+                }
+
                 else -> Unit
             }
         }
@@ -178,6 +187,24 @@ object CanonicalSceneBuilder {
                 contribution = contribution,
                 radius = radius,
                 isClaimed = false,
+            ),
+        )
+
+    private const val FLAG_FOOTPRINT: Int = 16
+
+    private fun flagActor(cx: Int, cy: Int, flagType: Int, number: Int): ServerFlagActor =
+        ServerFlagActor(
+            ServerFlagActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - FLAG_FOOTPRINT / 2).toFloat().sceneUnit, (cy - FLAG_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(FLAG_FOOTPRINT.toFloat().sceneUnit, FLAG_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                flagType = flagType,
+                number = number,
+                isCarried = false,
+                carrierActorId = null,
+                homeX = cx,
+                homeY = cy,
             ),
         )
 }

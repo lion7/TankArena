@@ -22,6 +22,7 @@ import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
 import com.tankarena.protocol.snapshot.ExplosionKind
+import com.tankarena.protocol.snapshot.FlagState
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.GoalState
 import com.tankarena.protocol.snapshot.HudState
@@ -125,6 +126,7 @@ class ServerMatchPrototype private constructor(
         drainRocketRequests()
         drainMortarRequests()
         drainTankLifecycleEvents()
+        collectFlags()
         collectGoals()
         evaluateMission()
         currentTick += 1
@@ -275,6 +277,52 @@ class ServerMatchPrototype private constructor(
             while (actorManager.allActors.value.size != expected) {
                 delay(2)
             }
+        }
+    }
+
+    private fun collectFlags() {
+        if (missionStatus != MissionStatus.IN_PROGRESS) return
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        for (flag in actorManager.allActors.value.filterIsInstance<ServerFlagActor>()) {
+            // If flag is carried, follow carrier position
+            if (flag.isCarried) {
+                val carrierId = flag.carrierActorId ?: continue
+                val carrier = tanks.find { actorIds[it] == carrierId }
+                if (carrier == null || carrier.armor <= 0) {
+                    // Carrier died — return flag to home
+                    flag.isCarried = false
+                    flag.carrierActorId = null
+                    flag.body.position = SceneOffset(
+                        (flag.homeX - 8).toFloat().sceneUnit,
+                        (flag.homeY - 8).toFloat().sceneUnit,
+                    )
+                    pendingEvents += GameEvent.FlagReturned(flagActorId = actorIds[flag] ?: 0L)
+                } else {
+                    // Follow carrier
+                    flag.body.position = SceneOffset(
+                        (carrier.positionX - 8).toFloat().sceneUnit,
+                        (carrier.positionY - 8).toFloat().sceneUnit,
+                    )
+                }
+                continue
+            }
+            // Check for pickup: friendly tank enters flag radius
+            val size = flag.body.size
+            val pos = flag.body.position
+            val fcx = (pos.x.raw + size.width.raw / 2f).toInt()
+            val fcy = (pos.y.raw + size.height.raw / 2f).toInt()
+            val pickupRadius = 16
+            val pickup = tanks.firstOrNull { tank ->
+                tank.playerIndex >= 0 && tank.armor > 0 &&
+                    withinRadius(tank.positionX, tank.positionY, fcx, fcy, pickupRadius)
+            } ?: continue
+            // Pick up the flag
+            flag.isCarried = true
+            flag.carrierActorId = actorIds[pickup]
+            pendingEvents += GameEvent.FlagCaptured(
+                flagActorId = actorIds[flag] ?: 0L,
+                tankActorId = actorIds[pickup]!!,
+            )
         }
     }
 
@@ -987,6 +1035,19 @@ class ServerMatchPrototype private constructor(
                 vy = actor.velocityY,
                 ownerKind = actor.ownerKind,
             )
+
+            is ServerFlagActor -> {
+                val size = actor.body.size
+                val position = actor.body.position
+                FlagState(
+                    actorId = id,
+                    flagType = actor.flagType,
+                    number = actor.number,
+                    x = (position.x.raw + size.width.raw / 2f).toInt(),
+                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    isCarried = actor.isCarried,
+                )
+            }
 
             else -> null
         }

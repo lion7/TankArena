@@ -75,6 +75,7 @@ internal class ClientScene(
                     }.sync(state)
                 }
                 is WallState -> Unit
+                is com.tankarena.protocol.snapshot.FlagState -> Unit
             }
         }
 

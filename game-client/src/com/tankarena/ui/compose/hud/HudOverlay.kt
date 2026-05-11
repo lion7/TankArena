@@ -53,6 +53,8 @@ fun HudOverlay(
         HudGauge(label = "KILLS", value = hudState.kills.toString())
         Spacer(modifier = Modifier.width(8.dp))
         HudGauge(label = "TIME", value = formatTime(hudState.time))
+        Spacer(modifier = Modifier.width(16.dp))
+        HudGauge(label = "WPN", value = weaponLabel(hudState.currentWeapon))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = hudState.missionCode,
@@ -68,6 +70,16 @@ private fun formatTime(ticks: Long): String {
     val minutes = seconds / 60
     val secs = seconds % 60
     return "${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
+}
+
+/** Map weapon index to a short label. */
+private fun weaponLabel(weapon: Int): String = when (weapon) {
+    0 -> "MAIN"
+    1 -> "CHAIN"
+    3 -> "MINE"
+    4 -> "ROCK"
+    5 -> "MORT"
+    else -> "MAIN"
 }
 
 @Composable

@@ -242,6 +242,11 @@ class ServerMatchPrototype private constructor(
                     score = missionScore,
                     kills = missionKills,
                     time = currentTick,
+                    currentWeapon = tank.currentWeapon,
+                    chainAmmo = tank.chainAmmo,
+                    mineAmmo = tank.mineAmmo,
+                    rocketAmmo = tank.rocketAmmo,
+                    mortarAmmo = tank.mortarAmmo,
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
             )
@@ -1311,6 +1316,11 @@ class ServerMatchPrototype private constructor(
                     invulnerable = actor.invulnerableTicks > 0,
                     controlled = actor.playerIndex >= 0,
                     primaryCooldownTicks = actor.primaryCooldownTicks,
+                    currentWeapon = actor.currentWeapon,
+                    chainAmmo = actor.chainAmmo,
+                    mineAmmo = actor.mineAmmo,
+                    rocketAmmo = actor.rocketAmmo,
+                    mortarAmmo = actor.mortarAmmo,
                 )
             }
 

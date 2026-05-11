@@ -66,6 +66,11 @@ data class HudState(
     val score: Int = 0,
     val kills: Int = 0,
     val time: Long = 0,
+    val currentWeapon: Int = 0,
+    val chainAmmo: Int = 0,
+    val mineAmmo: Int = 0,
+    val rocketAmmo: Int = 0,
+    val mortarAmmo: Int = 0,
 )
 
 @Serializable

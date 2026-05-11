@@ -22,10 +22,17 @@ import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
 import com.tankarena.protocol.snapshot.ExplosionKind
+import com.tankarena.protocol.snapshot.B52State
+import com.tankarena.protocol.snapshot.DestroyerState
+import com.tankarena.protocol.snapshot.EnforcerState
 import com.tankarena.protocol.snapshot.FlagState
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.GoalState
+import com.tankarena.protocol.snapshot.LockState
 import com.tankarena.protocol.snapshot.ProductState
+import com.tankarena.protocol.snapshot.TrainState
+import com.tankarena.protocol.snapshot.WarpState
+import com.tankarena.protocol.snapshot.ZeppelinState
 import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
@@ -42,6 +49,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
 private const val MILLIS_PER_TICK: Int = 10
+private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
+private const val TRAIN_FOOTPRINT: Int = 32
+private const val ZEPPELIN_FOOTPRINT: Int = 32
+private const val B52_FOOTPRINT: Int = 32
 
 class ServerMatchPrototype private constructor(
     private val mapMetadata: MapMetadata,
@@ -127,6 +138,12 @@ class ServerMatchPrototype private constructor(
         drainRocketRequests()
         drainMortarRequests()
         drainTankLifecycleEvents()
+        stepWarps()
+        stepDestroyers()
+        stepEnforcers()
+        stepTrains()
+        stepZeppelins()
+        stepB52s()
         collectFlags()
         collectProducts()
         collectGoals()
@@ -278,6 +295,136 @@ class ServerMatchPrototype private constructor(
         withTimeout(2_000) {
             while (actorManager.allActors.value.size != expected) {
                 delay(2)
+            }
+        }
+    }
+
+    private fun stepWarps() {
+        if (missionStatus != MissionStatus.IN_PROGRESS) return
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        for (warp in actorManager.allActors.value.filterIsInstance<ServerWarpActor>()) {
+            if (warp.cooldownTicks > 0) {
+                warp.cooldownTicks--
+                continue
+            }
+            val size = warp.body.size
+            val pos = warp.body.position
+            val wx = (pos.x.raw + size.width.raw / 2f).toInt()
+            val wy = (pos.y.raw + size.height.raw / 2f).toInt()
+            val warpRadius = 15
+            val trigger = tanks.firstOrNull { tank ->
+                tank.armor > 0 && withinRadius(tank.positionX, tank.positionY, wx, wy, warpRadius)
+            } ?: continue
+            // Teleport tank
+            trigger.teleportTo(warp.targetX, warp.targetY)
+            warp.cooldownTicks = 30 // Prevent teleport loops
+        }
+    }
+
+    private fun stepDestroyers() {
+        if (missionStatus != MissionStatus.IN_PROGRESS) return
+        for (destroyer in actorManager.allActors.value.filterIsInstance<ServerDestroyerActor>()) {
+            if (destroyer.isFired) continue
+            if (!destroyer.immediate) continue
+            destroyer.isFired = true
+            val size = destroyer.body.size
+            val pos = destroyer.body.position
+            val dx = (pos.x.raw + size.width.raw / 2f).toInt()
+            val dy = (pos.y.raw + size.height.raw / 2f).toInt()
+            val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+            pendingEvents.addAll(AreaDamageResolver.resolve(
+                tanks = tanks,
+                x = dx,
+                y = dy,
+                radius = destroyer.radius,
+                damage = 100,
+                kind = ExplosionKind.ABOMB,
+            ))
+        }
+    }
+
+    private fun stepEnforcers() {
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        for (enforcer in actorManager.allActors.value.filterIsInstance<ServerEnforcerActor>()) {
+            val size = enforcer.body.size
+            val pos = enforcer.body.position
+            val ex = (pos.x.raw + size.width.raw / 2f).toInt()
+            val ey = (pos.y.raw + size.height.raw / 2f).toInt()
+            for (tank in tanks) {
+                if (tank.playerIndex >= 0) continue
+                if (tank.armor <= 0) continue
+                val targetGood = enforcer.good && tank.team == 0
+                val targetBad = enforcer.bad && tank.team == 1
+                if (!targetGood && !targetBad) continue
+                if (!withinRadius(tank.positionX, tank.positionY, ex, ey, enforcer.radius)) continue
+                // Enforce weapon on AI tank
+                tank.applyEnforcedWeapon(enforcer.weapon)
+            }
+        }
+    }
+
+    private fun stepTrains() {
+        for (train in actorManager.allActors.value.filterIsInstance<ServerTrainActor>()) {
+            if (!train.alive || train.armor <= 0) continue
+            // Simple forward movement (rails detection deferred to full rail system)
+            train.positionX += 1
+            train.body.position = SceneOffset(
+                (train.positionX - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
+                (train.positionY - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
+            )
+            // Wrap around
+            if (train.positionX > worldWidthPixels) {
+                train.positionX = 0
+                train.body.position = SceneOffset(
+                    (train.positionX - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
+                    (train.positionY - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
+                )
+            }
+        }
+    }
+
+    private fun stepZeppelins() {
+        for (zep in actorManager.allActors.value.filterIsInstance<ServerZeppelinActor>()) {
+            if (!zep.alive) continue
+            zep.positionX += 10
+            zep.body.position = SceneOffset(
+                (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
+                (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
+            )
+            if (zep.positionX > worldWidthPixels) {
+                zep.positionX = -ZEPPELIN_FOOTPRINT
+                zep.body.position = SceneOffset(
+                    (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
+                    (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
+                )
+            }
+        }
+    }
+
+    private fun stepB52s() {
+        for (b52 in actorManager.allActors.value.filterIsInstance<ServerB52Actor>()) {
+            if (!b52.alive || b52.armor <= 0) continue
+            b52.positionX += 5
+            b52.body.position = SceneOffset(
+                (b52.positionX - B52_FOOTPRINT / 2).toFloat().sceneUnit,
+                (b52.positionY - B52_FOOTPRINT / 2).toFloat().sceneUnit,
+            )
+            b52.bombTimer++
+            if (b52.bombTimer >= 500 && b52.bombCount < 10) {
+                b52.bombTimer = 0
+                b52.bombCount++
+                val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+                pendingEvents.addAll(AreaDamageResolver.resolve(
+                    tanks = tanks,
+                    x = b52.positionX,
+                    y = b52.positionY,
+                    radius = 60,
+                    damage = 20,
+                    kind = ExplosionKind.ABOMB,
+                ))
+            }
+            if (b52.positionX > worldWidthPixels + B52_FOOTPRINT) {
+                b52.alive = false
             }
         }
     }
@@ -1086,6 +1233,86 @@ class ServerMatchPrototype private constructor(
                     isCollected = actor.isCollected,
                 )
             }
+
+            is ServerLockActor -> {
+                val size = actor.body.size
+                val position = actor.body.position
+                LockState(
+                    actorId = id,
+                    activation = actor.activation,
+                    target = actor.target,
+                    x = (position.x.raw + size.width.raw / 2f).toInt(),
+                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    isFired = actor.isFired,
+                )
+            }
+
+            is ServerWarpActor -> {
+                val size = actor.body.size
+                val position = actor.body.position
+                WarpState(
+                    actorId = id,
+                    targetX = actor.targetX,
+                    targetY = actor.targetY,
+                    x = (position.x.raw + size.width.raw / 2f).toInt(),
+                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    cooldownTicks = actor.cooldownTicks,
+                )
+            }
+
+            is ServerDestroyerActor -> {
+                val size = actor.body.size
+                val position = actor.body.position
+                DestroyerState(
+                    actorId = id,
+                    radius = actor.radius,
+                    what = actor.what,
+                    immediate = actor.immediate,
+                    x = (position.x.raw + size.width.raw / 2f).toInt(),
+                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    isFired = actor.isFired,
+                )
+            }
+
+            is ServerEnforcerActor -> {
+                val size = actor.body.size
+                val position = actor.body.position
+                EnforcerState(
+                    actorId = id,
+                    radius = actor.radius,
+                    weapon = actor.weapon,
+                    delay = actor.delay,
+                    good = actor.good,
+                    bad = actor.bad,
+                    x = (position.x.raw + size.width.raw / 2f).toInt(),
+                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                )
+            }
+
+            is ServerTrainActor -> TrainState(
+                actorId = id,
+                x = actor.positionX,
+                y = actor.positionY,
+                isEngine = actor.isEngine,
+                armor = actor.armor,
+                alive = actor.alive,
+            )
+
+            is ServerZeppelinActor -> ZeppelinState(
+                actorId = id,
+                x = actor.positionX,
+                y = actor.positionY,
+                alive = actor.alive,
+            )
+
+            is ServerB52Actor -> B52State(
+                actorId = id,
+                x = actor.positionX,
+                y = actor.positionY,
+                armor = actor.armor,
+                alive = actor.alive,
+                bombCount = actor.bombCount,
+            )
 
             else -> null
         }

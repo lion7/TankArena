@@ -149,6 +149,13 @@ class ServerMatchPrototypeTest {
             is com.tankarena.protocol.snapshot.ProjectileState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.FlagState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.ProductState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.LockState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.WarpState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.DestroyerState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.EnforcerState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.TrainState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.ZeppelinState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.B52State -> x.isFinite() && y.isFinite()
         }
     }
 

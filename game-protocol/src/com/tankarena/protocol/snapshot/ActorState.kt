@@ -92,4 +92,75 @@ data class ProductState(
 ) : ActorState
 
 @Serializable
+data class LockState(
+    override val actorId: Long,
+    val activation: Int = 0,
+    val target: Int = 0,
+    val x: Int,
+    val y: Int,
+    val isFired: Boolean = false,
+) : ActorState
+
+@Serializable
+data class WarpState(
+    override val actorId: Long,
+    val targetX: Int = 0,
+    val targetY: Int = 0,
+    val x: Int,
+    val y: Int,
+    val cooldownTicks: Int = 0,
+) : ActorState
+
+@Serializable
+data class DestroyerState(
+    override val actorId: Long,
+    val radius: Int = 0,
+    val what: Int = 3,
+    val immediate: Boolean = false,
+    val x: Int,
+    val y: Int,
+    val isFired: Boolean = false,
+) : ActorState
+
+@Serializable
+data class EnforcerState(
+    override val actorId: Long,
+    val radius: Int = 0,
+    val weapon: Int = 0,
+    val delay: Int = 0,
+    val good: Boolean = false,
+    val bad: Boolean = false,
+    val x: Int,
+    val y: Int,
+) : ActorState
+
+@Serializable
+data class TrainState(
+    override val actorId: Long,
+    val x: Int,
+    val y: Int,
+    val isEngine: Boolean = true,
+    val armor: Int = 60,
+    val alive: Boolean = true,
+) : ActorState
+
+@Serializable
+data class ZeppelinState(
+    override val actorId: Long,
+    val x: Int,
+    val y: Int,
+    val alive: Boolean = true,
+) : ActorState
+
+@Serializable
+data class B52State(
+    override val actorId: Long,
+    val x: Int,
+    val y: Int,
+    val armor: Int = 30,
+    val alive: Boolean = true,
+    val bombCount: Int = 0,
+) : ActorState
+
+@Serializable
 enum class ProjectileOwnerKind { TANK, TURRET }

@@ -139,6 +139,7 @@ class ServerTankActor(state: State) :
     private var hullTurnCooldownTicks: Int = 0
     private var turretTurnCooldownTicks: Int = 0
     private var terrainSpeedMultiplier: Float = 1.0f
+    var enforcedWeapon: Int = -1
     private var pendingResolveX: Int = 0
     private var pendingResolveY: Int = 0
     private var pendingDamageThisTick: Int = 0
@@ -206,6 +207,21 @@ class ServerTankActor(state: State) :
     /** Set terrain speed multiplier from the terrain grid. Called each tick by ServerMatchPrototype. */
     fun setTerrainSpeedMultiplier(multiplier: Float) {
         terrainSpeedMultiplier = multiplier.coerceAtLeast(0f)
+    }
+
+    /** Enforce a specific weapon from an enforcer actor. */
+    internal fun applyEnforcedWeapon(weapon: Int) {
+        this.enforcedWeapon = weapon
+    }
+
+    /** Teleport the tank to a new position (used by warp actors). */
+    fun teleportTo(x: Int, y: Int) {
+        positionX = x
+        positionY = y
+        body.position = SceneOffset(
+            (x - LEGACY_TILE_SIZE / 2).toFloat().sceneUnit,
+            (y - LEGACY_TILE_SIZE / 2).toFloat().sceneUnit,
+        )
     }
 
     override fun update(deltaTimeInMilliseconds: Int) {

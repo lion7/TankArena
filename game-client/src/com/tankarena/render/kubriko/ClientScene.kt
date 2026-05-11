@@ -77,6 +77,13 @@ internal class ClientScene(
                 is WallState -> Unit
                 is com.tankarena.protocol.snapshot.FlagState -> Unit
                 is com.tankarena.protocol.snapshot.ProductState -> Unit
+                is com.tankarena.protocol.snapshot.LockState -> Unit
+                is com.tankarena.protocol.snapshot.WarpState -> Unit
+                is com.tankarena.protocol.snapshot.DestroyerState -> Unit
+                is com.tankarena.protocol.snapshot.EnforcerState -> Unit
+                is com.tankarena.protocol.snapshot.TrainState -> Unit
+                is com.tankarena.protocol.snapshot.ZeppelinState -> Unit
+                is com.tankarena.protocol.snapshot.B52State -> Unit
             }
         }
 

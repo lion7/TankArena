@@ -129,6 +129,64 @@ object CanonicalSceneBuilder {
                     )
                 }
 
+                ObjectKinds.LOCK -> {
+                    sink += lockActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        activation = obj.properties["activation"]?.toIntOrNull() ?: 0,
+                        target = obj.properties["target"]?.toIntOrNull() ?: 0,
+                        lockX = obj.properties["lockX"]?.toIntOrNull() ?: 0,
+                        lockY = obj.properties["lockY"]?.toIntOrNull() ?: 0,
+                    )
+                }
+
+                ObjectKinds.WARP -> {
+                    sink += warpActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        targetX = obj.properties["targetX"]?.toIntOrNull() ?: 0,
+                        targetY = obj.properties["targetY"]?.toIntOrNull() ?: 0,
+                    )
+                }
+
+                ObjectKinds.DESTROYER -> {
+                    sink += destroyerActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        radius = obj.properties["radius"]?.toIntOrNull() ?: 0,
+                        what = obj.properties["what"]?.toIntOrNull() ?: 3,
+                        immediate = obj.properties["immediate"]?.toIntOrNull() == 1,
+                    )
+                }
+
+                ObjectKinds.ENFORCER -> {
+                    sink += enforcerActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        radius = obj.properties["radius"]?.toIntOrNull() ?: 0,
+                        weapon = obj.properties["weapon"]?.toIntOrNull() ?: 0,
+                        delay = obj.properties["delay"]?.toIntOrNull() ?: 0,
+                        good = obj.properties["good"]?.toIntOrNull() == 1,
+                        bad = obj.properties["bad"]?.toIntOrNull() == 1,
+                    )
+                }
+
+                ObjectKinds.TRAIN, ObjectKinds.WAGON -> {
+                    sink += trainActor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        isEngine = obj.kind == ObjectKinds.TRAIN,
+                    )
+                }
+
+                ObjectKinds.ZEPPELIN -> {
+                    sink += zeppelinActor(cx = obj.x, cy = obj.y)
+                }
+
+                ObjectKinds.B52 -> {
+                    sink += b52Actor(cx = obj.x, cy = obj.y)
+                }
+
                 else -> Unit
             }
         }
@@ -201,6 +259,13 @@ object CanonicalSceneBuilder {
 
     private const val FLAG_FOOTPRINT: Int = 16
     private const val PRODUCT_FOOTPRINT: Int = 16
+    private const val LOCK_FOOTPRINT: Int = 16
+    private const val WARP_FOOTPRINT: Int = 16
+    private const val DESTROYER_FOOTPRINT: Int = 16
+    private const val ENFORCER_FOOTPRINT: Int = 16
+    private const val TRAIN_FOOTPRINT: Int = 32
+    private const val ZEPPELIN_FOOTPRINT: Int = 32
+    private const val B52_FOOTPRINT: Int = 32
 
     private fun flagActor(cx: Int, cy: Int, flagType: Int, number: Int): ServerFlagActor =
         ServerFlagActor(
@@ -228,6 +293,106 @@ object CanonicalSceneBuilder {
                 productType = productType,
                 price = price,
                 isCollected = false,
+            ),
+        )
+
+    private fun lockActor(cx: Int, cy: Int, activation: Int, target: Int, lockX: Int, lockY: Int): ServerLockActor =
+        ServerLockActor(
+            ServerLockActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - LOCK_FOOTPRINT / 2).toFloat().sceneUnit, (cy - LOCK_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(LOCK_FOOTPRINT.toFloat().sceneUnit, LOCK_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                activation = activation,
+                target = target,
+                lockX = lockX,
+                lockY = lockY,
+                isFired = false,
+            ),
+        )
+
+    private fun warpActor(cx: Int, cy: Int, targetX: Int, targetY: Int): ServerWarpActor =
+        ServerWarpActor(
+            ServerWarpActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - WARP_FOOTPRINT / 2).toFloat().sceneUnit, (cy - WARP_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(WARP_FOOTPRINT.toFloat().sceneUnit, WARP_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                targetX = targetX,
+                targetY = targetY,
+                cooldownTicks = 0,
+            ),
+        )
+
+    private fun destroyerActor(cx: Int, cy: Int, radius: Int, what: Int, immediate: Boolean): ServerDestroyerActor =
+        ServerDestroyerActor(
+            ServerDestroyerActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - DESTROYER_FOOTPRINT / 2).toFloat().sceneUnit, (cy - DESTROYER_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(DESTROYER_FOOTPRINT.toFloat().sceneUnit, DESTROYER_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                radius = radius,
+                what = what,
+                immediate = immediate,
+                isFired = false,
+            ),
+        )
+
+    private fun enforcerActor(cx: Int, cy: Int, radius: Int, weapon: Int, delay: Int, good: Boolean, bad: Boolean): ServerEnforcerActor =
+        ServerEnforcerActor(
+            ServerEnforcerActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - ENFORCER_FOOTPRINT / 2).toFloat().sceneUnit, (cy - ENFORCER_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(ENFORCER_FOOTPRINT.toFloat().sceneUnit, ENFORCER_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                radius = radius,
+                weapon = weapon,
+                delay = delay,
+                good = good,
+                bad = bad,
+            ),
+        )
+
+    private fun trainActor(cx: Int, cy: Int, isEngine: Boolean): ServerTrainActor =
+        ServerTrainActor(
+            ServerTrainActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit, (cy - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(TRAIN_FOOTPRINT.toFloat().sceneUnit, TRAIN_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                isEngine = isEngine,
+                armor = if (isEngine) 60 else 40,
+                alive = true,
+                x = cx,
+                y = cy,
+            ),
+        )
+
+    private fun zeppelinActor(cx: Int, cy: Int): ServerZeppelinActor =
+        ServerZeppelinActor(
+            ServerZeppelinActor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit, (cy - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(ZEPPELIN_FOOTPRINT.toFloat().sceneUnit, ZEPPELIN_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                alive = true,
+                x = cx,
+                y = cy,
+            ),
+        )
+
+    private fun b52Actor(cx: Int, cy: Int): ServerB52Actor =
+        ServerB52Actor(
+            ServerB52Actor.State(
+                body = BoxBody(
+                    initialPosition = SceneOffset((cx - B52_FOOTPRINT / 2).toFloat().sceneUnit, (cy - B52_FOOTPRINT / 2).toFloat().sceneUnit),
+                    initialSize = SceneSize(B52_FOOTPRINT.toFloat().sceneUnit, B52_FOOTPRINT.toFloat().sceneUnit),
+                ),
+                armor = 30,
+                alive = true,
+                x = cx,
+                y = cy,
+                bombCount = 0,
             ),
         )
 }

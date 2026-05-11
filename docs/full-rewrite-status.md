@@ -1,6 +1,6 @@
 # Tank Arena Full Rewrite Status
 
-As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 closed — parity tasks T01–T06, T08–T18 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
+As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 + Phase 5 closed — parity tasks T01–T06, T08–T25 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
 
 This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
 
@@ -58,7 +58,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 ### Server (`:game-server`)
 - Headless Kubriko per match; authoritative simulation.
 - `TerrainSlideManager` provides axis-by-axis MTV sliding response.
-- Server actors: `ServerTankActor`, `ServerTurretActor`, `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`, `ServerMineActor`, `ServerRocketActor`, `ServerMortarActor` — each `Collidable` + `Serializable<T>`; the placed ones are also `Editable<T>`. `ActorRoundTripTest` (T04) pins `save()`/`restore()` for every `Server*Actor` so silent schema drift fails fast.
+- Server actors: `ServerTankActor`, `ServerTurretActor`, `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`, `ServerMineActor`, `ServerRocketActor`, `ServerMortarActor`, `ServerFlagActor`, `ServerProductActor`, `ServerLockActor`, `ServerWarpActor`, `ServerDestroyerActor`, `ServerEnforcerActor`, `ServerTrainActor`, `ServerZeppelinActor`, `ServerB52Actor` — each `Collidable` + `Serializable<T>`; the placed ones are also `Editable<T>`. `ActorRoundTripTest` (T04) pins `save()`/`restore()` for every `Server*Actor` so silent schema drift fails fast.
 - Tank: hull/turret directions, acceleration, friction, MTV collision response against walls and other tanks. Tank-vs-tank collision (T08) zeros only the into-contact velocity component, preserving tangential motion — head-on / perpendicular-nudge / three-tank pile-up are exercised in tests.
 - Weapons (T09–T12): `WEAPON_MAIN`, `WEAPON_CHAIN`, `WEAPON_MINE`, `WEAPON_ROCKET`, `WEAPON_MORTAR`, all routed through `firePrimary` with per-weapon cooldowns and ammo. `cycleWeaponLeft/Right` advances through owned weapons, skipping any with empty ammo.
   - Main cannon: 70-tick refire (legacy `weap.speed[0]=70`), TTL=31.
@@ -71,6 +71,12 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Projectile: owner-kind tagging, per-weapon TTL, out-of-bounds flushing, owner immunity.
 - Turret: target acquisition, rotation via 16-step compass, cooldown-gated fire using imported delay/power.
 - Goal capture: once-only claim, contribution accumulation, `MissionWon` at 100%.
+- Flag capture (T19): pickup within 16px radius, flag follows carrier, returns to home on carrier death. `GameEvent.FlagCaptured`, `FlagReturned`, `FlagDelivered`.
+- Product pickup (T20): within 16px radius, marked collected, idempotent. `GameEvent.ProductCollected` with price.
+- Warps (T22): 15px radius teleport, 30-tick cooldown to prevent loops.
+- Destroyers (T23): immediate-mode triggers on first tick with area damage via `AreaDamageResolver`.
+- Enforcers (T24): AI tanks within radius adopt enforced weapon (`applyEnforcedWeapon`).
+- Trains (T25): forward motion with world-wrap. Zeppelins sweep horizontally. B52 flies and drops bombs every 500 ticks (10 max, radius 60, damage 20).
 - Tank lifecycle: damage → `DamageTaken`; destruction → `TankDestroyed` (with lives decrement); 300-tick respawn countdown (`tnk.motion.dead=tinit(300)`) → `TankSpawned`.
 - Mission win when all enemy tanks/turrets are dead; mission loss when all player lives are spent.
 - First-pass AI for mobile enemy tanks: nearest opposing tank, body+turret steering via `PlayerIntentFrame`, fire when aligned and in range.
@@ -104,7 +110,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Generated legacy picture catalog extraction.
 
 ### Tests
-- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard, terrain material catalog resolution (32 tests), terrain grid builder layer merging (12 tests). 116 tests green.
+- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard, terrain material catalog resolution (32 tests), terrain grid builder layer merging (12 tests), flag capture/return (8 tests), product pickup (6 tests). 130 tests green.
 - Content: legacy parsing, generated asset registry, supported subset of object parsing.
 
 ## 5. What Is Still Prototype-Level
@@ -114,7 +120,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Weapons: main, chain, mines, rockets, mortars are wired (T09–T12) and now share `AreaDamageResolver` + `GameEvent.Explosion` (T13). Flamethrower, A-bomb, smoke screen, invisibility, extra-speed, light, and deployed-men weapons are still missing; client-side explosion sprites/SFX are not yet wired off the new event.
 - Damage model carries shield + invulnerability + fuel-out (T14), but pickups that grant shield/invuln/fuel (Phase 5 objects T20) and shield-pickup HUD affordance are not yet landed.
 - Terrain semantics (T17/T18): per-material speed multipliers, lava damage, water kill, pit kill are wired. Bridge destruction → water reveal, runway takeoff, and fuel dump flame effects are deferred to later phases.
-- World object behavior: only goals, walls, and turrets execute. Flags, products, locks, warps, destroyers, enforcers, trains, zeppelin, B52, men, bonuses are imported by `LegacyObjectParser` but emit no scene actors yet — `CanonicalSceneBuilder` falls through to `else -> Unit` for these kinds.
+- World object behavior: flags, products, locks, warps, destroyers, enforcers, trains, zeppelins, B52 all produce scene actors and execute (T19–T25). Men, bonuses, and authored mines are imported but inert. Lock downstream effects (blow structure/destroy object) are deferred.
 - AI: only "pick nearest, steer, fire when aligned". No pathing, line-of-sight, waypoints, or per-mode behavior.
 - Mission/objective evaluation beyond goal-capture and tank-elimination is not wired.
 - HUD/radar parity: first-pass only (no scoring panel, no weapon select, no debrief polish).
@@ -145,7 +151,7 @@ For the legacy gameplay rules that still need to land, the authoritative descrip
 3. ~~Terrain/material rules (mud/ice/water/fuel/armor pickups, bridges, runways)~~ — done (T17/T18, 3cba470).
 4. One end-to-end mission mode with objectives, win/loss evaluation, debrief.
 5. AI for mobile units in that mode (navigation, line-of-sight).
-6. Broaden imported object family behavior (flags, warps, locks, destroyers, enforcers, products, etc.).
+6. ~~Broaden imported object family behavior (flags, warps, locks, destroyers, enforcers, products, etc.)~~ — done (T19–T25, 12223de/fc778db/489444f).
 7. Editor validation + in-editor playtest.
 8. Replay recording/playback, checksum determinism.
 9. Save/config UX, packaging, performance pass.

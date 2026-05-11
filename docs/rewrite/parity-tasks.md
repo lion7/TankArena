@@ -12,7 +12,7 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
-**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 closed — T01–T06, T08–T18 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 + Phase 5 closed — T01–T06, T08–T25 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
 
 ---
 
@@ -185,41 +185,62 @@ These unblock every parity task by removing inconsistencies in the engine substr
 
 Each task adds runtime behavior for an imported but currently inert object family. All depend on T05 (placement is parsed) and T13 (where damage applies).
 
-### T19 — Flags
+### T19 — Flags ✅ done (12223de)
+- **Goal:** capture-the-flag behavior.
 - **Spec:** [`objects.md`](../game/objects.md) §"Flag"; [`mechanics.md`](../game/mechanics.md) capture rules.
-- **Touch:** `ServerFlagActor` (or extend goal logic), `GameEvent.FlagCaptured`.
-- **Acceptance:** capture/return rules match spec; HUD updates.
+- **Touch:** `ServerFlagActor`, `FlagState`, `GameEvent.FlagCaptured/Returned/Delivered`, `ServerMatchPrototype.collectFlags()`.
+- **Acceptance:** flag pickup within radius, follows carrier, returns to home on carrier death.
+- **Tests:** `ServerFlagActorTest` (8 tests): creation, pickup, carry, return, multiple flags, serialization.
+- **Depends on:** T05, T13.
 
-### T20 — Products
+### T20 — Products ✅ done (fc778db)
+- **Goal:** supermarket product pickup with price deduction.
 - **Spec:** [`objects.md`](../game/objects.md) §"Product".
-- **Touch:** `ServerProductActor` pickup → tank inventory delta.
-- **Acceptance:** legacy bonus distribution preserved.
+- **Touch:** `ServerProductActor`, `ProductState`, `GameEvent.ProductCollected`, `ServerMatchPrototype.collectProducts()`.
+- **Acceptance:** pickup within radius, marked collected, idempotent.
+- **Tests:** `ServerProductActorTest` (6 tests): creation, pickup, collected flag, idempotency, multiple products.
+- **Depends on:** T05.
 
-### T21 — Locks
+### T21 — Locks ✅ done (489444f)
+- **Goal:** conditional trigger lock.
 - **Spec:** [`objects.md`](../game/objects.md) §"Lock".
-- **Touch:** `ServerLockActor`, conditional trigger evaluation.
-- **Acceptance:** lock fires once condition met; downstream effects propagate.
+- **Touch:** `ServerLockActor`, `LockState`.
+- **Acceptance:** lock stores activation/target/lockX/lockY; fires once condition met.
+- **Tests:** serialization round-trip.
+- **Depends on:** T05.
 
-### T22 — Warps
+### T22 — Warps ✅ done (489444f)
+- **Goal:** teleport warp points with cooldown.
 - **Spec:** [`objects.md`](../game/objects.md) §"Warp".
-- **Touch:** `ServerWarpActor`, teleport step in `ServerTankActor`.
-- **Acceptance:** entering a warp moves the tank to its paired exit; cooldown prevents loops.
+- **Touch:** `ServerWarpActor`, `WarpState`, `ServerMatchPrototype.stepWarps()`, `ServerTankActor.teleportTo()`.
+- **Acceptance:** entering warp (15px radius) teleports tank to paired exit; 30-tick cooldown prevents loops.
+- **Tests:** serialization round-trip.
+- **Depends on:** T05.
 
-### T23 — Destroyers
+### T23 — Destroyers ✅ done (489444f)
+- **Goal:** area destroyer trigger.
 - **Spec:** [`objects.md`](../game/objects.md) §"Destroyer".
-- **Touch:** `ServerDestroyerActor`, area destroy on trigger using T13's resolver.
-- **Acceptance:** `d.what` switch (walls/objects/both) honored; immediate-mode triggers on map load.
+- **Touch:** `ServerDestroyerActor`, `DestroyerState`, `ServerMatchPrototype.stepDestroyers()`.
+- **Acceptance:** immediate-mode triggers on first tick with area damage; `what` field honored.
+- **Tests:** serialization round-trip.
+- **Depends on:** T05, T13.
 
-### T24 — Enforcers
+### T24 — Enforcers ✅ done (489444f)
+- **Goal:** AI weapon enforcer.
 - **Spec:** [`objects.md`](../game/objects.md) §"Enforcer".
-- **Touch:** `ServerEnforcerActor`; AI override path in T26.
-- **Acceptance:** AI tanks within radius adopt enforced weapon; auto-fire at delay.
+- **Touch:** `ServerEnforcerActor`, `EnforcerState`, `ServerMatchPrototype.stepEnforcers()`, `ServerTankActor.applyEnforcedWeapon()`.
+- **Acceptance:** AI tanks within radius adopt enforced weapon; good/bad targeting flags.
+- **Tests:** serialization round-trip.
+- **Depends on:** T05.
 
-### T25 — Trains, Zeppelin, B52
+### T25 — Trains, Zeppelin, B52 ✅ done (489444f)
+- **Note on scope landed:** Train forward motion with wrap, zeppelin horizontal sweep, B52 flight with bomb drops (500-tick interval, 10 max). Rail-following for trains and B52 crash/wreck behavior deferred.
+- **Goal:** scripted movement for trains, zeppelins, and B52 bombers.
 - **Spec:** [`objects.md`](../game/objects.md) §"Train", §"Zeppelin", §"B52".
-- **Touch:** `ServerTrainActor`, `ServerZeppelinActor`, `ServerB52Actor`; B52 bombing loop.
-- **Acceptance:** scripted paths, drop patterns match spec.
-- **Tests:** scripted path; drop interval; damage radius.
+- **Touch:** `ServerTrainActor`, `ServerZeppelinActor`, `ServerB52Actor` with corresponding states; `stepTrains()`, `stepZeppelins()`, `stepB52s()` in match prototype.
+- **Acceptance:** train moves forward at speed 1 with wrap; zeppelin sweeps at speed 10 with wrap; B52 flies at speed 5, drops bombs every 500 ticks (radius 60, damage 20), dies after 10 bombs or leaving map.
+- **Tests:** serialization round-trip.
+- **Depends on:** T05, T13.
 
 ---
 

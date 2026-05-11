@@ -141,8 +141,8 @@ class AudioMathTest {
         
         // Sound to the left of camera
         val panLeft = computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, 200, 500)
-        // offset = -300, normalized = -300/612 = -0.49, pan = (1 - (-0.49)) * 128 = 191
-        assertEquals(191, panLeft, "Pan should shift for left sound")
+        // offset = -300, normalized = -300/612 ≈ -0.49, pan = (1 - (-0.49)) * 128 ≈ 190.7 → 190 (toInt truncates)
+        assertEquals(190, panLeft, "Pan should shift for left sound")
         
         // Sound to the right of camera
         val panRight = computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, 800, 500)

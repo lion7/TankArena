@@ -58,6 +58,7 @@ class ServerMatchPrototype private constructor(
     private val mapMetadata: MapMetadata,
     private val initialActors: List<Serializable<*>>,
     private val terrainGrid: TerrainGrid,
+    private val solidLayer: List<Int>,
 ) {
 
     private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
@@ -580,6 +581,13 @@ class ServerMatchPrototype private constructor(
         }
     }
 
+    private val pathfinder: TilePathfinder by lazy {
+        TilePathfinder(mapMetadata.widthTiles, mapMetadata.heightTiles, solidLayer)
+    }
+
+    private var cachedPath: List<Pair<Int, Int>> = emptyList()
+    private var cachedPathTick: Long = -1L
+
     private fun pickAiTarget(
         self: ServerTankActor,
         tanks: List<ServerTankActor>,
@@ -607,14 +615,40 @@ class ServerMatchPrototype private constructor(
     ): com.tankarena.input.PlayerIntentFrame {
         val dx = target.positionX - self.positionX
         val dy = target.positionY - self.positionY
-        val sx = dx.coerceIn(-1, 1)
-        val sy = dy.coerceIn(-1, 1)
-        val desired = com.tankarena.core.LegacyDirections.fromFacing(sx, sy)
-        val bodyTurn = turnDelta(self.bodyDirection, desired)
-        val turretTurn = turnDelta(self.turretDirection, desired)
-        val bodyAligned = self.bodyDirection == desired
-        val turretAligned = self.turretDirection == desired
         val distSq = dx.toLong() * dx + dy.toLong() * dy
+
+        // Recompute path every 15 ticks or if significantly displaced
+        val shouldRepath = (currentTick - cachedPathTick) >= 15 || cachedPath.isEmpty()
+        if (shouldRepath) {
+            cachedPath = pathfinder.findPath(self.positionX, self.positionY, target.positionX, target.positionY)
+            cachedPathTick = currentTick
+        }
+
+        // Body direction: follow path if available, otherwise go directly
+        val bodyDesired: Int
+        if (cachedPath.isNotEmpty()) {
+            val pathDir = pathfinder.directionToNextStep(self.positionX, self.positionY, cachedPath)
+            bodyDesired = if (pathDir >= 0) pathDir else com.tankarena.core.LegacyDirections.fromFacing(
+                dx.coerceIn(-1, 1),
+                dy.coerceIn(-1, 1),
+            )
+        } else {
+            bodyDesired = com.tankarena.core.LegacyDirections.fromFacing(
+                dx.coerceIn(-1, 1),
+                dy.coerceIn(-1, 1),
+            )
+        }
+
+        // Turret aims directly at target
+        val turretDesired = com.tankarena.core.LegacyDirections.fromFacing(
+            dx.coerceIn(-1, 1),
+            dy.coerceIn(-1, 1),
+        )
+
+        val bodyTurn = turnDelta(self.bodyDirection, bodyDesired)
+        val turretTurn = turnDelta(self.turretDirection, turretDesired)
+        val bodyAligned = self.bodyDirection == bodyDesired
+        val turretAligned = self.turretDirection == turretDesired
         val fireRangeSq = (320L * 320L)
         val fire = turretAligned && distSq <= fireRangeSq && self.primaryCooldownTicks == 0
         return com.tankarena.input.PlayerIntentFrame(
@@ -1332,7 +1366,12 @@ class ServerMatchPrototype private constructor(
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
             val terrainGrid = TerrainGridBuilder.build(map.layers, map.metadata)
-            return ServerMatchPrototype(mapMetadata = map.metadata, initialActors = actors, terrainGrid = terrainGrid)
+            return ServerMatchPrototype(
+                mapMetadata = map.metadata,
+                initialActors = actors,
+                terrainGrid = terrainGrid,
+                solidLayer = map.layers.solid,
+            )
         }
 
         fun fromSceneJson(sceneJson: String, mapMetadata: MapMetadata): ServerMatchPrototype {
@@ -1341,7 +1380,13 @@ class ServerMatchPrototype private constructor(
             )
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
             val terrainGrid = TerrainGrid.empty(mapMetadata.widthTiles, mapMetadata.heightTiles)
-            return ServerMatchPrototype(mapMetadata = mapMetadata, initialActors = actors, terrainGrid = terrainGrid)
+            val solidLayer = List(mapMetadata.widthTiles * mapMetadata.heightTiles) { -1 }
+            return ServerMatchPrototype(
+                mapMetadata = mapMetadata,
+                initialActors = actors,
+                terrainGrid = terrainGrid,
+                solidLayer = solidLayer,
+            )
         }
     }
 }

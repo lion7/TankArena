@@ -573,11 +573,23 @@ class ServerMatchPrototype private constructor(
         for (ai in tanks) {
             if (ai.playerIndex >= 0) continue
             if (ai.armor <= 0) continue
-            val target = pickAiTarget(ai, tanks) ?: run {
-                ai.applyIntent(com.tankarena.input.PlayerIntentFrame())
-                continue
+            val target = pickAiTarget(ai, tanks)
+            if (target != null) {
+                ai.applyIntent(computeAiIntent(ai, target))
+            } else {
+                // No target — patrol waypoints if mode supports it
+                val patrolDir = aiModeDispatcher.getPatrolDirection(ai.positionX, ai.positionY)
+                if (patrolDir >= 0) {
+                    val turn = turnDelta(ai.bodyDirection, patrolDir)
+                    ai.applyIntent(com.tankarena.input.PlayerIntentFrame(
+                        forward = ai.bodyDirection == patrolDir,
+                        turnLeft = turn < 0,
+                        turnRight = turn > 0,
+                    ))
+                } else {
+                    ai.applyIntent(com.tankarena.input.PlayerIntentFrame())
+                }
             }
-            ai.applyIntent(computeAiIntent(ai, target))
         }
     }
 
@@ -588,6 +600,8 @@ class ServerMatchPrototype private constructor(
     private val lineOfSight: LineOfSight by lazy {
         LineOfSight(mapMetadata.widthTiles, mapMetadata.heightTiles, solidLayer)
     }
+
+    private lateinit var aiModeDispatcher: AiModeDispatcher
 
     private var cachedPath: List<Pair<Int, Int>> = emptyList()
     private var cachedPathTick: Long = -1L
@@ -1371,12 +1385,18 @@ class ServerMatchPrototype private constructor(
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
             val terrainGrid = TerrainGridBuilder.build(map.layers, map.metadata)
-            return ServerMatchPrototype(
+            val instance = ServerMatchPrototype(
                 mapMetadata = map.metadata,
                 initialActors = actors,
                 terrainGrid = terrainGrid,
                 solidLayer = map.layers.solid,
             )
+            instance.aiModeDispatcher = AiModeDispatcher(
+                mode = map.metadata.modeCompatibility,
+                waypoints = emptyList(), // Authored waypoints deferred
+                pathfinder = instance.pathfinder,
+            )
+            return instance
         }
 
         fun fromSceneJson(sceneJson: String, mapMetadata: MapMetadata): ServerMatchPrototype {
@@ -1386,12 +1406,18 @@ class ServerMatchPrototype private constructor(
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
             val terrainGrid = TerrainGrid.empty(mapMetadata.widthTiles, mapMetadata.heightTiles)
             val solidLayer = List(mapMetadata.widthTiles * mapMetadata.heightTiles) { -1 }
-            return ServerMatchPrototype(
+            val instance = ServerMatchPrototype(
                 mapMetadata = mapMetadata,
                 initialActors = actors,
                 terrainGrid = terrainGrid,
                 solidLayer = solidLayer,
             )
+            instance.aiModeDispatcher = AiModeDispatcher(
+                mode = mapMetadata.modeCompatibility,
+                waypoints = emptyList(),
+                pathfinder = instance.pathfinder,
+            )
+            return instance
         }
     }
 }

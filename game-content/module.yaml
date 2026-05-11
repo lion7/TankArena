@@ -2,6 +2,9 @@ product:
   type: lib
   platforms: [jvm]
 
+dependencies:
+  - ../game-protocol
+
 settings:
   kotlin:
     serialization:

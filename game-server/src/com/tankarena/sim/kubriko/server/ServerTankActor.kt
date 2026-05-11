@@ -138,6 +138,7 @@ class ServerTankActor(state: State) :
     private var pendingIntent: PlayerIntentFrame = PlayerIntentFrame()
     private var hullTurnCooldownTicks: Int = 0
     private var turretTurnCooldownTicks: Int = 0
+    private var terrainSpeedMultiplier: Float = 1.0f
     private var pendingResolveX: Int = 0
     private var pendingResolveY: Int = 0
     private var pendingDamageThisTick: Int = 0
@@ -200,6 +201,11 @@ class ServerTankActor(state: State) :
     fun grantInvulnerability(ticks: Int) {
         if (ticks <= 0) return
         invulnerableTicks = invulnerableTicks.coerceAtLeast(ticks)
+    }
+
+    /** Set terrain speed multiplier from the terrain grid. Called each tick by ServerMatchPrototype. */
+    fun setTerrainSpeedMultiplier(multiplier: Float) {
+        terrainSpeedMultiplier = multiplier.coerceAtLeast(0f)
     }
 
     override fun update(deltaTimeInMilliseconds: Int) {
@@ -425,14 +431,16 @@ class ServerTankActor(state: State) :
     private fun applyAcceleration() {
         if (fuel <= 0) return
         val longitudinalVelocity = forwardSpeed()
+        val maxFwd = MAX_FORWARD_SPEED * terrainSpeedMultiplier
+        val maxRev = MAX_REVERSE_SPEED * terrainSpeedMultiplier
         when {
             pendingIntent.forward && !pendingIntent.reverse -> {
                 val (ax, ay) = LegacyDirections.toVelocityStep(bodyDirection, FORWARD_ACCELERATION)
                 velocityX += ax
                 velocityY += ay
                 val speed = forwardSpeed()
-                if (speed > MAX_FORWARD_SPEED) {
-                    val scale = MAX_FORWARD_SPEED / speed.coerceAtLeast(0.001f)
+                if (speed > maxFwd) {
+                    val scale = maxFwd / speed.coerceAtLeast(0.001f)
                     velocityX *= scale
                     velocityY *= scale
                 }
@@ -443,10 +451,10 @@ class ServerTankActor(state: State) :
                 val (ax, ay) = LegacyDirections.toVelocityStep(bodyDirection, REVERSE_ACCELERATION)
                 velocityX -= ax
                 velocityY -= ay
-                if (longitudinalVelocity < -MAX_REVERSE_SPEED) {
+                if (longitudinalVelocity < -maxRev) {
                     val (fx, fy) = LegacyDirections.unitVector(bodyDirection)
                     val lateral = lateralSpeed()
-                    val desired = -MAX_REVERSE_SPEED
+                    val desired = -maxRev
                     velocityX = fx * desired - fy * lateral
                     velocityY = fy * desired + fx * lateral
                 }

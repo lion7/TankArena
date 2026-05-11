@@ -1,6 +1,6 @@
 # Tank Arena Full Rewrite Status
 
-As of 2026-05-09. Phase 1 + Phase 3 closed — parity tasks T01–T06 and T08–T16 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
+As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 closed — parity tasks T01–T06, T08–T18 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
 
 This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
 
@@ -86,6 +86,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Keyboard movement + space-fire input; mouse pointer drives 8-way turret aim (with dead zone).
 - Camera follows the controlled tank.
 - Audio (T15/T16): `AudioBackend` interface with `DesktopAudioBackend` implementation — distance attenuation (Euclidean, 612 px max range), stereo panning, pitch variation (900–1100), ≤32 silenced voices. `AudioManager` routes `GameEvent.Sound` events from the server to the backend. `AudioMathTest` pins the distance/pan/pitch formulas.
+- Terrain (T17/T18): `TerrainMaterial` enum + `TerrainGrid` in `:game-protocol`; `PictureCatalog` in `:game-content` maps (world, picture-index) → (material, speed) from `src/data/pictures.c`; `TerrainGridBuilder` constructs per-map grids from `TileLayers.base` + `.top` with speed multiplication and top-layer material override. `ServerMatchPrototype` builds the grid from `CanonicalMapDefinition` and calls `applyTerrainEffects()` each tick: terrain speed multiplier clamps max forward/reverse speed, lava deals 1 damage/tick, water kills instantly, big/small pits kill when tank center enters the danger zone. `TerrainMaterialTest` (32 tests) + `TerrainGridBuilderTest` (12 tests) pin catalog resolution, layer merging, and grid lookup.
 
 ### Editor (`:game-editor`)
 - Thin Compose Desktop app embedding Kubriko's `SceneEditor`.
@@ -103,16 +104,16 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 - Generated legacy picture catalog extraction.
 
 ### Tests
-- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard. 73 tests green.
+- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard, terrain material catalog resolution (32 tests), terrain grid builder layer merging (12 tests). 116 tests green.
 - Content: legacy parsing, generated asset registry, supported subset of object parsing.
 
 ## 5. What Is Still Prototype-Level
 
-- Movement feel: no terrain-material modifiers; fixed acceleration/friction model.
+- Movement feel: terrain-material speed multipliers are wired (T17) — oil slows, road/race track speeds up, lava/water/pit deal damage. Per-vehicle handling differences (helicopters/planes) are absent.
 - Tank-vs-tank collision slides cleanly, but per-vehicle handling differences (helicopters/planes) are absent.
 - Weapons: main, chain, mines, rockets, mortars are wired (T09–T12) and now share `AreaDamageResolver` + `GameEvent.Explosion` (T13). Flamethrower, A-bomb, smoke screen, invisibility, extra-speed, light, and deployed-men weapons are still missing; client-side explosion sprites/SFX are not yet wired off the new event.
 - Damage model carries shield + invulnerability + fuel-out (T14), but pickups that grant shield/invuln/fuel (Phase 5 objects T20) and shield-pickup HUD affordance are not yet landed.
-- Terrain semantics: top-layer is decoration; no per-material rules (mud/ice/water/sand/runway), no bridge/runway/pit logic.
+- Terrain semantics (T17/T18): per-material speed multipliers, lava damage, water kill, pit kill are wired. Bridge destruction → water reveal, runway takeoff, and fuel dump flame effects are deferred to later phases.
 - World object behavior: only goals, walls, and turrets execute. Flags, products, locks, warps, destroyers, enforcers, trains, zeppelin, B52, men, bonuses are imported by `LegacyObjectParser` but emit no scene actors yet — `CanonicalSceneBuilder` falls through to `else -> Unit` for these kinds.
 - AI: only "pick nearest, steer, fire when aligned". No pathing, line-of-sight, waypoints, or per-mode behavior.
 - Mission/objective evaluation beyond goal-capture and tank-elimination is not wired.

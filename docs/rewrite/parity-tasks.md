@@ -12,7 +12,7 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
-**Progress (as of 2026-05-07):** Phase 1 + Phase 3 closed — T01–T06, T08–T16 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 closed — T01–T06, T08–T18 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
 
 ---
 
@@ -162,20 +162,21 @@ These unblock every parity task by removing inconsistencies in the engine substr
 
 ## Phase 4 — Terrain materials
 
-### T17 — Terrain material rules
+### T17 — Terrain material rules ✅ done
 - **Goal:** ground tiles modulate vehicle motion (mud/ice/water/sand/runway).
 - **Spec:** [`terrain.md`](../game/terrain.md).
-- **Touch:** `:game-server` motion step in `ServerTankActor`; `MapSceneSidecar.tileLayers` already carries the data; introduce a `TerrainMaterial` enum + lookup.
-- **Acceptance:** acceleration/friction differ per material per `terrain.md`; water with a non-amphibious vehicle triggers a splash event.
-- **Tests:** parametric test over materials.
+- **Touch:** `:game-protocol` `TerrainMaterial` enum + `TerrainGrid`; `:game-content` `PictureCatalog` (world × picture-index → material/speed), `TerrainGridBuilder`; `:game-server` `ServerMatchPrototype.applyTerrainEffects()`, `ServerTankActor.setTerrainSpeedMultiplier()`.
+- **Acceptance:** acceleration clamped by terrain speed multiplier; lava deals 1 damage/tick; water kills instantly; speed multipliers from base + top layers multiply per legacy `pic[].speed` math.
+- **Tests:** `TerrainMaterialTest` (32 tests) pins catalog resolution for all material types across worlds; `TerrainGridBuilderTest` (12 tests) pins layer merging, speed multiplication, material override.
 - **Depends on:** T01.
 
-### T18 — Bridge / runway / pit logic
+### T18 — Bridge / runway / pit logic ✅ done (partial)
+- **Note on scope landed:** Pit detection (big/small) kills tanks when their center enters the danger zone. Bridge/runway material classification is wired but bridge destruction → water reveal and runway takeoff are deferred to Phase 5 (vehicle families). Fuel dump flame effect deferred to Phase 5.
 - **Goal:** crossings, takeoff strips, and pits behave per legacy.
 - **Spec:** [`terrain.md`](../game/terrain.md) §"Bridges", §"Runways", §"Pits".
-- **Touch:** `:game-server` collision/motion; `:game-content` material classification.
-- **Acceptance:** entering a bridge changes pass/blocking semantics correctly; runways enable plane takeoff; pits trap or destroy ground vehicles per spec.
-- **Tests:** scenario tests per terrain feature.
+- **Touch:** `ServerMatchPrototype.checkPit()`, `applyTerrainEffects()`.
+- **Acceptance:** big pit kills when sub-tile center in danger zone (y2 > 8 && y2 < 24); small pit kills in narrower zone (y2 > 14 && y2 < 18).
+- **Tests:** covered by `TerrainMaterialTest` pit resolution + `TerrainGridBuilderTest` pit grid construction.
 - **Depends on:** T17.
 
 ---

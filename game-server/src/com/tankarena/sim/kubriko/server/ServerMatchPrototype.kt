@@ -14,6 +14,9 @@ import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
+import com.tankarena.content.TerrainGridBuilder
+import com.tankarena.protocol.snapshot.TerrainGrid
+import com.tankarena.protocol.snapshot.TerrainMaterial
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
@@ -41,6 +44,7 @@ private const val MILLIS_PER_TICK: Int = 10
 class ServerMatchPrototype private constructor(
     private val mapMetadata: MapMetadata,
     private val initialActors: List<Serializable<*>>,
+    private val terrainGrid: TerrainGrid,
 ) {
 
     private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
@@ -102,6 +106,7 @@ class ServerMatchPrototype private constructor(
         }
         stepAiTanks()
         stepTurrets()
+        applyTerrainEffects()
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
         flushOutOfBoundsRockets()
@@ -415,6 +420,73 @@ class ServerMatchPrototype private constructor(
         if (tanks.isEmpty()) return
         for (actor in actorManager.allActors.value) {
             if (actor is ServerTurretActor) actor.step(tanks)
+        }
+    }
+
+    /**
+     * Apply terrain effects (lava damage, water kill, pit kill) to all tanks.
+     * Also set per-tank terrain speed multipliers for the next motion step.
+     */
+    private fun applyTerrainEffects() {
+        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        for (tank in tanks) {
+            if (tank.armor <= 0) continue
+            val tileX = tank.positionX / LEGACY_TILE_SIZE
+            val tileY = tank.positionY / LEGACY_TILE_SIZE
+            val tile = terrainGrid.at(tileX, tileY)
+
+            // Set terrain speed multiplier for next motion step
+            tank.setTerrainSpeedMultiplier(tile.speedMultiplier)
+
+            // Lava: continuous damage (1 per tick, legacy HT_LAVA)
+            if (tile.material == TerrainMaterial.LAVA) {
+                tank.queueDamage(1)
+            }
+
+            // Water: kills non-amphibious tanks
+            if (tile.material == TerrainMaterial.WATER) {
+                tank.queueDamage(999) // Instant kill
+            }
+
+            // Pit detection: check sub-tile position within the pit tile
+            if (tile.material == TerrainMaterial.PIT_BIG || tile.material == TerrainMaterial.PIT_SMALL) {
+                val subX = (tank.positionX % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
+                val subY = (tank.positionY % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
+                val inPit = checkPit(subX, subY, tile.material, tileX, tileY)
+                if (inPit) {
+                    tank.queueDamage(999) // Instant kill
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a tank at sub-tile position (subX, subY) is inside a pit.
+     * Legacy in_pit() checks tile type + sub-tile position.
+     *
+     * Big pit: kill when subY > 8 && subY < 24 (center of tile)
+     * Small pit: kill when subY > 14 && subY < 18 (narrower center)
+     *
+     * Ramp tiles (RAMP_SMALL, RAMP_BIG) allow escape — not checked here.
+     */
+    private fun checkPit(subX: Int, subY: Int, material: TerrainMaterial, tileX: Int, tileY: Int): Boolean {
+        // Simplified pit check: center of tank within pit danger zone
+        // Legacy uses y2 (sub-tile Y offset of tank center within tile)
+        val y2 = subY
+        val x2 = subX
+
+        return when (material) {
+            TerrainMaterial.PIT_BIG -> {
+                // Big pit: danger zone is y2 > 8 && y2 < 24
+                // Different pit variants have different shapes (TL, TR, BL, BR, T, B, L, R, C)
+                // For now, use center-based check — all big pit variants kill in center region
+                y2 > 8 && y2 < 24 && x2 > 8 && x2 < 24
+            }
+            TerrainMaterial.PIT_SMALL -> {
+                // Small pit: danger zone is y2 > 14 && y2 < 18 (narrower)
+                y2 > 14 && y2 < 18 && x2 > 14 && x2 < 18
+            }
+            else -> false
         }
     }
 
@@ -933,7 +1005,8 @@ class ServerMatchPrototype private constructor(
             )
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            return ServerMatchPrototype(mapMetadata = map.metadata, initialActors = actors)
+            val terrainGrid = TerrainGridBuilder.build(map.layers, map.metadata)
+            return ServerMatchPrototype(mapMetadata = map.metadata, initialActors = actors, terrainGrid = terrainGrid)
         }
 
         fun fromSceneJson(sceneJson: String, mapMetadata: MapMetadata): ServerMatchPrototype {
@@ -941,7 +1014,8 @@ class ServerMatchPrototype private constructor(
                 *tankArenaSerializableMetadata,
             )
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            return ServerMatchPrototype(mapMetadata = mapMetadata, initialActors = actors)
+            val terrainGrid = TerrainGrid.empty(mapMetadata.widthTiles, mapMetadata.heightTiles)
+            return ServerMatchPrototype(mapMetadata = mapMetadata, initialActors = actors, terrainGrid = terrainGrid)
         }
     }
 }

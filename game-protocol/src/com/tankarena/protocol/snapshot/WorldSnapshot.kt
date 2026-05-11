@@ -63,6 +63,9 @@ data class HudState(
     val missionProgress: Int = 0,
     val missionCode: String = "",
     val statusText: String = "",
+    val score: Int = 0,
+    val kills: Int = 0,
+    val time: Long = 0,
 )
 
 @Serializable

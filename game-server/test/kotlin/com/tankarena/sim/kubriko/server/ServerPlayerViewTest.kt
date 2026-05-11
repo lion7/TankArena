@@ -29,6 +29,9 @@ class ServerPlayerViewTest {
         assertEquals(100, view.hud.armor)
         assertEquals(3, view.hud.lives)
         assertEquals(0, view.hud.missionProgress)
+        assertEquals(0, view.hud.score)
+        assertEquals(0, view.hud.kills)
+        assertEquals(0L, view.hud.time)
 
         val goalContact = view.radar.single { it.kind == RadarContactKind.GOAL }
         assertEquals(Team.PLAYER, goalContact.team)

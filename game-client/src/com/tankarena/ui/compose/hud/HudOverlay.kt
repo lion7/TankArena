@@ -47,6 +47,12 @@ fun HudOverlay(
         HudGauge(label = "MISSION", value = hudState.missionProgress.toString())
         Spacer(modifier = Modifier.width(8.dp))
         HudGauge(label = "TANK", value = hudState.lives.toString())
+        Spacer(modifier = Modifier.width(16.dp))
+        HudGauge(label = "SCORE", value = hudState.score.toString())
+        Spacer(modifier = Modifier.width(8.dp))
+        HudGauge(label = "KILLS", value = hudState.kills.toString())
+        Spacer(modifier = Modifier.width(8.dp))
+        HudGauge(label = "TIME", value = formatTime(hudState.time))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = hudState.missionCode,
@@ -54,6 +60,14 @@ fun HudOverlay(
             color = HudColors.Subtitle,
         )
     }
+}
+
+/** Format tick count as MM:SS. */
+private fun formatTime(ticks: Long): String {
+    val seconds = ticks / 100
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    return "${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
 }
 
 @Composable

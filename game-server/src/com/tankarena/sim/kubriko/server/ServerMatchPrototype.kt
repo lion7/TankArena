@@ -239,6 +239,9 @@ class ServerMatchPrototype private constructor(
                     missionProgress = goalGood,
                     missionCode = missionCode,
                     statusText = statusText,
+                    score = missionScore,
+                    kills = missionKills,
+                    time = currentTick,
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
             )

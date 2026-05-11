@@ -162,7 +162,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 
 ## Phase 4 — Terrain materials
 
-### T17 — Terrain material rules ✅ done
+### T17 — Terrain material rules ✅ done (3cba470)
 - **Goal:** ground tiles modulate vehicle motion (mud/ice/water/sand/runway).
 - **Spec:** [`terrain.md`](../game/terrain.md).
 - **Touch:** `:game-protocol` `TerrainMaterial` enum + `TerrainGrid`; `:game-content` `PictureCatalog` (world × picture-index → material/speed), `TerrainGridBuilder`; `:game-server` `ServerMatchPrototype.applyTerrainEffects()`, `ServerTankActor.setTerrainSpeedMultiplier()`.
@@ -170,7 +170,7 @@ These unblock every parity task by removing inconsistencies in the engine substr
 - **Tests:** `TerrainMaterialTest` (32 tests) pins catalog resolution for all material types across worlds; `TerrainGridBuilderTest` (12 tests) pins layer merging, speed multiplication, material override.
 - **Depends on:** T01.
 
-### T18 — Bridge / runway / pit logic ✅ done (partial)
+### T18 — Bridge / runway / pit logic ✅ done (partial) (3cba470)
 - **Note on scope landed:** Pit detection (big/small) kills tanks when their center enters the danger zone. Bridge/runway material classification is wired but bridge destruction → water reveal and runway takeoff are deferred to Phase 5 (vehicle families). Fuel dump flame effect deferred to Phase 5.
 - **Goal:** crossings, takeoff strips, and pits behave per legacy.
 - **Spec:** [`terrain.md`](../game/terrain.md) §"Bridges", §"Runways", §"Pits".

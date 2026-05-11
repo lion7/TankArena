@@ -142,7 +142,7 @@ For the legacy gameplay rules that still need to land, the authoritative descrip
 
 1. Broaden combat on `:game-server` actors: tank-vs-tank polish, additional weapons (chain gun, mines, rockets, mortars), area damage, explosion/effect sprites.
 2. ~~Audio event plumbing and a basic backend~~ — done (T15/T16).
-3. Terrain/material rules (mud/ice/water/fuel/armor pickups, bridges, runways).
+3. ~~Terrain/material rules (mud/ice/water/fuel/armor pickups, bridges, runways)~~ — done (T17/T18, 3cba470).
 4. One end-to-end mission mode with objectives, win/loss evaluation, debrief.
 5. AI for mobile units in that mode (navigation, line-of-sight).
 6. Broaden imported object family behavior (flags, warps, locks, destroyers, enforcers, products, etc.).

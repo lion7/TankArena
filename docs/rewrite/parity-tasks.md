@@ -12,7 +12,7 @@ A flat, ordered list of implementation tasks toward the "feature-complete" bar i
 
 Tasks are ordered so dependencies flow forward. An agent may pick the lowest-numbered open task whose dependencies are satisfied.
 
-**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 + Phase 5 closed — T01–T06, T08–T25 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
+**Progress (as of 2026-05-11):** Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 closed — T01–T06, T08–T28 done on `rewrite`. T07 deliberately deferred while later phases continue to lean on `CanonicalMapDefinition` / `LegacyMapImporter` for fixtures and bootstrap.
 
 ---
 
@@ -246,28 +246,28 @@ Each task adds runtime behavior for an imported but currently inert object famil
 
 ## Phase 6 — AI
 
-### T26 — Pathing on the tile grid
+### T26 — Pathing on the tile grid ✅ done (e2baec7)
 - **Goal:** AI tanks navigate around walls.
 - **Spec:** [`ai.md`](../game/ai.md) §"Navigation".
-- **Touch:** `:game-server` AI; pathing helper in `:game-server` (A* over the passability grid in `MapSceneSidecar.tileLayers`).
+- **Touch:** `TilePathfinder` (A* over solid layer, 8-directional, Manhattan heuristic), `ServerMatchPrototype.computeAiIntent()` (body follows path, turret aims at target, path recomputed every 15 ticks).
 - **Acceptance:** AI reaches targets across non-trivial maps without wall-bumping.
-- **Tests:** path success on hand-crafted obstacle maps.
+- **Tests:** `TilePathfinderTest` (9 tests): direct path, wall blocking, corridor detour, no-path, same-tile, direction helpers.
 - **Depends on:** T08.
 
-### T27 — Line-of-sight
+### T27 — Line-of-sight ✅ done (3c7b083)
 - **Goal:** AI fires only when target is visible.
 - **Spec:** [`ai.md`](../game/ai.md) §"Targeting".
-- **Touch:** raycast against passability grid + walls.
+- **Touch:** `LineOfSight` (Bresenham raycast over solid layer), integrated into `computeAiIntent()` fire decision.
 - **Acceptance:** AI does not fire through walls; engages once LOS is clear.
-- **Tests:** LOS unit tests against fixture grids.
+- **Tests:** `LineOfSightTest` (8 tests): clear LOS, wall blocking, diagonal, off-line, self, boundary.
 - **Depends on:** T26.
 
-### T28 — Waypoints + per-mode behavior
+### T28 — Waypoints + per-mode behavior ✅ done (0ea63fe)
 - **Goal:** AI follows authored waypoints; mode-specific behaviors trigger.
 - **Spec:** [`ai.md`](../game/ai.md), [`overview.md`](../game/overview.md) modes.
-- **Touch:** `WaypointFollower` AI step, mode dispatcher in mission evaluator.
-- **Acceptance:** AI follows authored paths; modes dispatch their entry behavior.
-- **Tests:** waypoint advancement; mode entry events.
+- **Touch:** `WaypointFollower` (path-following between waypoints, loops on completion), `AiModeDispatcher` (SINGLE/DUALVC/SINGLE_OR_DUAL enable patrol; DUAL/DONT_CARE disable), integrated into `stepAiTanks()` fallback when no enemy target.
+- **Acceptance:** AI follows waypoint paths when no enemy is visible; patrol enabled/disabled per mode.
+- **Tests:** `WaypointFollowerTest` (5 tests), `AiModeDispatcherTest` (9 tests).
 - **Depends on:** T27.
 
 ---

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tankarena.core.FixedStepClock
 import com.tankarena.protocol.snapshot.HudState
 
 /**
@@ -32,6 +33,8 @@ import com.tankarena.protocol.snapshot.HudState
 fun HudOverlay(
     hudState: HudState,
     modifier: Modifier = Modifier,
+    /** Split-screen halves drop the match-wide gauges (score, kills, time, code). */
+    compact: Boolean = false,
 ) {
     Row(
         modifier = modifier
@@ -40,46 +43,70 @@ fun HudOverlay(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        HudGauge(label = "ARMOR", value = hudState.armor.coerceAtLeast(0).toString().padStart(2, '0'))
+        HudGauge(label = "ARMOR", value = percent(hudState.armor, hudState.maxArmor))
         Spacer(modifier = Modifier.width(8.dp))
-        HudGauge(label = "FUEL", value = hudState.fuel.coerceAtLeast(0).toString().padStart(2, '0'))
-        Spacer(modifier = Modifier.width(20.dp))
-        HudGauge(label = "MISSION", value = hudState.missionProgress.toString())
+        HudGauge(label = "FUEL", value = percent(hudState.fuel, hudState.maxFuel))
+        Spacer(modifier = Modifier.width(16.dp))
+        // Legacy status bar: good and evil goal counters side by side.
+        HudGauge(label = "GOAL", value = "${hudState.missionProgress}/${hudState.missionProgressBad}")
         Spacer(modifier = Modifier.width(8.dp))
         HudGauge(label = "TANK", value = hudState.lives.toString())
         Spacer(modifier = Modifier.width(16.dp))
-        HudGauge(label = "SCORE", value = hudState.score.toString())
-        Spacer(modifier = Modifier.width(8.dp))
-        HudGauge(label = "KILLS", value = hudState.kills.toString())
-        Spacer(modifier = Modifier.width(8.dp))
-        HudGauge(label = "TIME", value = formatTime(hudState.time))
-        Spacer(modifier = Modifier.width(16.dp))
-        HudGauge(label = "WPN", value = weaponLabel(hudState.currentWeapon))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = hudState.missionCode,
-            style = HudTypography.Small,
-            color = HudColors.Subtitle,
-        )
+        HudGauge(label = weaponLabel(hudState.currentWeapon), value = weaponAmmo(hudState))
+        if (!compact) {
+            Spacer(modifier = Modifier.width(16.dp))
+            HudGauge(label = "SCORE", value = hudState.score.toString())
+            Spacer(modifier = Modifier.width(8.dp))
+            HudGauge(label = "KILLS", value = hudState.kills.toString())
+            Spacer(modifier = Modifier.width(8.dp))
+            HudGauge(label = "TIME", value = formatTime(hudState.time))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = hudState.missionCode,
+                style = HudTypography.Small,
+                color = HudColors.Subtitle,
+            )
+        }
     }
+}
+
+/** Legacy meters show percentages of the vehicle's maximum. */
+private fun percent(value: Int, max: Int): String {
+    if (max <= 0) return value.coerceAtLeast(0).toString()
+    return "${(value.coerceAtLeast(0) * 100 / max).coerceIn(0, 100)}%"
 }
 
 /** Format tick count as MM:SS. */
 private fun formatTime(ticks: Long): String {
-    val seconds = ticks / 100
+    val seconds = ticks / FixedStepClock.TICKS_PER_SECOND
     val minutes = seconds / 60
     val secs = seconds % 60
     return "${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
 }
 
-/** Map weapon index to a short label. */
+/** Legacy weapon slots (src/tanks/fire.c). */
 private fun weaponLabel(weapon: Int): String = when (weapon) {
     0 -> "MAIN"
     1 -> "CHAIN"
+    2 -> "FLAME"
     3 -> "MINE"
-    4 -> "ROCK"
-    5 -> "MORT"
-    else -> "MAIN"
+    4 -> "ROCKET"
+    5 -> "MORTAR"
+    6 -> "A-BOMB"
+    7 -> "GUNNERS"
+    8 -> "FLAMERS"
+    9 -> "SMOKE"
+    10 -> "CLOAK"
+    11 -> "SPEED"
+    else -> "WPN"
+}
+
+private fun weaponAmmo(hud: HudState): String = when (hud.currentWeapon) {
+    1 -> hud.chainAmmo.toString()
+    3 -> hud.mineAmmo.toString()
+    4 -> hud.rocketAmmo.toString()
+    5 -> hud.mortarAmmo.toString()
+    else -> "--"
 }
 
 @Composable

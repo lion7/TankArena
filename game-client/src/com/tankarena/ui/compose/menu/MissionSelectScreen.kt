@@ -73,6 +73,6 @@ private fun MissionEmptyScreen(onCancel: () -> Unit, modifier: Modifier = Modifi
         items = items,
         modifier = modifier,
         onCancel = onCancel,
-        footerHint = "Place .MAP files under MAPS/ and try again.",
+        footerHint = "No shipped map supports this game mode.",
     )
 }

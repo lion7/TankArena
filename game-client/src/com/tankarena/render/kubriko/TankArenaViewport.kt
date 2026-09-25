@@ -18,6 +18,7 @@ import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.pandulapeter.kubriko.types.FrameRate
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.MapSceneSidecar
+import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.protocol.snapshot.WorldSnapshot
@@ -30,14 +31,18 @@ fun TankArenaViewport(
     worldWidth: Int,
     worldHeight: Int,
     modifier: Modifier = Modifier,
+    events: ViewportEventQueue? = null,
+    /** Visible scene width; 640 for a full view, 320 for each half of the split screen. */
+    playfieldWidth: Int = LEGACY_PLAYFIELD_WIDTH.toInt(),
     onGeometryChanged: (ViewportGeometry) -> Unit = {},
 ) {
     val playerView = serverFrame.playerViews.firstOrNull { it.playerId == playerId }
         ?: serverFrame.playerViews.firstOrNull()
         ?: return
 
-    val runtime = remember(sidecar?.metadata?.name, playerView.playerId) {
+    val runtime = remember(sidecar?.metadata?.name, playerView.playerId, playfieldWidth) {
         TankArenaKubrikoRuntime(
+            playfieldWidth = playfieldWidth,
             sidecar = sidecar,
             initialView = playerView,
             initialWorld = serverFrame.world,
@@ -51,7 +56,7 @@ fun TankArenaViewport(
     }
 
     LaunchedEffect(runtime, sidecar, serverFrame, worldWidth, worldHeight) {
-        runtime.sync(sidecar, playerView, serverFrame.world, worldWidth, worldHeight)
+        runtime.sync(sidecar, playerView, serverFrame.world, worldWidth, worldHeight, events?.drain() ?: serverFrame.world.events)
         onGeometryChanged(runtime.geometry)
     }
 
@@ -63,6 +68,7 @@ fun TankArenaViewport(
 }
 
 private class TankArenaKubrikoRuntime(
+    private val playfieldWidth: Int,
     sidecar: MapSceneSidecar?,
     initialView: PlayerView,
     initialWorld: WorldSnapshot,
@@ -73,7 +79,7 @@ private class TankArenaKubrikoRuntime(
     private val snapshot = RuntimeSnapshot(
         sidecar = sidecar,
         playerView = initialView,
-        geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight),
+        geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight, playfieldWidth),
     )
     private val spriteManager = SpriteManager.newInstance(
         isLoggingEnabled = false,
@@ -90,8 +96,8 @@ private class TankArenaKubrikoRuntime(
     )
     private val viewportManager = ViewportManager.newInstance(
         aspectRatioMode = ViewportManager.AspectRatioMode.Fixed(
-            ratio = LEGACY_PLAYFIELD_ASPECT_RATIO,
-            width = LEGACY_PLAYFIELD_WIDTH.sceneUnit,
+            ratio = playfieldWidth / LEGACY_PLAYFIELD_HEIGHT,
+            width = playfieldWidth.toFloat().sceneUnit,
         ),
         initialScaleFactor = 1f,
         minimumScaleFactor = 0.25f,
@@ -149,12 +155,13 @@ private class TankArenaKubrikoRuntime(
         world: WorldSnapshot,
         worldWidth: Int,
         worldHeight: Int,
+        events: List<GameEvent> = world.events,
     ) {
         snapshot.sidecar = sidecar
         snapshot.playerView = playerView
-        snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight)
+        snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight, playfieldWidth)
         terrainActor.syncBounds()
-        clientScene.sync(world)
+        clientScene.sync(world, events)
         preloadSceneSprites(sidecar)
         viewportManager.setCameraPosition(
             SceneOffset(
@@ -168,10 +175,14 @@ private class TankArenaKubrikoRuntime(
         kubriko.dispose()
     }
 
+    private var preloadedTilesFor: MapSceneSidecar? = null
+
     private fun preloadSceneSprites(sidecar: MapSceneSidecar?) {
         val resources = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
         val tiles = sidecar?.tileLayers
-        if (sidecar != null && tiles != null) {
+        // Tiles never change during a match; only walk the layers once per map.
+        if (sidecar != null && tiles != null && preloadedTilesFor !== sidecar) {
+            preloadedTilesFor = sidecar
             val world = sidecar.metadata.world
             val width = sidecar.metadata.widthTiles
             val height = sidecar.metadata.heightTiles

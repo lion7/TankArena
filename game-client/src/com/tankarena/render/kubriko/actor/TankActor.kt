@@ -29,12 +29,29 @@ internal class TankActor(
     private var tankType: Int = 0
     private var bodyDirection: Int = 0
     private var turretDirection: Int = 0
+    private var alive: Boolean = true
+    private var trackFrame: Int = 0
+    private var lastX: Int = Int.MIN_VALUE
+    private var lastY: Int = Int.MIN_VALUE
+    private var distanceSinceToggle: Int = 0
 
     fun sync(state: TankState) {
         team = state.team
         tankType = state.tankType
         bodyDirection = state.bodyDirection
         turretDirection = state.turretDirection
+        alive = state.alive
+        // Legacy new_position(): the body alternates between frames dir and dir+16 every
+        // `motion.change` pixels driven.
+        if (lastX != Int.MIN_VALUE) {
+            distanceSinceToggle += kotlin.math.abs(state.x - lastX) + kotlin.math.abs(state.y - lastY)
+            if (distanceSinceToggle >= TRACK_TOGGLE_DISTANCE) {
+                distanceSinceToggle = 0
+                trackFrame = trackFrame xor TRACK_FRAME_OFFSET
+            }
+        }
+        lastX = state.x
+        lastY = state.y
         setCenter(
             x = snapshot.renderOffsetX + state.x,
             y = snapshot.renderOffsetY + state.y,
@@ -42,32 +59,42 @@ internal class TankActor(
     }
 
     fun collectSpriteResources(target: MutableSet<DrawableResource>) {
-        val bodyFrame = LegacySpriteResources.tankBodyFrameForFacing(bodyDirection)
-        sprites.findResource(LegacySpriteResources.nameForTankBody(tankType, bodyFrame))
-            ?.let(target::add)
-        val turretFrame = LegacySpriteResources.turretFrameForDirection(turretDirection)
-        sprites.findResource(LegacySpriteResources.nameForTurret(tankType, turretFrame))
-            ?.let(target::add)
+        spriteNames().forEach { name -> sprites.findResource(name)?.let(target::add) }
+    }
+
+    /** Legacy frames (0-based): body `dir` (+16 animated), turret `32 + ldir`, wreck `48`. */
+    private fun spriteNames(): List<String> {
+        if (!alive) return listOf(LegacySpriteResources.nameForTankBody(tankType, WRECK_FRAME))
+        val direction = LegacySpriteResources.tankBodyFrameForFacing(bodyDirection)
+        return listOf(
+            LegacySpriteResources.nameForTankBody(tankType, direction + trackFrame),
+            LegacySpriteResources.nameForTankBody(tankType, TURRET_FRAME_OFFSET + LegacySpriteResources.tankBodyFrameForFacing(turretDirection)),
+        )
     }
 
     override fun DrawScope.draw() {
-        val bodyFrame = LegacySpriteResources.tankBodyFrameForFacing(bodyDirection)
-        val bodyImage = sprites.findResource(LegacySpriteResources.nameForTankBody(tankType, bodyFrame))
-            ?.let(spriteManager::get)
-        if (bodyImage != null) {
-            drawSprite(bodyImage, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
-        } else {
+        val images = spriteNames().map { name -> sprites.findResource(name)?.let(spriteManager::get) }
+        val body = images.firstOrNull()
+        if (body == null) {
+            if (!alive) return
             drawRect(
                 color = if (team == Team.PLAYER) Color(0xFF6DD3FF) else Color(0xFFFF6D6D),
                 topLeft = Offset((LEGACY_TILE_SIZE - 24) / 2f, (LEGACY_TILE_SIZE - 24) / 2f),
                 size = Size(24f, 24f),
             )
+            return
         }
+        for (image in images) {
+            // Vehicles without a separate turret have no frames past 31; skip what is missing.
+            image ?: continue
+            drawSprite(image, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
+        }
+    }
 
-        val turretFrame = LegacySpriteResources.turretFrameForDirection(turretDirection)
-        val turretImage = sprites.findResource(LegacySpriteResources.nameForTurret(tankType, turretFrame))
-            ?.let(spriteManager::get)
-            ?: return
-        drawSprite(turretImage, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
+    private companion object {
+        const val TRACK_FRAME_OFFSET = 16
+        const val TRACK_TOGGLE_DISTANCE = 6
+        const val TURRET_FRAME_OFFSET = 32
+        const val WRECK_FRAME = 48
     }
 }

@@ -1319,14 +1319,7 @@ class ServerMatchPrototype private constructor(
                 radius = request.radius,
             ),
         )
-        
-        // Emit sound event for mine deployment
-        pendingEvents += GameEvent.Sound(
-            kind = com.tankarena.protocol.snapshot.SoundKind.MINE,
-            x = request.originX,
-            y = request.originY,
-        )
-        
+        // Legacy mines are dropped silently; SoundKind.MINE is the detonation.
         return mine
     }
 

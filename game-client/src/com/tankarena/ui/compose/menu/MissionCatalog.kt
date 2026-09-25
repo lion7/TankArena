@@ -1,52 +1,51 @@
 package com.tankarena.ui.compose.menu
 
+import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.MapSceneSidecar
-import com.tankarena.sim.kubriko.server.legacy.LegacyMapImporter
-import java.io.File
+import com.tankarena.content.ShippedScenes
+import com.tankarena.ui.compose.GameMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 data class MissionEntry(
     val code: String,
-    val mapFile: File,
+    val baseName: String,
     val briefingPreview: String,
     val sidecar: MapSceneSidecar,
     val sceneJson: String,
 )
 
+/**
+ * The shipped missions: committed scene JSON + sidecars from `:game-content`, loaded from the
+ * classpath. Legacy `.MAP` files are no longer read at runtime (ADR 0003).
+ */
 object MissionCatalog {
-    suspend fun load(mapsDir: File): List<MissionEntry> = withContext(Dispatchers.IO) {
-        if (!mapsDir.isDirectory) return@withContext emptyList()
-        val files = mapsDir.listFiles { file ->
-            file.isFile && file.name.endsWith(".MAP", ignoreCase = true)
-        } ?: emptyArray()
-
-        files
-            .mapNotNull { file -> tryLoadEntry(file) }
+    suspend fun load(): List<MissionEntry> = withContext(Dispatchers.IO) {
+        ShippedScenes.loadAll()
+            .map { scene ->
+                MissionEntry(
+                    code = scene.sidecar.metadata.missionCode.ifBlank { scene.baseName },
+                    baseName = scene.baseName,
+                    briefingPreview = scene.sidecar.missionText.briefing.summarize(),
+                    sidecar = scene.sidecar,
+                    sceneJson = scene.sceneJson,
+                )
+            }
             .sortedBy { it.code.lowercase() }
     }
+}
 
-    fun resolveDefaultMapsDir(): File {
-        val custom = System.getProperty("tankarena.maps.root")
-        if (!custom.isNullOrBlank()) return File(custom)
-        val workingDir = File(System.getProperty("user.dir") ?: ".").absoluteFile
-        return File(workingDir, "MAPS")
-    }
-
-    private fun tryLoadEntry(file: File): MissionEntry? {
-        return runCatching {
-            val bytes = file.readBytes()
-            val name = file.nameWithoutExtension
-            val imported = LegacyMapImporter.import(bytes, name)
-            val code = imported.sidecar.metadata.missionCode.ifBlank { name }
-            MissionEntry(
-                code = code,
-                mapFile = file,
-                briefingPreview = imported.sidecar.missionText.briefing.summarize(),
-                sidecar = imported.sidecar,
-                sceneJson = imported.sceneJson,
-            )
-        }.getOrNull()
+/**
+ * Legacy `src/game/mapfiles.c`: a map's type decides which game modes may load it
+ * (player-vs-player lists only "don't care" and dual maps, and so on).
+ */
+fun List<MissionEntry>.playableIn(mode: GameMode): List<MissionEntry> = filter { entry ->
+    when (entry.sidecar.metadata.modeCompatibility) {
+        GameModeCompatibility.DONT_CARE -> true
+        GameModeCompatibility.DUAL -> mode == GameMode.PLAYER_VS_PLAYER
+        GameModeCompatibility.SINGLE -> mode == GameMode.SINGLE_PLAYER_VS_COMPUTER
+        GameModeCompatibility.DUAL_VS_COMPUTER -> mode == GameMode.DUAL_PLAYER_VS_COMPUTER
+        GameModeCompatibility.SINGLE_OR_DUAL -> mode != GameMode.PLAYER_VS_PLAYER
     }
 }
 

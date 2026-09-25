@@ -26,8 +26,10 @@ internal class TurretActor(
 ) {
     private var turretType: Int = 0
     private var turretDirection: Int = 0
+    private var alive: Boolean = true
 
     fun sync(state: TurretState) {
+        alive = state.alive
         turretType = state.turretType
         turretDirection = state.turretDirection
         setCenter(
@@ -43,6 +45,7 @@ internal class TurretActor(
     }
 
     override fun DrawScope.draw() {
+        if (!alive) return // destroyed turrets leave only the ruined tile underneath
         val frame = LegacySpriteResources.turretFrameForDirection(turretDirection)
         val image = sprites.findResource(LegacySpriteResources.nameForTurret(turretType, frame))
             ?.let(spriteManager::get)

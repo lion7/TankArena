@@ -61,8 +61,9 @@ internal fun resolveViewportGeometry(
     playerView: PlayerView,
     worldWidth: Int,
     worldHeight: Int,
+    playfieldWidth: Int = playerView.cameraWidth,
 ): ViewportGeometry {
-    val viewportWidth = playerView.cameraWidth.toFloat()
+    val viewportWidth = playfieldWidth.toFloat()
     val viewportHeight = playerView.cameraHeight.toFloat()
     val sceneWidth = max(worldWidth.toFloat(), LEGACY_PLAYFIELD_WIDTH)
     val sceneHeight = max(worldHeight.toFloat(), LEGACY_PLAYFIELD_HEIGHT)

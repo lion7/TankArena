@@ -1,6 +1,6 @@
 package com.tankarena.sim.kubriko.server
 
-import com.tankarena.content.MapMetadata
+import com.tankarena.content.MapSceneSidecar
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.protocol.InputFrame
@@ -46,14 +46,14 @@ class LocalMatchClient private constructor(
     )
 
     companion object {
-        fun fromSceneJson(sceneJson: String, metadata: MapMetadata): LocalMatchClient {
-            val prototype = ServerMatchPrototype.fromSceneJson(sceneJson, metadata)
+        fun fromSceneJson(sceneJson: String, sidecar: MapSceneSidecar, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {
+            val prototype = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, mode)
             prototype.initialize()
             return LocalMatchClient(prototype)
         }
 
-        internal fun fromCanonicalMap(map: CanonicalMapDefinition): LocalMatchClient {
-            val prototype = ServerMatchPrototype.fromCanonicalMap(map)
+        internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {
+            val prototype = ServerMatchPrototype.fromCanonicalMap(map, mode)
             prototype.initialize()
             return LocalMatchClient(prototype)
         }
@@ -72,4 +72,5 @@ private fun InputFrame.toIntent(): PlayerIntentFrame = PlayerIntentFrame(
     shield = shield,
     cycleWeaponLeft = cycleWeaponLeft,
     cycleWeaponRight = cycleWeaponRight,
+    selectTankId = selectTankId,
 )

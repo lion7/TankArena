@@ -54,6 +54,9 @@ internal const val INITIAL_MINE_AMMO: Int = 7
 internal const val INITIAL_ROCKET_AMMO: Int = 3
 internal const val INITIAL_MORTAR_AMMO: Int = 3
 
+/** Legacy `props.max_fuel` for almost every vehicle in `src/data/tanks.c`; fuel is measured in pixels driven. */
+const val LEGACY_MAX_FUEL: Int = 30000
+
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2
 
@@ -75,13 +78,34 @@ class ServerTankActor(state: State) :
         ServerWallActor::class,
         ServerTankActor::class,
         ServerGoalActor::class,
+        ServerTurretActor::class,
     )
 
     var bodyDirection: Int = state.bodyDirection
         private set
     var turretDirection: Int = state.turretDirection
         private set
-    val playerIndex: Int = state.playerIndex
+    /** Human player driving this tank, or -1. Mutable so control can move between friendly tanks. */
+    var playerIndex: Int = state.playerIndex
+        internal set
+    /** Legacy `contr.id` (the F1–F10 tank id); -1 when the map did not assign one. */
+    val controllerId: Int = state.controllerId
+    /** Legacy `contr.computer`: when false the tank only moves while a player controls it. */
+    val computer: Boolean = state.computer
+    /** Legacy `o->gc`: goal-counter percentage applied when this tank is destroyed. */
+    var goalContribution: Int = state.goalContribution
+        internal set
+    /** Legacy `computer.attack_tanks`: 0 means this computer tank never goes after tanks (e.g. cars). */
+    val aiAttackTanks: Int = state.aiAttackTanks
+    /** Legacy `computer.activation_rad`; -1 keeps the tank permanently active. */
+    val aiActivationRadius: Int = state.aiActivationRadius
+    /** Legacy `computer.activator`: 0 = woken by good tanks, 1 = by evil tanks. */
+    val aiActivator: Int = state.aiActivator
+    val aiStayActive: Boolean = state.aiStayActive
+    var aiActive: Boolean = state.aiActive
+        internal set
+    /** Legacy player start pad type (`type & 1` = player, `type >> 1` = vehicle kind); -1 for map tanks. */
+    val startPadType: Int = state.startPadType
     val tankType: Int = state.tankType
     var armor: Int = state.armor
     var shield: Int = state.shield
@@ -117,8 +141,8 @@ class ServerTankActor(state: State) :
     var respawnInTicks: Int = state.respawnInTicks
         private set
 
-    private val maxArmor: Int = if (state.maxArmor > 0) state.maxArmor else state.armor.coerceAtLeast(1)
-    private val maxFuel: Int = if (state.maxFuel > 0) state.maxFuel else state.fuel.coerceAtLeast(0)
+    val maxArmor: Int = if (state.maxArmor > 0) state.maxArmor else state.armor.coerceAtLeast(1)
+    val maxFuel: Int = if (state.maxFuel > 0) state.maxFuel else state.fuel.coerceAtLeast(0)
     private val spawnX: Int = if (state.spawnX >= 0) state.spawnX
         else (body.position.x.raw + body.size.width.raw / 2f).toInt()
     private val spawnY: Int = if (state.spawnY >= 0) state.spawnY
@@ -335,6 +359,11 @@ class ServerTankActor(state: State) :
                     )
                 }
 
+                is ServerTurretActor -> {
+                    val half = (other.body.size.width.raw / 2f).toInt()
+                    resolveAabbVsAabb(other.positionX, other.positionY, half, half, selfFraction = 1f)
+                }
+
                 is ServerGoalActor -> Unit
                 else -> Unit
             }
@@ -384,6 +413,15 @@ class ServerTankActor(state: State) :
         bodyDirection = bodyDirection,
         turretDirection = turretDirection,
         playerIndex = playerIndex,
+        controllerId = controllerId,
+        computer = computer,
+        goalContribution = goalContribution,
+        startPadType = startPadType,
+        aiAttackTanks = aiAttackTanks,
+        aiActivationRadius = aiActivationRadius,
+        aiActivator = aiActivator,
+        aiStayActive = aiStayActive,
+        aiActive = aiActive,
         tankType = tankType,
         armor = armor,
         shield = shield,
@@ -460,7 +498,6 @@ class ServerTankActor(state: State) :
                     velocityX *= scale
                     velocityY *= scale
                 }
-                fuel = (fuel - 1).coerceAtLeast(0)
             }
 
             pendingIntent.reverse && !pendingIntent.forward -> {
@@ -474,7 +511,6 @@ class ServerTankActor(state: State) :
                     velocityX = fx * desired - fy * lateral
                     velocityY = fy * desired + fx * lateral
                 }
-                fuel = (fuel - 1).coerceAtLeast(0)
             }
         }
     }
@@ -492,8 +528,15 @@ class ServerTankActor(state: State) :
     }
 
     private fun advancePosition() {
-        positionX += velocityX.toInt()
-        positionY += velocityY.toInt()
+        val dx = velocityX.toInt()
+        val dy = velocityY.toInt()
+        positionX += dx
+        positionY += dy
+        // Legacy new_position(): human-driven tanks burn one unit of fuel per pixel travelled.
+        if (playerIndex >= 0 && (dx != 0 || dy != 0)) {
+            val distance = kotlin.math.sqrt((dx * dx + dy * dy).toFloat()).toInt().coerceAtLeast(1)
+            fuel = (fuel - distance).coerceAtLeast(0)
+        }
         syncBodyFromPosition()
     }
 
@@ -680,11 +723,20 @@ class ServerTankActor(state: State) :
         @SerialName("bodyDirection") val bodyDirection: Int = 0,
         @SerialName("turretDirection") val turretDirection: Int = 0,
         @SerialName("playerIndex") val playerIndex: Int = -1,
+        @SerialName("controllerId") val controllerId: Int = -1,
+        @SerialName("computer") val computer: Boolean = true,
+        @SerialName("goalContribution") val goalContribution: Int = 0,
+        @SerialName("startPadType") val startPadType: Int = -1,
+        @SerialName("aiAttackTanks") val aiAttackTanks: Int = 100,
+        @SerialName("aiActivationRadius") val aiActivationRadius: Int = -1,
+        @SerialName("aiActivator") val aiActivator: Int = 0,
+        @SerialName("aiStayActive") val aiStayActive: Boolean = false,
+        @SerialName("aiActive") val aiActive: Boolean = false,
         @SerialName("tankType") val tankType: Int = 0,
         @SerialName("armor") val armor: Int = 100,
         @SerialName("shield") val shield: Int = 0,
         @SerialName("invulnerableTicks") val invulnerableTicks: Int = 0,
-        @SerialName("fuel") val fuel: Int = 100,
+        @SerialName("fuel") val fuel: Int = LEGACY_MAX_FUEL,
         @SerialName("lives") val lives: Int = 1,
         @SerialName("team") val team: Int = 0,
         @SerialName("velocityX") val velocityX: Float = 0f,

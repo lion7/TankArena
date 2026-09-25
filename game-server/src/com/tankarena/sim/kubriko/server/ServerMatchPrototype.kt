@@ -3,6 +3,7 @@ package com.tankarena.sim.kubriko.server
 import com.pandulapeter.kubriko.Kubriko
 import com.pandulapeter.kubriko.actor.Actor
 import com.pandulapeter.kubriko.actor.body.PointBody
+import com.pandulapeter.kubriko.actor.traits.Dynamic
 import com.pandulapeter.kubriko.collision.CollisionManager
 import com.pandulapeter.kubriko.helpers.ManualTickSource
 import com.pandulapeter.kubriko.helpers.TickSource
@@ -14,6 +15,8 @@ import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
+import com.tankarena.content.MapSceneSidecar
+import com.tankarena.content.TileLayers
 import com.tankarena.content.TerrainGridBuilder
 import com.tankarena.protocol.snapshot.TerrainGrid
 import com.tankarena.protocol.snapshot.TerrainMaterial
@@ -35,6 +38,8 @@ import com.tankarena.protocol.snapshot.WarpState
 import com.tankarena.protocol.snapshot.ZeppelinState
 import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.MineState
+import com.tankarena.protocol.snapshot.ProjectileKind
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
 import com.tankarena.protocol.snapshot.ProjectileState
 import com.tankarena.protocol.snapshot.RadarContact
@@ -49,6 +54,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
 private const val MILLIS_PER_TICK: Int = 10
+private val DEADLY_TERRAIN = setOf(
+    TerrainMaterial.WATER,
+    TerrainMaterial.PIT_BIG,
+    TerrainMaterial.PIT_SMALL,
+    TerrainMaterial.LAVA,
+)
 private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 private const val TRAIN_FOOTPRINT: Int = 32
 private const val ZEPPELIN_FOOTPRINT: Int = 32
@@ -59,6 +70,7 @@ class ServerMatchPrototype private constructor(
     private val initialActors: List<Serializable<*>>,
     private val terrainGrid: TerrainGrid,
     private val solidLayer: List<Int>,
+    val mode: MatchMode,
 ) {
 
     private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
@@ -80,6 +92,8 @@ class ServerMatchPrototype private constructor(
     private val actorManager: ActorManager = kubriko.get()
     private val actorIds: MutableMap<Actor, Long> = IdentityHashMap()
     private val tanksByPlayerIndex: MutableMap<Int, ServerTankActor> = HashMap()
+    /** Tanks are never spawned or removed after [initialize], so this list is stable for the match. */
+    private var allTanks: List<ServerTankActor> = emptyList()
     private var nextActorId: Long = 1L
     private var currentTick: Long = 0L
     private var isDisposed: Boolean = false
@@ -93,6 +107,9 @@ class ServerMatchPrototype private constructor(
     private var missionCaptures: Int = 0
     private var missionScore: Int = 0
     private var missionResultEmitted: Boolean = false
+    private var lossReason: String = "GOALS_LOST"
+    /** True when the objects' goal contributions can reach 100% on their own (see [evaluateMission]). */
+    private var goalCounterReachable: Boolean = false
 
     val mission: MissionStatus get() = missionStatus
     val goalProgressGood: Int get() = goalGood
@@ -110,9 +127,15 @@ class ServerMatchPrototype private constructor(
         for (actor in actorManager.allActors.value) {
             actorIds.getOrPut(actor) { nextActorId++ }
             if (actor is ServerTankActor && actor.playerIndex >= 0) {
-                tanksByPlayerIndex[actor.playerIndex] = actor
+                tanksByPlayerIndex.putIfAbsent(actor.playerIndex, actor)
             }
         }
+        allTanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        val all = actorManager.allActors.value
+        val reachable = all.filterIsInstance<ServerTankActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
+            all.filterIsInstance<ServerTurretActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
+            all.filterIsInstance<ServerGoalActor>().filter { it.who == 0 }.sumOf { it.contribution.coerceAtLeast(0) }
+        goalCounterReachable = reachable >= 100
     }
 
     fun tick(): WorldSnapshot = tick(intents = emptyMap())
@@ -121,7 +144,12 @@ class ServerMatchPrototype private constructor(
         if (isDisposed) return buildSnapshot(drainEvents = false)
         if (intents.isNotEmpty()) {
             for ((playerIndex, intent) in intents) {
-                tanksByPlayerIndex[playerIndex]?.applyIntent(intent)
+                if (intent.selectTankId > 0) switchToTank(playerIndex, intent.selectTankId)
+            }
+            // Every tank in a player's group obeys that player's controls (legacy control_tank()).
+            for (tank in allTanks) {
+                if (tank.playerIndex < 0) continue
+                intents[tank.playerIndex]?.let(tank::applyIntent)
             }
         }
         stepAiTanks()
@@ -145,6 +173,8 @@ class ServerMatchPrototype private constructor(
         drainRocketRequests()
         drainMortarRequests()
         drainTankLifecycleEvents()
+        drainTurretDestructions()
+        handOverDeadPlayers()
         stepWarps()
         stepDestroyers()
         stepEnforcers()
@@ -162,6 +192,23 @@ class ServerMatchPrototype private constructor(
     fun snapshot(): WorldSnapshot = buildSnapshot(drainEvents = false)
 
     internal fun playerTankForTest(playerIndex: Int): ServerTankActor? = tanksByPlayerIndex[playerIndex]
+
+    internal fun tanksForTest(): List<ServerTankActor> = allTanks
+
+    internal fun turretsForTest(): List<ServerTurretActor> =
+        actorManager.allActors.value.filterIsInstance<ServerTurretActor>()
+
+    internal fun solidTileCountForTest(): Int = solidLayer.count { it >= 0 }
+
+    internal fun terrainCountForTest(material: TerrainMaterial): Int {
+        var count = 0
+        for (y in 0 until mapMetadata.heightTiles) {
+            for (x in 0 until mapMetadata.widthTiles) {
+                if (terrainGrid.at(x, y).material == material) count++
+            }
+        }
+        return count
+    }
 
     internal fun queueDamageForTest(playerIndex: Int, amount: Int) {
         tanksByPlayerIndex[playerIndex]?.queueDamage(amount)
@@ -247,6 +294,9 @@ class ServerMatchPrototype private constructor(
                     mineAmmo = tank.mineAmmo,
                     rocketAmmo = tank.rocketAmmo,
                     mortarAmmo = tank.mortarAmmo,
+                    maxArmor = tank.maxArmor,
+                    maxFuel = tank.maxFuel,
+                    missionProgressBad = goalBad,
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
             )
@@ -273,6 +323,7 @@ class ServerMatchPrototype private constructor(
             )
         }
         for (turret in turrets) {
+            if (!turret.isAlive) continue
             val id = actorIds[turret] ?: continue
             contacts += RadarContact(
                 actorId = id,
@@ -283,6 +334,7 @@ class ServerMatchPrototype private constructor(
             )
         }
         for (goal in goals) {
+            if (goal.isClaimed) continue
             val id = actorIds[goal] ?: continue
             val position = goal.body.position
             val size = goal.body.size
@@ -312,12 +364,26 @@ class ServerMatchPrototype private constructor(
                 delay(5)
             }
         }
+        awaitDynamicActorsSettled()
     }
 
     private fun awaitActorCount(expected: Int) = runBlocking {
         withTimeout(2_000) {
             while (actorManager.allActors.value.size != expected) {
                 delay(2)
+            }
+        }
+        awaitDynamicActorsSettled()
+    }
+
+    /**
+     * Kubriko derives the list of actors it updates each tick from `allActors` asynchronously.
+     * Ticking before it has caught up silently skips `update()` on new actors, so wait for it.
+     */
+    private fun awaitDynamicActorsSettled() = runBlocking {
+        withTimeout(2_000) {
+            while (actorManager.activeDynamicActors.value.size != actorManager.allActors.value.count { it is Dynamic }) {
+                delay(1)
             }
         }
     }
@@ -530,16 +596,22 @@ class ServerMatchPrototype private constructor(
             val size = actor.body.size
             val cx = (position.x.raw + size.width.raw / 2f).toInt()
             val cy = (position.y.raw + size.height.raw / 2f).toInt()
-            val claimant = tanks.firstOrNull { tank ->
-                tank.playerIndex >= 0 && tank.armor > 0 && withinRadius(tank.positionX, tank.positionY, cx, cy, actor.radius)
-            } ?: continue
-            actor.isClaimed = true
-            missionCaptures++
-            missionScore += 500
-            when (actor.who) {
-                0 -> goalGood = (goalGood + actor.contribution).coerceIn(0, 100)
-                else -> goalBad = (goalBad + actor.contribution).coerceIn(0, 100)
+            // Legacy control_goal(): who=0 is reached by a good tank, who=1 by an evil tank,
+            // who=2 by a train; who=3 (a linked object) is not modelled yet.
+            val reached = when (actor.who) {
+                0 -> tanks.any { it.team == 0 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+                1 -> tanks.any { it.team == 1 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+                2 -> actorManager.allActors.value.filterIsInstance<ServerTrainActor>()
+                    .any { it.alive && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+                else -> false
             }
+            if (!reached) continue
+            actor.isClaimed = true
+            if (actor.contribution > 0) {
+                missionCaptures++
+                missionScore += 500
+            }
+            modifyGoalCounter(actor.contribution)
         }
     }
 
@@ -552,84 +624,156 @@ class ServerMatchPrototype private constructor(
                 pendingEvents.addAll(events)
                 // Track kills: when an enemy tank is destroyed, count it
                 for (e in events) {
-                    if (e is GameEvent.TankDestroyed && actor.team == 1) {
+                    if (e !is GameEvent.TankDestroyed) continue
+                    if (actor.team == 1) {
                         missionKills++
                         missionScore += 1000
                     }
+                    onTankDestroyed(actor)
                 }
             }
         }
-        // Also track turret kills
-        for (actor in actorManager.allActors.value) {
-            if (actor !is ServerTurretActor) continue
-            if (actor.armor <= 0 && actor.team == 1) {
-                // Check if this turret just died this tick (was alive before)
-                // We approximate: if it's dead and we haven't counted it yet
-                // (turrets don't emit lifecycle events, so we track here)
+    }
+
+    /**
+     * Legacy hit_tank(): a destroyed tank applies its goal contribution, except that losing the
+     * last human-drivable tank costs the whole mission (-100).
+     */
+    private fun onTankDestroyed(tank: ServerTankActor) {
+        if (tank.lives > 0) return // respawns at its pad; the goal counter only counts final deaths
+        val isHumanTank = tank.playerIndex >= 0 || (!tank.computer && tank.team == 0)
+        if (isHumanTank) {
+            val othersAlive = actorManager.allActors.value.filterIsInstance<ServerTankActor>().any { other ->
+                other !== tank && other.armor > 0 && (other.playerIndex >= 0 || (!other.computer && other.team == 0))
+            }
+            if (!othersAlive) {
+                lossReason = "ALL_LIVES_LOST"
+                modifyGoalCounter(-100)
+                return
             }
         }
+        modifyGoalCounter(tank.goalContribution)
+        tank.goalContribution = 0
+    }
+
+    private fun drainTurretDestructions() {
+        for (turret in actorManager.allActors.value) {
+            if (turret !is ServerTurretActor || !turret.drainDestroyed()) continue
+            val id = actorIds[turret] ?: continue
+            pendingEvents += GameEvent.TurretDestroyed(id)
+            pendingEvents += GameEvent.Explosion(turret.positionX, turret.positionY, LEGACY_TILE_SIZE, ExplosionKind.ROCKET)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, turret.positionX, turret.positionY)
+            if (turret.team == 1) {
+                missionKills++
+                missionScore += 500
+            }
+            modifyGoalCounter(turret.goalContribution)
+            turret.goalContribution = 0
+        }
+    }
+
+    /** Legacy modify_goal_counter(): positive percentages feed the good counter, negative the bad one. */
+    private fun modifyGoalCounter(percentage: Int) {
+        if (mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) return
+        when {
+            percentage > 0 -> goalGood = (goalGood + percentage).coerceAtMost(100)
+            percentage < 0 -> goalBad = (goalBad - percentage).coerceAtMost(100)
+        }
+    }
+
+    /**
+     * Legacy control.c: the camera follows another living tank of the player's group, and when
+     * the whole group is gone for good control moves to another group of human-drivable tanks.
+     */
+    private fun handOverDeadPlayers() {
+        val tanks = allTanks
+        for ((playerIndex, primary) in tanksByPlayerIndex.toMap()) {
+            if (primary.armor > 0 && primary.playerIndex == playerIndex) continue
+            val group = tanks.filter { it.playerIndex == playerIndex }
+            group.firstOrNull { it.armor > 0 }?.let {
+                tanksByPlayerIndex[playerIndex] = it
+                continue
+            }
+            if (group.any { it.lives > 0 }) continue // a pad tank is waiting to respawn
+            if (mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) continue
+            val nextId = tanks
+                .filter { it.armor > 0 && it.playerIndex < 0 && !it.computer && it.team == 0 && it.controllerId >= 0 }
+                .minOfOrNull { it.controllerId }
+                ?: continue
+            transferControl(playerIndex, nextId, tanks)
+        }
+    }
+
+    /** Legacy F1–F10 in single / co-operative play. */
+    private fun switchToTank(playerIndex: Int, controllerId: Int) {
+        if (mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) return
+        val current = tanksByPlayerIndex[playerIndex] ?: return
+        if (current.controllerId == controllerId && current.armor > 0) return
+        val tanks = allTanks
+        val available = tanks.any {
+            it.controllerId == controllerId && it.armor > 0 && it.playerIndex < 0 && !it.computer && it.team == 0
+        }
+        if (available) transferControl(playerIndex, controllerId, tanks)
+    }
+
+    private fun transferControl(playerIndex: Int, controllerId: Int, tanks: List<ServerTankActor>) {
+        for (tank in tanks) {
+            if (tank.playerIndex == playerIndex) tank.playerIndex = -1
+        }
+        val group = tanks.filter { it.controllerId == controllerId && it.playerIndex < 0 && !it.computer && it.team == 0 }
+        group.forEach { it.playerIndex = playerIndex }
+        val primary = group.firstOrNull { it.armor > 0 } ?: return
+        tanksByPlayerIndex[playerIndex] = primary
+        pendingEvents += GameEvent.ControlSwitched(playerIndex, actorIds[primary] ?: 0L)
     }
 
     private fun evaluateMission() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
         val all = actorManager.allActors.value
-        val playerTanks = all.filterIsInstance<ServerTankActor>().filter { it.playerIndex >= 0 }
-        val enemyTanks = all.filterIsInstance<ServerTankActor>().filter { it.team == 1 }
-        val enemyTurrets = all.filterIsInstance<ServerTurretActor>().filter { it.team == 1 }
+        val tanks = all.filterIsInstance<ServerTankActor>()
 
-        // --- Win conditions ---
+        if (mode == MatchMode.DUAL) {
+            // Player vs player: the last player standing wins; goal counters are ignored.
+            // Legacy control_player(): a player loses as soon as one of their pads runs out of lives.
+            val p0Tanks = tanks.filter { it.playerIndex == 0 }
+            val p1Tanks = tanks.filter { it.playerIndex == 1 }
+            if (p0Tanks.isNotEmpty() && p1Tanks.isNotEmpty()) {
+                val p0Dead = p0Tanks.any { it.armor <= 0 && it.lives <= 0 }
+                val p1Dead = p1Tanks.any { it.armor <= 0 && it.lives <= 0 }
+                if (p0Dead && !p1Dead) {
+                    endMission(false, "PLAYER_ELIMINATED")
+                } else if (p1Dead && !p0Dead) {
+                    endMission(true, "OPPONENT_ELIMINATED")
+                }
+            }
+            return
+        }
 
-        // 1. Goal counter: gc_good reaches 100%
+        // Legacy modify_goal_counter(): 100% good wins, 100% bad loses.
         if (goalGood >= 100) {
             endMission(true, "GOALS_CAPTURED")
             return
         }
+        if (goalBad >= 100) {
+            endMission(false, lossReason)
+            return
+        }
 
-        // 2. All enemies eliminated (SINGLE, DUALVC, SINGLE_OR_DUAL)
-        val hasEnemies = enemyTanks.isNotEmpty() || enemyTurrets.isNotEmpty()
-        if (hasEnemies) {
-            val enemiesAllDead = enemyTanks.all { it.armor <= 0 && it.lives <= 0 } &&
-                enemyTurrets.all { it.armor <= 0 }
-            if (enemiesAllDead) {
+        // Maps whose object contributions cannot reach 100% on their own (structure goals are
+        // not modelled yet, and hand-built fixtures carry none) fall back to "destroy everything".
+        if (!goalCounterReachable) {
+            val enemyTanks = tanks.filter { it.team == 1 }
+            val enemyTurrets = all.filterIsInstance<ServerTurretActor>().filter { it.team == 1 }
+            val hasEnemies = enemyTanks.isNotEmpty() || enemyTurrets.isNotEmpty()
+            if (hasEnemies && enemyTanks.all { it.armor <= 0 && it.lives <= 0 } && enemyTurrets.all { !it.isAlive }) {
                 endMission(true, "ALL_ENEMIES_ELIMINATED")
                 return
             }
         }
 
-        // 3. Goal counter: gc_bad reaches 100% (enemy captured your goals)
-        if (goalBad >= 100) {
-            endMission(false, "GOALS_LOST")
-            return
-        }
-
-        // --- Loss conditions ---
-
-        // 4. All player tanks dead and no lives remaining
-        val playersAllDead = playerTanks.isNotEmpty() &&
-            playerTanks.all { it.armor <= 0 && it.lives <= 0 }
-        if (playersAllDead) {
+        val humanTanks = tanks.filter { it.playerIndex >= 0 || (!it.computer && it.team == 0) }
+        if (humanTanks.isNotEmpty() && humanTanks.all { it.armor <= 0 && it.lives <= 0 }) {
             endMission(false, "ALL_LIVES_LOST")
-            return
-        }
-
-        // 5. DUAL mode: check per-player elimination
-        // In DUAL mode, both players share team=0; differentiate by playerIndex.
-        val mode = mapMetadata.modeCompatibility
-        if (mode == com.tankarena.content.GameModeCompatibility.DUAL) {
-            val p0Tanks = all.filterIsInstance<ServerTankActor>().filter { it.playerIndex == 0 }
-            val p1Tanks = all.filterIsInstance<ServerTankActor>().filter { it.playerIndex == 1 }
-            if (p0Tanks.isNotEmpty() && p1Tanks.isNotEmpty()) {
-                val p0Dead = p0Tanks.all { it.armor <= 0 && it.lives <= 0 }
-                val p1Dead = p1Tanks.all { it.armor <= 0 && it.lives <= 0 }
-                if (p0Dead && !p1Dead) {
-                    endMission(false, "PLAYER_ELIMINATED")
-                    return
-                }
-                if (p1Dead && !p0Dead) {
-                    endMission(true, "OPPONENT_ELIMINATED")
-                    return
-                }
-            }
         }
     }
 
@@ -669,9 +813,14 @@ class ServerMatchPrototype private constructor(
         val tanks = all.filterIsInstance<ServerTankActor>()
         if (tanks.isEmpty()) return
         for (ai in tanks) {
-            if (ai.playerIndex >= 0) continue
+            if (ai.playerIndex >= 0 || !ai.computer) continue
             if (ai.armor <= 0) continue
-            val target = pickAiTarget(ai, tanks)
+            if (!updateAiActivation(ai, tanks)) {
+                ai.applyIntent(com.tankarena.input.PlayerIntentFrame())
+                continue
+            }
+            // Legacy attack_tanks == 0 (cars, buses, trucks): never hunts tanks.
+            val target = if (ai.aiAttackTanks > 0) pickAiTarget(ai, tanks) else null
             if (target != null) {
                 ai.applyIntent(computeAiIntent(ai, target))
             } else {
@@ -691,8 +840,30 @@ class ServerMatchPrototype private constructor(
         }
     }
 
+    /**
+     * Legacy determine_new_target(): a computer tank is dormant until a tank from its activator
+     * side comes within its activation radius, and falls dormant again unless `stay_active`.
+     */
+    private fun updateAiActivation(ai: ServerTankActor, tanks: List<ServerTankActor>): Boolean {
+        if (ai.aiActivationRadius < 0) return true
+        val wakerTeam = if (ai.aiActivator == 0) 0 else 1
+        val inRange = tanks.any { other ->
+            other !== ai && other.armor > 0 && other.team == wakerTeam &&
+                withinRadius(other.positionX, other.positionY, ai.positionX, ai.positionY, ai.aiActivationRadius)
+        }
+        ai.aiActive = inRange || (ai.aiStayActive && ai.aiActive)
+        return ai.aiActive
+    }
+
     private val pathfinder: TilePathfinder by lazy {
-        TilePathfinder(mapMetadata.widthTiles, mapMetadata.heightTiles, solidLayer)
+        TilePathfinder(mapMetadata.widthTiles, mapMetadata.heightTiles, navigationLayer())
+    }
+
+    /** Walls plus terrain that kills on contact, so computer tanks route around water, pits and lava. */
+    private fun navigationLayer(): List<Int> = solidLayer.mapIndexed { index, solid ->
+        if (solid >= 0) return@mapIndexed solid
+        val material = terrainGrid.at(index % mapMetadata.widthTiles, index / mapMetadata.widthTiles).material
+        if (material in DEADLY_TERRAIN) 0 else -1
     }
 
     private val lineOfSight: LineOfSight by lazy {
@@ -701,8 +872,9 @@ class ServerMatchPrototype private constructor(
 
     private lateinit var aiModeDispatcher: AiModeDispatcher
 
-    private var cachedPath: List<Pair<Int, Int>> = emptyList()
-    private var cachedPathTick: Long = -1L
+    private class AiPathCache(var path: List<Pair<Int, Int>> = emptyList(), var tick: Long = -1L)
+
+    private val aiPathCaches: MutableMap<ServerTankActor, AiPathCache> = IdentityHashMap()
 
     private fun pickAiTarget(
         self: ServerTankActor,
@@ -733,12 +905,13 @@ class ServerMatchPrototype private constructor(
         val dy = target.positionY - self.positionY
         val distSq = dx.toLong() * dx + dy.toLong() * dy
 
-        // Recompute path every 15 ticks or if significantly displaced
-        val shouldRepath = (currentTick - cachedPathTick) >= 15 || cachedPath.isEmpty()
-        if (shouldRepath) {
-            cachedPath = pathfinder.findPath(self.positionX, self.positionY, target.positionX, target.positionY)
-            cachedPathTick = currentTick
+        // Recompute this tank's path every 15 ticks or when it has none
+        val cache = aiPathCaches.getOrPut(self) { AiPathCache() }
+        if ((currentTick - cache.tick) >= 15 || cache.path.isEmpty()) {
+            cache.path = pathfinder.findPath(self.positionX, self.positionY, target.positionX, target.positionY)
+            cache.tick = currentTick
         }
+        val cachedPath = cache.path
 
         // Body direction: follow path if available, otherwise go directly
         val bodyDesired: Int
@@ -761,9 +934,11 @@ class ServerMatchPrototype private constructor(
             dy.coerceIn(-1, 1),
         )
 
-        val bodyTurn = turnDelta(self.bodyDirection, bodyDesired)
+        // No route (target across water, a pit or walls): hold position rather than drive into it.
+        val canReach = cachedPath.isNotEmpty() || distSq <= LEGACY_TILE_SIZE.toLong() * LEGACY_TILE_SIZE * 4
+        val bodyTurn = if (canReach) turnDelta(self.bodyDirection, bodyDesired) else 0
         val turretTurn = turnDelta(self.turretDirection, turretDesired)
-        val bodyAligned = self.bodyDirection == bodyDesired
+        val bodyAligned = canReach && self.bodyDirection == bodyDesired
         val turretAligned = self.turretDirection == turretDesired
         val fireRangeSq = (320L * 320L)
         val visible = lineOfSight.hasLineOfSight(self.positionX, self.positionY, target.positionX, target.positionY)
@@ -915,6 +1090,7 @@ class ServerMatchPrototype private constructor(
                 kind = ExplosionKind.ROCKET,
                 owner = actor.ownerRef,
                 ownerImmune = true,
+                turrets = actorManager.allActors.value.filterIsInstance<ServerTurretActor>(),
             ))
         }
     }
@@ -930,15 +1106,9 @@ class ServerMatchPrototype private constructor(
 
     private fun drainRocketRequests() {
         val spawns = mutableListOf<ServerRocketActor>()
-        for (tank in tanksByPlayerIndex.values) {
+        for (tank in allTanks) {
             val request = tank.drainRocketRequest() ?: continue
             spawns += rocketFromRequest(tank, request)
-        }
-        for (actor in actorManager.allActors.value) {
-            if (actor is ServerTankActor && actor.playerIndex < 0) {
-                val request = actor.drainRocketRequest() ?: continue
-                spawns += rocketFromRequest(actor, request)
-            }
         }
         if (spawns.isEmpty()) return
         val expected = actorManager.allActors.value.size + spawns.size
@@ -1000,6 +1170,7 @@ class ServerMatchPrototype private constructor(
                 damage = explosion.damage,
                 kind = ExplosionKind.MORTAR,
                 owner = actor.ownerRef,
+                turrets = actorManager.allActors.value.filterIsInstance<ServerTurretActor>(),
             ))
         }
     }
@@ -1015,15 +1186,9 @@ class ServerMatchPrototype private constructor(
 
     private fun drainMortarRequests() {
         val spawns = mutableListOf<ServerMortarActor>()
-        for (tank in tanksByPlayerIndex.values) {
+        for (tank in allTanks) {
             val request = tank.drainMortarRequest() ?: continue
             spawns += mortarFromRequest(tank, request)
-        }
-        for (actor in actorManager.allActors.value) {
-            if (actor is ServerTankActor && actor.playerIndex < 0) {
-                val request = actor.drainMortarRequest() ?: continue
-                spawns += mortarFromRequest(actor, request)
-            }
         }
         if (spawns.isEmpty()) return
         val expected = actorManager.allActors.value.size + spawns.size
@@ -1125,15 +1290,9 @@ class ServerMatchPrototype private constructor(
 
     private fun drainMineRequests() {
         val spawns = mutableListOf<ServerMineActor>()
-        for (tank in tanksByPlayerIndex.values) {
+        for (tank in allTanks) {
             val request = tank.drainMineRequest() ?: continue
             spawns += mineFromRequest(tank, request)
-        }
-        for (actor in actorManager.allActors.value) {
-            if (actor is ServerTankActor && actor.playerIndex < 0) {
-                val request = actor.drainMineRequest() ?: continue
-                spawns += mineFromRequest(actor, request)
-            }
         }
         if (spawns.isEmpty()) return
         val expected = actorManager.allActors.value.size + spawns.size
@@ -1173,15 +1332,11 @@ class ServerMatchPrototype private constructor(
 
     private fun drainFireRequests() {
         val spawns = mutableListOf<ServerProjectileActor>()
-        for (tank in tanksByPlayerIndex.values) {
+        for (tank in allTanks) {
             val request = tank.drainFireRequest() ?: continue
             spawns += projectileFromRequest(tank, request)
         }
         for (actor in actorManager.allActors.value) {
-            if (actor is ServerTankActor && actor.playerIndex < 0) {
-                val request = actor.drainFireRequest() ?: continue
-                spawns += projectileFromRequest(actor, request)
-            }
             if (actor is ServerTurretActor) {
                 val request = actor.drainFireRequest() ?: continue
                 spawns += projectileFromTurretRequest(actor, request)
@@ -1215,6 +1370,7 @@ class ServerMatchPrototype private constructor(
                 velocityX = request.velocityX,
                 velocityY = request.velocityY,
                 ttlTicks = request.ttlTicks,
+                weaponKind = request.weaponKind,
             ),
         )
         projectile.ownerRef = owner
@@ -1249,7 +1405,8 @@ class ServerMatchPrototype private constructor(
                 velocityY = request.velocityY,
             ),
         )
-        
+        projectile.ownerTurretRef = owner
+
         // Emit sound event for turret firing
         pendingEvents += GameEvent.Sound(
             kind = com.tankarena.protocol.snapshot.SoundKind.MAIN,
@@ -1362,6 +1519,30 @@ class ServerMatchPrototype private constructor(
                 vx = actor.velocityX,
                 vy = actor.velocityY,
                 ownerKind = actor.ownerKind,
+                kind = if (actor.weaponKind == WEAPON_CHAIN) ProjectileKind.CHAIN else ProjectileKind.BULLET,
+            )
+
+            is ServerRocketActor -> ProjectileState(
+                actorId = id,
+                ownerId = actor.ownerActorId,
+                x = actor.positionX.toInt(),
+                y = actor.positionY.toInt(),
+                kind = ProjectileKind.ROCKET,
+            )
+
+            is ServerMortarActor -> ProjectileState(
+                actorId = id,
+                ownerId = actor.ownerActorId,
+                x = actor.positionX.toInt(),
+                y = actor.positionY.toInt(),
+                kind = ProjectileKind.MORTAR,
+            )
+
+            is ServerMineActor -> MineState(
+                actorId = id,
+                x = actor.positionX,
+                y = actor.positionY,
+                armed = actor.isActive,
             )
 
             is ServerFlagActor -> {
@@ -1481,43 +1662,45 @@ class ServerMatchPrototype private constructor(
     }
 
     companion object {
-        internal fun fromCanonicalMap(map: CanonicalMapDefinition): ServerMatchPrototype {
+        internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): ServerMatchPrototype {
+            // Round-trip through scene JSON so fixtures exercise the same load path as shipped scenes.
             val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
                 *tankArenaSerializableMetadata,
             )
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
-            val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            val terrainGrid = TerrainGridBuilder.build(map.layers, map.metadata)
-            val instance = ServerMatchPrototype(
-                mapMetadata = map.metadata,
-                initialActors = actors,
-                terrainGrid = terrainGrid,
-                solidLayer = map.layers.solid,
-            )
-            instance.aiModeDispatcher = AiModeDispatcher(
-                mode = map.metadata.modeCompatibility,
-                waypoints = emptyList(), // Authored waypoints deferred
-                pathfinder = instance.pathfinder,
-            )
-            return instance
+            return create(map.metadata, map.layers, serializationManagerForBuild.deserializeActors(sceneJson), mode)
         }
 
-        fun fromSceneJson(sceneJson: String, mapMetadata: MapMetadata): ServerMatchPrototype {
+        /**
+         * Production bootstrap: a committed scene plus its sidecar. The sidecar's tile layers drive
+         * terrain effects, pits, A* pathing and line-of-sight exactly as on the fixture path.
+         */
+        fun fromSceneJson(sceneJson: String, sidecar: MapSceneSidecar, mode: MatchMode = MatchMode.SINGLE): ServerMatchPrototype {
             val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
                 *tankArenaSerializableMetadata,
             )
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            val terrainGrid = TerrainGrid.empty(mapMetadata.widthTiles, mapMetadata.heightTiles)
-            val solidLayer = List(mapMetadata.widthTiles * mapMetadata.heightTiles) { -1 }
+            return create(sidecar.metadata, sidecar.tileLayers, actors, mode)
+        }
+
+        private fun create(
+            metadata: MapMetadata,
+            layers: TileLayers?,
+            actors: List<Serializable<*>>,
+            mode: MatchMode,
+        ): ServerMatchPrototype {
+            val cellCount = metadata.widthTiles * metadata.heightTiles
+            val solidLayer = layers?.solid?.takeIf { it.size == cellCount } ?: List(cellCount) { -1 }
             val instance = ServerMatchPrototype(
-                mapMetadata = mapMetadata,
-                initialActors = actors,
-                terrainGrid = terrainGrid,
+                mapMetadata = metadata,
+                initialActors = MatchSetup.assignControl(actors, mode),
+                terrainGrid = TerrainGridBuilder.build(layers, metadata),
                 solidLayer = solidLayer,
+                mode = mode,
             )
             instance.aiModeDispatcher = AiModeDispatcher(
-                mode = mapMetadata.modeCompatibility,
-                waypoints = emptyList(),
+                mode = metadata.modeCompatibility,
+                waypoints = emptyList(), // Authored waypoints deferred
                 pathfinder = instance.pathfinder,
             )
             return instance

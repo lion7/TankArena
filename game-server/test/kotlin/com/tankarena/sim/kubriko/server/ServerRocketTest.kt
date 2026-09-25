@@ -138,7 +138,7 @@ class ServerRocketTest {
                 ),
                 AuthoredObject(
                     id = "victim",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = 9 * LEGACY_TILE_SIZE,
                     y = 5 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf("direction" to "12", "lives" to "3"),

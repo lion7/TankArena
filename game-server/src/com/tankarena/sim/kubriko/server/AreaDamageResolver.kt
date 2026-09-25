@@ -21,6 +21,7 @@ internal object AreaDamageResolver {
         kind: ExplosionKind,
         owner: ServerTankActor? = null,
         ownerImmune: Boolean = false,
+        turrets: List<ServerTurretActor> = emptyList(),
     ): List<GameEvent> {
         val events = mutableListOf<GameEvent>()
         
@@ -38,6 +39,16 @@ internal object AreaDamageResolver {
                 val scaled = (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt()
                 if (scaled <= 0) continue
                 tank.queueDamage(scaled)
+            }
+            for (turret in turrets) {
+                if (!turret.isAlive) continue
+                val dx = (turret.positionX - x).toLong()
+                val dy = (turret.positionY - y).toLong()
+                val half = (turret.body.size.width.raw / 2f)
+                val edgeDist = (kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat() - half).coerceAtLeast(0f)
+                if (edgeDist >= radius) continue
+                val scaled = (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt()
+                if (scaled > 0) turret.takeDamage(scaled)
             }
         }
         

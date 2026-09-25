@@ -65,6 +65,13 @@ sealed interface GameEvent {
     data class TankSpawned(val actorId: Long) : GameEvent
 
     @Serializable
+    data class TurretDestroyed(val actorId: Long) : GameEvent
+
+    /** Control of [playerId] moved to another tank (death hand-over or F1–F10 tank switch). */
+    @Serializable
+    data class ControlSwitched(val playerId: Int, val actorId: Long) : GameEvent
+
+    @Serializable
     data class DamageTaken(val actorId: Long, val amount: Int) : GameEvent
 
     @Serializable

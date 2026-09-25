@@ -1,5 +1,6 @@
 package com.tankarena.tools.mapconv
 
+import com.tankarena.content.SCENE_INDEX_FILE_NAME
 import com.tankarena.legacy.LegacyMapParser
 import com.tankarena.sim.kubriko.server.LegacyToSceneJson
 import com.tankarena.sim.kubriko.server.legacy.LegacyCanonicalConverter
@@ -60,14 +61,20 @@ fun main(args: Array<String>) {
                 ?: emptyArray()
             var ok = 0
             var failed = 0
+            val converted = sortedSetOf<String>()
             for (file in files.sortedBy { it.name.lowercase() }) {
                 runCatching { convertSingleToScene(file, outputDir) }
-                    .onSuccess { ok += 1 }
+                    .onSuccess { baseName ->
+                        ok += 1
+                        if (!converted.add(baseName)) System.err.println("Warning: ${file.name} overwrote scene '$baseName'")
+                    }
                     .onFailure { ex ->
                         failed += 1
                         System.err.println("Failed ${file.name}: ${ex.message}")
                     }
             }
+            // The client discovers shipped missions through this index (classpath resources cannot be listed).
+            File(outputDir, SCENE_INDEX_FILE_NAME).writeText(converted.joinToString(separator = "\n", postfix = "\n"))
             println("scene-all: ok=$ok failed=$failed -> ${outputDir.absolutePath}")
         }
 
@@ -112,7 +119,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun convertSingleToScene(input: File, outputDir: File) {
+private fun convertSingleToScene(input: File, outputDir: File): String {
     val parser = LegacyMapParser()
     val name = input.nameWithoutExtension
     val legacy = parser.parse(input.readBytes(), name)
@@ -124,6 +131,7 @@ private fun convertSingleToScene(input: File, outputDir: File) {
     sceneFile.writeText(converted.sceneJson)
     sidecarFile.writeText(converted.sidecarJson)
     println("Converted ${input.name} -> ${sceneFile.name} + ${sidecarFile.name}")
+    return baseName
 }
 
 private fun sanitizeFileName(raw: String): String =

@@ -56,6 +56,15 @@ data class ProjectileState(
     val vx: Int = 0,
     val vy: Int = 0,
     val ownerKind: ProjectileOwnerKind = ProjectileOwnerKind.TANK,
+    val kind: ProjectileKind = ProjectileKind.BULLET,
+) : ActorState
+
+@Serializable
+data class MineState(
+    override val actorId: Long,
+    val x: Int,
+    val y: Int,
+    val armed: Boolean = false,
 ) : ActorState
 
 @Serializable
@@ -169,3 +178,6 @@ data class B52State(
 
 @Serializable
 enum class ProjectileOwnerKind { TANK, TURRET }
+
+@Serializable
+enum class ProjectileKind { BULLET, CHAIN, ROCKET, MORTAR }

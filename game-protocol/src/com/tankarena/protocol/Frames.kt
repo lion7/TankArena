@@ -17,6 +17,8 @@ data class InputFrame(
     val shield: Boolean = false,
     val cycleWeaponLeft: Boolean = false,
     val cycleWeaponRight: Boolean = false,
+    /** Legacy F1–F10: switch control to the friendly tank with this id (0 = no request). */
+    val selectTankId: Int = 0,
 )
 
 @Serializable

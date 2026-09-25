@@ -38,6 +38,7 @@ class ServerProjectileActor internal constructor(state: State) :
     val ownerActorId: Long = state.ownerActorId
     val ownerKind: ProjectileOwnerKind = state.ownerKind
     val damage: Int = state.damage
+    val weaponKind: Int = state.weaponKind
     val velocityX: Int = state.velocityX
     val velocityY: Int = state.velocityY
 
@@ -55,6 +56,7 @@ class ServerProjectileActor internal constructor(state: State) :
     private var explosionPending: Boolean = false
     private var tankHitRef: ServerTankActor? = null
     internal var ownerRef: ServerTankActor? = null
+    internal var ownerTurretRef: ServerTurretActor? = null
 
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
@@ -93,7 +95,13 @@ class ServerProjectileActor internal constructor(state: State) :
                     markDead(positionX, positionY)
                 }
 
-                is ServerTurretActor -> markDead(positionX, positionY)
+                is ServerTurretActor -> {
+                    // Wrecked turrets no longer stop bullets.
+                    if (!other.isAlive) continue
+                    if (other === ownerTurretRef) continue
+                    other.takeDamage(damage)
+                    markDead(positionX, positionY)
+                }
                 else -> Unit
             }
         }
@@ -117,6 +125,7 @@ class ServerProjectileActor internal constructor(state: State) :
         velocityX = velocityX,
         velocityY = velocityY,
         ttlTicks = ttlTicks,
+        weaponKind = weaponKind,
     )
 
     private fun markDead(atX: Int, atY: Int) {
@@ -142,6 +151,7 @@ class ServerProjectileActor internal constructor(state: State) :
         @SerialName("velocityX") val velocityX: Int = 0,
         @SerialName("velocityY") val velocityY: Int = 0,
         @SerialName("ttlTicks") val ttlTicks: Int = PROJECTILE_TTL_TICKS,
+        @SerialName("weaponKind") val weaponKind: Int = WEAPON_MAIN,
     ) : Serializable.State<ServerProjectileActor> {
         override fun restore(): ServerProjectileActor = ServerProjectileActor(this)
         override fun serialize(): String = Json.encodeToString(this)

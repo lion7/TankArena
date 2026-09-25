@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
  * and server versions must fail fast at decode time rather than producing silent drift.
  */
-const val PROTOCOL_VERSION: Int = 2
+const val PROTOCOL_VERSION: Int = 3
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.
@@ -71,6 +71,9 @@ data class HudState(
     val mineAmmo: Int = 0,
     val rocketAmmo: Int = 0,
     val mortarAmmo: Int = 0,
+    val maxArmor: Int = 0,
+    val maxFuel: Int = 0,
+    val missionProgressBad: Int = 0,
 )
 
 @Serializable

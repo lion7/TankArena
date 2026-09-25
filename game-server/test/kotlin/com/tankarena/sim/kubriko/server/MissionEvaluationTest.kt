@@ -107,6 +107,7 @@ class MissionEvaluationTest {
     fun `DUAL mode team1 eliminated emits MissionWon with OPPONENT_ELIMINATED`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(
             dualPlayerMap(team1Armor = 10, team1Lives = 1),
+            MatchMode.DUAL,
         )
         prototype.initialize()
 
@@ -137,6 +138,7 @@ class MissionEvaluationTest {
     fun `DUAL mode team0 eliminated emits MissionLost with PLAYER_ELIMINATED`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(
             dualPlayerMap(team0Armor = 10, team0Lives = 1),
+            MatchMode.DUAL,
         )
         prototype.initialize()
 
@@ -164,6 +166,7 @@ class MissionEvaluationTest {
     fun `DUAL_VS_COMPUTER mode eliminating enemies emits MissionWon`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(
             dualVcMap(enemyArmor = 10, enemyLives = 1),
+            MatchMode.DUAL_VS_COMPUTER,
         )
         prototype.initialize()
 
@@ -356,7 +359,7 @@ class MissionEvaluationTest {
                 ),
                 AuthoredObject(
                     id = "e1",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = 7 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf(
@@ -470,7 +473,7 @@ class MissionEvaluationTest {
                 ),
                 AuthoredObject(
                     id = "e1",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = 7 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf(

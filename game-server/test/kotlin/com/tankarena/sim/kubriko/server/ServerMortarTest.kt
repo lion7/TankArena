@@ -111,7 +111,7 @@ class ServerMortarTest {
                 ),
                 AuthoredObject(
                     id = "victim",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = (2 + victimDistanceTiles) * LEGACY_TILE_SIZE,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf("direction" to "12", "lives" to "3"),

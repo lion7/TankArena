@@ -36,7 +36,7 @@ class SceneJsonBootstrapTest {
         val sidecar = LegacyToSceneJson.parseSidecar(sidecarFile.readText())
         val proto = ServerMatchPrototype.fromSceneJson(
             sceneJson = sceneFile.readText(),
-            mapMetadata = sidecar.metadata,
+            sidecar = sidecar,
         )
         prototype = proto
         proto.initialize()

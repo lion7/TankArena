@@ -136,7 +136,7 @@ class ServerTankLifecycleTest {
                 ),
                 AuthoredObject(
                     id = "enemy",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = 6 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf(

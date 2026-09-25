@@ -118,7 +118,7 @@ class ServerMatchPrototypeTest {
                 ),
                 AuthoredObject(
                     id = "e1",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = 9 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf("direction" to "8"),
@@ -156,6 +156,7 @@ class ServerMatchPrototypeTest {
             is com.tankarena.protocol.snapshot.TrainState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.ZeppelinState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.B52State -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.MineState -> x.isFinite() && y.isFinite()
         }
     }
 

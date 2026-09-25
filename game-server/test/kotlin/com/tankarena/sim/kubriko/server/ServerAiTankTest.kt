@@ -88,7 +88,7 @@ class ServerAiTankTest {
                 ),
                 AuthoredObject(
                     id = "enemy",
-                    kind = ObjectKinds.ENFORCER,
+                    kind = ObjectKinds.AI_TANK,
                     x = enemyTileX * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     y = 1 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf("direction" to "12", "lives" to "3", "armor" to "200"),

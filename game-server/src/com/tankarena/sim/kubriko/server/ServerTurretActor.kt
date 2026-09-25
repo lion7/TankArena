@@ -30,6 +30,12 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
     var armor: Int = state.armor
     var cooldownTicks: Int = state.cooldownTicks
         private set
+    /** Legacy `o->gc`: goal-counter percentage applied when this turret is destroyed. */
+    var goalContribution: Int = state.goalContribution
+        internal set
+    val isAlive: Boolean get() = armor > 0
+
+    private var destroyedThisTick: Boolean = false
 
     val positionX: Int get() = (body.position.x.raw + body.size.width.raw / 2f).toInt()
     val positionY: Int get() = (body.position.y.raw + body.size.height.raw / 2f).toInt()
@@ -70,6 +76,25 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         }
     }
 
+    /** Applies hit damage; returns true when this hit destroyed the turret. */
+    fun takeDamage(amount: Int): Boolean {
+        if (amount <= 0 || armor <= 0) return false
+        armor = (armor - amount).coerceAtLeast(0)
+        if (armor == 0) {
+            destroyedThisTick = true
+            pendingFireRequest = null
+            return true
+        }
+        return false
+    }
+
+    /** True exactly once after the turret is destroyed. */
+    fun drainDestroyed(): Boolean {
+        if (!destroyedThisTick) return false
+        destroyedThisTick = false
+        return true
+    }
+
     fun drainFireRequest(): FireRequest? {
         val request = pendingFireRequest
         pendingFireRequest = null
@@ -82,6 +107,7 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         team = team,
         armor = armor,
         cooldownTicks = cooldownTicks,
+        goalContribution = goalContribution,
     )
 
     private fun nearestTargetInRange(tanks: List<ServerTankActor>): ServerTankActor? {
@@ -109,6 +135,7 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         @SerialName("team") val team: Int = 1,
         @SerialName("armor") val armor: Int = 100,
         @SerialName("cooldownTicks") val cooldownTicks: Int = 0,
+        @SerialName("goalContribution") val goalContribution: Int = 0,
     ) : Serializable.State<ServerTurretActor> {
         override fun restore(): ServerTurretActor = ServerTurretActor(this)
         override fun serialize(): String = Json.encodeToString(this)

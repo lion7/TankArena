@@ -1,6 +1,7 @@
 package com.tankarena.sim.kubriko.server
 
 import com.pandulapeter.kubriko.actor.body.BoxBody
+import com.pandulapeter.kubriko.actor.body.PointBody
 import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
 import com.pandulapeter.kubriko.serialization.Serializable
 import com.pandulapeter.kubriko.serialization.SerializableMetadata
@@ -14,6 +15,11 @@ import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 private const val TURRET_FOOTPRINT: Int = LEGACY_TILE_SIZE
 private const val GOAL_FOOTPRINT: Int = 16
+private const val DEFAULT_ARMOR: Int = 100
+/** `make_player()` in src/objects/player.c gives dual-mode pads four lives. */
+private const val LEGACY_PAD_LIVES: Int = 4
+private const val LIGHT_MINE_DAMAGE: Int = 7
+private const val HEAVY_MINE_DAMAGE: Int = 20
 
 object CanonicalSceneBuilder {
 
@@ -60,34 +66,68 @@ object CanonicalSceneBuilder {
     private fun appendAuthoredObjects(map: CanonicalMapDefinition, sink: MutableList<Serializable<*>>) {
         var nextPlayerIndex = 0
         for (obj in map.objects) {
+            val props = obj.properties
+            val goalContribution = props.int("goalContribution") ?: 0
             when (obj.kind) {
                 ObjectKinds.PLAYER_START -> {
-                    sink += tankActor(
-                        cx = obj.x,
-                        cy = obj.y,
-                        playerIndex = nextPlayerIndex++,
-                        bodyDirection = obj.properties["direction"]?.toIntOrNull() ?: 0,
-                        turretDirection = obj.properties["direction"]?.toIntOrNull() ?: 0,
-                        tankType = obj.properties["tankType"]?.toIntOrNull() ?: 0,
-                        armor = obj.properties["armor"]?.toIntOrNull() ?: 100,
-                        fuel = obj.properties["fuel"]?.toIntOrNull() ?: 100,
-                        lives = obj.properties["lives"]?.toIntOrNull() ?: 1,
-                        team = 0,
-                    )
+                    val padType = props.int("startType")
+                    if (padType != null) {
+                        // Legacy dual-mode start pad: type & 1 is the player, type >> 1 the vehicle kind,
+                        // and the pad direction is a quarter turn (0..3) of the 16-step compass.
+                        val direction = ((props.int("direction") ?: 0) * 4).mod(16)
+                        sink += tankActor(
+                            cx = obj.x,
+                            cy = obj.y,
+                            playerIndex = padType and 1,
+                            bodyDirection = direction,
+                            turretDirection = direction,
+                            tankType = 0,
+                            armor = props.int("armor") ?: DEFAULT_ARMOR,
+                            lives = (props.int("lives") ?: 0).takeIf { it > 0 } ?: LEGACY_PAD_LIVES,
+                            team = 0,
+                            computer = false,
+                            startPadType = padType,
+                        )
+                    } else {
+                        sink += tankActor(
+                            cx = obj.x,
+                            cy = obj.y,
+                            playerIndex = nextPlayerIndex++,
+                            bodyDirection = props.int("direction") ?: 0,
+                            turretDirection = props.int("direction") ?: 0,
+                            tankType = props.int("tankType") ?: 0,
+                            armor = props.int("armor") ?: DEFAULT_ARMOR,
+                            fuel = props.int("fuel") ?: LEGACY_MAX_FUEL,
+                            lives = props.int("lives") ?: 1,
+                            team = 0,
+                            computer = false,
+                        )
+                    }
                 }
 
-                ObjectKinds.ENFORCER, ObjectKinds.DESTROYER -> {
+                ObjectKinds.AI_TANK -> {
+                    // Legacy map tank. Human-drivable tanks (contr.computer == 0) are always on the
+                    // good side; which one a player drives is decided per mode at match start.
+                    val computer = props["computer"] != "0"
+                    val good = props["good"] == "1" || !computer
                     sink += tankActor(
                         cx = obj.x,
                         cy = obj.y,
                         playerIndex = -1,
-                        bodyDirection = obj.properties["direction"]?.toIntOrNull() ?: 0,
-                        turretDirection = obj.properties["direction"]?.toIntOrNull() ?: 0,
-                        tankType = obj.properties["tankType"]?.toIntOrNull() ?: 0,
-                        armor = obj.properties["armor"]?.toIntOrNull() ?: 100,
-                        fuel = obj.properties["fuel"]?.toIntOrNull() ?: 100,
-                        lives = obj.properties["lives"]?.toIntOrNull() ?: 1,
-                        team = 1,
+                        bodyDirection = props.int("direction") ?: 0,
+                        turretDirection = props.int("direction") ?: 0,
+                        tankType = props.int("tankType") ?: 0,
+                        armor = props.int("armor") ?: DEFAULT_ARMOR,
+                        lives = props.int("lives") ?: 1,
+                        team = if (good) 0 else 1,
+                        computer = computer,
+                        controllerId = props.int("controllerId") ?: -1,
+                        goalContribution = goalContribution,
+                        aiAttackTanks = props.int("attackTanks") ?: 100,
+                        aiActivationRadius = props.int("activationRadius") ?: -1,
+                        aiActivator = props.int("activator") ?: 0,
+                        aiStayActive = props.int("stayActive") == 1,
+                        aiActive = props.int("active") == 1,
                     )
                 }
 
@@ -95,9 +135,10 @@ object CanonicalSceneBuilder {
                     sink += turretActor(
                         cx = obj.x,
                         cy = obj.y,
-                        turretDirection = obj.properties["direction"]?.toIntOrNull() ?: 0,
+                        turretDirection = props.int("direction") ?: 0,
                         team = 1,
-                        armor = obj.properties["armor"]?.toIntOrNull() ?: 100,
+                        armor = props.int("armor") ?: DEFAULT_ARMOR,
+                        goalContribution = goalContribution,
                     )
                 }
 
@@ -105,9 +146,9 @@ object CanonicalSceneBuilder {
                     sink += goalActor(
                         cx = obj.x,
                         cy = obj.y,
-                        who = obj.properties["who"]?.toIntOrNull() ?: 0,
-                        contribution = obj.properties["contribution"]?.toIntOrNull() ?: 100,
-                        radius = obj.properties["radius"]?.toIntOrNull() ?: GOAL_FOOTPRINT,
+                        who = props.int("who") ?: 0,
+                        contribution = props.int("contribution") ?: props.int("goalContribution") ?: 100,
+                        radius = props.int("radius") ?: GOAL_FOOTPRINT,
                     )
                 }
 
@@ -115,8 +156,8 @@ object CanonicalSceneBuilder {
                     sink += flagActor(
                         cx = obj.x,
                         cy = obj.y,
-                        flagType = obj.properties["flagType"]?.toIntOrNull() ?: 0,
-                        number = obj.properties["number"]?.toIntOrNull() ?: 0,
+                        flagType = props.int("flagType") ?: 0,
+                        number = props.int("number") ?: 0,
                     )
                 }
 
@@ -124,8 +165,8 @@ object CanonicalSceneBuilder {
                     sink += productActor(
                         cx = obj.x,
                         cy = obj.y,
-                        productType = obj.properties["productType"]?.toIntOrNull() ?: 0,
-                        price = obj.properties["price"]?.toIntOrNull() ?: 1,
+                        productType = props.int("productType") ?: 0,
+                        price = props.int("price") ?: 1,
                     )
                 }
 
@@ -133,10 +174,10 @@ object CanonicalSceneBuilder {
                     sink += lockActor(
                         cx = obj.x,
                         cy = obj.y,
-                        activation = obj.properties["activation"]?.toIntOrNull() ?: 0,
-                        target = obj.properties["target"]?.toIntOrNull() ?: 0,
-                        lockX = obj.properties["lockX"]?.toIntOrNull() ?: 0,
-                        lockY = obj.properties["lockY"]?.toIntOrNull() ?: 0,
+                        activation = props.int("activation") ?: 0,
+                        target = props.int("target") ?: 0,
+                        lockX = props.int("lockX") ?: 0,
+                        lockY = props.int("lockY") ?: 0,
                     )
                 }
 
@@ -144,8 +185,8 @@ object CanonicalSceneBuilder {
                     sink += warpActor(
                         cx = obj.x,
                         cy = obj.y,
-                        targetX = obj.properties["targetX"]?.toIntOrNull() ?: 0,
-                        targetY = obj.properties["targetY"]?.toIntOrNull() ?: 0,
+                        targetX = props.int("targetX") ?: 0,
+                        targetY = props.int("targetY") ?: 0,
                     )
                 }
 
@@ -153,9 +194,9 @@ object CanonicalSceneBuilder {
                     sink += destroyerActor(
                         cx = obj.x,
                         cy = obj.y,
-                        radius = obj.properties["radius"]?.toIntOrNull() ?: 0,
-                        what = obj.properties["what"]?.toIntOrNull() ?: 3,
-                        immediate = obj.properties["immediate"]?.toIntOrNull() == 1,
+                        radius = props.int("radius") ?: 0,
+                        what = props.int("what") ?: 3,
+                        immediate = props.int("immediate") == 1,
                     )
                 }
 
@@ -163,11 +204,25 @@ object CanonicalSceneBuilder {
                     sink += enforcerActor(
                         cx = obj.x,
                         cy = obj.y,
-                        radius = obj.properties["radius"]?.toIntOrNull() ?: 0,
-                        weapon = obj.properties["weapon"]?.toIntOrNull() ?: 0,
-                        delay = obj.properties["delay"]?.toIntOrNull() ?: 0,
-                        good = obj.properties["good"]?.toIntOrNull() == 1,
-                        bad = obj.properties["bad"]?.toIntOrNull() == 1,
+                        radius = props.int("radius") ?: 0,
+                        weapon = props.int("weapon") ?: 0,
+                        delay = props.int("delay") ?: 0,
+                        good = props.int("good") == 1,
+                        // The legacy struct calls this field `enf_evil`; older fixtures used `bad`.
+                        bad = (props.int("evil") ?: props.int("bad")) == 1,
+                    )
+                }
+
+                ObjectKinds.MINE -> {
+                    val heavy = props.int("mineType") == 1
+                    sink += ServerMineActor(
+                        ServerMineActor.State(
+                            body = PointBody(initialPosition = SceneOffset(obj.x.toFloat().sceneUnit, obj.y.toFloat().sceneUnit)),
+                            ownerActorId = 0L,
+                            damage = if (heavy) HEAVY_MINE_DAMAGE else LIGHT_MINE_DAMAGE,
+                            radius = LIGHT_MINE_RADIUS_PX,
+                            activationTicksRemaining = 0,
+                        ),
                     )
                 }
 
@@ -187,10 +242,13 @@ object CanonicalSceneBuilder {
                     sink += b52Actor(cx = obj.x, cy = obj.y)
                 }
 
+                // Men and bonuses have no runtime actor yet.
                 else -> Unit
             }
         }
     }
+
+    private fun Map<String, String>.int(key: String): Int? = this[key]?.toIntOrNull()
 
     private fun wallActor(cx: Int, cy: Int, width: Int, height: Int): ServerWallActor =
         ServerWallActor(
@@ -210,9 +268,18 @@ object CanonicalSceneBuilder {
         turretDirection: Int,
         tankType: Int,
         armor: Int,
-        fuel: Int,
+        fuel: Int = LEGACY_MAX_FUEL,
         lives: Int,
         team: Int,
+        computer: Boolean = true,
+        controllerId: Int = -1,
+        goalContribution: Int = 0,
+        startPadType: Int = -1,
+        aiAttackTanks: Int = 100,
+        aiActivationRadius: Int = -1,
+        aiActivator: Int = 0,
+        aiStayActive: Boolean = false,
+        aiActive: Boolean = false,
     ): ServerTankActor = ServerTankActor(
         ServerTankActor.State(
             body = BoxBody(
@@ -227,10 +294,19 @@ object CanonicalSceneBuilder {
             fuel = fuel,
             lives = lives,
             team = team,
+            computer = computer,
+            controllerId = controllerId,
+            goalContribution = goalContribution,
+            startPadType = startPadType,
+            aiAttackTanks = aiAttackTanks,
+            aiActivationRadius = aiActivationRadius,
+            aiActivator = aiActivator,
+            aiStayActive = aiStayActive,
+            aiActive = aiActive,
         ),
     )
 
-    private fun turretActor(cx: Int, cy: Int, turretDirection: Int, team: Int, armor: Int): ServerTurretActor =
+    private fun turretActor(cx: Int, cy: Int, turretDirection: Int, team: Int, armor: Int, goalContribution: Int): ServerTurretActor =
         ServerTurretActor(
             ServerTurretActor.State(
                 body = BoxBody(
@@ -240,6 +316,7 @@ object CanonicalSceneBuilder {
                 turretDirection = turretDirection,
                 team = team,
                 armor = armor,
+                goalContribution = goalContribution,
             ),
         )
 

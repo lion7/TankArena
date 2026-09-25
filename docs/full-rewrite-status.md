@@ -2,6 +2,8 @@
 
 As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7 closed — parity tasks T01–T06, T08–T32 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
 
+> **See also:** [`rewrite/status-audit.md`](rewrite/status-audit.md) (2026-09-25), a code-verified audit that corrects several claims below.
+
 This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
 
 - Architecture, module boundaries, replication contract: [`docs/rewrite/architecture.md`](rewrite/architecture.md)

@@ -10,6 +10,8 @@ This audit was written from the code, not from the existing progress docs. [`ful
 
 Where the progress docs and the code disagree, the code wins, and §6 lists every disagreement.
 
+> **Update, same day:** work on the §8 milestone has since landed (commits `2fce7af` and `76c20a6`). §9 lists what changed; §1–§7 still describe the code at `a076ca9`.
+
 > **Build note.** The test suite could not be run while writing this audit, because the sandbox could not download the Amper distribution (HTTP 403 from the network proxy). The test counts below are static counts of `@Test` methods. Run `./amper test` locally to confirm the suite is green.
 
 ---
@@ -384,3 +386,41 @@ This is ordered by dependency and impact. Items **A1–A6 are correctness blocke
 - weapon switching.
 
 Items A1–A6 plus the minimal parts of E19 and E20 get there. They turn the existing unit-tested server work into something a player can see, and every later parity task can then be checked in the actual game instead of only in unit tests.
+
+---
+
+## 9. Milestone progress (commits `2fce7af`, `76c20a6`)
+
+### 9.1 What was done
+
+| Item | Status | What changed |
+|---|---|---|
+| A1 Production bootstrap | ✅ | `fromSceneJson(scene, sidecar, mode)` builds the terrain grid and solid layer from the sidecar. AI routes around water, pits and lava, and holds position when no route exists. |
+| A2 Player spawn from map data | ✅ | The parser reads the legacy tank controller fields (`contr.id`, `computer`, `good`, vehicle type, facing, activation). `MatchSetup` assigns control per mode, like `prepare_tank()` and `prepare_player()`. A player drives the whole group of tanks sharing their id, as in the original. The client's `BEGIN1` hack is gone. |
+| A3 Scene builder fixes | ✅ | Destroyers, enforcers, map tanks and authored mines get real actors. The enforcer `evil` key is fixed. Tanks, turrets, pads and warps are converted from top-left to centre coordinates. |
+| A4 Regenerate scenes; client loads committed scenes | ✅ | Scenes regenerated: 2,040 tanks, 2,018 mines, 221 locks, 130 warps and so on (previously 154 tanks and nothing else). `scenes/index.txt` plus `ShippedScenes` load missions from the classpath. The client no longer imports `.MAP` files. |
+| A5 Damageable turrets | ✅ | Projectiles and area damage destroy turrets. Turrets block tanks, score, and apply their goal contribution. |
+| A6 Weapon cycling and shield keys | 🟡 | Weapon cycling is bound to keys. The shield key is sent, but the server still ignores it. |
+| Mission rules | ✅ | Legacy goal counter (`modify_goal_counter`): object contributions fill the good and bad counters, and losing the last human tank counts as −100. Elimination is only a fallback. DUAL is decided by player elimination. |
+| Tank hand-over, F1–F10 switching | ✅ | New `ControlSwitched` event and `selectTankId` input. |
+| AI activation | ✅ | Activation radius, activator side, `stay_active`; `attack_tanks = 0` (cars) never hunts. Each AI tank has its own path cache. |
+| Fuel | ✅ | Drains per pixel driven, for human tanks only, from a 30,000 tank (it previously ran dry after one second of driving). |
+| E19 Rendering (minimal) | 🟡 | Mines, rockets, mortar shells, flags, products, warps, trains, B52s, zeppelins and `EXP1`–`EXP5` explosions are drawn. Tanks use their own body, turret and wreck frames. No smoke, debris or ruined tiles yet. |
+| E20 Audio | ✅ | Real `javax.sound` playback of the 29 legacy samples with volume, pan and pitch, wired into the match loop. |
+| E21 Split screen, second player | ✅ | Side-by-side views and the legacy two-player key layout. |
+| Flaky tests | ✅ | The server waits for Kubriko's asynchronously derived dynamic-actor list after adding or removing actors. Ticking before it caught up silently skipped `update()`. |
+
+### 9.2 How it was verified
+
+- Amper still cannot be downloaded in this sandbox. A throwaway Gradle build (not committed) compiled every module against the same Kotlin, Compose and Kubriko versions.
+- Compose's `androidx.*` runtime artifacts are only on Google Maven, which the network policy blocks. Tests ran against the last runtime published to Maven Central, plus a stub of `androidx.lifecycle.Lifecycle`.
+- Results: 185 server tests (15 new), 12 client tests and 10 content tests pass. The server suite passed six consecutive full runs after the race fix.
+- New tests use the committed scenes: BEGIN1 spawns, the terrain grid, win by goal counter, loss of the last tank, DUAL pads and group control, co-op ids, and the PLANES2 squadron. Fixture tests cover hand-over, F-key switching, turret destruction and fuel.
+- **The desktop UI was not launched.** Split screen, sprites, HUD and audio compile and are unit-covered where possible, but nobody has looked at them yet. Run `./amper task :game-client:runJvm` to check.
+
+### 9.3 Still open from this milestone
+
+- The server ignores the shield key (it is sent, but no shield-power pool exists yet).
+- Vehicle stats from `src/data/tanks.c` are still not used. Every tank shares one set of constants and damage values (B7).
+- `RACE3.MAP` still fails header parsing, so 121 of 122 maps are converted.
+- T07 (drop the legacy parser): the client no longer depends on it, but `tools-mapconv` and the server test fixtures still do.

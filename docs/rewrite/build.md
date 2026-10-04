@@ -44,4 +44,4 @@ Replace the module name with `:game-content`, `:game-protocol`, `:game-client`, 
 
 ## Kubriko dependency
 
-The runtime uses Kubriko `0.1.2` from Maven Central (`io.github.pandulapeter.kubriko:*-desktop:0.1.2`). The headless `Kubriko.newInstance` + `tick(Int)` API the server relies on is included in the public release — no fork or `mavenLocal` setup is required. See [ADR 0008](adrs/0008-kubriko-and-scene-json.md).
+The runtime uses Kubriko `0.7.3` from Maven Central (`io.github.pandulapeter.kubriko:*-desktop:0.7.3`). The headless `Kubriko.newInstance` + `tick(Int)` API the server relies on is included in the public release — no fork or `mavenLocal` setup is required. See [ADR 0008](adrs/0008-kubriko-and-scene-json.md).

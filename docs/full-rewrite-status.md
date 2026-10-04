@@ -32,7 +32,7 @@ The rewrite is a full Kotlin rewrite of the original C/Allegro Tank Arena, not a
 
 - Kotlin, JVM-only at present.
 - Compose Multiplatform for shell, menus, HUD, editor UI.
-- Kubriko `0.1.2` from Maven Central for the gameplay viewport and the headless server tick.
+- Kubriko `0.7.3` from Maven Central for the gameplay viewport and the headless server tick.
 - Amper for builds.
 - 100 Hz authoritative server tick (`FixedStepClock.TICKS_PER_SECOND = 100`, `MILLIS_PER_TICK = 10`) — landed in T01, every server `*_TICKS` constant is now grounded in the legacy C source (`define.h sec=100`, `tank.weap.speed[]`, `mine.active`). Replay/network snapshots decimate to ~10 Hz. See [ADR 0002](rewrite/adrs/0002-fixed-step-50hz.md).
 - Schema versioning at the protocol/sidecar boundary (T02): `WorldSnapshot.protocolVersion`, `MapSceneSidecar.schemaVersion`. Loaders reject payloads from a future runtime.

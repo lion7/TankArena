@@ -7,7 +7,7 @@ Each risk carries a **Status**:
 
 ## Kubriko Version Coupling
 - **Status:** Accepted.
-- **Risk:** the rewrite depends on Kubriko `0.1.2` from Maven Central, including the headless `Kubriko.newInstance` + `tick(Int)` API and the scene serialization format. A breaking change in a future Kubriko release could ripple through the server tick path and the shipped scene files.
+- **Risk:** the rewrite depends on Kubriko `0.7.3` from Maven Central, including the headless `Kubriko.newInstance` + `tick(Int)` API and the scene serialization format. A breaking change in a future Kubriko release could ripple through the server tick path and the shipped scene files.
 - **Why accepted:** Kubriko's serialization format is not expected to churn often, and regenerating the 121 shipped scenes is cheap (`tools-mapconv scene-all`). Tracking an upstream fork would cost more than occasional regeneration.
 - **Mitigations:**
   - Pin the Kubriko version in every `module.yaml`. Bumps are deliberate, not floating.

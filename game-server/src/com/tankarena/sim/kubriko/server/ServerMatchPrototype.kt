@@ -3,7 +3,6 @@ package com.tankarena.sim.kubriko.server
 import com.pandulapeter.kubriko.Kubriko
 import com.pandulapeter.kubriko.actor.Actor
 import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.actor.traits.Dynamic
 import com.pandulapeter.kubriko.collision.CollisionManager
 import com.pandulapeter.kubriko.helpers.ManualTickSource
 import com.pandulapeter.kubriko.helpers.TickSource
@@ -123,7 +122,6 @@ class ServerMatchPrototype private constructor(
 
     fun initialize() {
         tickSource.start()
-        awaitActorsPopulated(expectedSize = initialActors.size)
         for (actor in actorManager.allActors.value) {
             actorIds.getOrPut(actor) { nextActorId++ }
             if (actor is ServerTankActor && actor.playerIndex >= 0) {
@@ -358,32 +356,14 @@ class ServerMatchPrototype private constructor(
         kubriko.dispose()
     }
 
-    private fun awaitActorsPopulated(expectedSize: Int) = runBlocking {
-        withTimeout(2_000) {
-            while (actorManager.allActors.value.size < expectedSize) {
-                delay(5)
-            }
-        }
-        awaitDynamicActorsSettled()
-    }
-
+    /**
+     * Kubriko applies additions made after `start()` on a background thread. Once `allActors` reflects them, the next
+     * tick updates them too: the engine publishes its list of updated actors before `allActors`.
+     */
     private fun awaitActorCount(expected: Int) = runBlocking {
         withTimeout(2_000) {
             while (actorManager.allActors.value.size != expected) {
                 delay(2)
-            }
-        }
-        awaitDynamicActorsSettled()
-    }
-
-    /**
-     * Kubriko derives the list of actors it updates each tick from `allActors` asynchronously.
-     * Ticking before it has caught up silently skips `update()` on new actors, so wait for it.
-     */
-    private fun awaitDynamicActorsSettled() = runBlocking {
-        withTimeout(2_000) {
-            while (actorManager.activeDynamicActors.value.size != actorManager.allActors.value.count { it is Dynamic }) {
-                delay(1)
             }
         }
     }

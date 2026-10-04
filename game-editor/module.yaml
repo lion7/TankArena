@@ -5,19 +5,21 @@ dependencies:
   - ../game-protocol
   - ../game-server
   - $compose.desktop.currentOs
-  - $compose.material3
-  - io.github.pandulapeter.kubriko:engine-desktop:0.1.2
-  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.1.2
-  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.1.2
-  - io.github.pandulapeter.kubriko:tool-scene-editor-desktop:0.1.2
-  - io.github.pandulapeter.kubriko:tool-scene-editor-api-desktop:0.1.2
+  - org.jetbrains.compose.material3:material3:1.12.0-alpha03
+  - io.github.pandulapeter.kubriko:engine-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:tool-scene-editor-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:tool-scene-editor-api-desktop:0.7.3
 
 settings:
   kotlin:
+    version: 2.4.20
     serialization:
       format: json
       version: 1.11.0
   compose:
     enabled: true
+    version: 1.12.1
   jvm:
     mainClass: com.tankarena.app.editor.MainKt

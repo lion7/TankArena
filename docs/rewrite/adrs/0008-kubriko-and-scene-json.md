@@ -12,7 +12,7 @@ Two coupled choices:
 
 ## Decision
 
-- Depend on Kubriko `0.1.2` from Maven Central (`io.github.pandulapeter.kubriko:*-desktop:0.1.2`). No fork, no `mavenLocal` workflow.
+- Depend on Kubriko `0.7.3` from Maven Central (`io.github.pandulapeter.kubriko:*-desktop:0.7.3`). No fork, no `mavenLocal` workflow.
 - Drop the canonical map schema. The runtime map format is:
   - `scene_<name>.json` — Kubriko scene JSON, produced by `SerializationManager.serializeActors` and loaded with `deserializeActors(json)`.
   - `metadata_<name>.json` — `MapSceneSidecar` (tile layers, mission text, mode compatibility, import notes), holding the gameplay/authoring metadata that does not belong on actors.

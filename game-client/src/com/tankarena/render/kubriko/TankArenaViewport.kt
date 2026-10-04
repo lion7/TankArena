@@ -15,7 +15,7 @@ import com.pandulapeter.kubriko.manager.MetadataManager
 import com.pandulapeter.kubriko.manager.StateManager
 import com.pandulapeter.kubriko.manager.ViewportManager
 import com.pandulapeter.kubriko.sprites.SpriteManager
-import com.pandulapeter.kubriko.types.FrameRate
+import com.pandulapeter.kubriko.types.TargetFrameRate
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.protocol.snapshot.GameEvent
@@ -105,7 +105,7 @@ private class TankArenaKubrikoRuntime(
         viewportEdgeBuffer = 0f.sceneUnit,
         isLoggingEnabled = false,
         instanceNameForLogging = "tank-arena-viewport",
-        frameRate = FrameRate.NORMAL,
+        initialTargetFrameRate = TargetFrameRate.DisplayDefault,
     )
     private val stateManager = StateManager.newInstance(
         shouldAutoStart = true,

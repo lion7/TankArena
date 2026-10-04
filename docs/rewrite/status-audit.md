@@ -61,7 +61,7 @@ For comparison, the original is about 21.7k lines of C and assembly in `src/`.
 ### 2.2 Stack
 
 - Kotlin/JVM with Compose Multiplatform (desktop).
-- Kubriko `0.1.2` from Maven Central.
+- Kubriko `0.7.3` from Maven Central.
 - Amper `0.10.0` build.
 - kotlinx.serialization `1.11.0`.
 

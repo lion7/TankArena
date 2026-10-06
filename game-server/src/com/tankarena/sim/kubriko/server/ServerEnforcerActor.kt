@@ -32,6 +32,12 @@ class ServerEnforcerActor internal constructor(state: State) : Collidable, Edita
     val delay: Int = state.delay
     val good: Boolean = state.good
     val bad: Boolean = state.bad
+    /** Legacy `e.fire`: make the tanks fire the weapon every [delay] ticks, not just select it. */
+    val fire: Boolean = state.fire
+    /** Legacy `e.change`: leave the weapon selected afterwards. */
+    val change: Boolean = state.change
+    /** Legacy `e.done`: ticks until the enforcer makes a tank fire again. */
+    var cooldownTicks: Int = 0
 
     override fun save(): State = State(
         body = body,
@@ -40,6 +46,8 @@ class ServerEnforcerActor internal constructor(state: State) : Collidable, Edita
         delay = delay,
         good = good,
         bad = bad,
+        fire = fire,
+        change = change,
     )
 
     @kotlinx.serialization.Serializable
@@ -50,6 +58,8 @@ class ServerEnforcerActor internal constructor(state: State) : Collidable, Edita
         @SerialName("delay") val delay: Int = 0,
         @SerialName("good") val good: Boolean = false,
         @SerialName("bad") val bad: Boolean = false,
+        @SerialName("fire") val fire: Boolean = true,
+        @SerialName("change") val change: Boolean = false,
     ) : Serializable.State<ServerEnforcerActor> {
         override fun restore(): ServerEnforcerActor = ServerEnforcerActor(this)
         override fun serialize(): String = Json.encodeToString(this)

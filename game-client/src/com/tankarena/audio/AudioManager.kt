@@ -140,6 +140,8 @@ class AudioManager(
             com.tankarena.protocol.snapshot.SoundKind.MINE -> SoundKind.MINE
             com.tankarena.protocol.snapshot.SoundKind.BONUS -> SoundKind.BONUS
             com.tankarena.protocol.snapshot.SoundKind.COLLAPSE -> SoundKind.COLLAPSE
+            com.tankarena.protocol.snapshot.SoundKind.NUKE -> SoundKind.NUKE
+            com.tankarena.protocol.snapshot.SoundKind.SCREAM -> SoundKind.SCREAM
         }
     }
 

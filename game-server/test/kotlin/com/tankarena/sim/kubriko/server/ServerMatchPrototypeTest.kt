@@ -163,6 +163,9 @@ class ServerMatchPrototypeTest {
             is com.tankarena.protocol.snapshot.ZeppelinState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.B52State -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.MineState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.BonusState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.ManState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.AbombState -> x.isFinite() && y.isFinite()
         }
     }
 

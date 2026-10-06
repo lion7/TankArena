@@ -45,6 +45,10 @@ enum class SoundKind {
     BONUS,
     /** A building collapses */
     COLLAPSE,
+    /** An A-bomb goes off */
+    NUKE,
+    /** A soldier dies */
+    SCREAM,
 }
 
 /**
@@ -81,6 +85,12 @@ enum class EffectKind {
     LAVA,
     /** OLIE1..3: an oil tank bursting. */
     OIL_SPLASH,
+    /** SMOKES1..6: a long-lived cloud of the smoke-screen weapon. */
+    SMOKE_SCREEN,
+    /** BLOOD1..3: a soldier killed. */
+    BLOOD,
+    /** EXHAUST2: the smoke trail of a small rocket. */
+    EXHAUST,
 }
 
 @Serializable
@@ -149,6 +159,10 @@ sealed interface GameEvent {
      */
     @Serializable
     data class Sound(val kind: SoundKind, val x: Int, val y: Int) : GameEvent
+
+    /** Legacy create_message(): two lines for the pilot of [actorId] (e.g. "PICKED UP" / "3 ROCKETS"). */
+    @Serializable
+    data class Message(val actorId: Long, val line1: String, val line2: String = "") : GameEvent
 
     /**
      * Emitted when a flag is captured (picked up) by a tank.

@@ -67,8 +67,14 @@ internal const val SHIELD_START_POWER: Int = 3000
 private const val SHIELD_MAX_POWER: Int = 6000
 private const val SHIELD_DRAIN_PER_TICK: Int = 60
 private const val SHIELD_RECHARGE_PER_TICK: Int = 10
-/** Legacy `shield.icount = 15` blinks of `tinit(5)`: a fresh human tank cannot be hurt for 75 ticks. */
-internal const val START_SHIELD_TICKS: Int = 15 * 5
+/**
+ * Legacy make_tank(): `shield.invun = tinit(200)` with `shield.icount = 15` blinks of `tinit(5)`
+ * after it, so a fresh human tank cannot be hurt for 275 ticks (shield_effects()).
+ */
+internal const val SHIELD_BLINK_TICKS: Int = 15 * 5
+internal const val START_SHIELD_TICKS: Int = 200 + SHIELD_BLINK_TICKS
+/** Legacy pickup_bonus() case 12: `shield.invun = tinit(2000)`, then the 15 blinks. */
+internal const val INVULNERABILITY_BONUS_TICKS: Int = 2000 + SHIELD_BLINK_TICKS
 /** Legacy new_position()/check_obj_collide(): crash damage at most every 10 ticks; a heavy rammer hits for 2. */
 private const val CRASH_INTERVAL_TICKS: Int = 10
 private const val RAM_DAMAGE: Int = 2
@@ -79,6 +85,37 @@ private const val PIT_GRAVITY: Float = 100f
 private const val PIT_BOTTOM_HEIGHT: Float = -4f
 /** Legacy `contr.disable = tinit(100)`: a destroyed tank keeps exploding this long before it is a wreck. */
 private const val DYING_TICKS: Int = 100
+/** Legacy new_velocity(): aircraft fly at most this high unless the vehicle table says otherwise. */
+private const val MAX_FLIGHT_HEIGHT: Float = 24f
+/** Legacy new_velocity(): gravity for planes (gliding) and for everything else, in height units/s². */
+private const val PLANE_GRAVITY: Float = 10f
+/** Legacy new_velocity(): a gliding plane turns its sink rate into speed (`vx -= 20 * vz * dt`). */
+private const val GLIDE_FACTOR: Float = 20f
+/** Legacy new_velocity(): `motion.boost` (the speed-up weapon) multiplies thrust by 1.5 for 1000 ticks. */
+private const val BOOST_FACTOR: Float = 1.5f
+private const val BOOST_TICKS: Int = 1000
+/** Legacy tank_add_impulse(): `2000 * power / mass` px/s; the mortar kicks back with power 50. */
+private const val IMPULSE_FACTOR: Float = 2000f
+private const val MORTAR_RECOIL_POWER: Int = 50
+/** Legacy create_bullet(HT_SROCK): a small rocket only starts hitting things 30 px out. */
+internal const val SROCK_SAFETY_PX: Int = 30
+/** Legacy create_bullet(HT_PLANEBOMB): a bomb falls 10 px forward per unit of height, at 75 px/s. */
+private const val PLANE_BOMB_PX_PER_HEIGHT: Int = 10
+/** Legacy tank_fire() case 9: one smoke screen puffs 100 clouds, one every 10..20 ticks. */
+private const val SMOKE_SCREEN_CLOUDS: Int = 100
+/** Legacy tank_effects(): the smoke screen leaves from two points behind the hull. */
+private val SMOKE_SCREEN_POINTS: List<Pair<Int, Int>> = listOf(-12 to 11, 12 to 11)
+/**
+ * Legacy tank_fire() case 10 and invisible_effects(): a cloak lasts 2000 ticks, then 300 more
+ * with a faster blink; meanwhile the driver sees the vehicle blink and nobody else sees it.
+ */
+private const val CLOAK_FIRST_TICKS: Int = 2000
+private const val CLOAK_LAST_TICKS: Int = 300
+/** Legacy tank_fire_locked() case 7/8: soldiers jump out 20 px from the vehicle towards the marker. */
+private val SOLDIER_DROP_OFFSET: Pair<Int, Int> = 0 to -20
+/** Legacy pickup_bonus(): the amounts each bonus type gives. */
+private const val ARMOR_BONUS: Int = 10
+
 /** Legacy WRECK_LIFE_TIME: a wreck smokes (ROOK every 500..800 ticks) for 30 s. */
 private const val WRECK_SMOKE_MIN_TICKS: Int = 500
 private const val WRECK_SMOKE_SPREAD_TICKS: Int = 300
@@ -89,6 +126,17 @@ const val WEAPON_FLAME: Int = 2
 const val WEAPON_MINE: Int = 3
 const val WEAPON_ROCKET: Int = 4
 const val WEAPON_MORTAR: Int = 5
+const val WEAPON_ABOMB: Int = 6
+const val WEAPON_GUNNERS: Int = 7
+const val WEAPON_FLAMERS: Int = 8
+const val WEAPON_SMOKE: Int = 9
+const val WEAPON_CLOAK: Int = 10
+const val WEAPON_SPEEDUP: Int = 11
+/**
+ * Projectile kind (not a weapon number) for the legacy HT_SROCK main gun of aircraft and
+ * launchers: a small rocket that hits like a main-gun shell.
+ */
+const val SHOT_SMALL_ROCKET: Int = 100
 /** Legacy `num_weapon`. */
 const val WEAPON_COUNT: Int = 12
 
@@ -214,12 +262,44 @@ class ServerTankActor(state: State) :
     private var lavaCooldownTicks: Int = 0
     /** Legacy `weap.reload`: set when a tank of another side dies; the next base visit refills this tank. */
     private var refillAllowed: Boolean = false
-    /** Legacy `o->fh`: 1 on the ground; a tank that drives into a pit sinks to -4 and is destroyed there. */
-    private var exactHeight: Float = 1f
+    val kind: VehicleKind = spec.kind
+    /** Legacy make_tank(): planes start on the ground, every other vehicle at its `props.h`. */
+    private val spawnHeight: Float = if (kind == VehicleKind.PLANE) 1f else spec.height.toFloat()
+    /**
+     * Legacy `o->fh`: 1 on the ground; a tank that drives into a pit sinks to -4 and is destroyed
+     * there; helicopters hover at their `props.h` and planes climb up to theirs.
+     */
+    private var exactHeight: Float = spawnHeight
+    /** Legacy `motion.vz`, in height units per second. */
     private var verticalSpeed: Float = 0f
     /** Legacy `o->h`, rounded from the exact height; below 1 while the tank falls into a pit. */
     val height: Int get() = exactHeight.roundToInt()
     val falling: Boolean get() = exactHeight < 1f
+    /** True for vehicles that fly (or a ground vehicle that left the ground); they are drawn with a shadow. */
+    val airborne: Boolean get() = height > 1
+    /** Legacy `und.nw == RUNWAY`: the only ground a plane may touch down on. */
+    private var onRunway: Boolean = false
+    /** Legacy `und.nw == WATER`: most weapons cannot be fired from the water. */
+    private var onWater: Boolean = false
+    /** Legacy `motion.boost`: ticks of the speed-up weapon left. */
+    var boostTicks: Int = 0
+        private set
+    /** Legacy `und.smokes`: smoke-screen clouds still to come. */
+    private var smokeScreenLeft: Int = 0
+    private var smokeScreenCooldownTicks: Int = 0
+    /** Legacy `invis.count` (2, 1, 0) with its countdown and the driver's blink. */
+    private var cloakCount: Int = 0
+    private var cloakCountdownTicks: Int = 0
+    var cloakFlash: Boolean = true
+        private set
+    private var cloakFlashCooldownTicks: Int = 0
+    val cloaked: Boolean get() = cloakCount != 0
+    /** Legacy `weap.extragun`: the extra-gun bonus adds one chain gun. */
+    var extraGun: Boolean = false
+        private set
+    /** Where this computer tank aims locked weapons (legacy `computer.target_x/y`); set by the match. */
+    internal var aiTargetX: Int = -1
+    internal var aiTargetY: Int = -1
     private var dyingTicks: Int = 0
     private var smokeCooldownTicks: Int = 0
 
@@ -227,7 +307,6 @@ class ServerTankActor(state: State) :
     private var hullTurnCooldownTicks: Int = 0
     private var turretTurnCooldownTicks: Int = 0
     private var terrainSpeedMultiplier: Float = 1.0f
-    var enforcedWeapon: Int = -1
     private var pendingResolveX: Int = 0
     private var pendingResolveY: Int = 0
     private var pendingDamageThisTick: Int = 0
@@ -240,6 +319,8 @@ class ServerTankActor(state: State) :
     private var pendingMineRequest: MineRequest? = null
     private var pendingRocketRequest: RocketRequest? = null
     private var pendingMortarRequest: MortarRequest? = null
+    private var pendingAbombRequest: AbombRequest? = null
+    private val pendingSoldierRequests = mutableListOf<SoldierRequest>()
     private var destroyedThisTick: Boolean = false
     private var spawnedThisTick: Boolean = false
     private var damageEventAmount: Int = 0
@@ -258,6 +339,8 @@ class ServerTankActor(state: State) :
         val rangePx: Int,
         val damage: Int,
         val weaponKind: Int = WEAPON_MAIN,
+        /** Legacy `b->safety`: pixels flown before the shot can hit anything. */
+        val safetyPx: Int = 0,
     ) {
         val velocityX: Float get() = LegacyDirections.unitVector(direction).first * speed
         val velocityY: Float get() = LegacyDirections.unitVector(direction).second * speed
@@ -286,6 +369,23 @@ class ServerTankActor(state: State) :
         val velocityY: Float,
         val damage: Int,
         val maxRadius: Int,
+        val travelTicks: Int = MORTAR_TRAVEL_TICKS,
+        /** Legacy HT_PLANEBOMB: the height a plane dropped it from; 0 for a mortar shell. */
+        val dropHeight: Int = 0,
+    )
+
+    /** Legacy create_abomb(): an A-bomb at ([x], [y]) that goes off after [countdown] × 60 ticks. */
+    data class AbombRequest(val x: Int, val y: Int, val countdown: Int)
+
+    /** Legacy make_man(): a soldier jumping out at ([x], [y]) and walking to the marker. */
+    data class SoldierRequest(
+        val x: Int,
+        val y: Int,
+        val targetX: Int,
+        val targetY: Int,
+        /** Gunners fire chain-gun rounds, the others flames. */
+        val gunner: Boolean,
+        val power: Int,
     )
 
     fun applyIntent(intent: PlayerIntentFrame) {
@@ -316,6 +416,45 @@ class ServerTankActor(state: State) :
     fun grantInvulnerability(ticks: Int) {
         if (ticks <= 0) return
         invulnerableTicks = invulnerableTicks.coerceAtLeast(ticks)
+    }
+
+    /**
+     * Legacy write_tank(): the ARMOR ring shows while the shield key works, and while
+     * `shield.icount` is odd — steadily until the last 15 blinks of 5 ticks, then blinking.
+     */
+    val shieldRingVisible: Boolean
+        get() = shieldActive || invulnerableTicks > SHIELD_BLINK_TICKS ||
+            (invulnerableTicks > 0 && ((invulnerableTicks + 4) / 5) % 2 == 1)
+
+    /** Legacy pickup_bonus(): only ground vehicles pick bonuses up. */
+    val picksUpBonuses: Boolean get() = kind == VehicleKind.TANK || kind == VehicleKind.CAR
+
+    /**
+     * Legacy pickup_bonus() (src/objects/bonus.c): what each of the 14 bonus types gives; returns
+     * the second line of the pickup message.
+     */
+    fun pickUpBonus(type: Int): String = when (type) {
+        0 -> { ammo[WEAPON_MAIN] += 10; "10 GRENADES" }
+        1 -> if (!extraGun) {
+            extraGun = true
+            "EXTRA GUN"
+        } else {
+            ammo[WEAPON_CHAIN] += 500
+            "500 ROUNDS"
+        }
+        2 -> { fuel = spec.maxFuel; "FUEL" }
+        3 -> { ammo[WEAPON_MINE] += 5; "5 MINES" }
+        4 -> { ammo[WEAPON_ROCKET] += 3; "3 ROCKETS" }
+        5 -> { ammo[WEAPON_MORTAR] += 1; "A MORTAR SHELL" }
+        6 -> { ammo[WEAPON_ABOMB] += 1; "NUCLEAR BOMB" }
+        7 -> { ammo[WEAPON_GUNNERS] += 5; "5 GUNNERS" }
+        8 -> { ammo[WEAPON_FLAMERS] += 5; "5 FLAMERS" }
+        9 -> { ammo[WEAPON_SMOKE] += 1; "SMOKE SCREEN" }
+        10 -> { ammo[WEAPON_CLOAK] += 1; "A CLOAKING DEVICE" }
+        11 -> { ammo[WEAPON_SPEEDUP] += 1; "SPEEDUP" }
+        12 -> { invulnerableTicks = INVULNERABILITY_BONUS_TICKS; "INVUNERABILITY" }
+        13 -> { armor = (armor + ARMOR_BONUS).coerceAtMost(spec.armor); "ARMOR!" }
+        else -> "JUNK!"
     }
 
     /** Ammo left for a legacy weapon number. */
@@ -381,9 +520,7 @@ class ServerTankActor(state: State) :
     }
 
     /** Enforce a specific weapon from an enforcer actor. */
-    internal fun applyEnforcedWeapon(weapon: Int) {
-        this.enforcedWeapon = weapon
-    }
+
 
     /** Teleport the tank to a new position (used by warp actors). */
     fun teleportTo(x: Int, y: Int) {
@@ -402,8 +539,17 @@ class ServerTankActor(state: State) :
             return
         }
         if (armor <= 0) {
-            velocityX = 0f
-            velocityY = 0f
+            if (airborne) {
+                // Legacy new_velocity(): a destroyed aircraft loses its lift and drops, exploding
+                // all the way down; it becomes a wreck where it hits the ground.
+                stepVelocity(thrust = false)
+                advancePosition()
+                stepAltitude()
+                dyingTicks = dyingTicks.coerceAtLeast(1)
+            } else {
+                velocityX = 0f
+                velocityY = 0f
+            }
             stepWreck()
             if (respawnInTicks > 0) {
                 respawnInTicks -= 1
@@ -416,14 +562,18 @@ class ServerTankActor(state: State) :
             return
         }
         stepShields()
+        stepCloak()
         stepSmoke()
+        stepSmokeScreen()
         stepBaseRefill()
+        if (boostTicks > 0) boostTicks -= 1
         if (lockCameraTicks > 0) lockCameraTicks -= 1
         if (lockActive) {
             // Legacy control_tank(): while the marker is out the drive keys steer it, so the tank
             // neither turns nor accelerates and cannot switch weapons.
             stepVelocity(thrust = false)
             advancePosition()
+            stepAltitude()
             stepCooldowns()
             stepRocketLock()
         } else {
@@ -432,6 +582,7 @@ class ServerTankActor(state: State) :
             stepTurretTurn()
             stepVelocity(thrust = true)
             advancePosition()
+            stepAltitude()
             stepFire()
         }
         pendingIntent = PlayerIntentFrame()
@@ -454,8 +605,13 @@ class ServerTankActor(state: State) :
         primaryCooldownTicks = 0
         respawnInTicks = 0
         dyingTicks = 0
-        exactHeight = 1f
+        exactHeight = spawnHeight
         verticalSpeed = 0f
+        boostTicks = 0
+        smokeScreenLeft = 0
+        cloakCount = 0
+        cloakFlash = true
+        extraGun = false
         spawnAmmo.forEachIndexed { index, count -> if (index < WEAPON_COUNT) ammo[index] = count }
         lockActive = false
         lockCameraTicks = 0
@@ -509,6 +665,17 @@ class ServerTankActor(state: State) :
         return request
     }
 
+    fun drainAbombRequest(): AbombRequest? {
+        val request = pendingAbombRequest
+        pendingAbombRequest = null
+        return request
+    }
+
+    fun drainSoldierRequests(): List<SoldierRequest> {
+        if (pendingSoldierRequests.isEmpty()) return emptyList()
+        return pendingSoldierRequests.toList().also { pendingSoldierRequests.clear() }
+    }
+
     override fun onCollisionDetected(collidables: List<Collidable>) = Unit
 
     override fun applyPendingResolutions(worldWidthPixels: Int, worldHeightPixels: Int) {
@@ -533,6 +700,8 @@ class ServerTankActor(state: State) :
             armor = (armor - incoming).coerceAtLeast(0)
             if (armor == 0) {
                 destroyedThisTick = true
+                // Legacy hit_tank(): the atomic tank goes off like an A-bomb.
+                if (tankType == ATOMIC_TANK) pendingAbombRequest = AbombRequest(positionX, positionY, countdown = 0)
                 dyingTicks = DYING_TICKS
                 smokeCooldownTicks = WRECK_SMOKE_MIN_TICKS + random.nextInt(WRECK_SMOKE_SPREAD_TICKS)
                 lives = (lives - 1).coerceAtLeast(0)
@@ -645,14 +814,26 @@ class ServerTankActor(state: State) :
         var along = velocityX * fx + velocityY * fy
         var across = velocityX * -fy + velocityY * fx
         val driving = pendingIntent.forward != pendingIntent.reverse
-        if (thrust && driving && fuel > 0) {
-            val dv = TICK_SECONDS * motion.acc / motion.mass * terrainSpeedMultiplier
-            along += if (pendingIntent.forward) dv else -dv
+        val onGround = height == 1
+        val flies = kind == VehicleKind.CHOPPER || kind == VehicleKind.PLANE
+        if (thrust && driving && fuel > 0 && (flies || onGround)) {
+            var dv = TICK_SECONDS * motion.acc / motion.mass
+            if (boostTicks > 0) dv *= BOOST_FACTOR
+            // Legacy: the ground only slows what touches it.
+            if (height <= 1) dv *= terrainSpeedMultiplier
+            // A plane has no reverse: either key opens the throttle.
+            along += if (pendingIntent.forward || kind == VehicleKind.PLANE) dv else -dv
+        } else if (kind == VehicleKind.PLANE && height > 1 && verticalSpeed < 0f && along > 0f) {
+            // A gliding plane trades height for speed.
+            along = (along - GLIDE_FACTOR * verticalSpeed * TICK_SECONDS).coerceAtLeast(0f)
         }
-        val alongFriction = (motion.ffV * abs(along) + motion.ff0) * TICK_SECONDS / motion.mass
+        // Rolling resistance (`ff_0`) only on the ground and for helicopters; sideways grip only
+        // for aircraft and on the ground, while a vehicle in the air just drifts.
+        val alongFriction = (motion.ffV * abs(along) + if (kind == VehicleKind.CHOPPER || onGround) motion.ff0 else 0f) *
+            TICK_SECONDS / motion.mass
         along = decay(along, alongFriction)
-        val acrossFriction = (motion.fsV * abs(across) + motion.fs0) * TICK_SECONDS / motion.mass
-        across = decay(across, acrossFriction)
+        val acrossForce = if (flies || onGround) motion.fsV * abs(across) + motion.fs0 else motion.ffV * abs(across)
+        across = decay(across, acrossForce * TICK_SECONDS / motion.mass)
         velocityX = along * fx + across * -fy
         velocityY = along * fy + across * fx
     }
@@ -678,10 +859,17 @@ class ServerTankActor(state: State) :
             val overlap = structureOverlap(roundedX, roundedY, hitTile)
             if (overlap > lastOverlap) {
                 staticCollide()
+                // Legacy new_position(): a plane that touches a building crashes.
+                if (kind == VehicleKind.PLANE) queueDestroy()
                 crashInto(hitTile[0], hitTile[1])
                 return
             }
             lastOverlap = overlap
+            // Legacy check_obj_collide(): a train is an obstacle a vehicle bounces off.
+            if (surroundings.trainAt(roundedX, roundedY, spec.radius, height)) {
+                staticCollide()
+                return
+            }
             val other = surroundings.tanks().firstOrNull { other ->
                 other !== this && abs(other.height - height) < 2 &&
                     inRadius(other.positionX - roundedX, other.positionY - roundedY, spec.radius + other.spec.radius)
@@ -718,12 +906,20 @@ class ServerTankActor(state: State) :
     private fun bodyMask(): PictureMasks.Mask? =
         PictureMasks.mask(LegacySpriteResources.nameForTankBody(tankType, bodyDirection.mod(16)))
 
-    /** Legacy overlap() for this tank's body picture centred on ([x], [y]). */
+    /**
+     * Legacy overlap() for this tank's body picture centred on ([x], [y]): on the ground the
+     * buildings themselves, at height 2..7 only their tall top-layer parts, and nothing higher up.
+     */
     private fun structureOverlap(x: Int, y: Int, firstHit: IntArray? = null): Int {
         val grid = surroundings?.structures ?: return 0
-        if (height >= 2) return 0
         val mask = bodyMask() ?: return 0
-        return grid.overlap(mask, x - LEGACY_TILE_SIZE / 2, y - LEGACY_TILE_SIZE / 2, firstHit)
+        val left = x - LEGACY_TILE_SIZE / 2
+        val top = y - LEGACY_TILE_SIZE / 2
+        return when {
+            height < 2 -> grid.overlap(mask, left, top, firstHit)
+            height < 8 -> grid.overlapTop(mask, left, top, firstHit)
+            else -> 0
+        }
     }
 
     /** Legacy left_right(): turning is always allowed and only resets the overlap baseline. */
@@ -757,7 +953,7 @@ class ServerTankActor(state: State) :
             (tileCentreX + positionX) / 2 - 4 + random.nextInt(8),
             (tileCentreY + positionY) / 2 - 4 + random.nextInt(8),
         )
-        surroundings.damageStructure(tileX, tileY, StructureLayer.SOLID, HitKind.CRASH, power)
+        surroundings.damageStructure(tileX, tileY, StructureLayer.SOLID, HitKind.CRASH, power, by = this)
         crashCooldownTicks = CRASH_INTERVAL_TICKS
     }
 
@@ -803,8 +999,9 @@ class ServerTankActor(state: State) :
      */
     private fun stepFire() {
         stepCooldowns()
-        if (!pendingIntent.firePrimary || armor <= 0 || primaryCooldownTicks > 0) return
+        if (!pendingIntent.firePrimary || armor <= 0 || primaryCooldownTicks > 0 || height < 1) return
         val weapon = currentWeapon
+        if (onWater && height < 2 && !canFireFromWater(weapon)) return
         if (!computer) {
             if (weapon == WEAPON_FLAME) {
                 if (!spec.hasFlamer && ammo[WEAPON_FLAME] <= 0) return
@@ -819,15 +1016,58 @@ class ServerTankActor(state: State) :
                 ammo[weapon] = (ammo[weapon] - if (weapon == WEAPON_CHAIN) CHAIN_ROUNDS_PER_BURST else 1).coerceAtLeast(0)
             }
         }
+        fireWeapon(weapon)
+    }
+
+    /**
+     * Legacy control_enforcer() (src/objects/enforce.c): an enforcer selects [weapon] for this
+     * computer tank and, when [fire], makes it fire that weapon at once with one round; unless
+     * [keep] the tank switches back to its own weapon.
+     */
+    internal fun enforce(weapon: Int, fire: Boolean, keep: Boolean) {
+        val previous = currentWeapon
+        currentWeapon = weapon
+        if (fire && armor > 0 && height >= 1 && !(onWater && height < 2 && !canFireFromWater(weapon))) {
+            if (weapon in 0 until WEAPON_COUNT) ammo[weapon] = 1
+            fireWeapon(weapon)
+        }
+        if (!keep) currentWeapon = previous
+    }
+
+    private fun fireWeapon(weapon: Int) {
         primaryCooldownTicks = spec.refireTicks.getOrElse(weapon) { 50 }
         when (weapon) {
             WEAPON_MAIN -> fireMainCannon()
             WEAPON_CHAIN -> fireChainGun()
             WEAPON_FLAME -> fireFlamer()
             WEAPON_MINE -> deployMine()
-            WEAPON_ROCKET -> fireRocket()
+            WEAPON_ROCKET, WEAPON_GUNNERS, WEAPON_FLAMERS -> fireRocket()
             WEAPON_MORTAR -> fireMortar()
+            WEAPON_ABOMB -> pendingAbombRequest = AbombRequest(positionX, positionY, countdown = 3)
+            WEAPON_SMOKE -> {
+                pendingEffects += GameEvent.Sound(kind = SoundKind.SMOKESCR, x = positionX, y = positionY)
+                smokeScreenLeft += SMOKE_SCREEN_CLOUDS
+            }
+            WEAPON_CLOAK -> {
+                pendingEffects += GameEvent.Sound(kind = SoundKind.INVISIBLE, x = positionX, y = positionY)
+                cloakCount = 2
+                cloakCountdownTicks = CLOAK_FIRST_TICKS
+                cloakFlashCooldownTicks = 0
+            }
+            WEAPON_SPEEDUP -> {
+                pendingEffects += GameEvent.Sound(kind = SoundKind.SPEEDUP, x = positionX, y = positionY)
+                boostTicks = BOOST_TICKS
+            }
         }
+    }
+
+    /**
+     * Legacy tank_fire(): in the water a hull-gun vehicle can only cloak or speed up, and a
+     * turret vehicle can also fire its main gun, flamer, rockets and mortar.
+     */
+    private fun canFireFromWater(weapon: Int): Boolean = when (turretMode) {
+        TurretMode.TURRET -> weapon in setOf(WEAPON_MAIN, WEAPON_FLAME, WEAPON_ROCKET, WEAPON_MORTAR, WEAPON_CLOAK, WEAPON_SPEEDUP)
+        else -> weapon == WEAPON_CLOAK || weapon == WEAPON_SPEEDUP
     }
 
     /** A point on the hull: [offset] (north-facing, from the centre) turned with the hull. */
@@ -851,9 +1091,28 @@ class ServerTankActor(state: State) :
         return barrel
     }
 
+    /**
+     * Legacy tank_fire() case 5: a mortar shell, which kicks the vehicle back (impulse 50), or
+     * from a plane a bomb that falls 10 px forward per unit of height.
+     */
     private fun fireMortar() {
         val (fx, fy) = LegacyDirections.unitVector(aimDirection)
         val (ox, oy) = nextMainBarrel()
+        if (kind == VehicleKind.PLANE) {
+            val fallPx = PLANE_BOMB_PX_PER_HEIGHT * height
+            pendingMortarRequest = MortarRequest(
+                originX = ox,
+                originY = oy,
+                velocityX = fx * MORTAR_SPEED,
+                velocityY = fy * MORTAR_SPEED,
+                damage = MORTAR_DAMAGE,
+                maxRadius = MORTAR_MAX_RADIUS_PX,
+                travelTicks = (fallPx / MORTAR_SPEED).roundToInt().coerceAtLeast(1),
+                dropHeight = height,
+            )
+            return
+        }
+        addImpulse(-fx, -fy, MORTAR_RECOIL_POWER)
         pendingMortarRequest = MortarRequest(
             originX = ox,
             originY = oy,
@@ -865,12 +1124,24 @@ class ServerTankActor(state: State) :
         pendingEffects += GameEvent.Effect(EffectKind.MORTAR_FIRE, ox, oy)
     }
 
+    /** Legacy tank_add_impulse(): a push of `2000 * power / mass` px/s along ([dirX], [dirY]). */
+    internal fun addImpulse(dirX: Float, dirY: Float, power: Int) {
+        val impulse = IMPULSE_FACTOR * power / spec.motion.mass
+        velocityX += dirX * impulse
+        velocityY += dirY * impulse
+    }
+
     /**
      * Legacy tank_fire() case 4: a human player gets a lock-on marker at the tank, steered with
      * the drive keys until fire is released (see [stepRocketLock]); a computer tank launches
      * straight at its target.
      */
     private fun fireRocket() {
+        if (computer) {
+            // Legacy tank_fire(): a computer tank fires straight at its target.
+            fireLocked(if (aiTargetX >= 0) aiTargetX else positionX, if (aiTargetY >= 0) aiTargetY else positionY)
+            return
+        }
         lockActive = true
         lockX = positionX
         lockY = positionY
@@ -880,11 +1151,26 @@ class ServerTankActor(state: State) :
         lockCameraTicks = LOCK_CAMERA_HOLD_TICKS
     }
 
-    /** Fire a rocket straight at a point, as legacy computer tanks do (`tank_fire_locked()`). */
-    internal fun fireRocketAt(targetX: Int, targetY: Int) {
-        if (primaryCooldownTicks > 0) return
-        primaryCooldownTicks = spec.refireTicks[WEAPON_ROCKET]
-        launchRocket(targetX, targetY)
+    /**
+     * Legacy tank_fire_locked(): what a released marker launches — a rocket, or a soldier who
+     * jumps out 20 px towards the marker and walks there.
+     */
+    private fun fireLocked(targetX: Int, targetY: Int) {
+        when (currentWeapon) {
+            WEAPON_GUNNERS, WEAPON_FLAMERS -> {
+                val direction = LegacyDirections.fromAngle(targetX - positionX, targetY - positionY)
+                val (dx, dy) = rotate(direction, SOLDIER_DROP_OFFSET)
+                pendingSoldierRequests += SoldierRequest(
+                    x = positionX + dx,
+                    y = positionY + dy,
+                    targetX = targetX,
+                    targetY = targetY,
+                    gunner = currentWeapon == WEAPON_GUNNERS,
+                    power = powerFor(currentWeapon),
+                )
+            }
+            else -> launchRocket(targetX, targetY)
+        }
     }
 
     /** Legacy tank_marker_control(). */
@@ -892,7 +1178,7 @@ class ServerTankActor(state: State) :
         lockCameraTicks = LOCK_CAMERA_HOLD_TICKS
         if (!pendingIntent.firePrimary) {
             lockActive = false
-            launchRocket(lockX, lockY)
+            fireLocked(lockX, lockY)
             return
         }
         if (lockStepCooldownTicks > 0) {
@@ -942,16 +1228,28 @@ class ServerTankActor(state: State) :
         )
     }
 
+    /**
+     * Legacy tank_fire() case 0: a shell from the next main-gun barrel, or for vehicles whose
+     * main gun is HT_SROCK a small rocket that only starts hitting things 30 px out.
+     */
     private fun fireMainCannon() {
         val range = if (dualMode) MAIN_GUN_DUAL_RANGE_PX else MAIN_GUN_RANGE_PX
         val (ox, oy) = nextMainBarrel()
+        if (spec.mainGunHitType == "HT_SROCK") {
+            pendingFireRequests += bulletRequest(ox, oy, aimDirection, range, powerFor(WEAPON_MAIN), SHOT_SMALL_ROCKET)
+                .copy(safetyPx = SROCK_SAFETY_PX)
+            return
+        }
         pendingFireRequests += bulletRequest(ox, oy, aimDirection, range, powerFor(WEAPON_MAIN), WEAPON_MAIN)
         pendingEffects += GameEvent.Effect(EffectKind.FIRE, ox, oy)
     }
 
     private fun fireChainGun() {
         // Legacy tank_fire() case 1: every hull-mounted chain gun fires one round per burst.
-        for (gun in spec.chainGuns.ifEmpty { listOf(0 to -12) }) {
+        // The extra-gun bonus adds a gun at the next slot of `chain_gun[]`, which is unused (0, 0)
+        // in every vehicle of the table.
+        val guns = spec.chainGuns.ifEmpty { listOf(0 to -12) }
+        for (gun in if (extraGun && guns.size < 4) guns + (0 to 0) else guns) {
             val (ox, oy) = onHull(gun)
             pendingFireRequests += bulletRequest(ox, oy, bodyDirection, CHAIN_GUN_RANGE_PX, powerFor(WEAPON_CHAIN), WEAPON_CHAIN)
             pendingEffects += GameEvent.Effect(EffectKind.SFIRE, ox, oy)
@@ -1011,6 +1309,78 @@ class ServerTankActor(state: State) :
         verticalSpeed -= PIT_GRAVITY * TICK_SECONDS
         exactHeight = (exactHeight + verticalSpeed * TICK_SECONDS).coerceAtLeast(PIT_BOTTOM_HEIGHT)
         if (exactHeight <= PIT_BOTTOM_HEIGHT) queueDestroy()
+    }
+
+    /**
+     * Legacy new_velocity(), the vertical part: gravity pulls everything that is off the ground
+     * down (planes gently, 10/s², the rest at 100/s²); a plane that moves gains lift from its
+     * speed (`vz += lift * vx * dt`) and is destroyed when it touches anything but a runway; a
+     * helicopter simply hovers at its height. Flying without fuel is fatal.
+     */
+    private fun stepAltitude() {
+        val flies = kind == VehicleKind.CHOPPER || kind == VehicleKind.PLANE
+        if (!flies && exactHeight == 1f && verticalSpeed == 0f) return
+        val highest = if (spec.height > 1) spec.height.toFloat() else MAX_FLIGHT_HEIGHT
+        exactHeight += verticalSpeed * TICK_SECONDS
+        if (exactHeight < 1f) {
+            exactHeight = 1f
+            verticalSpeed = 0f
+        }
+        if (exactHeight > highest) {
+            exactHeight = highest
+            verticalSpeed = 0f
+        }
+        if (height > 1) verticalSpeed -= TICK_SECONDS * if (kind == VehicleKind.PLANE) PLANE_GRAVITY else PIT_GRAVITY
+        if (armor > 0 && fuel > 0) {
+            when (kind) {
+                VehicleKind.PLANE -> if (speed > 5f) {
+                    val (fx, fy) = LegacyDirections.unitVector(bodyDirection)
+                    verticalSpeed += spec.motion.lift * (velocityX * fx + velocityY * fy) * TICK_SECONDS
+                    if (height <= 1 && !onRunway) queueDestroy()
+                }
+                VehicleKind.CHOPPER -> verticalSpeed = 0f
+                else -> Unit
+            }
+        }
+        if (armor > 0 && fuel <= 0 && height > 1) queueDestroy()
+    }
+
+    /** What the vehicle is on, set by the match before every tick (legacy get_underground()). */
+    internal fun setUnderground(runway: Boolean, water: Boolean) {
+        onRunway = runway
+        onWater = water
+    }
+
+    /** Legacy invisible_effects(). */
+    private fun stepCloak() {
+        if (cloakCount == 0) {
+            cloakFlash = true
+            return
+        }
+        if (cloakCountdownTicks > 0) cloakCountdownTicks -= 1
+        if (cloakCountdownTicks == 0) {
+            cloakCount -= 1
+            cloakCountdownTicks = CLOAK_LAST_TICKS
+        }
+        if (cloakFlashCooldownTicks > 0) cloakFlashCooldownTicks -= 1
+        if (cloakFlashCooldownTicks == 0) {
+            cloakFlash = !cloakFlash
+            cloakFlashCooldownTicks = when {
+                cloakCount == 2 && cloakFlash -> 100
+                cloakCount == 2 -> 10
+                else -> 5
+            }
+        }
+    }
+
+    /** Legacy tank_effects(): a smoke screen puffs clouds behind the hull, one every 10..20 ticks. */
+    private fun stepSmokeScreen() {
+        if (smokeScreenCooldownTicks > 0) smokeScreenCooldownTicks -= 1
+        if (smokeScreenLeft <= 0 || smokeScreenCooldownTicks > 0) return
+        val (x, y) = onHull(SMOKE_SCREEN_POINTS[random.nextInt(SMOKE_SCREEN_POINTS.size)])
+        pendingEffects += GameEvent.Effect(EffectKind.SMOKE_SCREEN, x, y)
+        smokeScreenCooldownTicks = 10 + random.nextInt(10)
+        smokeScreenLeft -= 1
     }
 
     /** Legacy tank_effects(): moving vehicles that smoke puff more often once badly damaged. */
@@ -1154,6 +1524,8 @@ class ServerTankActor(state: State) :
     companion object {
         /** Legacy STANDARD tank `props.armor`. */
         const val DEFAULT_TANK_ARMOR: Int = 30
+        /** Legacy `tank[21]`, the ATOMIC TANK. */
+        const val ATOMIC_TANK: Int = 21
         val DEFAULT_AMMO: List<Int> = listOf(30, 1500, 0, 7, 3, 3, 2, 5, 5, 1, 1, 1)
         val DEFAULT_POWER: List<Int> = listOf(10, 1, 1, 7, 10, 0, 0, 1, 1, 0, 0, 0)
     }

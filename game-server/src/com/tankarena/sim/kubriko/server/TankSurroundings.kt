@@ -9,6 +9,9 @@ internal interface TankSurroundings {
     /** Every vehicle in the match, for the legacy vehicle-against-vehicle check. */
     fun tanks(): List<ServerTankActor>
 
-    /** Wear down a structure the tank crashed into (legacy HT_CRASH). */
-    fun damageStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int)
+    /** Legacy check_obj_collide(): is a train car within [radius] + 12 of ([x], [y]) at about [height]? */
+    fun trainAt(x: Int, y: Int, radius: Int, height: Int): Boolean = false
+
+    /** Wear down a structure [by] crashed into (legacy HT_CRASH). */
+    fun damageStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int, by: ServerTankActor? = null)
 }

@@ -95,14 +95,44 @@ class StructureGrid(
      * ([left], [top]): the number of pixels where both it and a standing solid structure are opaque.
      * [firstHit] receives the tile of the first overlapping pixel.
      */
-    fun overlap(picture: PictureMasks.Mask, left: Int, top: Int, firstHit: IntArray? = null): Int {
+    fun overlap(picture: PictureMasks.Mask, left: Int, top: Int, firstHit: IntArray? = null): Int =
+        overlapWith(picture, left, top, firstHit) { tileX, tileY ->
+            if (isStanding(tileX, tileY)) mask(solid[index(tileX, tileY)], 0) else null
+        }
+
+    /**
+     * Legacy overlap() for a vehicle flying at height 2..7: only the top-layer pictures of standing
+     * buildings stand in its way (their ruined variant once the top layer itself is destroyed).
+     */
+    fun overlapTop(picture: PictureMasks.Mask, left: Int, top: Int, firstHit: IntArray? = null): Int =
+        overlapWith(picture, left, top, firstHit) { tileX, tileY ->
+            val i = index(tileX, tileY)
+            if (isStanding(tileX, tileY) && this.top[i] >= 0) mask(this.top[i], if (strength[1][0][i] == 0) 1 else 0) else null
+        }
+
+    /** Legacy check_wall_hit_point(..., exclude = 1): is a standing solid structure opaque at this world pixel? */
+    fun solidOpaqueAt(x: Int, y: Int): Boolean {
+        val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+        val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+        if (!inside(tileX, tileY) || !isStanding(tileX, tileY)) return false
+        val structure = mask(solid[index(tileX, tileY)], 0) ?: return false
+        return structure.isOpaque(x - tileX * LEGACY_TILE_SIZE, y - tileY * LEGACY_TILE_SIZE)
+    }
+
+    private inline fun overlapWith(
+        picture: PictureMasks.Mask,
+        left: Int,
+        top: Int,
+        firstHit: IntArray?,
+        structureMask: (Int, Int) -> PictureMasks.Mask?,
+    ): Int {
         var count = 0
         val tileX0 = Math.floorDiv(left, LEGACY_TILE_SIZE)
         val tileY0 = Math.floorDiv(top, LEGACY_TILE_SIZE)
         for (tileY in tileY0..tileY0 + 1) {
             for (tileX in tileX0..tileX0 + 1) {
-                if (!inside(tileX, tileY) || !isStanding(tileX, tileY)) continue
-                val structure = mask(solid[index(tileX, tileY)], 0) ?: continue
+                if (!inside(tileX, tileY)) continue
+                val structure = structureMask(tileX, tileY) ?: continue
                 val ox = tileX * LEGACY_TILE_SIZE - left
                 val oy = tileY * LEGACY_TILE_SIZE - top
                 val x0 = maxOf(0, ox)
@@ -164,12 +194,28 @@ class StructureGrid(
      * tile and of every structure linked to it. Strength 1000 is indestructible and a structure
      * whose [kind] strength is 0 cannot be hurt that way. Returns the structures destroyed.
      */
-    fun hit(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int): List<DestroyedStructure> {
+    fun hit(
+        tileX: Int,
+        tileY: Int,
+        layer: StructureLayer,
+        kind: HitKind,
+        power: Int,
+        /** Legacy HT_REMOVE (a lock's blow_lock()): takes indestructible structures down too. */
+        remove: Boolean = false,
+    ): List<DestroyedStructure> {
         if (!inside(tileX, tileY)) return emptyList()
         val newStrength = (strength(tileX, tileY, layer, kind) - power).coerceAtLeast(0)
         val destroyed = mutableListOf<DestroyedStructure>()
-        hitLinked(tileX, tileY, layer, kind, newStrength, from = null, destroyed)
+        hitLinked(tileX, tileY, layer, kind, newStrength, from = null, destroyed, remove)
         return destroyed
+    }
+
+    /** Legacy prepare_lock() with `lock_target == 0`: the locked structure only falls with its lock. */
+    fun makeIndestructible(tileX: Int, tileY: Int) {
+        if (!inside(tileX, tileY)) return
+        val i = index(tileX, tileY)
+        if (solid[i] >= 0) strength[0][0][i] = INDESTRUCTIBLE
+        if (top[i] >= 0) strength[1][0][i] = INDESTRUCTIBLE
     }
 
     private fun hitLinked(
@@ -180,6 +226,7 @@ class StructureGrid(
         newStrength: Int,
         from: String?,
         destroyed: MutableList<DestroyedStructure>,
+        remove: Boolean = false,
     ) {
         if (!inside(tileX, tileY)) return
         val i = index(tileX, tileY)
@@ -191,15 +238,15 @@ class StructureGrid(
         val tileType = PictureCatalog.legacyRow(world, solid[i])?.type
         if ((from != null && "STOP" in links) ||
             (tileType == "BUSHES" && from != null) ||
-            current == INDESTRUCTIBLE || current == newStrength || current == 0
+            (!remove && current == INDESTRUCTIBLE) || current == newStrength || current == 0
         ) {
             return
         }
         strength[layer.ordinal][kind.ordinal][i] = newStrength
-        if ("LEFT" in links) hitLinked(tileX - 1, tileY, layer, kind, newStrength, "RIGHT", destroyed)
-        if ("RIGHT" in links) hitLinked(tileX + 1, tileY, layer, kind, newStrength, "LEFT", destroyed)
-        if ("UP" in links) hitLinked(tileX, tileY - 1, layer, kind, newStrength, "DOWN", destroyed)
-        if ("DOWN" in links) hitLinked(tileX, tileY + 1, layer, kind, newStrength, "UP", destroyed)
+        if ("LEFT" in links) hitLinked(tileX - 1, tileY, layer, kind, newStrength, "RIGHT", destroyed, remove)
+        if ("RIGHT" in links) hitLinked(tileX + 1, tileY, layer, kind, newStrength, "LEFT", destroyed, remove)
+        if ("UP" in links) hitLinked(tileX, tileY - 1, layer, kind, newStrength, "DOWN", destroyed, remove)
+        if ("DOWN" in links) hitLinked(tileX, tileY + 1, layer, kind, newStrength, "UP", destroyed, remove)
         if (newStrength != 0) return
 
         strength[layer.ordinal][0][i] = 0

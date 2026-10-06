@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
  * and server versions must fail fast at decode time rather than producing silent drift.
  */
-const val PROTOCOL_VERSION: Int = 5
+const val PROTOCOL_VERSION: Int = 6
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.
@@ -24,6 +24,8 @@ data class WorldSnapshot(
     val events: List<GameEvent> = emptyList(),
     /** Map tiles whose pictures changed since the start (destroyed buildings, bridges turned to water). */
     val changedTiles: List<TileState> = emptyList(),
+    /** Legacy `nuke_total`: 0..63 added to every palette colour while an A-bomb goes off. */
+    val flash: Int = 0,
     val protocolVersion: Int = PROTOCOL_VERSION,
 )
 

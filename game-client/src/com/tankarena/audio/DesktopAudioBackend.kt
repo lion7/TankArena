@@ -66,6 +66,8 @@ class DesktopAudioBackend(
             SoundKind.MINE to "expl2",
             SoundKind.BONUS to "pickup",
             SoundKind.COLLAPSE to "collapse",
+            SoundKind.NUKE to "nuke",
+            SoundKind.SCREAM to "scream",
         )
     }
 

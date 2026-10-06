@@ -30,6 +30,8 @@ class ServerLockActor internal constructor(state: State) : Collidable, Editable<
     val lockX: Int = state.lockX
     val lockY: Int = state.lockY
     var isFired: Boolean = state.isFired
+    /** Legacy `o->gc`: applied when the lock is used up (remove_object()). */
+    val goalContribution: Int = state.goalContribution
 
     override fun save(): State = State(
         body = body,
@@ -38,6 +40,7 @@ class ServerLockActor internal constructor(state: State) : Collidable, Editable<
         lockX = lockX,
         lockY = lockY,
         isFired = isFired,
+        goalContribution = goalContribution,
     )
 
     @kotlinx.serialization.Serializable
@@ -48,6 +51,7 @@ class ServerLockActor internal constructor(state: State) : Collidable, Editable<
         @SerialName("lockX") val lockX: Int = 0,
         @SerialName("lockY") val lockY: Int = 0,
         @SerialName("isFired") val isFired: Boolean = false,
+        @SerialName("goalContribution") val goalContribution: Int = 0,
     ) : Serializable.State<ServerLockActor> {
         override fun restore(): ServerLockActor = ServerLockActor(this)
         override fun serialize(): String = Json.encodeToString(this)

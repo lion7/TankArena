@@ -24,7 +24,10 @@ import com.tankarena.protocol.snapshot.TerrainTile
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
+import com.tankarena.protocol.snapshot.AbombState
 import com.tankarena.protocol.snapshot.ActorState
+import com.tankarena.protocol.snapshot.BonusState
+import com.tankarena.protocol.snapshot.ManState
 import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.TileState
 import com.tankarena.protocol.snapshot.ExplosionKind
@@ -68,6 +71,19 @@ private const val MORTAR_STEP_POWER: Int = 5
 private const val FLAME_HIT_RADIUS_PX: Int = 15
 /** Legacy tank_write_marker(): the marker turns red beyond 400 px. */
 private const val LOCK_OUT_OF_RANGE_PX: Int = 400
+// Legacy src/objects/train.c: quarter-circle rails of radius 49, wagons 31 px apart, at most
+// 50 px/s, the engine's smoke 11 px ahead of its centre, and wagon 7 carrying an A-bomb.
+private const val RAILS_RADIUS: Int = 49
+private const val WAGON_DISTANCE: Int = 31
+private const val TRAIN_MAX_SPEED: Int = 50
+private val TRAIN_SMOKE_OFFSET: Pair<Int, Int> = 0 to -11
+private const val ABOMB_WAGON: Int = 7
+/** Legacy create_mine(): r = 3. */
+private const val MINE_RADIUS_PX: Int = 3
+/** Legacy HT_SROCK, as the man layer stores a soldier's weapon. */
+private const val HT_SROCK: Int = 10
+/** Legacy create_bonus(): the random roll (out of 10000) below which each bonus type drops. */
+private val RANDOM_BONUS_THRESHOLDS = intArrayOf(300, 600, 700, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200, 1225, 1250)
 private val DEADLY_TERRAIN = setOf(
     TerrainMaterial.PIT_BIG,
     TerrainMaterial.PIT_SMALL,
@@ -87,6 +103,8 @@ class ServerMatchPrototype private constructor(
     val mode: MatchMode,
     /** Legacy make_tank(): human tanks start with the blinking start shield. */
     private val startShields: Boolean,
+    /** The map's tile layers, for the bonus and man layers. */
+    private val layers: TileLayers? = null,
 ) {
 
     private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
@@ -117,6 +135,15 @@ class ServerMatchPrototype private constructor(
     private var goalBad: Int = 0
     private var missionStatus: MissionStatus = MissionStatus.IN_PROGRESS
     private val pendingEvents: MutableList<GameEvent> = mutableListOf()
+
+    /** Runtime-only objects (see MatchObjects.kt). */
+    private val bonuses: MutableList<Bonus> = mutableListOf()
+    private val soldiers: MutableList<Soldier> = mutableListOf()
+    private val abombs: MutableList<Abomb> = mutableListOf()
+    private val pendingSoldierShots: MutableList<Pair<Soldier, Soldier.Shot>> = mutableListOf()
+    /** Legacy `nuke_total`: how far every colour is brightened while A-bombs go off. */
+    private var flash: Int = 0
+    private val objectRandom = kotlin.random.Random(mapMetadata.widthTiles * 7919 + mapMetadata.heightTiles * 104729)
 
     // Mission stats (T29)
     private var missionKills: Int = 0
@@ -156,10 +183,13 @@ class ServerMatchPrototype private constructor(
             // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
             if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_TICKS)
         }
+        linkTrains()
+        prepareLocks()
         // Legacy control_turret(): turrets placed off a building are gone from the first tick
         // (their goal contribution still counts, but they are not kills).
         removeFallenTurrets()
         drainTurretDestructions()
+        createAllBonuses()
         missionKills = 0
         missionScore = 0
         val all = actorManager.allActors.value
@@ -190,6 +220,7 @@ class ServerMatchPrototype private constructor(
         flushOutOfBoundsProjectiles()
         checkProjectileStructureHits()
         triggerFlameContacts()
+        checkSmallObjectHits()
         flushOutOfBoundsRockets()
         flushOutOfBoundsMortars()
         removeDeadProjectiles()
@@ -200,14 +231,21 @@ class ServerMatchPrototype private constructor(
         removeDeadMines()
         removeDeadRockets()
         removeDeadMortars()
+        stepSoldiers()
         drainFireRequests()
         drainMineRequests()
         drainRocketRequests()
         drainMortarRequests()
+        drainAbombRequests()
+        drainSoldierRequests()
+        stepAbombs()
+        touchSmallObjects()
+        checkVehicleOverlaps()
         drainTankLifecycleEvents()
         drainTurretDestructions()
         handOverDeadPlayers()
         stepWarps()
+        stepLocks()
         stepDestroyers()
         stepEnforcers()
         stepTrains()
@@ -226,6 +264,12 @@ class ServerMatchPrototype private constructor(
     internal fun playerTankForTest(playerIndex: Int): ServerTankActor? = tanksByPlayerIndex[playerIndex]
 
     internal fun tanksForTest(): List<ServerTankActor> = allTanks
+
+    internal fun trainsForTest(): List<ServerTrainActor> = trains
+
+    internal fun locksForTest(): List<ServerLockActor> = locks
+
+    internal fun hitTrainForTest(car: ServerTrainActor, power: Int) = hitTrain(car, power)
 
     internal fun turretsForTest(): List<ServerTurretActor> =
         actorManager.allActors.value.filterIsInstance<ServerTurretActor>()
@@ -431,65 +475,489 @@ class ServerMatchPrototype private constructor(
         }
     }
 
-    private fun stepDestroyers() {
-        if (missionStatus != MissionStatus.IN_PROGRESS) return
-        for (destroyer in actorManager.allActors.value.filterIsInstance<ServerDestroyerActor>()) {
-            if (destroyer.isFired) continue
-            if (!destroyer.immediate) continue
-            destroyer.isFired = true
-            val size = destroyer.body.size
-            val pos = destroyer.body.position
-            val dx = (pos.x.raw + size.width.raw / 2f).toInt()
-            val dy = (pos.y.raw + size.height.raw / 2f).toInt()
-            val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-            pendingEvents.addAll(AreaDamageResolver.resolve(
-                tanks = tanks,
-                x = dx,
-                y = dy,
-                radius = destroyer.radius,
-                damage = 100,
-                kind = ExplosionKind.ABOMB,
-            ))
+    // ---- Destroyers, locks and enforcers (src/objects/destroy.c, lock.c, enforce.c) ----
+
+    private var destroyers: List<ServerDestroyerActor> = emptyList()
+    private var locks: List<ServerLockActor> = emptyList()
+    private val lockOwners: MutableMap<ServerLockActor, Actor?> = IdentityHashMap()
+    private val lockTargets: MutableMap<ServerLockActor, Actor?> = IdentityHashMap()
+
+    /** Centre of any scene object, for legacy nearest_object(). */
+    private fun centreOf(actor: Actor): Pair<Int, Int>? = when (actor) {
+        is ServerTankActor -> actor.positionX to actor.positionY
+        is ServerTrainActor -> actor.positionX to actor.positionY
+        is ServerMineActor -> actor.positionX to actor.positionY
+        is ServerB52Actor -> actor.positionX to actor.positionY
+        is ServerZeppelinActor -> actor.positionX to actor.positionY
+        is com.pandulapeter.kubriko.actor.traits.Positionable -> {
+            val body = actor.body
+            if (body is com.pandulapeter.kubriko.actor.body.BoxBody) {
+                (body.position.x.raw + body.size.width.raw / 2f).toInt() to (body.position.y.raw + body.size.height.raw / 2f).toInt()
+            } else {
+                body.position.x.raw.toInt() to body.position.y.raw.toInt()
+            }
+        }
+        else -> null
+    }
+
+    /** Legacy nearest_object(): the closest other object within 15 px of ([x], [y]). */
+    private fun nearestObject(self: Actor, x: Int, y: Int): Actor? {
+        var best: Actor? = null
+        var bestDistSq = 15L * 15L
+        for (actor in actorManager.allActors.value) {
+            if (actor === self || actor is ServerWallActor) continue
+            val (ax, ay) = centreOf(actor) ?: continue
+            val distSq = (ax - x).toLong() * (ax - x) + (ay - y).toLong() * (ay - y)
+            if (distSq < bestDistSq) {
+                best = actor
+                bestDistSq = distSq
+            }
+        }
+        return best
+    }
+
+    /**
+     * Legacy prepare_lock(): a lock watches the object nearest to it (activation 1) or the
+     * building under it (activation 0); it acts on the object nearest to its target point, or on
+     * the structure there, which it makes indestructible until the lock blows.
+     */
+    private fun prepareLocks() {
+        locks = actorManager.allActors.value.filterIsInstance<ServerLockActor>()
+        destroyers = actorManager.allActors.value.filterIsInstance<ServerDestroyerActor>()
+        for (lock in locks) {
+            val (x, y) = centreOf(lock) ?: continue
+            if (lock.activation == 1) lockOwners[lock] = nearestObject(lock, x, y)
+            when (lock.target) {
+                0 -> structures.makeIndestructible(Math.floorDiv(lock.lockX, LEGACY_TILE_SIZE), Math.floorDiv(lock.lockY, LEGACY_TILE_SIZE))
+                1, 2 -> lockTargets[lock] = nearestObject(lock, lock.lockX, lock.lockY)
+            }
         }
     }
 
-    private fun stepEnforcers() {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (enforcer in actorManager.allActors.value.filterIsInstance<ServerEnforcerActor>()) {
-            val size = enforcer.body.size
-            val pos = enforcer.body.position
-            val ex = (pos.x.raw + size.width.raw / 2f).toInt()
-            val ey = (pos.y.raw + size.height.raw / 2f).toInt()
-            for (tank in tanks) {
-                if (tank.playerIndex >= 0) continue
-                if (tank.armor <= 0) continue
-                val targetGood = enforcer.good && tank.team == 0
-                val targetBad = enforcer.bad && tank.team == 1
-                if (!targetGood && !targetBad) continue
-                if (!withinRadius(tank.positionX, tank.positionY, ex, ey, enforcer.radius)) continue
-                // Enforce weapon on AI tank
-                tank.applyEnforcedWeapon(enforcer.weapon)
+    /** Legacy remove_object() for the objects a lock watches: is this one gone (or a dead vehicle)? */
+    private fun isGone(actor: Actor?): Boolean = when (actor) {
+        null -> true
+        is ServerTankActor -> actor.armor <= 0
+        is ServerTurretActor -> !actor.isAlive
+        is ServerTrainActor -> !actor.alive
+        is ServerDestroyerActor -> actor.isFired
+        is ServerLockActor -> actor.isFired
+        is ServerGoalActor -> actor.isClaimed
+        is ServerMineActor -> actor.isDead
+        is ServerB52Actor -> !actor.alive || actor.armor <= 0
+        else -> false
+    }
+
+    /** Legacy control_lock(). */
+    private fun stepLocks() {
+        for (lock in locks) {
+            if (lock.isFired) continue
+            val (x, y) = centreOf(lock) ?: continue
+            val trigger = when (lock.activation) {
+                0 -> !structures.isStanding(Math.floorDiv(x, LEGACY_TILE_SIZE), Math.floorDiv(y, LEGACY_TILE_SIZE))
+                1 -> isGone(lockOwners[lock])
+                else -> false
             }
+            if (trigger) blowLock(lock)
+        }
+    }
+
+    /**
+     * Legacy blow_lock(): take the locked structure down (HT_REMOVE), destroy the target object
+     * (HT_DESTROY) or simply remove it; then the lock itself is used up.
+     */
+    private fun blowLock(lock: ServerLockActor) {
+        lock.isFired = true
+        when (lock.target) {
+            0 -> {
+                val tileX = Math.floorDiv(lock.lockX, LEGACY_TILE_SIZE)
+                val tileY = Math.floorDiv(lock.lockY, LEGACY_TILE_SIZE)
+                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, lock.lockX, lock.lockY)
+                pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, lock.lockX, lock.lockY)
+                hitStructure(tileX, tileY, StructureLayer.SOLID, HitKind.NORMAL, StructureGrid.INDESTRUCTIBLE, EffectKind.EXPLOSION, remove = true)
+            }
+            1 -> lockTargets[lock]?.let(::destroyObject)
+            2 -> lockTargets[lock]?.let(::removeObject)
+        }
+        modifyGoalCounter(lock.goalContribution)
+    }
+
+    /** Legacy hit_obj_for(target, ..., HT_DESTROY, 1000). */
+    private fun destroyObject(actor: Actor) {
+        centreOf(actor)?.let { (x, y) ->
+            if (actor !is ServerMineActor) {
+                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x, y)
+                pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, x, y)
+            }
+        }
+        when (actor) {
+            is ServerTankActor -> actor.queueDestroy()
+            is ServerTrainActor -> hitTrain(actor, StructureGrid.INDESTRUCTIBLE)
+            is ServerDestroyerActor -> fireDestroyer(actor)
+            is ServerMineActor -> actor.detonateOn(null)
+            is ServerB52Actor -> actor.armor = 0
+            // Turrets, goals and locks have no hit function in the original.
+            else -> Unit
+        }
+    }
+
+    /** Legacy remove_object(target): the object is simply gone (and does what it does when removed). */
+    private fun removeObject(actor: Actor) {
+        when (actor) {
+            // Vehicles cannot leave the match here; a removed vehicle counts as destroyed.
+            is ServerTankActor -> actor.queueDestroy()
+            is ServerTurretActor -> actor.fall()
+            is ServerTrainActor -> removeTrain(actor)
+            is ServerDestroyerActor -> fireDestroyer(actor)
+            is ServerLockActor -> if (!actor.isFired) {
+                actor.isFired = true
+                modifyGoalCounter(actor.goalContribution)
+            }
+            is ServerGoalActor -> if (!actor.isClaimed) {
+                actor.isClaimed = true
+                modifyGoalCounter(actor.contribution)
+            }
+            is ServerMineActor -> actor.detonateOn(null)
+            is ServerB52Actor -> actor.alive = false
+            else -> Unit
+        }
+    }
+
+    /** Legacy prepare_destroyer(): an immediate destroyer goes off on the first tick. */
+    private fun stepDestroyers() {
+        for (destroyer in destroyers) {
+            if (!destroyer.isFired && destroyer.immediate) fireDestroyer(destroyer)
+        }
+    }
+
+    /**
+     * Legacy remove_destroyer(): flatten every destructible building (`what & 1`) and destroy
+     * every vehicle, soldier and the like (`what & 2`) within the radius — HT_DESTROY, power 1000,
+     * through every shield.
+     */
+    private fun fireDestroyer(destroyer: ServerDestroyerActor) {
+        if (destroyer.isFired) return
+        destroyer.isFired = true
+        val (x, y) = centreOf(destroyer) ?: return
+        val radius = destroyer.radius
+        if (destroyer.what and 1 != 0) {
+            var y2 = y - radius
+            while (y2 < y + radius) {
+                var x2 = x - radius
+                while (x2 < x + radius) {
+                    val tileX = Math.floorDiv(x2, LEGACY_TILE_SIZE)
+                    val tileY = Math.floorDiv(y2, LEGACY_TILE_SIZE)
+                    if (withinRadius(x2, y2, x, y, radius + 16) && structures.strength(tileX, tileY, StructureLayer.SOLID) != 0) {
+                        pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x2, y2)
+                        pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, x2, y2)
+                        hitStructure(tileX, tileY, StructureLayer.SOLID, HitKind.NORMAL, StructureGrid.INDESTRUCTIBLE, EffectKind.EXPLOSION)
+                    }
+                    x2 += LEGACY_TILE_SIZE
+                }
+                y2 += LEGACY_TILE_SIZE
+            }
+            repeat(5) {
+                val angle = 2 * Math.PI * objectRandom.nextInt(360) / 360
+                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x + (radius * Math.cos(angle)).toInt(), y + (radius * Math.sin(angle)).toInt())
+            }
+        }
+        if (destroyer.what and 2 != 0) {
+            for (tank in allTanks) {
+                if (tank.armor > 0 && tank.height > 0 && withinRadius(tank.positionX, tank.positionY, x, y, maxOf(radius, tank.spec.radius))) {
+                    tank.queueDestroy()
+                }
+            }
+            blastSmallObjects(x, y, radius, power = StructureGrid.INDESTRUCTIBLE)
+        }
+        modifyGoalCounter(destroyer.goalContribution)
+    }
+
+    /**
+     * Legacy control_enforcer(): computer tanks of the enforced side within the radius have the
+     * weapon selected, and every `delay` ticks one of them fires it.
+     */
+    private fun stepEnforcers() {
+        for (enforcer in actorManager.allActors.value.filterIsInstance<ServerEnforcerActor>()) {
+            if (enforcer.cooldownTicks > 0) enforcer.cooldownTicks -= 1
+            val (ex, ey) = centreOf(enforcer) ?: continue
+            for (tank in allTanks) {
+                if (!tank.computer || tank.armor <= 0) continue
+                if (!(enforcer.good && tank.team == 0) && !(enforcer.bad && tank.team != 0)) continue
+                val dx = tank.positionX - ex
+                val dy = tank.positionY - ey
+                if (dx * dx + dy * dy >= enforcer.radius * enforcer.radius) continue
+                val fire = enforcer.fire && enforcer.cooldownTicks == 0
+                tank.enforce(enforcer.weapon, fire = fire, keep = enforcer.change)
+                if (fire) enforcer.cooldownTicks = enforcer.delay
+            }
+        }
+    }
+
+    // ---- Trains (src/objects/train.c) ----
+
+    private var trains: List<ServerTrainActor> = emptyList()
+    /** Turrets riding wagons (make_turret(..., wagon)). */
+    private val ridingTurrets: MutableMap<ServerTurretActor, ServerTrainActor> = IdentityHashMap()
+    private val trainRandom = kotlin.random.Random(mapMetadata.widthTiles * 131 + mapMetadata.heightTiles * 17)
+
+    /** Legacy prepare_train() with relocate(): tie each car to its neighbours and its turret. */
+    private fun linkTrains() {
+        trains = actorManager.allActors.value.filterIsInstance<ServerTrainActor>()
+        val byRef = trains.filter { it.ref != 0 }.associateBy { it.ref }
+        for (car in trains) {
+            car.front = byRef[car.frontRef]?.takeIf { it !== car }
+            car.rear = byRef[car.rearRef]?.takeIf { it !== car }
+            car.syncBody()
+        }
+        for (turret in actorManager.allActors.value.filterIsInstance<ServerTurretActor>()) {
+            if (turret.ownerRef == 0) continue
+            val wagon = byRef[turret.ownerRef] ?: continue
+            wagon.turret = turret
+            ridingTurrets[turret] = wagon
+            turret.moveTo(wagon.positionX, wagon.positionY)
         }
     }
 
     private fun stepTrains() {
-        for (train in actorManager.allActors.value.filterIsInstance<ServerTrainActor>()) {
-            if (!train.alive || train.armor <= 0) continue
-            // Simple forward movement (rails detection deferred to full rail system)
-            train.positionX += 1
-            train.body.position = SceneOffset(
-                (train.positionX - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
-                (train.positionY - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
-            )
-            // Wrap around
-            if (train.positionX > worldWidthPixels) {
-                train.positionX = 0
-                train.body.position = SceneOffset(
-                    (train.positionX - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
-                    (train.positionY - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit,
+        for (car in trains) {
+            if (car.alive && car.driving) controlTrain(car)
+        }
+    }
+
+    /** The legacy type of the base (layer 0) picture at a tile, for following the rails. */
+    private fun railTypeAt(tileX: Int, tileY: Int): String? {
+        val index = tileX + tileY * mapMetadata.widthTiles
+        return com.tankarena.content.PictureCatalog.legacyRow(mapMetadata.world, structures.base.getOrElse(index) { -1 })?.type
+    }
+
+    /**
+     * Legacy control_train(): the car's place follows from its speed and the time it has been on
+     * its rail segment (straight, or a quarter circle of radius 49); a wagon closes up to 31 px
+     * behind the car in front; the car crushes vehicles and soldiers, wrecks other trains, ploughs
+     * through buildings (losing 20 px/s), and pulls the car behind it.
+     */
+    private fun controlTrain(car: ServerTrainActor) {
+        if (!car.alive) return
+        var v = car.speed
+        val dir = car.railsDir
+        val turnDirection = car.direction
+        val now = currentTick
+        if (v > 0) {
+            val elapsed = (now - car.segmentStartTick).toFloat()
+            var a = 0f
+            var x = 0f
+            var y = 0f
+            when (car.railsType) {
+                RAILS_HORIZONTAL -> {
+                    x = v * elapsed / 100f
+                    car.left = (car.railsX + car.railsStart + dir * x - 16).toInt()
+                    car.top = car.railsY - 16
+                    car.direction = if (dir == 1) 4 else 12
+                }
+                RAILS_VERTICAL -> {
+                    y = v * elapsed / 100f
+                    car.left = car.railsX - 16
+                    car.top = (car.railsY + car.railsStart + dir * y - 16).toInt()
+                    car.direction = if (dir == 1) 8 else 0
+                }
+                else -> {
+                    a = v * elapsed / 100f / RAILS_RADIUS
+                    val a2 = car.railsStart - dir * a
+                    car.direction = directionFromRadians(a2 + if (dir == 1) 1.5 * Math.PI else 0.5 * Math.PI)
+                    car.left = (car.railsX + RAILS_RADIUS * Math.cos(a2.toDouble()) - 16).toInt()
+                    car.top = (car.railsY - RAILS_RADIUS * Math.sin(a2.toDouble()) - 16).toInt()
+                }
+            }
+            if (a > 0.51f * Math.PI || x >= 33f || y >= 33f) {
+                car.segmentStartTick = now
+                setupNewRails(car, car.endX, car.endY)
+            }
+        }
+        val front = car.front
+        if (front != null && v > 0) {
+            val d = kotlin.math.sqrt(((car.left - front.left).toDouble().let { it * it }) + (car.top - front.top).toDouble().let { it * it }).toInt() - WAGON_DISTANCE
+            val dc = now - car.segmentStartTick
+            val cc = (kotlin.math.abs(d).toFloat() * 100f / v / 10f).toLong()
+            if (kotlin.math.abs(d) < 100) {
+                if (d < -2 && dc > cc) car.segmentStartTick += cc
+                else if (d > 2) car.segmentStartTick -= cc
+            }
+        }
+        car.syncBody()
+        trainCollisions(car)
+        if (!car.alive) return
+        val hit = IntArray(2)
+        val oblock = com.tankarena.content.PictureMasks.mask("OBLOCK")
+        if (oblock != null && structures.overlap(oblock, car.left, car.top, hit) > 0) {
+            if (structures.strength(hit[0], hit[1], StructureLayer.SOLID) == StructureGrid.INDESTRUCTIBLE) {
+                removeTrain(car)
+                return
+            }
+            val bx = hit[0] * LEGACY_TILE_SIZE
+            val by = hit[1] * LEGACY_TILE_SIZE
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, bx, by)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, bx, by)
+            hitStructure(hit[0], hit[1], StructureLayer.SOLID, HitKind.NORMAL, StructureGrid.INDESTRUCTIBLE, EffectKind.EXPLOSION)
+            v = if (v < 25) 5 else v - 20
+            changeSpeed(car, v)
+        }
+        if (car.smokes) {
+            if (car.smokeCooldownTicks > 0) car.smokeCooldownTicks -= 1
+            if (car.smokeCooldownTicks == 0) {
+                car.smokeCooldownTicks = 20 + trainRandom.nextInt(20)
+                val (sx, sy) = rotate(turnDirection, TRAIN_SMOKE_OFFSET)
+                pendingEvents += GameEvent.Effect(
+                    EffectKind.ROOK,
+                    car.positionX + sx - 2 + trainRandom.nextInt(4),
+                    car.positionY + sy - 2 + trainRandom.nextInt(4),
                 )
             }
+        }
+        car.turret?.takeIf { it.isAlive }?.moveTo(car.positionX, car.positionY)
+        if (front != null) {
+            changeSpeed(car, front.speed)
+        } else {
+            if (car.speedChangeCooldownTicks > 0) car.speedChangeCooldownTicks -= 1
+            if (car.speedChangeCooldownTicks == 0) {
+                v = if (car.isEngine) minOf(v + 5, TRAIN_MAX_SPEED) else if (v > 5) v - 5 else 0
+                changeSpeed(car, v)
+                car.speedChangeCooldownTicks = ServerTrainActor.SPEED_CHANGE_TICKS
+            }
+        }
+        car.rear?.let(::controlTrain)
+    }
+
+    /** Legacy change_speed(): keep the car where it is on its segment while its speed changes. */
+    private fun changeSpeed(car: ServerTrainActor, newSpeed: Int) {
+        val old = car.speed
+        car.speed = newSpeed
+        if (newSpeed == 0) return
+        if (old == 0) car.segmentStartTick = currentTick
+        val dc = ((currentTick - car.segmentStartTick).toFloat() * old / newSpeed).toLong()
+        car.segmentStartTick = currentTick - dc
+    }
+
+    /** Legacy radtoa16(in2pi(a)). */
+    private fun directionFromRadians(angle: Double): Int {
+        val a = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+        return ((Math.PI / 2 - a) / (2 * Math.PI / 16)).let { Math.round(it).toInt() }.mod(16)
+    }
+
+    /**
+     * Legacy setup_new_rails(): look at the rail picture on the next tile (wrapping round the map)
+     * and set up the straight piece or quarter circle the car runs along next. A car that runs
+     * out of rails (or onto a destroyed bridge) stops for good.
+     */
+    private fun setupNewRails(car: ServerTrainActor, tileX0: Int, tileY0: Int) {
+        val tileX = if (tileX0 < 0) mapMetadata.widthTiles - 1 else if (tileX0 >= mapMetadata.widthTiles) 0 else tileX0
+        val tileY = if (tileY0 < 0) mapMetadata.heightTiles - 1 else if (tileY0 >= mapMetadata.heightTiles) 0 else tileY0
+        car.endX = tileX
+        car.endY = tileY
+        val b = LEGACY_TILE_SIZE
+        fun straight(type: Int) {
+            car.railsType = type
+            car.railsDir = car.endDir
+            car.railsStart = if (car.endDir == 1) -16f else 16f
+            car.railsX = tileX * b + 16
+            car.railsY = tileY * b + 16
+            if (type == RAILS_HORIZONTAL) car.endX += car.railsDir else car.endY += car.railsDir
+        }
+        fun curve(start: Double, cx: Int, cy: Int, dir: Int, endType: Int, endDir: Int, endX: Int, endY: Int) {
+            car.railsType = RAILS_CIRCLE
+            car.railsStart = start.toFloat()
+            car.railsX = cx
+            car.railsY = cy
+            car.railsDir = dir
+            car.endType = endType
+            car.endDir = endDir
+            car.endX = endX
+            car.endY = endY
+        }
+        val pi = Math.PI
+        val x = tileX * b
+        val y = tileY * b
+        when (railTypeAt(tileX, tileY)) {
+            "RAILS_H", "BRIDGE_H" -> straight(RAILS_HORIZONTAL)
+            "RAILS_V", "RAILS_S_B", "RAILS_S_D", "RAILS_W_A", "RAILS_W_C", "BRIDGE_V" -> straight(RAILS_VERTICAL)
+            "RAILS_CR" -> straight(car.endType)
+            "RAILS_TL_B", "RAILS_W_B" -> curve(0.5 * pi, x + b, y + 2 * b, -1, RAILS_VERTICAL, 1, tileX - 1, tileY + 2)
+            "RAILS_TL_C" -> curve(pi, x + 2 * b, y + b, 1, RAILS_HORIZONTAL, 1, tileX + 2, tileY - 1)
+            "RAILS_TR_A", "RAILS_S_A" -> curve(0.5 * pi, x, y + 2 * b, 1, RAILS_VERTICAL, 1, tileX + 1, tileY + 2)
+            "RAILS_TR_D" -> curve(0.0, x - b, y + b, -1, RAILS_HORIZONTAL, -1, tileX - 2, tileY - 1)
+            "RAILS_BL_A" -> curve(pi, x + 2 * b, y, -1, RAILS_HORIZONTAL, 1, tileX + 2, tileY + 1)
+            "RAILS_BL_D" -> curve(1.5 * pi, x + b, y - b, 1, RAILS_VERTICAL, -1, tileX - 1, tileY - 2)
+            "RAILS_BR_B" -> curve(0.0, x - b, y, 1, RAILS_HORIZONTAL, -1, tileX - 2, tileY + 1)
+            "RAILS_BR_C" -> curve(1.5 * pi, x, y - b, -1, RAILS_VERTICAL, -1, tileX + 1, tileY - 2)
+            else -> {
+                car.driving = false
+                car.speed = 0
+            }
+        }
+    }
+
+    /**
+     * Legacy check_obj_collide() for a train car: it sets off mines, kills soldiers, destroys
+     * vehicles at about its height and wrecks other trains that are not its neighbours.
+     */
+    private fun trainCollisions(car: ServerTrainActor) {
+        val r = ServerTrainActor.RADIUS
+        for (tank in allTanks) {
+            if (tank.armor <= 0 || kotlin.math.abs(tank.height - 1) >= 2) continue
+            val reach = r + tank.spec.radius
+            val dx = tank.positionX - car.positionX
+            val dy = tank.positionY - car.positionY
+            if (dx * dx + dy * dy >= reach * reach) continue
+            val mx = (car.positionX + tank.positionX) / 2
+            val my = (car.positionY + tank.positionY) / 2
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, mx, my)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, mx, my)
+            tank.queueDestroy()
+        }
+        for (other in trains) {
+            if (other === car || !other.alive || other === car.front || other === car.rear) continue
+            val dx = other.positionX - car.positionX
+            val dy = other.positionY - car.positionY
+            if (dx * dx + dy * dy < (2 * r) * (2 * r)) removeTrain(other)
+        }
+        for (mine in actorManager.allActors.value) {
+            if (mine !is ServerMineActor || !mine.isActive) continue
+            val reach = r + MINE_RADIUS_PX
+            val dx = mine.positionX - car.positionX
+            val dy = mine.positionY - car.positionY
+            if (dx * dx + dy * dy < reach * reach) mine.detonateOn(null)
+        }
+        for (soldier in soldiers) {
+            if (!soldier.removed && withinRadius(soldier.x, soldier.y, car.positionX, car.positionY, r + SOLDIER_RADIUS_PX)) removeSoldier(soldier)
+        }
+        soldiers.removeAll { it.removed }
+    }
+
+    /** Legacy hit_train(). */
+    private fun hitTrain(car: ServerTrainActor, power: Int) {
+        if (!car.alive) return
+        car.armor -= power
+        if (car.armor <= 0) removeTrain(car)
+    }
+
+    /**
+     * Legacy remove_train(): the car explodes, its turret goes with it, an A-bomb wagon goes off,
+     * and the car behind it now leads what is left of the train.
+     */
+    private fun removeTrain(car: ServerTrainActor) {
+        if (!car.alive) return
+        car.alive = false
+        car.armor = 0
+        car.turret?.fall()
+        if (car.picture == ABOMB_WAGON) abombs += Abomb(nextActorId++, car.positionX, car.positionY, countdown = 0, owner = null)
+        repeat(5) {
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, car.positionX - 8 + trainRandom.nextInt(16), car.positionY - 8 + trainRandom.nextInt(16))
+        }
+        modifyGoalCounter(car.goalContribution)
+        car.goalContribution = 0
+        car.front?.let { if (it.rear === car) it.rear = null }
+        car.rear?.let {
+            it.driving = true
+            it.front = null
         }
     }
 
@@ -907,8 +1375,13 @@ class ServerMatchPrototype private constructor(
         override val worldWidth: Int get() = worldWidthPixels
         override val worldHeight: Int get() = worldHeightPixels
         override fun tanks(): List<ServerTankActor> = allTanks
-        override fun damageStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int) {
-            hitStructure(tileX, tileY, layer, kind, power, explosion = EffectKind.RUIN)
+        override fun trainAt(x: Int, y: Int, radius: Int, height: Int): Boolean = trains.any { car ->
+            car.alive && kotlin.math.abs(height - 1) < 2 &&
+                (car.positionX - x) * (car.positionX - x) + (car.positionY - y) * (car.positionY - y) <
+                (radius + ServerTrainActor.RADIUS) * (radius + ServerTrainActor.RADIUS)
+        }
+        override fun damageStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int, by: ServerTankActor?) {
+            hitStructure(tileX, tileY, layer, kind, power, explosion = EffectKind.RUIN, by = by)
         }
     }
 
@@ -917,16 +1390,29 @@ class ServerMatchPrototype private constructor(
      * collapse effects, the tile's goal-counter share, bridges turning into water, burning fuel
      * dumps, and turrets falling with the building under them.
      */
-    private fun hitStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int, explosion: EffectKind) {
-        for (destroyed in structures.hit(tileX, tileY, layer, kind, power)) {
-            onStructureDestroyed(destroyed, explosion)
+    private fun hitStructure(
+        tileX: Int,
+        tileY: Int,
+        layer: StructureLayer,
+        kind: HitKind,
+        power: Int,
+        explosion: EffectKind,
+        /** Legacy HT_ABOMB: buildings an A-bomb flattens fall without the collapse sound and debris. */
+        silent: Boolean = false,
+        /** The vehicle that did it (legacy `owner`), whom paratroopers from the building go after. */
+        by: ServerTankActor? = null,
+        /** Legacy HT_REMOVE: a lock takes even an indestructible structure down. */
+        remove: Boolean = false,
+    ) {
+        for (destroyed in structures.hit(tileX, tileY, layer, kind, power, remove)) {
+            onStructureDestroyed(destroyed, explosion, silent, by)
         }
     }
 
-    private fun onStructureDestroyed(destroyed: DestroyedStructure, hitExplosion: EffectKind) {
+    private fun onStructureDestroyed(destroyed: DestroyedStructure, hitExplosion: EffectKind, silent: Boolean, by: ServerTankActor?) {
         val centreX = destroyed.tileX * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
         val centreY = destroyed.tileY * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
-        if (destroyed.legacyType != "BUSH_SIDE") {
+        if (!silent && destroyed.legacyType != "BUSH_SIDE") {
             pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.COLLAPSE, centreX, centreY)
             val effect = when (destroyed.explosion) {
                 "RUIN" -> if (hitExplosion == EffectKind.CHAIN) EffectKind.RUIN else hitExplosion
@@ -946,6 +1432,8 @@ class ServerMatchPrototype private constructor(
         }
         if (destroyed.layer != StructureLayer.SOLID) return
         modifyGoalCounter(destroyed.goalContribution)
+        createBonus(destroyed.tileX, destroyed.tileY)
+        dropParatroopers(destroyed.tileX, destroyed.tileY, by)
         when (destroyed.legacyType) {
             "BRIDGE_H", "BRIDGE_V", "BRIDGE_CR" -> terrainGrid.update(
                 destroyed.tileX,
@@ -956,6 +1444,10 @@ class ServerMatchPrototype private constructor(
             "FUEL_DUMP" -> repeat(8) {
                 pendingEvents += GameEvent.Effect(EffectKind.FLAME, centreX - 24 + structureRandom.nextInt(48), centreY - 24 + structureRandom.nextInt(48))
             }
+            // Legacy create_abomb(0, x2 + 16, y2 + 16, 0): an A-bomb box goes off at once. The
+            // original passes the tile's centre as the bomb's top-left, so the blast centre lies
+            // half a tile right of and below the box.
+            "ABOX" -> abombs += Abomb(nextActorId++, centreX + LEGACY_TILE_SIZE / 2, centreY + LEGACY_TILE_SIZE / 2, countdown = 0, owner = null)
         }
         removeFallenTurrets()
     }
@@ -968,7 +1460,7 @@ class ServerMatchPrototype private constructor(
      */
     private fun removeFallenTurrets() {
         for (turret in actorManager.allActors.value) {
-            if (turret !is ServerTurretActor || !turret.isAlive) continue
+            if (turret !is ServerTurretActor || !turret.isAlive || turret in ridingTurrets) continue
             val tileX = turret.positionX / LEGACY_TILE_SIZE
             val tileY = turret.positionY / LEGACY_TILE_SIZE
             if (!structures.isStanding(tileX, tileY)) turret.fall()
@@ -982,7 +1474,8 @@ class ServerMatchPrototype private constructor(
      */
     private fun checkProjectileStructureHits() {
         for (projectile in actorManager.allActors.value) {
-            if (projectile !is ServerProjectileActor || projectile.isDead) continue
+            // Legacy control_bullets(): a small rocket within its safety distance passes everything.
+            if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
             val turret = projectile.ownerTurretRef
             val (fromX, fromY) = projectile.previousPosition
             val toX = projectile.positionX
@@ -991,7 +1484,7 @@ class ServerMatchPrototype private constructor(
             for (step in 1..steps) {
                 val x = fromX + (toX - fromX) * step / steps
                 val y = fromY + (toY - fromY) * step / steps
-                if (turret != null && withinRadius(turret.positionX, turret.positionY, x, y, 2 * LEGACY_TILE_SIZE)) continue
+                if (turret != null && turret !in ridingTurrets && withinRadius(turret.positionX, turret.positionY, x, y, 2 * LEGACY_TILE_SIZE)) continue
                 val layer = structures.hitLayerAt(x, y) ?: continue
                 val kind = if (projectile.weaponKind == WEAPON_FLAME) HitKind.FLAME else HitKind.NORMAL
                 val effect = when (projectile.weaponKind) {
@@ -999,7 +1492,15 @@ class ServerMatchPrototype private constructor(
                     WEAPON_FLAME -> EffectKind.FLAME
                     else -> EffectKind.EXPLOSION
                 }
-                hitStructure(Math.floorDiv(x, LEGACY_TILE_SIZE), Math.floorDiv(y, LEGACY_TILE_SIZE), layer, kind, projectile.damage, effect)
+                hitStructure(
+                    Math.floorDiv(x, LEGACY_TILE_SIZE),
+                    Math.floorDiv(y, LEGACY_TILE_SIZE),
+                    layer,
+                    kind,
+                    projectile.damage,
+                    effect,
+                    by = projectile.ownerRef,
+                )
                 projectile.stopAt(x, y)
                 break
             }
@@ -1007,29 +1508,411 @@ class ServerMatchPrototype private constructor(
     }
 
     /** Legacy check_wall_hit() at a world point: wears down the top or else the solid structure there. */
-    private fun blastStructureAt(x: Int, y: Int, power: Int, explosion: EffectKind) {
+    private fun blastStructureAt(
+        x: Int,
+        y: Int,
+        power: Int,
+        explosion: EffectKind,
+        silent: Boolean = false,
+        by: ServerTankActor? = null,
+    ) {
         val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
         val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
         val layer = structures.blastLayerAt(tileX, tileY) ?: return
-        hitStructure(tileX, tileY, layer, HitKind.NORMAL, power, explosion)
+        hitStructure(tileX, tileY, layer, HitKind.NORMAL, power, explosion, silent, by)
     }
 
     /**
      * Legacy create_mortar(): the blast grows from 5 to 60 px, and each step (hit_wall_big())
      * wears 5 off every structure within the radius plus 16.
      */
-    private fun blastStructuresAround(x: Int, y: Int) {
+    private fun blastStructuresAround(x: Int, y: Int, by: ServerTankActor?) {
         for (radius in MORTAR_MIN_RADIUS_PX..MORTAR_MAX_RADIUS_PX step 5) {
             var y2 = y - radius
             while (y2 < y + radius) {
                 var x2 = x - radius
                 while (x2 < x + radius) {
-                    if (withinRadius(x2, y2, x, y, radius + 16)) blastStructureAt(x2, y2, MORTAR_STEP_POWER, EffectKind.EXPLOSION)
+                    if (withinRadius(x2, y2, x, y, radius + 16)) blastStructureAt(x2, y2, MORTAR_STEP_POWER, EffectKind.EXPLOSION, by = by)
                     x2 += LEGACY_TILE_SIZE
                 }
                 y2 += LEGACY_TILE_SIZE
             }
         }
+    }
+
+    // ---- Bonuses, soldiers and A-bombs (src/objects/bonus.c, man.c, abomb.c) ----
+
+    /** A tile of the map's bonus layer (`mapm.b`, a signed char: 255 is -1, no bonus). */
+    private fun layerBonus(tileX: Int, tileY: Int): Int {
+        val value = layers?.bonusLayer?.getOrNull(tileX + tileY * mapMetadata.widthTiles) ?: return -1
+        return if (value > 127) value - 256 else value
+    }
+
+    /** Legacy create_all_bonusses(): without random bonuses, the bonus layer's bonuses lie on every open tile. */
+    private fun createAllBonuses() {
+        if (mapMetadata.randomBonus) return
+        for (tileY in 0 until mapMetadata.heightTiles) {
+            for (tileX in 0 until mapMetadata.widthTiles) {
+                if (!structures.isStanding(tileX, tileY)) makeBonus(tileX, tileY, layerBonus(tileX, tileY))
+            }
+        }
+    }
+
+    /** Legacy create_bonus(): a destroyed building leaves a random bonus (12.5 % of the time) or the layer's. */
+    private fun createBonus(tileX: Int, tileY: Int) {
+        if (!mapMetadata.randomBonus) {
+            makeBonus(tileX, tileY, layerBonus(tileX, tileY))
+            return
+        }
+        val roll = objectRandom.nextInt(10000)
+        makeBonus(tileX, tileY, RANDOM_BONUS_THRESHOLDS.indexOfFirst { roll < it })
+    }
+
+    /** Legacy make_bonus(): a bonus within 4 px of the tile's centre. */
+    private fun makeBonus(tileX: Int, tileY: Int, type: Int) {
+        if (type < 0) return
+        val x = tileX * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 - 4 + objectRandom.nextInt(8)
+        val y = tileY * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 - 4 + objectRandom.nextInt(8)
+        bonuses += Bonus(nextActorId++, x, y, type)
+    }
+
+    /** Legacy hit_bonus(): anything that hits a bonus blows it up. */
+    private fun destroyBonus(bonus: Bonus) {
+        if (bonus.removed) return
+        bonus.removed = true
+        pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, bonus.x, bonus.y)
+    }
+
+    /** Legacy remove_man(): a soldier who goes leaves blood and a scream, however he goes. */
+    private fun removeSoldier(soldier: Soldier) {
+        if (soldier.removed) return
+        soldier.removed = true
+        pendingEvents += GameEvent.Effect(EffectKind.BLOOD, soldier.x, soldier.y)
+        pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.SCREAM, soldier.x, soldier.y)
+    }
+
+    /** Legacy nearest_target(): the vehicle closest to ([x], [y]) within 15 px, which a soldier follows. */
+    private fun vehicleNear(x: Int, y: Int): ServerTankActor? = allTanks
+        .filter { withinRadius(it.positionX, it.positionY, x, y, ROCKET_TARGET_RADIUS_PX) }
+        .minByOrNull { (it.positionX - x).toLong() * (it.positionX - x) + (it.positionY - y).toLong() * (it.positionY - y) }
+
+    private fun drainSoldierRequests() {
+        for (tank in allTanks) {
+            for (request in tank.drainSoldierRequests()) {
+                soldiers += Soldier(
+                    id = nextActorId++,
+                    x = request.x,
+                    y = request.y,
+                    targetX = request.targetX,
+                    targetY = request.targetY,
+                    target = vehicleNear(request.targetX, request.targetY),
+                    shotKind = if (request.gunner) WEAPON_CHAIN else WEAPON_FLAME,
+                    power = request.power,
+                    owner = tank,
+                    random = objectRandom,
+                )
+            }
+        }
+    }
+
+    /**
+     * Legacy hit_wall(): soldiers of the tile's man layer jump out of a destroyed building, around
+     * it, and go for whoever destroyed it (or a random spot near it).
+     */
+    private fun dropParatroopers(tileX: Int, tileY: Int, by: ServerTankActor?) {
+        val index = tileX + tileY * mapMetadata.widthTiles
+        val count = layers?.manAmountLayer?.getOrNull(index) ?: 0
+        if (count <= 0) return
+        val hitType = layers?.manTypeLayer?.getOrNull(index) ?: 0
+        val left = tileX * LEGACY_TILE_SIZE
+        val top = tileY * LEGACY_TILE_SIZE
+        repeat(count) {
+            val x = left + objectRandom.nextInt(32)
+            val y = top + objectRandom.nextInt(32)
+            val (targetX, targetY) = if (by == null) {
+                left + LEGACY_TILE_SIZE / 2 - 100 + objectRandom.nextInt(200) to top + LEGACY_TILE_SIZE / 2 - 100 + objectRandom.nextInt(200)
+            } else {
+                by.positionX to by.positionY
+            }
+            soldiers += Soldier(
+                id = nextActorId++,
+                x = x,
+                y = y,
+                targetX = targetX,
+                targetY = targetY,
+                target = vehicleNear(targetX, targetY),
+                shotKind = shotKindForHitType(hitType),
+                power = if (hitType == HT_SROCK) 5 else 1,
+                owner = null,
+                random = objectRandom,
+            )
+        }
+    }
+
+    /** The projectile a legacy HT_* type stands for, as the man layer stores it. */
+    private fun shotKindForHitType(hitType: Int): Int = when (hitType) {
+        0 -> WEAPON_MAIN
+        2 -> WEAPON_FLAME
+        HT_SROCK -> SHOT_SMALL_ROCKET
+        else -> WEAPON_CHAIN
+    }
+
+    /**
+     * Legacy control_man(): soldiers walk and fire; one who stands on a building (hitting it for
+     * 10), in water or in a pit, or who has no rounds left, is gone.
+     */
+    private fun stepSoldiers() {
+        if (soldiers.isEmpty()) return
+        for (soldier in soldiers.toList()) {
+            if (soldier.removed) continue
+            soldier.move()
+            val x = soldier.x
+            val y = soldier.y
+            val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+            val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+            val onBuilding = structures.solidOpaqueAt(x, y)
+            if (onBuilding) hitStructure(tileX, tileY, StructureLayer.SOLID, HitKind.NORMAL, 10, EffectKind.CHAIN)
+            val tile = terrainGrid.at(tileX, tileY)
+            val sub = { v: Int -> (v % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE }
+            if (soldier.outOfAmmo || onBuilding || tile.material == TerrainMaterial.WATER || inPit(tile, sub(x), sub(y))) {
+                removeSoldier(soldier)
+                continue
+            }
+            soldier.fire()?.let { pendingSoldierShots += soldier to it }
+        }
+        soldiers.removeAll { it.removed }
+    }
+
+    private fun drainAbombRequests() {
+        for (tank in allTanks) {
+            val request = tank.drainAbombRequest() ?: continue
+            abombs += Abomb(nextActorId++, request.x, request.y, request.countdown, tank)
+        }
+    }
+
+    /**
+     * Legacy control_abomb(): every blast step wears 4 off the structures (hit_wall_big()) and
+     * everything else (check_obj_hit_radius()) within its growing radius, and brightens and then
+     * fades the palette.
+     */
+    private fun stepAbombs() {
+        if (abombs.isEmpty()) {
+            flash = 0
+            return
+        }
+        for (bomb in abombs.toList()) {
+            val blast = bomb.step() ?: continue
+            if (blast.first) pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.NUKE, bomb.x, bomb.y)
+            flash += blast.flash
+            nukeStructures(bomb, blast.radius)
+            nukeObjects(bomb, blast.radius)
+        }
+        abombs.removeAll { it.removed }
+        if (abombs.none { it.exploding }) flash = 0
+    }
+
+    private fun nukeStructures(bomb: Abomb, radius: Int) {
+        var y2 = bomb.y - radius
+        while (y2 < bomb.y + radius) {
+            var x2 = bomb.x - radius
+            while (x2 < bomb.x + radius) {
+                if (withinRadius(x2, y2, bomb.x, bomb.y, radius + 16)) {
+                    blastStructureAt(x2, y2, Abomb.POWER, EffectKind.EXPLOSION, silent = true, by = bomb.owner)
+                }
+                x2 += LEGACY_TILE_SIZE
+            }
+            y2 += LEGACY_TILE_SIZE
+        }
+        repeat(5) {
+            val angle = 2 * Math.PI * objectRandom.nextInt(360) / 360
+            pendingEvents += GameEvent.Effect(
+                EffectKind.EXPLOSION,
+                bomb.x + (radius * Math.cos(angle)).toInt(),
+                bomb.y + (radius * Math.sin(angle)).toInt(),
+            )
+        }
+    }
+
+    /** Legacy check_obj_hit_radius(..., HT_ABOMB, 4): vehicles (except in shelters), soldiers and bonuses. */
+    private fun nukeObjects(bomb: Abomb, radius: Int) {
+        for (tank in allTanks) {
+            if (tank.armor <= 0 || tank.height < 1) continue
+            if (!withinRadius(tank.positionX, tank.positionY, bomb.x, bomb.y, maxOf(radius, tank.spec.radius))) continue
+            if (inShelter(tank)) continue
+            tank.queueDamage(Abomb.POWER)
+        }
+        blastSmallObjects(bomb.x, bomb.y, radius, nuke = true, power = Abomb.POWER)
+    }
+
+    /** Legacy hit_tank(): a vehicle on a SHELTER tile is safe from A-bombs. */
+    private fun inShelter(tank: ServerTankActor): Boolean {
+        val tileX = tank.positionX / LEGACY_TILE_SIZE
+        val tileY = tank.positionY / LEGACY_TILE_SIZE
+        val picture = structures.solid.getOrNull(tileX + tileY * mapMetadata.widthTiles) ?: return false
+        return com.tankarena.content.PictureCatalog.legacyRow(mapMetadata.world, picture)?.type == "SHELTER"
+    }
+
+    /** Legacy check_obj_hit_radius() for the small objects: soldiers, bonuses and (not for nukes) A-bombs. */
+    private fun blastSmallObjects(x: Int, y: Int, radius: Int, nuke: Boolean = false, power: Int = 0) {
+        // Train cars (r = 12) take the blast's power; mines in it go off too.
+        for (car in trains) {
+            if (car.alive && power > 0 && withinRadius(car.positionX, car.positionY, x, y, maxOf(radius, ServerTrainActor.RADIUS))) hitTrain(car, power)
+        }
+        for (mine in actorManager.allActors.value) {
+            if (mine is ServerMineActor && !mine.isDead && withinRadius(mine.positionX, mine.positionY, x, y, maxOf(radius, MINE_RADIUS_PX))) {
+                mine.detonateOn(null)
+            }
+        }
+        for (soldier in soldiers) {
+            if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, maxOf(radius, SOLDIER_RADIUS_PX))) removeSoldier(soldier)
+        }
+        for (bonus in bonuses) {
+            if (!bonus.removed && withinRadius(bonus.x, bonus.y, x, y, maxOf(radius, BONUS_RADIUS_PX))) destroyBonus(bonus)
+        }
+        if (!nuke) {
+            for (bomb in abombs) {
+                if (!bomb.exploding && withinRadius(bomb.x, bomb.y, x, y, maxOf(radius, ABOMB_RADIUS_PX))) bomb.removed = true
+            }
+        }
+        soldiers.removeAll { it.removed }
+        bonuses.removeAll { it.removed }
+        abombs.removeAll { it.removed }
+    }
+
+    /**
+     * Legacy line_obj_hit_point()/line_obj_hit_radius() for the small objects: a shot that
+     * passes within a soldier's, bonus's or waiting A-bomb's radius (15 px for flames) hits it
+     * and stops. Soldiers of one vehicle do not hit each other.
+     */
+    private fun checkSmallObjectHits() {
+        for (projectile in actorManager.allActors.value) {
+            if (projectile !is ServerProjectileActor) continue
+            projectile.drainTrail()?.let { (x, y) -> pendingEvents += GameEvent.Effect(EffectKind.EXHAUST, x, y) }
+        }
+        if (soldiers.isEmpty() && bonuses.isEmpty() && abombs.isEmpty() && trains.isEmpty()) return
+        for (projectile in actorManager.allActors.value) {
+            if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
+            val (x1, y1) = projectile.previousPosition
+            val x2 = projectile.positionX
+            val y2 = projectile.positionY
+            val flame = projectile.weaponKind == WEAPON_FLAME
+            val shooter = projectile.ownerSoldierRef
+            val soldier = soldiers.firstOrNull {
+                !it.removed && it !== shooter && !(shooter != null && shooter.owner === it.owner) &&
+                    nearSegment(x1, y1, x2, y2, it.x, it.y, if (flame) FLAME_HIT_RADIUS_PX else SOLDIER_RADIUS_PX)
+            }
+            if (soldier != null) {
+                removeSoldier(soldier)
+                projectile.stopAt(soldier.x, soldier.y)
+                continue
+            }
+            val bonus = bonuses.firstOrNull {
+                !it.removed && nearSegment(x1, y1, x2, y2, it.x, it.y, if (flame) FLAME_HIT_RADIUS_PX else BONUS_RADIUS_PX)
+            }
+            if (bonus != null) {
+                destroyBonus(bonus)
+                projectile.stopAt(bonus.x, bonus.y)
+                continue
+            }
+            // Legacy determine_hit(): turret rounds pass through trains.
+            val car = if (projectile.ownerTurretRef != null) null else trains.firstOrNull {
+                it.alive && nearSegment(x1, y1, x2, y2, it.positionX, it.positionY, if (flame) FLAME_HIT_RADIUS_PX else ServerTrainActor.RADIUS)
+            }
+            if (car != null) {
+                hitTrain(car, projectile.damage)
+                projectile.stopAt(x2, y2)
+                continue
+            }
+            val bomb = abombs.firstOrNull {
+                !it.removed && !it.exploding &&
+                    nearSegment(x1, y1, x2, y2, it.x, it.y, if (flame) FLAME_HIT_RADIUS_PX else ABOMB_RADIUS_PX)
+            }
+            if (bomb != null) {
+                bomb.removed = true
+                projectile.stopAt(bomb.x, bomb.y)
+            }
+        }
+        soldiers.removeAll { it.removed }
+        bonuses.removeAll { it.removed }
+        abombs.removeAll { it.removed }
+    }
+
+    /** True when ([px], [py]) lies within [radius] of the segment from ([x1], [y1]) to ([x2], [y2]). */
+    private fun nearSegment(x1: Int, y1: Int, x2: Int, y2: Int, px: Int, py: Int, radius: Int): Boolean {
+        val dx = (x2 - x1).toDouble()
+        val dy = (y2 - y1).toDouble()
+        val lengthSq = dx * dx + dy * dy
+        val t = if (lengthSq == 0.0) 0.0 else (((px - x1) * dx + (py - y1) * dy) / lengthSq).coerceIn(0.0, 1.0)
+        val cx = x1 + t * dx - px
+        val cy = y1 + t * dy - py
+        return cx * cx + cy * cy <= radius.toDouble() * radius
+    }
+
+    /**
+     * Legacy check_obj_collide() for vehicles on the ground: driving into a soldier kills him,
+     * and a tank or car picks up the bonuses it touches.
+     */
+    private fun touchSmallObjects() {
+        if (soldiers.isEmpty() && bonuses.isEmpty()) return
+        for (tank in allTanks) {
+            if (tank.armor <= 0 || kotlin.math.abs(tank.height) >= 2) continue
+            for (soldier in soldiers) {
+                if (!soldier.removed && withinRadius(tank.positionX, tank.positionY, soldier.x, soldier.y, tank.spec.radius + SOLDIER_RADIUS_PX)) {
+                    removeSoldier(soldier)
+                }
+            }
+            if (!tank.picksUpBonuses) continue
+            for (bonus in bonuses) {
+                if (bonus.removed || !withinRadius(tank.positionX, tank.positionY, bonus.x, bonus.y, tank.spec.radius + BONUS_RADIUS_PX)) continue
+                val what = tank.pickUpBonus(bonus.type)
+                bonus.removed = true
+                pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.BONUS, tank.positionX, tank.positionY)
+                actorIds[tank]?.let { pendingEvents += GameEvent.Message(it, "PICKED UP", what) }
+            }
+        }
+        soldiers.removeAll { it.removed }
+        bonuses.removeAll { it.removed }
+    }
+
+    /**
+     * Legacy check_obj_overlap(): two vehicles at about the same height whose circles overlap
+     * (a plane touching down on a tank, a tank spawning on another) are both destroyed, unless
+     * one is still shielded by its start or bonus invulnerability.
+     */
+    private fun checkVehicleOverlaps() {
+        for ((i, a) in allTanks.withIndex()) {
+            for (b in allTanks.subList(i + 1, allTanks.size)) {
+                if (kotlin.math.abs(a.height - b.height) >= 2) continue
+                val reach = a.spec.radius + b.spec.radius
+                val dx = a.positionX - b.positionX
+                val dy = a.positionY - b.positionY
+                if (dx * dx + dy * dy >= reach * reach) continue
+                // The original tests the first vehicle's armor for both of them.
+                if (a.armor <= 0) continue
+                if (a.invulnerableTicks <= 0) a.queueDestroy()
+                if (b.invulnerableTicks <= 0) b.queueDestroy()
+            }
+        }
+    }
+
+    /** Bonuses, soldiers and waiting A-bombs as wire states. */
+    private fun smallObjectStates(): List<ActorState> {
+        if (bonuses.isEmpty() && soldiers.isEmpty() && abombs.isEmpty()) return emptyList()
+        val states = ArrayList<ActorState>(bonuses.size + soldiers.size + abombs.size)
+        for (bonus in bonuses) states += BonusState(bonus.id, bonus.x, bonus.y, bonus.type)
+        for (soldier in soldiers) states += ManState(soldier.id, soldier.x, soldier.y, soldier.direction, soldier.frame)
+        for (bomb in abombs) {
+            val tile = terrainGrid.at(bomb.x / LEGACY_TILE_SIZE, bomb.y / LEGACY_TILE_SIZE)
+            states += AbombState(
+                actorId = bomb.id,
+                x = bomb.x,
+                y = bomb.y,
+                countdown = bomb.countdown,
+                exploding = bomb.exploding,
+                hidden = tile.material == TerrainMaterial.WATER,
+            )
+        }
+        return states
     }
 
     private lateinit var aiModeDispatcher: AiModeDispatcher
@@ -1066,6 +1949,8 @@ class ServerMatchPrototype private constructor(
         val dx = target.positionX - self.positionX
         val dy = target.positionY - self.positionY
         val distSq = dx.toLong() * dx + dy.toLong() * dy
+        self.aiTargetX = target.positionX
+        self.aiTargetY = target.positionY
 
         // Recompute this tank's path every 15 ticks or when it has none
         val cache = aiPathCaches.getOrPut(self) { AiPathCache() }
@@ -1149,9 +2034,12 @@ class ServerMatchPrototype private constructor(
             val tile = terrainGrid.at(tileX, tileY)
 
             tank.setTerrainSpeedMultiplier(tile.speedMultiplier)
+            tank.setUnderground(runway = tile.material == TerrainMaterial.RUNWAY, water = tile.material == TerrainMaterial.WATER)
 
-            // Legacy control_tank(): HT_LAVA hits for 2 every 10 ticks while the tank stays in lava.
-            tank.stepLava(inLava = tile.material == TerrainMaterial.LAVA)
+            // Legacy underground_effects(): HT_LAVA hits for 2 every 10 ticks while the tank stays
+            // in lava; aircraft overhead are not touched.
+            tank.stepLava(inLava = tile.material == TerrainMaterial.LAVA && tank.height < 2)
+            if (tank.height > 1) continue
 
             val subX = (tank.positionX % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
             val subY = (tank.positionY % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
@@ -1292,7 +2180,7 @@ class ServerMatchPrototype private constructor(
             val explosion = actor.drainExplosion() ?: continue
             // Legacy control_rocket(): a rocket without a target hits the structure at the marker.
             if (actor.target?.position() == null) {
-                blastStructureAt(explosion.x, explosion.y, actor.damage, EffectKind.LEXPLOSION)
+                blastStructureAt(explosion.x, explosion.y, actor.damage, EffectKind.LEXPLOSION, by = actor.ownerRef)
                 pendingEvents += GameEvent.Explosion(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, ExplosionKind.ROCKET)
                 continue
             }
@@ -1308,6 +2196,7 @@ class ServerMatchPrototype private constructor(
                 ownerImmune = true,
                 unshieldable = true,
             ))
+            blastSmallObjects(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, power = actor.damage)
         }
     }
 
@@ -1385,7 +2274,9 @@ class ServerMatchPrototype private constructor(
                 kind = ExplosionKind.MORTAR,
                 owner = actor.ownerRef,
             ))
-            blastStructuresAround(explosion.x, explosion.y)
+            blastStructuresAround(explosion.x, explosion.y, actor.ownerRef)
+            // Legacy create_mortar(): every 5 px growth step hits for 5.
+            blastSmallObjects(explosion.x, explosion.y, explosion.radius, power = MORTAR_STEP_POWER * (explosion.radius / 5))
         }
     }
 
@@ -1429,16 +2320,20 @@ class ServerMatchPrototype private constructor(
                 maxRadius = request.maxRadius,
                 velocityX = request.velocityX,
                 velocityY = request.velocityY,
+                travelTicksRemaining = request.travelTicks,
+                dropHeight = request.dropHeight,
             ),
         )
         mortar.ownerRef = owner
         
-        // Emit sound event for mortar launch
-        pendingEvents += GameEvent.Sound(
-            kind = com.tankarena.protocol.snapshot.SoundKind.MORTAR,
-            x = request.originX,
-            y = request.originY,
-        )
+        // Legacy create_bullet(): a mortar shell bangs, a plane's bomb just drops.
+        if (request.dropHeight == 0) {
+            pendingEvents += GameEvent.Sound(
+                kind = com.tankarena.protocol.snapshot.SoundKind.MORTAR,
+                x = request.originX,
+                y = request.originY,
+            )
+        }
         
         return mortar
     }
@@ -1472,13 +2367,14 @@ class ServerMatchPrototype private constructor(
             ))
             // Legacy blowup_mine(): the mine also hits the structure it lies on.
             blastStructureAt(det.x, det.y, actor.damage, EffectKind.EXPLOSION)
+            blastSmallObjects(det.x, det.y, actor.radius, power = actor.damage)
         }
     }
 
     private fun removeDeadMines() {
         val doomed = actorManager.allActors.value
             .filterIsInstance<ServerMineActor>()
-            .filter { it.isDead }
+            .filter { it.isDead && !it.detonationPending }
         if (doomed.isEmpty()) return
         val expected = actorManager.allActors.value.size - doomed.size
         actorManager.remove(doomed)
@@ -1532,6 +2428,8 @@ class ServerMatchPrototype private constructor(
                 spawns += projectileFromTurretRequest(actor, request)
             }
         }
+        for ((soldier, shot) in pendingSoldierShots) spawns += projectileFromSoldier(soldier, shot)
+        pendingSoldierShots.clear()
         if (spawns.isEmpty()) return
         val expected = actorManager.allActors.value.size + spawns.size
         actorManager.add(spawns)
@@ -1561,6 +2459,7 @@ class ServerMatchPrototype private constructor(
                 velocityY = request.velocityY,
                 ttlTicks = request.ttlTicks,
                 weaponKind = request.weaponKind,
+                safetyPx = request.safetyPx,
             ),
         )
         projectile.ownerRef = owner
@@ -1572,6 +2471,32 @@ class ServerMatchPrototype private constructor(
             y = request.originY,
         )
         
+        return projectile
+    }
+
+    /**
+     * Legacy control_man(): create_bullet(o, m.type, ..., 5 * b_size, 0) — a soldier's round flies
+     * at 200 px/s for 5 tiles, his flame like any flame.
+     */
+    private fun projectileFromSoldier(soldier: Soldier, shot: Soldier.Shot): ServerProjectileActor {
+        val flame = soldier.shotKind == WEAPON_FLAME
+        val speed = if (flame) 0.75f else 2f
+        val range = if (flame) FLAME_RANGE_PX else 5 * LEGACY_TILE_SIZE
+        val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(shot.direction)
+        val projectile = ServerProjectileActor(
+            ServerProjectileActor.State(
+                body = PointBody(initialPosition = SceneOffset(shot.x.toFloat().sceneUnit, shot.y.toFloat().sceneUnit)),
+                ownerActorId = soldier.id,
+                ownerKind = ProjectileOwnerKind.MAN,
+                damage = soldier.power,
+                velocityX = fx * speed,
+                velocityY = fy * speed,
+                ttlTicks = (range / speed).roundToInt().coerceAtLeast(1),
+                weaponKind = soldier.shotKind,
+            ),
+        )
+        projectile.ownerSoldierRef = soldier
+        pendingEvents += GameEvent.Sound(kind = soundKindForWeapon(soldier.shotKind), x = shot.x, y = shot.y)
         return projectile
     }
 
@@ -1618,6 +2543,8 @@ class ServerMatchPrototype private constructor(
             WEAPON_CHAIN -> com.tankarena.protocol.snapshot.SoundKind.CHAIN
             WEAPON_ROCKET -> com.tankarena.protocol.snapshot.SoundKind.ROCKET
             WEAPON_MORTAR -> com.tankarena.protocol.snapshot.SoundKind.MORTAR
+            WEAPON_FLAME -> com.tankarena.protocol.snapshot.SoundKind.FLAME
+            SHOT_SMALL_ROCKET -> com.tankarena.protocol.snapshot.SoundKind.SROCKET
             else -> com.tankarena.protocol.snapshot.SoundKind.MAIN
         }
     }
@@ -1632,7 +2559,13 @@ class ServerMatchPrototype private constructor(
             drainEvents -> pendingEvents.toList().also { pendingEvents.clear() }
             else -> pendingEvents.toList()
         }
-        return WorldSnapshot(tick = currentTick, actors = states, events = events, changedTiles = changedTileStates())
+        return WorldSnapshot(
+            tick = currentTick,
+            actors = states + smallObjectStates(),
+            events = events,
+            changedTiles = changedTileStates(),
+            flash = flash,
+        )
     }
 
     /** The tiles whose pictures changed (legacy rewrite_block()), for the client's terrain. */
@@ -1682,7 +2615,10 @@ class ServerMatchPrototype private constructor(
                     currentWeapon = actor.currentWeapon,
                     height = actor.height,
                     // Legacy write_tank(): ARMOR overlay while the shield key works or the start shield blinks on.
-                    shielded = actor.shieldActive || (actor.invulnerableTicks / 5) % 2 == 1,
+                    shielded = actor.shieldRingVisible,
+                    chopper = actor.kind == VehicleKind.CHOPPER,
+                    cloaked = actor.cloaked,
+                    cloakFlash = actor.cloakFlash,
                 )
             }
 
@@ -1727,9 +2663,11 @@ class ServerMatchPrototype private constructor(
                 kind = when (actor.weaponKind) {
                     WEAPON_CHAIN -> ProjectileKind.CHAIN
                     WEAPON_FLAME -> ProjectileKind.FLAME
+                    SHOT_SMALL_ROCKET -> ProjectileKind.SROCK
                     else -> ProjectileKind.BULLET
                 },
                 rangeLeft = actor.rangeLeft,
+                direction = com.tankarena.core.LegacyDirections.fromAngle((actor.velocityX * 1000).roundToInt(), (actor.velocityY * 1000).roundToInt()),
             )
 
             is ServerRocketActor -> ProjectileState(
@@ -1745,8 +2683,9 @@ class ServerMatchPrototype private constructor(
                 ownerId = actor.ownerActorId,
                 x = actor.positionX.toInt(),
                 y = actor.positionY.toInt(),
-                kind = ProjectileKind.MORTAR,
+                kind = if (actor.dropHeight > 0) ProjectileKind.PLANEBOMB else ProjectileKind.MORTAR,
                 rangeLeft = (actor.travelTicksRemaining * kotlin.math.hypot(actor.velocityX, actor.velocityY)).toInt(),
+                dropHeight = actor.dropHeight,
             )
 
             is ServerMineActor -> MineState(
@@ -1844,6 +2783,8 @@ class ServerMatchPrototype private constructor(
                 isEngine = actor.isEngine,
                 armor = actor.armor,
                 alive = actor.alive,
+                picture = actor.picture,
+                direction = actor.direction,
             )
 
             is ServerZeppelinActor -> ZeppelinState(
@@ -1918,6 +2859,7 @@ class ServerMatchPrototype private constructor(
                 structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers),
                 mode = mode,
                 startShields = startShields,
+                layers = layers,
             )
             instance.aiModeDispatcher = AiModeDispatcher(
                 mode = metadata.modeCompatibility,

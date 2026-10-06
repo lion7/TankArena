@@ -308,7 +308,12 @@ private fun GameplayScreen(
                 .aspectRatio(LEGACY_PLAYFIELD_ASPECT_RATIO),
         ) {
             // Legacy draw_screen(): the losing player's view turns grey under the banner.
-            Box(modifier = Modifier.fillMaxSize().grayscale(missionEndBanner == MissionOutcome.LOST)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .grayscale(missionEndBanner == MissionOutcome.LOST)
+                    .nukeFlash(serverFrame.world.flash),
+            ) {
                 if (views.size > 1) {
                     // Legacy dual.c / dualvc.c: two side-by-side views, one per player.
                     Row(modifier = Modifier.fillMaxSize()) {
@@ -412,6 +417,16 @@ private fun Modifier.grayscale(enabled: Boolean): Modifier = if (!enabled) this 
     drawIntoCanvas { it.saveLayer(Rect(Offset.Zero, size), paint) }
     drawContent()
     drawIntoCanvas { it.restore() }
+}
+
+/**
+ * Legacy set_palette() with `nuke_total`: while an A-bomb goes off every colour is brightened by
+ * up to 63 of 63 steps, which adds that much white to the picture.
+ */
+private fun Modifier.nukeFlash(level: Int): Modifier = if (level <= 0) this else drawWithContent {
+    drawContent()
+    val add = (level.coerceAtMost(63) / 63f)
+    drawRect(color = Color(add, add, add), blendMode = androidx.compose.ui.graphics.BlendMode.Plus)
 }
 
 /**

@@ -166,7 +166,7 @@ private class TankArenaKubrikoRuntime(
         if (world.changedTiles.size != snapshot.changedTiles.size) {
             snapshot.changedTiles = world.changedTiles.associateBy { it.index }
         }
-        clientScene.sync(world, events, playerView.lockMarker)
+        clientScene.sync(world, events, playerView.lockMarker, playerView.controlledActorId)
         preloadSceneSprites(sidecar)
         viewportManager.setCameraPosition(
             SceneOffset(

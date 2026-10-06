@@ -3,8 +3,10 @@ package com.tankarena.render.kubriko
 import com.pandulapeter.kubriko.actor.Actor
 import com.pandulapeter.kubriko.manager.ActorManager
 import com.pandulapeter.kubriko.sprites.SpriteManager
-import com.tankarena.content.LegacySpriteResources
+import com.tankarena.protocol.snapshot.AbombState
 import com.tankarena.protocol.snapshot.B52State
+import com.tankarena.protocol.snapshot.BonusState
+import com.tankarena.protocol.snapshot.ManState
 import com.tankarena.protocol.snapshot.DestroyerState
 import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.EnforcerState
@@ -35,6 +37,9 @@ import org.jetbrains.compose.resources.DrawableResource
 
 /** Above vehicles (2) and the top structure layer (3). */
 private const val EFFECT_LAYER = 4
+private const val VEHICLE_LAYER = 2
+private const val HIGH_FLIGHT_HEIGHT = 4
+private const val MORTAR_ARC = 15
 
 /**
  * Legacy `eff[]` (src/world/effects.c): each effect is a run of pictures, each shown for its
@@ -54,6 +59,12 @@ private val EFFECT_FRAMES: Map<EffectKind, List<Pair<String, Int>>> = mapOf(
     EffectKind.LEXPLOSION to listOf("IXP1" to 25, "IXP2" to 25, "IXP3" to 25, "IXP4" to 25, "IXP5" to 25),
     EffectKind.MORTAR_FIRE to listOf("MFIRE1" to 13, "MFIRE2" to 25, "MFIRE3" to 25),
     EffectKind.LAVA to listOf("LAVA1" to 25, "LAVA2" to 25, "LAVA3" to 25, "LAVA4" to 25),
+    EffectKind.OIL_SPLASH to listOf("OLIE1" to 25, "OLIE2" to 25, "OLIE3" to 25),
+    EffectKind.SMOKE_SCREEN to listOf("SMOKES1" to 50, "SMOKES2" to 50, "SMOKES3" to 50, "SMOKES4" to 50) +
+        List(19) { (if (it % 2 == 0) "SMOKES5" else "SMOKES6") to 200 } +
+        listOf("SMOKES4" to 50, "SMOKES3" to 50, "SMOKES2" to 50, "SMOKES1" to 50),
+    EffectKind.BLOOD to listOf("BLOOD1" to 50, "BLOOD2" to 50, "BLOOD3" to 50),
+    EffectKind.EXHAUST to listOf("EXHAUST2" to 25),
 )
 private const val LOCK_MARKER_ID = Long.MIN_VALUE
 
@@ -76,7 +87,13 @@ internal class ClientScene(
 
     private var lockMarkerActor: SpriteActor? = null
 
-    fun sync(world: WorldSnapshot, events: List<GameEvent> = world.events, lockMarker: LockMarker? = null) {
+    /** [viewerActorId]: the vehicle this viewport's player drives, who still sees it while cloaked. */
+    fun sync(
+        world: WorldSnapshot,
+        events: List<GameEvent> = world.events,
+        lockMarker: LockMarker? = null,
+        viewerActorId: Long? = null,
+    ) {
         val tankIds = LinkedHashSet<Long>()
         val turretIds = LinkedHashSet<Long>()
         val goalIds = LinkedHashSet<Long>()
@@ -87,14 +104,21 @@ internal class ClientScene(
             when (state) {
                 is TankState -> {
                     tankIds += state.actorId
+                    // Legacy write_objects(): from height 4 up a vehicle is drawn above the top layer.
+                    val layer = if (state.height >= HIGH_FLIGHT_HEIGHT) EFFECT_LAYER else VEHICLE_LAYER
+                    tanks[state.actorId]?.takeIf { it.layerIndex != layer }?.let {
+                        actorManager.remove(it)
+                        tanks.remove(state.actorId)
+                    }
                     tanks.getOrPut(state.actorId) {
                         TankActor(
                             id = state.actorId,
                             snapshot = snapshot,
                             spriteManager = spriteManager,
                             sprites = sprites,
+                            layerIndex = layer,
                         ).also { actorManager.add(it) }
-                    }.sync(state)
+                    }.sync(state, ownVehicle = state.actorId == viewerActorId)
                 }
                 is TurretState -> {
                     turretIds += state.actorId
@@ -128,10 +152,33 @@ internal class ClientScene(
                             ).also { actorManager.add(it) }
                         }.sync(state)
                     }
-                    ProjectileKind.ROCKET -> syncObject(objectIds, state.actorId, state.x, state.y, rocketSprite(state))
-                    // Legacy write_bullets(): flames and mortar shells change picture as they fly (`b->dist`).
+                    ProjectileKind.ROCKET -> syncObject(objectIds, state.actorId, state.x, state.y, null)
+                        .showDirectional(rocketDirection(state)) { "ROCK1-${it + 1}" }
+                    // Legacy write_bullets(): a small rocket points where it flies.
+                    ProjectileKind.SROCK -> syncObject(objectIds, state.actorId, state.x, state.y, null)
+                        .showDirectional(state.direction) { "ROCK1-${it + 1}" }
+                    // Legacy write_bullets(): flames and mortar shells change picture as they fly
+                    // (`b->dist`), and a shell's shadow falls `h` away along its arc.
                     ProjectileKind.MORTAR -> syncObject(objectIds, state.actorId, state.x, state.y, "MORT${flightFrame(state.rangeLeft)}")
+                        .apply { shadowOffset = mortarArcHeight(state.rangeLeft) }
+                    // A plane's bomb shrinks as it falls: MORT1 + dist / 50, its shadow closing in.
+                    ProjectileKind.PLANEBOMB -> syncObject(
+                        objectIds,
+                        state.actorId,
+                        state.x,
+                        state.y,
+                        "MORT${(1 + state.rangeLeft / 50).coerceIn(1, 5)}",
+                    ).apply { shadowOffset = state.rangeLeft * state.dropHeight / 120 }
                     ProjectileKind.FLAME -> syncObject(objectIds, state.actorId, state.x, state.y, "FLAME${flightFrame(state.rangeLeft)}")
+                }
+                // Legacy write_bonus(): the bonus type's icon.
+                is BonusState -> syncObject(objectIds, state.actorId, state.x, state.y, "ICON${state.bonusType.mod(15) + 1}")
+                // Legacy write_man(): MAN-1..5 or MAN-6..10 while walking, turned to his direction.
+                is ManState -> syncObject(objectIds, state.actorId, state.x, state.y, null)
+                    .showDirectional(state.direction) { "MAN-${state.frame + it + 1}" }
+                // Legacy write_abomb(): ABOMB1..4 while it counts down, nothing in water or once it goes off.
+                is AbombState -> if (!state.exploding && !state.hidden) {
+                    syncObject(objectIds, state.actorId, state.x, state.y, "ABOMB${(4 - state.countdown).coerceIn(1, 4)}")
                 }
                 is MineState -> syncObject(objectIds, state.actorId, state.x, state.y, "MINE")
                 is FlagState -> syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")
@@ -139,8 +186,10 @@ internal class ClientScene(
                     syncObject(objectIds, state.actorId, state.x, state.y, productSprite(state.productType))
                 }
                 is WarpState -> syncObject(objectIds, state.actorId, state.x, state.y, "WARP1")
+                // Legacy write_train(): WAGO<picture>-1..5, turned to the car's direction.
                 is TrainState -> if (state.alive) {
-                    syncObject(objectIds, state.actorId, state.x, state.y, if (state.isEngine) "WAGO0-2" else "WAGO1-2")
+                    syncObject(objectIds, state.actorId, state.x, state.y, null)
+                        .showDirectional(state.direction) { "WAGO${state.picture}-${it + 1}" }
                 }
                 is ZeppelinState -> if (state.alive) syncObject(objectIds, state.actorId, state.x, state.y, "ZEPAA")
                 is B52State -> if (state.alive) syncObject(objectIds, state.actorId, state.x, state.y, "B52AA")
@@ -196,31 +245,36 @@ internal class ClientScene(
         }
     }
 
-    private fun syncObject(ids: MutableSet<Long>, actorId: Long, x: Int, y: Int, sprite: String) {
+    private fun syncObject(ids: MutableSet<Long>, actorId: Long, x: Int, y: Int, sprite: String?): SpriteActor {
         ids += actorId
-        objects.getOrPut(actorId) {
+        return objects.getOrPut(actorId) {
             SpriteActor(actorId, snapshot, spriteManager, sprites).also { actorManager.add(it) }
         }.apply {
             spriteName = sprite
+            flipHorizontal = false
+            flipVertical = false
+            shadowOffset = 0
             moveTo(x, y)
         }
     }
+
+    /** Legacy write_bullets(): `h = -15·dist²/3600 + 15·dist/30`, the height of a shell on its arc. */
+    private fun mortarArcHeight(rangeLeft: Int): Int = -MORTAR_ARC * rangeLeft * rangeLeft / 3600 + MORTAR_ARC * rangeLeft / 30
 
     /** Legacy `FLAME + 4 - dist / 25` (and the same for MORTAR): frame 1 at launch, 5 when nearly spent. */
     private fun flightFrame(rangeLeft: Int): Int = (5 - rangeLeft / 25).coerceIn(1, 5)
 
     /** Rockets steer, so their facing is derived from movement between snapshots. */
-    private fun rocketSprite(state: ProjectileState): String {
+    private fun rocketDirection(state: ProjectileState): Int {
         rocketPositions[state.actorId]?.let { (px, py) ->
             val dx = state.x - px
             val dy = state.y - py
             if (dx != 0 || dy != 0) {
-                rocketDirections[state.actorId] = LegacySpriteResources.direction16FromFacing(dx.coerceIn(-1, 1), dy.coerceIn(-1, 1))
+                rocketDirections[state.actorId] = com.tankarena.core.LegacyDirections.fromAngle(dx, dy)
             }
         }
         rocketPositions[state.actorId] = state.x to state.y
-        val direction = rocketDirections[state.actorId] ?: 0
-        return "ROCK1-${LegacySpriteResources.turretFrameForDirection(direction) + 1}"
+        return rocketDirections[state.actorId] ?: 0
     }
 
     private val rocketPositions = HashMap<Long, Pair<Int, Int>>()

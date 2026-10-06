@@ -38,7 +38,9 @@ class ServerMineActor internal constructor(state: State) :
     var isDead: Boolean = false
         private set
 
-    private var detonationPending: Boolean = false
+    /** True while a detonation waits to be played out (it must not be cleaned up before that). */
+    var detonationPending: Boolean = false
+        private set
     private var detonationVictim: ServerTankActor? = null
 
     val isActive: Boolean get() = activationTicksRemaining <= 0 && !isDead
@@ -47,7 +49,7 @@ class ServerMineActor internal constructor(state: State) :
         if (activationTicksRemaining > 0) activationTicksRemaining -= 1
     }
 
-    internal fun detonateOn(victim: ServerTankActor) {
+    internal fun detonateOn(victim: ServerTankActor?) {
         if (isDead) return
         detonationVictim = victim
         detonationPending = true

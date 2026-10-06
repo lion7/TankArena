@@ -60,6 +60,16 @@ object LegacyDirections {
         }
     }
 
+    /**
+     * Legacy radtoa16(angle(dx, dy)) (src/check/math.c): the nearest of the 16 directions from a
+     * point towards another one at offset ([dx], [dy]) in screen pixels (y grows downwards).
+     */
+    fun fromAngle(dx: Int, dy: Int): Int {
+        if (dx == 0 && dy == 0) return NORTH
+        val angle = kotlin.math.atan2(-dy.toDouble(), dx.toDouble())
+        return normalize(((PI / 2.0 - angle) / (2.0 * PI / STEPS)).roundToInt())
+    }
+
     private fun radians(direction: Int): Double {
         val normalized = normalize(direction)
         // Legacy angles rotate clockwise with north at 0, east at 4.

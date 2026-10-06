@@ -1,6 +1,7 @@
 package com.tankarena.sim.kubriko.server
 
 import com.pandulapeter.kubriko.actor.body.BoxBody
+import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
 import com.pandulapeter.kubriko.collision.Collidable
 import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
 import com.pandulapeter.kubriko.sceneEditor.Editable
@@ -135,14 +136,30 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         power = power,
         delay = fireDelayTicks,
         radius = rangePixels,
+        ownerRef = ownerRef,
     )
+
+    /**
+     * Legacy `o->owner`: the saved pointer of the wagon this turret rides on (make_turret(..., o)
+     * in src/objects/train.c), or 0 for a turret on a building.
+     */
+    val ownerRef: Int = state.ownerRef
+
+    /** Legacy control_train(): a turret on a wagon moves with it. */
+    internal fun moveTo(x: Int, y: Int) {
+        val half = body.size.width.raw / 2f
+        val offset = com.pandulapeter.kubriko.types.SceneOffset((x - half).sceneUnit, (y - half).sceneUnit)
+        body.position = offset
+        collisionMask.position = offset
+    }
 
     private fun nearestTargetInRange(tanks: List<ServerTankActor>): ServerTankActor? {
         var best: ServerTankActor? = null
         var bestDistSq = Long.MAX_VALUE
         val rangeSq = rangePixels.toLong() * rangePixels.toLong()
         for (tank in tanks) {
-            if (tank.armor <= 0) continue
+            // Legacy closest_tank(): a cloaked vehicle is invisible to turrets.
+            if (tank.armor <= 0 || tank.cloaked) continue
             if (tank.team == team) continue
             val dx = (tank.positionX - positionX).toLong()
             val dy = (tank.positionY - positionY).toLong()
@@ -166,6 +183,7 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         @SerialName("power") val power: Int = DEFAULT_POWER,
         @SerialName("delay") val delay: Int = DEFAULT_FIRE_DELAY_TICKS,
         @SerialName("radius") val radius: Int = DEFAULT_RANGE_PIXELS,
+        @SerialName("ownerRef") val ownerRef: Int = 0,
     ) : Serializable.State<ServerTurretActor> {
         override fun restore(): ServerTurretActor = ServerTurretActor(this)
         override fun serialize(): String = Json.encodeToString(this)

@@ -54,6 +54,18 @@ class ServerProjectileActor internal constructor(state: State) :
     var isDead: Boolean = false
         private set
 
+    /** Legacy `b->safety`: pixels still to fly before the shot can hit anything. */
+    private var safetyLeft: Float = state.safetyPx.toFloat()
+    /** False while a small rocket is still within its safety distance. */
+    val armed: Boolean get() = safetyLeft <= 0f
+
+    private var trailCooldownTicks: Int = 0
+    private var pendingTrail: Pair<Int, Int>? = null
+    private val trailRandom = kotlin.random.Random(state.ownerActorId * 31 + state.body.position.x.raw.toLong())
+
+    /** Where a small rocket left a puff of exhaust this tick, if it did. */
+    fun drainTrail(): Pair<Int, Int>? = pendingTrail.also { pendingTrail = null }
+
     /** Where the projectile was before this tick's move. */
     var previousPosition: Pair<Int, Int> = positionX to positionY
         private set
@@ -77,6 +89,8 @@ class ServerProjectileActor internal constructor(state: State) :
     private var tankHitRef: ServerTankActor? = null
     internal var ownerRef: ServerTankActor? = null
     internal var ownerTurretRef: ServerTurretActor? = null
+    /** The soldier who fired this; his comrades from the same vehicle are not hit by it. */
+    internal var ownerSoldierRef: Soldier? = null
 
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
@@ -86,6 +100,16 @@ class ServerProjectileActor internal constructor(state: State) :
         positionX = exactX.toInt()
         positionY = exactY.toInt()
         syncBody()
+        if (safetyLeft > 0f) {
+            safetyLeft -= kotlin.math.hypot(velocityX, velocityY)
+        } else if (weaponKind == SHOT_SMALL_ROCKET) {
+            // Legacy control_bullets(): a small rocket trails exhaust every 5..10 ticks.
+            if (trailCooldownTicks > 0) trailCooldownTicks -= 1
+            if (trailCooldownTicks == 0) {
+                pendingTrail = previousPosition
+                trailCooldownTicks = 5 + trailRandom.nextInt(5)
+            }
+        }
         ttlTicks -= 1
         if (ttlTicks <= 0) {
             markDead(positionX, positionY)
@@ -112,10 +136,14 @@ class ServerProjectileActor internal constructor(state: State) :
             when (other) {
                 is ServerTankActor -> {
                     // Flames hit by proximity (ServerMatchPrototype.triggerFlameContacts()).
-                    if (weaponKind == WEAPON_FLAME) continue
+                    if (weaponKind == WEAPON_FLAME || !armed) continue
                     if (ownerKind == ProjectileOwnerKind.TANK && other === ownerRef) continue
-                    if (other.armor <= 0) continue
+                    // Legacy line_obj_hit_point(): a vehicle sinking into a pit is out of reach.
+                    if (other.armor <= 0 || other.height < 1) continue
                     other.queueDamage(damage)
+                    // Legacy tank_add_impulse(): the hit pushes the vehicle along the shot.
+                    val speed = kotlin.math.hypot(velocityX, velocityY)
+                    if (speed > 0f) other.addImpulse(velocityX / speed, velocityY / speed, damage)
                     tankHitRef = other
                     markDead(positionX, positionY)
                 }
@@ -151,6 +179,7 @@ class ServerProjectileActor internal constructor(state: State) :
         velocityY = velocityY,
         ttlTicks = ttlTicks,
         weaponKind = weaponKind,
+        safetyPx = safetyLeft.toInt().coerceAtLeast(0),
     )
 
     private fun markDead(atX: Int, atY: Int) {
@@ -177,6 +206,7 @@ class ServerProjectileActor internal constructor(state: State) :
         @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("ttlTicks") val ttlTicks: Int = PROJECTILE_TTL_TICKS,
         @SerialName("weaponKind") val weaponKind: Int = WEAPON_MAIN,
+        @SerialName("safetyPx") val safetyPx: Int = 0,
     ) : Serializable.State<ServerProjectileActor> {
         override fun restore(): ServerProjectileActor = ServerProjectileActor(this)
         override fun serialize(): String = Json.encodeToString(this)

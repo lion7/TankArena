@@ -30,6 +30,8 @@ class ServerMortarActor internal constructor(state: State) :
     val ownerActorId: Long = state.ownerActorId
     val damage: Int = state.damage
     val maxRadius: Int = state.maxRadius
+    /** Legacy HT_PLANEBOMB: the height a plane dropped this bomb from; 0 for a mortar shell. */
+    val dropHeight: Int = state.dropHeight
 
     var positionX: Float = body.position.x.raw
         private set
@@ -90,6 +92,7 @@ class ServerMortarActor internal constructor(state: State) :
         velocityX = velocityX,
         velocityY = velocityY,
         travelTicksRemaining = travelTicksRemaining,
+        dropHeight = dropHeight,
     )
 
     @kotlinx.serialization.Serializable
@@ -101,6 +104,7 @@ class ServerMortarActor internal constructor(state: State) :
         @SerialName("velocityX") val velocityX: Float = 0f,
         @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("travelTicksRemaining") val travelTicksRemaining: Int = MORTAR_TRAVEL_TICKS,
+        @SerialName("dropHeight") val dropHeight: Int = 0,
     ) : Serializable.State<ServerMortarActor> {
         override fun restore(): ServerMortarActor = ServerMortarActor(this)
         override fun serialize(): String = Json.encodeToString(this)

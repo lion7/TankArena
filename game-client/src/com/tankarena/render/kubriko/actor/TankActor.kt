@@ -15,6 +15,8 @@ internal class TankActor(
     snapshot: RuntimeSnapshot,
     private val spriteManager: SpriteManager,
     private val sprites: LegacySpriteCatalog,
+    /** Legacy write_objects(): vehicles from height 4 up are drawn above the top structure layer. */
+    override val layerIndex: Int = 2,
 ) : RenderActor(
     id = id,
     snapshot = snapshot,
@@ -27,12 +29,19 @@ internal class TankActor(
     private var alive: Boolean = true
     private var shielded: Boolean = false
     private var height: Int = 1
+    private var chopper: Boolean = false
+    /** False while a cloaked vehicle is invisible to this viewport (or blinked off for its driver). */
+    private var visible: Boolean = true
     private var trackFrame: Int = 0
     private var lastX: Int = Int.MIN_VALUE
     private var lastY: Int = Int.MIN_VALUE
     private var distanceSinceToggle: Int = 0
 
-    fun sync(state: TankState) {
+    /** [ownVehicle]: this viewport's player drives it (legacy `o == game.tk[game.tn]`). */
+    fun sync(state: TankState, ownVehicle: Boolean = false) {
+        // Legacy write_tank(): a cloaked vehicle is only drawn for its own driver, blinking.
+        visible = (!state.cloaked || ownVehicle) && state.cloakFlash
+        chopper = state.chopper
         tankType = state.tankType
         bodyDirection = state.bodyDirection
         turretDirection = state.turretDirection
@@ -77,9 +86,19 @@ internal class TankActor(
     }
 
     override fun DrawScope.draw() {
+        if (alive && height >= 1 && !visible) return
         val images = spriteNames().map { name -> sprites.findResource(name)?.let(spriteManager::get) }
         // Sprites load asynchronously at mission start; draw nothing until the body frame is ready.
         if (images.firstOrNull() == null) return
+        // Legacy write_tank(): above the ground a vehicle casts its shadow `h` right and `2h` down,
+        // a helicopter's rotor too.
+        if (height > 1) {
+            val shadows = if (chopper) images else images.take(1)
+            for (image in shadows) {
+                image ?: continue
+                drawLegacyPicture(image, height, 2 * height, colorFilter = SHADOW_FILTER)
+            }
+        }
         for (image in images) {
             // Vehicles without a separate turret have no frames past 31; skip what is missing.
             image ?: continue

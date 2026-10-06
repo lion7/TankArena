@@ -16,8 +16,12 @@ import kotlinx.serialization.json.Json
  * 2: guns fire from their legacy barrels, chain guns per barrel, tanks bounce off walls.
  * 3: destructible structures with pixel collisions, turrets fall with their building, vehicles
  *    collide by radius and shove each other by mass.
+ * 4: helicopters and planes fly, the remaining weapons, bonuses and soldiers, the mortar's recoil,
+ *    hits push vehicles, the start shield lasts 275 ticks.
+ * 5: trains run on the rails, locks, destroyers and enforcers work, objects sit at their legacy
+ *    centres, blasts set off mines.
  */
-const val GAME_RULES_VERSION: Int = 3
+const val GAME_RULES_VERSION: Int = 5
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

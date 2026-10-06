@@ -29,6 +29,8 @@ class ServerDestroyerActor internal constructor(state: State) : Collidable, Edit
     val what: Int = state.what
     val immediate: Boolean = state.immediate
     var isFired: Boolean = state.isFired
+    /** Legacy `o->gc`: applied when the destroyer goes off (remove_object()). */
+    val goalContribution: Int = state.goalContribution
 
     override fun save(): State = State(
         body = body,
@@ -36,6 +38,7 @@ class ServerDestroyerActor internal constructor(state: State) : Collidable, Edit
         what = what,
         immediate = immediate,
         isFired = isFired,
+        goalContribution = goalContribution,
     )
 
     @kotlinx.serialization.Serializable
@@ -45,6 +48,7 @@ class ServerDestroyerActor internal constructor(state: State) : Collidable, Edit
         @SerialName("what") val what: Int = 3,
         @SerialName("immediate") val immediate: Boolean = false,
         @SerialName("isFired") val isFired: Boolean = false,
+        @SerialName("goalContribution") val goalContribution: Int = 0,
     ) : Serializable.State<ServerDestroyerActor> {
         override fun restore(): ServerDestroyerActor = ServerDestroyerActor(this)
         override fun serialize(): String = Json.encodeToString(this)

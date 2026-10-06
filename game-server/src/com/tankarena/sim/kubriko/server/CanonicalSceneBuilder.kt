@@ -99,6 +99,8 @@ object CanonicalSceneBuilder {
                             tankType = props.int("tankType") ?: 0,
                             armor = props.int("armor") ?: DEFAULT_ARMOR,
                             fuel = props.int("fuel") ?: LEGACY_MAX_FUEL,
+                            ammo = props.intList("ammo"),
+                            power = props.intList("power"),
                             lives = props.int("lives") ?: 1,
                             team = 0,
                             computer = false,
@@ -145,6 +147,7 @@ object CanonicalSceneBuilder {
                         power = props.int("power"),
                         delay = props.int("delay"),
                         radius = props.int("radius"),
+                        ownerRef = props.int("ownerRef") ?: 0,
                     )
                 }
 
@@ -184,6 +187,7 @@ object CanonicalSceneBuilder {
                         target = props.int("target") ?: 0,
                         lockX = props.int("lockX") ?: 0,
                         lockY = props.int("lockY") ?: 0,
+                        goalContribution = goalContribution,
                     )
                 }
 
@@ -202,7 +206,8 @@ object CanonicalSceneBuilder {
                         cy = obj.y,
                         radius = props.int("radius") ?: 0,
                         what = props.int("what") ?: 3,
-                        immediate = props.int("immediate") == 1,
+                        immediate = props.int("immediate")?.let { it != 0 } ?: false,
+                        goalContribution = goalContribution,
                     )
                 }
 
@@ -213,9 +218,11 @@ object CanonicalSceneBuilder {
                         radius = props.int("radius") ?: 0,
                         weapon = props.int("weapon") ?: 0,
                         delay = props.int("delay") ?: 0,
-                        good = props.int("good") == 1,
+                        good = props.int("good")?.let { it != 0 } ?: false,
                         // The legacy struct calls this field `enf_evil`; older fixtures used `bad`.
-                        bad = (props.int("evil") ?: props.int("bad")) == 1,
+                        bad = (props.int("evil") ?: props.int("bad"))?.let { it != 0 } ?: false,
+                        fire = props.int("fire")?.let { it != 0 } ?: true,
+                        change = props.int("change")?.let { it != 0 } ?: false,
                     )
                 }
 
@@ -233,11 +240,7 @@ object CanonicalSceneBuilder {
                 }
 
                 ObjectKinds.TRAIN, ObjectKinds.WAGON -> {
-                    sink += trainActor(
-                        cx = obj.x,
-                        cy = obj.y,
-                        isEngine = obj.kind == ObjectKinds.TRAIN,
-                    )
+                    sink += trainActor(obj.x, obj.y, isEngine = obj.kind == ObjectKinds.TRAIN, props, goalContribution)
                 }
 
                 ObjectKinds.ZEPPELIN -> {
@@ -332,6 +335,7 @@ object CanonicalSceneBuilder {
         power: Int? = null,
         delay: Int? = null,
         radius: Int? = null,
+        ownerRef: Int = 0,
     ): ServerTurretActor =
         ServerTurretActor(
             ServerTurretActor.State(
@@ -346,6 +350,7 @@ object CanonicalSceneBuilder {
                 power = power ?: ServerTurretActor.State().power,
                 delay = delay?.takeIf { it > 0 } ?: ServerTurretActor.State().delay,
                 radius = radius?.takeIf { it > 0 } ?: ServerTurretActor.State().radius,
+                ownerRef = ownerRef,
             ),
         )
 
@@ -402,7 +407,7 @@ object CanonicalSceneBuilder {
             ),
         )
 
-    private fun lockActor(cx: Int, cy: Int, activation: Int, target: Int, lockX: Int, lockY: Int): ServerLockActor =
+    private fun lockActor(cx: Int, cy: Int, activation: Int, target: Int, lockX: Int, lockY: Int, goalContribution: Int): ServerLockActor =
         ServerLockActor(
             ServerLockActor.State(
                 body = BoxBody(
@@ -414,6 +419,7 @@ object CanonicalSceneBuilder {
                 lockX = lockX,
                 lockY = lockY,
                 isFired = false,
+                goalContribution = goalContribution,
             ),
         )
 
@@ -430,7 +436,7 @@ object CanonicalSceneBuilder {
             ),
         )
 
-    private fun destroyerActor(cx: Int, cy: Int, radius: Int, what: Int, immediate: Boolean): ServerDestroyerActor =
+    private fun destroyerActor(cx: Int, cy: Int, radius: Int, what: Int, immediate: Boolean, goalContribution: Int): ServerDestroyerActor =
         ServerDestroyerActor(
             ServerDestroyerActor.State(
                 body = BoxBody(
@@ -441,10 +447,21 @@ object CanonicalSceneBuilder {
                 what = what,
                 immediate = immediate,
                 isFired = false,
+                goalContribution = goalContribution,
             ),
         )
 
-    private fun enforcerActor(cx: Int, cy: Int, radius: Int, weapon: Int, delay: Int, good: Boolean, bad: Boolean): ServerEnforcerActor =
+    private fun enforcerActor(
+        cx: Int,
+        cy: Int,
+        radius: Int,
+        weapon: Int,
+        delay: Int,
+        good: Boolean,
+        bad: Boolean,
+        fire: Boolean,
+        change: Boolean,
+    ): ServerEnforcerActor =
         ServerEnforcerActor(
             ServerEnforcerActor.State(
                 body = BoxBody(
@@ -456,10 +473,13 @@ object CanonicalSceneBuilder {
                 delay = delay,
                 good = good,
                 bad = bad,
+                fire = fire,
+                change = change,
             ),
         )
 
-    private fun trainActor(cx: Int, cy: Int, isEngine: Boolean): ServerTrainActor =
+    /** Legacy `trainstruct` as saved in the map (see LegacyObjectParser.parseTrainProperties()). */
+    private fun trainActor(cx: Int, cy: Int, isEngine: Boolean, props: Map<String, String>, goalContribution: Int): ServerTrainActor =
         ServerTrainActor(
             ServerTrainActor.State(
                 body = BoxBody(
@@ -467,10 +487,28 @@ object CanonicalSceneBuilder {
                     initialSize = SceneSize(TRAIN_FOOTPRINT.toFloat().sceneUnit, TRAIN_FOOTPRINT.toFloat().sceneUnit),
                 ),
                 isEngine = isEngine,
-                armor = if (isEngine) 60 else 40,
+                armor = props.int("armor") ?: if (isEngine) 60 else 40,
                 alive = true,
                 x = cx,
                 y = cy,
+                ref = props.int("ref") ?: 0,
+                frontRef = props.int("frontRef") ?: 0,
+                rearRef = props.int("rearRef") ?: 0,
+                driving = props.int("driving")?.let { it != 0 } ?: isEngine,
+                speed = props.int("speed") ?: 0,
+                direction = props.int("direction") ?: 0,
+                picture = props.int("picture") ?: if (isEngine) 0 else 1,
+                smokes = props.int("smokes")?.let { it != 0 } ?: isEngine,
+                railsStart = props["railsStart"]?.toFloatOrNull() ?: 0f,
+                railsType = props.int("railsType") ?: 0,
+                railsDir = props.int("railsDir") ?: 1,
+                railsX = props.int("railsX") ?: cx,
+                railsY = props.int("railsY") ?: cy,
+                endType = props.int("endType") ?: 0,
+                endDir = props.int("endDir") ?: 1,
+                endX = props.int("endX") ?: 0,
+                endY = props.int("endY") ?: 0,
+                goalContribution = goalContribution,
             ),
         )
 

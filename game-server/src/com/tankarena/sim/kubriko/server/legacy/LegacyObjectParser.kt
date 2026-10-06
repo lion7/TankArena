@@ -58,7 +58,11 @@ internal object LegacyObjectParser {
     private val runtimeSpawnedOnly: Set<Int> = setOf(TYPE_ROCKET, TYPE_ABOMB, TYPE_MORTAR)
 
     private const val TILE_CENTRE_OFFSET = 16
-    private val topLeftAnchored: Set<Int> = setOf(TYPE_TANK, TYPE_TURRET, TYPE_PLAYER, TYPE_WARP)
+    /** Legacy `o->this_structure` and `o->owner`: saved pointers that load_map() relocates. */
+    private const val OFFSET_THIS = 4
+    private const val OFFSET_OWNER = 12
+    /** Legacy `o->funct.control`: non-zero for objects that were running when the map was saved. */
+    private const val OFFSET_CONTROL = 24
 
     fun parseObjects(blob: ByteArray, objectSize: Int): LegacyObjectParseResult {
         if (objectSize <= 0 || blob.isEmpty()) {
@@ -102,11 +106,10 @@ internal object LegacyObjectParser {
 
     private fun parseObject(index: Int, reader: LegacyObjectReader): AuthoredObject? {
         val type = reader.readInt(OFFSET_TYPE)
-        // Tile-sized objects are stored by their top-left corner (the engine adds 16 for the
-        // centre, e.g. `(o->x+16)/b_size` in src/objects/player.c); the scene uses centres.
-        val centreOffset = if (type in topLeftAnchored) TILE_CENTRE_OFFSET else 0
-        val x = reader.readInt(OFFSET_X) + centreOffset
-        val y = reader.readInt(OFFSET_Y) + centreOffset
+        // Every object is stored by the top-left corner of its 33×33 picture (the engine adds 16
+        // for the centre, e.g. `(o->x+16)/b_size` in src/objects/player.c); the scene uses centres.
+        val x = reader.readInt(OFFSET_X) + TILE_CENTRE_OFFSET
+        val y = reader.readInt(OFFSET_Y) + TILE_CENTRE_OFFSET
         val goalContribution = reader.readInt(OFFSET_GC)
 
         return when (type) {
@@ -160,24 +163,12 @@ internal object LegacyObjectParser {
                 ),
             )
 
-            TYPE_TRAIN -> AuthoredObject(
-                id = "legacy-train-$index",
-                kind = ObjectKinds.TRAIN,
+            TYPE_TRAIN, TYPE_WAGON -> AuthoredObject(
+                id = if (type == TYPE_TRAIN) "legacy-train-$index" else "legacy-wagon-$index",
+                kind = if (type == TYPE_TRAIN) ObjectKinds.TRAIN else ObjectKinds.WAGON,
                 x = x,
                 y = y,
-                properties = mapOf(
-                    "goalContribution" to goalContribution.toString(),
-                ),
-            )
-
-            TYPE_WAGON -> AuthoredObject(
-                id = "legacy-wagon-$index",
-                kind = ObjectKinds.WAGON,
-                x = x,
-                y = y,
-                properties = mapOf(
-                    "goalContribution" to goalContribution.toString(),
-                ),
+                properties = parseTrainProperties(reader) + ("goalContribution" to goalContribution.toString()),
             )
 
             TYPE_ZEPPELIN -> AuthoredObject(
@@ -216,6 +207,8 @@ internal object LegacyObjectParser {
                     "power" to reader.readInt(OFFSET_UNION + 16).toString(),
                     "radius" to reader.readInt(OFFSET_UNION + 20).toString(),
                     "goalContribution" to goalContribution.toString(),
+                    // A turret riding a wagon (make_turret(..., owner)) follows it instead of a building.
+                    "ownerRef" to reader.readInt(OFFSET_OWNER).toString(),
                 ),
             )
 
@@ -249,8 +242,10 @@ internal object LegacyObjectParser {
                 x = x,
                 y = y,
                 properties = mapOf(
-                    "lockX" to reader.readInt(OFFSET_UNION).toString(),
-                    "lockY" to reader.readInt(OFFSET_UNION + 4).toString(),
+                    "lockX" to (reader.readInt(OFFSET_UNION) + TILE_CENTRE_OFFSET).toString(),
+                    "lockY" to (reader.readInt(OFFSET_UNION + 4) + TILE_CENTRE_OFFSET).toString(),
+                    "activation" to reader.readInt(OFFSET_UNION + 8).toString(),
+                    "target" to reader.readInt(OFFSET_UNION + 12).toString(),
                     "activationRange" to reader.readInt(OFFSET_UNION + 16).toString(),
                     "goalContribution" to goalContribution.toString(),
                 ),
@@ -287,6 +282,7 @@ internal object LegacyObjectParser {
                     "radius" to reader.readInt(OFFSET_UNION).toString(),
                     "immediate" to reader.readInt(OFFSET_UNION + 4).toString(),
                     "what" to reader.readInt(OFFSET_UNION + 8).toString(),
+                    "goalContribution" to goalContribution.toString(),
                 ),
             )
 
@@ -300,12 +296,45 @@ internal object LegacyObjectParser {
                     "good" to reader.readInt(OFFSET_UNION + 4).toString(),
                     "evil" to reader.readInt(OFFSET_UNION + 8).toString(),
                     "weapon" to reader.readInt(OFFSET_UNION + 12).toString(),
+                    "fire" to reader.readInt(OFFSET_UNION + 16).toString(),
+                    "change" to reader.readInt(OFFSET_UNION + 20).toString(),
                     "delay" to reader.readInt(OFFSET_UNION + 24).toString(),
                 ),
             )
 
             else -> null
         }
+    }
+
+    /**
+     * The packed `trainstruct` (src/include/types.h): speed and direction, armor, whether it
+     * smokes, its neighbours in the train (saved pointers, matched against `this_structure`),
+     * its picture, and the rail segment it is on (`rails`) and the one it heads for (`end`).
+     */
+    private fun parseTrainProperties(reader: LegacyObjectReader): Map<String, String> {
+        val u = OFFSET_UNION
+        val noSmoke = reader.readInt(u + 16) == Int.MAX_VALUE
+        return mapOf(
+            "ref" to reader.readInt(OFFSET_THIS).toString(),
+            // Legacy prepare_train(): only cars that had a control function at save time drive.
+            "driving" to (if (reader.readInt(OFFSET_CONTROL) != 0) "1" else "0"),
+            "speed" to reader.readInt(u).toString(),
+            "direction" to reader.readInt(u + 8).toString(),
+            "armor" to reader.readInt(u + 12).toString(),
+            "smokes" to (if (noSmoke) "0" else "1"),
+            "frontRef" to reader.readInt(u + 24).toString(),
+            "rearRef" to reader.readInt(u + 28).toString(),
+            "picture" to reader.readInt(u + 44).toString(),
+            "railsStart" to java.lang.Float.intBitsToFloat(reader.readInt(u + 48)).toString(),
+            "railsType" to reader.readInt(u + 52).toString(),
+            "railsDir" to reader.readInt(u + 56).toString(),
+            "railsX" to reader.readInt(u + 60).toString(),
+            "railsY" to reader.readInt(u + 64).toString(),
+            "endType" to reader.readInt(u + 68).toString(),
+            "endDir" to reader.readInt(u + 72).toString(),
+            "endX" to reader.readInt(u + 76).toString(),
+            "endY" to reader.readInt(u + 80).toString(),
+        )
     }
 
     /**

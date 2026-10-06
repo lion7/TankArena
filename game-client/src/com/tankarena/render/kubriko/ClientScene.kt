@@ -10,6 +10,8 @@ import com.tankarena.protocol.snapshot.EnforcerState
 import com.tankarena.protocol.snapshot.FlagState
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.GoalState
+import com.tankarena.protocol.snapshot.LockMarker
+import com.tankarena.protocol.snapshot.LockMarkerState
 import com.tankarena.protocol.snapshot.LockState
 import com.tankarena.protocol.snapshot.MineState
 import com.tankarena.protocol.snapshot.ProductState
@@ -33,6 +35,7 @@ import org.jetbrains.compose.resources.DrawableResource
 private const val EXPLOSION_TICKS_PER_FRAME = 6
 private const val EXPLOSION_FRAMES = 5
 private const val EFFECT_LAYER = 3
+private const val LOCK_MARKER_ID = Long.MIN_VALUE
 
 internal class ClientScene(
     private val snapshot: RuntimeSnapshot,
@@ -52,7 +55,9 @@ internal class ClientScene(
     private var nextEffectId = -1L
     private val tankPositions = HashMap<Long, Pair<Int, Int>>()
 
-    fun sync(world: WorldSnapshot, events: List<GameEvent> = world.events) {
+    private var lockMarkerActor: SpriteActor? = null
+
+    fun sync(world: WorldSnapshot, events: List<GameEvent> = world.events, lockMarker: LockMarker? = null) {
         val tankIds = LinkedHashSet<Long>()
         val turretIds = LinkedHashSet<Long>()
         val goalIds = LinkedHashSet<Long>()
@@ -133,6 +138,26 @@ internal class ClientScene(
         rocketPositions.keys.retainAll(objectIds)
         rocketDirections.keys.retainAll(objectIds)
         syncEffects(world.tick, events)
+        syncLockMarker(lockMarker)
+    }
+
+    /** The rocket lock-on marker of this viewport's player (legacy `MARKER + l`). */
+    private fun syncLockMarker(marker: LockMarker?) {
+        if (marker == null) {
+            lockMarkerActor?.let(actorManager::remove)
+            lockMarkerActor = null
+            return
+        }
+        val actor = lockMarkerActor
+            ?: SpriteActor(LOCK_MARKER_ID, snapshot, spriteManager, sprites, layerIndex = EFFECT_LAYER)
+                .also { actorManager.add(it); lockMarkerActor = it }
+        actor.spriteName = when (marker.state) {
+            LockMarkerState.SEARCHING -> "MARKER"
+            LockMarkerState.ON_TARGET -> "MARKER2"
+            LockMarkerState.LAUNCHED -> "MARKER3"
+            LockMarkerState.OUT_OF_RANGE -> "MARKER4"
+        }
+        actor.moveTo(marker.x, marker.y)
     }
 
     fun collectSpriteResources(target: MutableSet<DrawableResource>) {
@@ -141,6 +166,9 @@ internal class ClientScene(
         objects.values.forEach { it.collectSpriteResources(target) }
         for (stage in 0 until EXPLOSION_FRAMES) {
             sprites.findResource(LegacySpriteResources.nameForExplosion(stage))?.let(target::add)
+        }
+        for (name in listOf("MARKER", "MARKER2", "MARKER3", "MARKER4")) {
+            sprites.findResource(name)?.let(target::add)
         }
     }
 

@@ -11,7 +11,8 @@ import com.pandulapeter.kubriko.types.SceneOffset
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-internal const val MORTAR_TRAVEL_TICKS: Int = 50
+/** Legacy HT_MORTAR shell: 120 px at 75 px/s, i.e. 160 ticks in flight (src/world/bullet.c). */
+internal const val MORTAR_TRAVEL_TICKS: Int = 160
 internal const val MORTAR_MIN_RADIUS_PX: Int = 5
 internal const val MORTAR_MAX_RADIUS_PX: Int = 60
 
@@ -48,11 +49,9 @@ class ServerMortarActor internal constructor(state: State) :
 
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
+        // The shell flies in a straight line over walls; the lob arc is only drawn.
         positionX += velocityX
         positionY += velocityY
-        // Slight gravity-like vertical drift to evoke the lob arc; the resolver only
-        // checks final impact position so this is purely cosmetic.
-        velocityY += 0.05f
         val offset = SceneOffset(positionX.sceneUnit, positionY.sceneUnit)
         body.position = offset
         collisionMask.position = offset

@@ -19,6 +19,8 @@ import com.tankarena.content.TileLayers
 import com.tankarena.content.TerrainGridBuilder
 import com.tankarena.protocol.snapshot.TerrainGrid
 import com.tankarena.protocol.snapshot.TerrainMaterial
+import com.tankarena.protocol.snapshot.PitShape
+import com.tankarena.protocol.snapshot.TerrainTile
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
@@ -37,6 +39,8 @@ import com.tankarena.protocol.snapshot.WarpState
 import com.tankarena.protocol.snapshot.ZeppelinState
 import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.LockMarker
+import com.tankarena.protocol.snapshot.LockMarkerState
 import com.tankarena.protocol.snapshot.MineState
 import com.tankarena.protocol.snapshot.ProjectileKind
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
@@ -53,8 +57,11 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
 private const val MILLIS_PER_TICK: Int = 10
+/** Legacy nearest_target(): a rocket locks onto anything within 15 px of the marker. */
+private const val ROCKET_TARGET_RADIUS_PX: Int = 15
+/** Legacy tank_write_marker(): the marker turns red beyond 400 px. */
+private const val LOCK_OUT_OF_RANGE_PX: Int = 400
 private val DEADLY_TERRAIN = setOf(
-    TerrainMaterial.WATER,
     TerrainMaterial.PIT_BIG,
     TerrainMaterial.PIT_SMALL,
     TerrainMaterial.LAVA,
@@ -129,6 +136,13 @@ class ServerMatchPrototype private constructor(
             }
         }
         allTanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        for (tank in allTanks) {
+            tank.configureRocketLock(
+                maxX = worldWidthPixels - LEGACY_TILE_SIZE,
+                maxY = worldHeightPixels - LEGACY_TILE_SIZE,
+                limitRange = mode != MatchMode.DUAL,
+            )
+        }
         val all = actorManager.allActors.value
         val reachable = all.filterIsInstance<ServerTankActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
             all.filterIsInstance<ServerTurretActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
@@ -159,7 +173,6 @@ class ServerMatchPrototype private constructor(
         flushOutOfBoundsMortars()
         removeDeadProjectiles()
         triggerMineContacts()
-        triggerRocketContacts()
         drainMineDetonations()
         drainRocketExplosions()
         drainMortarExplosions()
@@ -197,6 +210,15 @@ class ServerMatchPrototype private constructor(
         actorManager.allActors.value.filterIsInstance<ServerTurretActor>()
 
     internal fun solidTileCountForTest(): Int = solidLayer.count { it >= 0 }
+
+    internal fun terrainTileForTest(predicate: (TerrainTile) -> Boolean): Pair<Int, Int>? {
+        for (y in 0 until mapMetadata.heightTiles) {
+            for (x in 0 until mapMetadata.widthTiles) {
+                if (predicate(terrainGrid.at(x, y))) return x to y
+            }
+        }
+        return null
+    }
 
     internal fun terrainCountForTest(material: TerrainMaterial): Int {
         var count = 0
@@ -273,8 +295,9 @@ class ServerMatchPrototype private constructor(
             views += PlayerView(
                 playerId = playerIndex,
                 controlledActorId = actorId,
-                cameraCenterX = tank.positionX,
-                cameraCenterY = tank.positionY,
+                // Legacy draw_screen(): the view follows the rocket marker while it is out.
+                cameraCenterX = if (tank.lockCameraTicks > 0) tank.lockX else tank.positionX,
+                cameraCenterY = if (tank.lockCameraTicks > 0) tank.lockY else tank.positionY,
                 hud = HudState(
                     armor = tank.armor,
                     shield = tank.shield,
@@ -297,6 +320,7 @@ class ServerMatchPrototype private constructor(
                     missionProgressBad = goalBad,
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
+                lockMarker = lockMarkerFor(tank),
             )
         }
         return views
@@ -839,7 +863,7 @@ class ServerMatchPrototype private constructor(
         TilePathfinder(mapMetadata.widthTiles, mapMetadata.heightTiles, navigationLayer())
     }
 
-    /** Walls plus terrain that kills on contact, so computer tanks route around water, pits and lava. */
+    /** Walls plus terrain that hurts on contact, so computer tanks route around pits and lava. */
     private fun navigationLayer(): List<Int> = solidLayer.mapIndexed { index, solid ->
         if (solid >= 0) return@mapIndexed solid
         val material = terrainGrid.at(index % mapMetadata.widthTiles, index / mapMetadata.widthTiles).material
@@ -914,15 +938,19 @@ class ServerMatchPrototype private constructor(
             dy.coerceIn(-1, 1),
         )
 
-        // No route (target across water, a pit or walls): hold position rather than drive into it.
-        val canReach = cachedPath.isNotEmpty() || distSq <= LEGACY_TILE_SIZE.toLong() * LEGACY_TILE_SIZE * 4
-        val bodyTurn = if (canReach) turnDelta(self.bodyDirection, bodyDesired) else 0
-        val turretTurn = turnDelta(self.turretDirection, turretDesired)
-        val bodyAligned = canReach && self.bodyDirection == bodyDesired
-        val turretAligned = self.turretDirection == turretDesired
         val fireRangeSq = (320L * 320L)
         val visible = lineOfSight.hasLineOfSight(self.positionX, self.positionY, target.positionX, target.positionY)
-        val fire = turretAligned && distSq <= fireRangeSq && self.primaryCooldownTicks == 0 && visible
+        // A hull-mounted gun (legacy rule_fire() uses motion.dir unless MAIN_TURRET) is aimed by
+        // turning the whole tank toward a target in range.
+        val hullAims = self.turretMode != TurretMode.TURRET && visible && distSq <= fireRangeSq
+        // No route (target across a pit, lava or walls): hold position rather than drive into it.
+        val canReach = cachedPath.isNotEmpty() || distSq <= LEGACY_TILE_SIZE.toLong() * LEGACY_TILE_SIZE * 4
+        val hullDesired = if (hullAims) turretDesired else bodyDesired
+        val bodyTurn = if (canReach || hullAims) turnDelta(self.bodyDirection, hullDesired) else 0
+        val turretTurn = turnDelta(self.turretDirection, turretDesired)
+        val bodyAligned = canReach && self.bodyDirection == hullDesired
+        val gunAligned = self.aimDirection == turretDesired
+        val fire = gunAligned && distSq <= fireRangeSq && self.primaryCooldownTicks == 0 && visible
         return com.tankarena.input.PlayerIntentFrame(
             forward = bodyAligned,
             turnLeft = bodyTurn < 0,
@@ -950,8 +978,9 @@ class ServerMatchPrototype private constructor(
     }
 
     /**
-     * Apply terrain effects (lava damage, water kill, pit kill) to all tanks.
-     * Also set per-tank terrain speed multipliers for the next motion step.
+     * Apply terrain effects (lava damage, pit kill) to all tanks, and set the per-tank terrain
+     * speed multiplier for the next motion step. Water only slows a tank down (its speed is in
+     * the picture table); the legacy game never kills a tank for driving into it.
      */
     private fun applyTerrainEffects() {
         val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
@@ -961,58 +990,41 @@ class ServerMatchPrototype private constructor(
             val tileY = tank.positionY / LEGACY_TILE_SIZE
             val tile = terrainGrid.at(tileX, tileY)
 
-            // Set terrain speed multiplier for next motion step
             tank.setTerrainSpeedMultiplier(tile.speedMultiplier)
 
-            // Lava: continuous damage (1 per tick, legacy HT_LAVA)
-            if (tile.material == TerrainMaterial.LAVA) {
-                tank.queueDamage(1)
-            }
+            // Legacy control_tank(): HT_LAVA hits for 2 every 10 ticks while the tank stays in lava.
+            tank.stepLava(inLava = tile.material == TerrainMaterial.LAVA)
 
-            // Water: kills non-amphibious tanks
-            if (tile.material == TerrainMaterial.WATER) {
+            val subX = (tank.positionX % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
+            val subY = (tank.positionY % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
+            if (inPit(tile, subX, subY)) {
                 tank.queueDamage(999) // Instant kill
-            }
-
-            // Pit detection: check sub-tile position within the pit tile
-            if (tile.material == TerrainMaterial.PIT_BIG || tile.material == TerrainMaterial.PIT_SMALL) {
-                val subX = (tank.positionX % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
-                val subY = (tank.positionY % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
-                val inPit = checkPit(subX, subY, tile.material, tileX, tileY)
-                if (inPit) {
-                    tank.queueDamage(999) // Instant kill
-                }
             }
         }
     }
 
     /**
-     * Check if a tank at sub-tile position (subX, subY) is inside a pit.
-     * Legacy in_pit() checks tile type + sub-tile position.
-     *
-     * Big pit: kill when subY > 8 && subY < 24 (center of tile)
-     * Small pit: kill when subY > 14 && subY < 18 (narrower center)
-     *
-     * Ramp tiles (RAMP_SMALL, RAMP_BIG) allow escape — not checked here.
+     * Legacy `in_pit()` (src/check/pit.c): the centre tile of a pit always swallows a tank, while
+     * an edge or corner tile only does so once the tank's centre is past the rim on the side
+     * facing the pit. [subX]/[subY] are the tank centre's offset inside its tile.
      */
-    private fun checkPit(subX: Int, subY: Int, material: TerrainMaterial, tileX: Int, tileY: Int): Boolean {
-        // Simplified pit check: center of tank within pit danger zone
-        // Legacy uses y2 (sub-tile Y offset of tank center within tile)
-        val y2 = subY
-        val x2 = subX
-
-        return when (material) {
-            TerrainMaterial.PIT_BIG -> {
-                // Big pit: danger zone is y2 > 8 && y2 < 24
-                // Different pit variants have different shapes (TL, TR, BL, BR, T, B, L, R, C)
-                // For now, use center-based check — all big pit variants kill in center region
-                y2 > 8 && y2 < 24 && x2 > 8 && x2 < 24
-            }
-            TerrainMaterial.PIT_SMALL -> {
-                // Small pit: danger zone is y2 > 14 && y2 < 18 (narrower)
-                y2 > 14 && y2 < 18 && x2 > 14 && x2 < 18
-            }
-            else -> false
+    private fun inPit(tile: TerrainTile, subX: Int, subY: Int): Boolean {
+        val shape = tile.pitShape ?: return false
+        val (low, high) = when (tile.material) {
+            TerrainMaterial.PIT_BIG -> 8 to 24
+            TerrainMaterial.PIT_SMALL -> 14 to 18
+            else -> return false
+        }
+        return when (shape) {
+            PitShape.CENTER -> true
+            PitShape.TOP -> subY > low
+            PitShape.BOTTOM -> subY < high
+            PitShape.LEFT -> subX > low
+            PitShape.RIGHT -> subX < high
+            PitShape.TOP_LEFT -> subX > low && subY > low
+            PitShape.TOP_RIGHT -> subX < high && subY > low
+            PitShape.BOTTOM_LEFT -> subX > low && subY < high
+            PitShape.BOTTOM_RIGHT -> subX < high && subY < high
         }
     }
 
@@ -1043,17 +1055,43 @@ class ServerMatchPrototype private constructor(
         }
     }
 
-    private fun triggerRocketContacts() {
-        val rockets = actorManager.allActors.value.filterIsInstance<ServerRocketActor>().filter { !it.isDead }
-        if (rockets.isEmpty()) return
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
-        for (rocket in rockets) {
-            val target = tanks.firstOrNull { tank ->
-                tank !== rocket.ownerRef &&
-                    withinRadius(tank.positionX, tank.positionY, rocket.positionX.toInt(), rocket.positionY.toInt(), SERVER_TANK_HALF + 4)
-            } ?: continue
-            rocket.explodeOn(target)
+    /** Legacy tank_write_marker(): which marker picture to show, and where. */
+    private fun lockMarkerFor(tank: ServerTankActor): LockMarker? {
+        if (tank.lockCameraTicks <= 0) return null
+        val state = when {
+            !tank.lockActive -> LockMarkerState.LAUNCHED
+            mode != MatchMode.DUAL && !withinRadius(tank.positionX, tank.positionY, tank.lockX, tank.lockY, LOCK_OUT_OF_RANGE_PX) ->
+                LockMarkerState.OUT_OF_RANGE
+            rocketTargetAt(tank.lockX, tank.lockY, tank) != null -> LockMarkerState.ON_TARGET
+            else -> LockMarkerState.SEARCHING
         }
+        return LockMarker(tank.lockX, tank.lockY, state)
+    }
+
+    /**
+     * Legacy nearest_target(): the closest live tank or turret within 15 px of ([x], [y]),
+     * other than [owner].
+     */
+    private fun rocketTargetAt(x: Int, y: Int, owner: ServerTankActor): RocketTarget? {
+        var best: RocketTarget? = null
+        var bestDistSq = ROCKET_TARGET_RADIUS_PX.toLong() * ROCKET_TARGET_RADIUS_PX
+        for (actor in actorManager.allActors.value) {
+            val (ax, ay, target) = when {
+                actor is ServerTankActor && actor !== owner && actor.armor > 0 ->
+                    Triple(actor.positionX, actor.positionY, RocketTarget { actor.takeIf { it.armor > 0 }?.let { it.positionX to it.positionY } })
+                actor is ServerTurretActor && actor.isAlive ->
+                    Triple(actor.positionX, actor.positionY, RocketTarget { actor.takeIf { it.isAlive }?.let { it.positionX to it.positionY } })
+                else -> continue
+            }
+            val dx = (ax - x).toLong()
+            val dy = (ay - y).toLong()
+            val distSq = dx * dx + dy * dy
+            if (distSq < bestDistSq) {
+                best = target
+                bestDistSq = distSq
+            }
+        }
+        return best
     }
 
     private fun drainRocketExplosions() {
@@ -1102,7 +1140,6 @@ class ServerMatchPrototype private constructor(
         request: ServerTankActor.RocketRequest,
     ): ServerRocketActor {
         val ownerActorId = actorIds[owner] ?: 0L
-        val target = pickRocketTarget(owner)
         val rocket = ServerRocketActor(
             ServerRocketActor.State(
                 body = PointBody(
@@ -1113,21 +1150,20 @@ class ServerMatchPrototype private constructor(
                 ),
                 ownerActorId = ownerActorId,
                 damage = request.damage,
-                velocityX = request.initialVelocityX,
-                velocityY = request.initialVelocityY,
-                targetX = target?.positionX ?: (request.originX + request.initialVelocityX.toInt() * 100),
-                targetY = target?.positionY ?: (request.originY + request.initialVelocityY.toInt() * 100),
+                targetX = request.targetX,
+                targetY = request.targetY,
             ),
         )
         rocket.ownerRef = owner
-        
+        rocket.target = rocketTargetAt(request.targetX, request.targetY, owner)
+
         // Emit sound event for rocket launch
         pendingEvents += GameEvent.Sound(
             kind = com.tankarena.protocol.snapshot.SoundKind.ROCKET,
             x = request.originX,
             y = request.originY,
         )
-        
+
         return rocket
     }
 
@@ -1207,25 +1243,6 @@ class ServerMatchPrototype private constructor(
         )
         
         return mortar
-    }
-
-    private fun pickRocketTarget(owner: ServerTankActor): ServerTankActor? {
-        var best: ServerTankActor? = null
-        var bestDistSq = Long.MAX_VALUE
-        for (candidate in actorManager.allActors.value) {
-            if (candidate !is ServerTankActor) continue
-            if (candidate === owner) continue
-            if (candidate.armor <= 0) continue
-            if (candidate.team == owner.team) continue
-            val dx = (candidate.positionX - owner.positionX).toLong()
-            val dy = (candidate.positionY - owner.positionY).toLong()
-            val distSq = dx * dx + dy * dy
-            if (distSq < bestDistSq) {
-                best = candidate
-                bestDistSq = distSq
-            }
-        }
-        return best
     }
 
     private fun triggerMineContacts() {

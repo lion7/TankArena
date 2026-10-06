@@ -104,6 +104,18 @@ internal fun createWorldBody(worldWidth: Int, worldHeight: Int): BoxBody = BoxBo
     initialPivot = SceneOffset(0f.sceneUnit, 0f.sceneUnit),
 )
 
+/**
+ * Legacy `bkground(x, y)` (src/include/function.h): every tile is first painted with one of four
+ * world background pictures, `BACK1`..`BACK16` (`back[variant + 4 * map.background]`). The
+ * original picks the variant from bytes of its own code segment (`_bkground` in
+ * src/world/rawunder.s), which is effectively fixed noise; a hash of the tile gives the same look.
+ */
+internal fun backgroundTileName(world: TankArenaWorld, tileX: Int, tileY: Int): String {
+    val hash = (tileX * 73_856_093) xor (tileY * 19_349_663)
+    val variant = (hash ushr 7) and 3
+    return "BACK${world.ordinal * 4 + variant + 1}"
+}
+
 internal fun addTileSprite(
     target: MutableSet<DrawableResource>,
     world: TankArenaWorld,

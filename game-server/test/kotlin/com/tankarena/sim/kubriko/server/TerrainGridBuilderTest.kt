@@ -77,40 +77,40 @@ class TerrainGridBuilderTest {
     }
 
     @Test
-    fun `builder multiplies speed from base and top layers`() {
-        // pc0 index 260 = WAT1 (WATER, 0.2) in base
-        // pc0 index 281 = BRIDGE (BRIDGE, 1.0) in top
-        // Expected speed: 0.2 * 1.0 = 0.2
+    fun `builder multiplies speed from base and solid layers`() {
+        // pc0 index 260 = WAT1 (WATER, 0.2) in base, pc0 index 0 = @ASE1A (0.8) in solid.
+        // Legacy move_tank() multiplies both: 0.2 * 0.8.
         val layers = TileLayers(
             base = listOf(260),
-            solid = listOf(-1),
-            top = listOf(281),
+            solid = listOf(0),
+            top = listOf(-1),
             goalLayer = emptyList(),
             bonusLayer = emptyList(),
             manTypeLayer = emptyList(),
             manAmountLayer = emptyList(),
         )
         val grid = TerrainGridBuilder.build(layers, makeMetadata(w = 1, h = 1))
-        // Top layer material (BRIDGE) overrides base (WATER)
-        assertEquals(TerrainMaterial.BRIDGE, grid.materialAt(0, 0))
-        assertEquals(0.2f, grid.speedAt(0, 0))
+        assertEquals(TerrainMaterial.WATER, grid.materialAt(0, 0))
+        assertEquals(0.2f * 0.8f, grid.speedAt(0, 0))
     }
 
     @Test
-    fun `builder top layer material overrides base`() {
-        // pc0 index 260 = WAT1 (WATER) in base
-        // pc0 index 281 = BRIDGE in top
+    fun `builder takes the type from the solid layer when the base has none`() {
+        // Legacy get_underground(): layer 0 first, layer 1 when layer 0 is empty or NOTHING.
+        // pc0 index 350 = PIJPH4 (NOTHING) in base, pc0 index 281 = @RUG1.H (BRIDGE_H) in solid;
+        // the top layer is decoration and never decides the type.
         val layers = TileLayers(
-            base = listOf(260),
-            solid = listOf(-1),
-            top = listOf(281),
+            base = listOf(350, 260),
+            solid = listOf(281, 281),
+            top = listOf(-1, 281),
             goalLayer = emptyList(),
             bonusLayer = emptyList(),
             manTypeLayer = emptyList(),
             manAmountLayer = emptyList(),
         )
-        val grid = TerrainGridBuilder.build(layers, makeMetadata(w = 1, h = 1))
+        val grid = TerrainGridBuilder.build(layers, makeMetadata(w = 2, h = 1))
         assertEquals(TerrainMaterial.BRIDGE, grid.materialAt(0, 0))
+        assertEquals(TerrainMaterial.WATER, grid.materialAt(1, 0))
     }
 
     @Test
@@ -149,9 +149,9 @@ class TerrainGridBuilderTest {
 
     @Test
     fun `builder resolves pit from base layer`() {
-        // pc0 index 350 = PIT_A (PIT_BIG)
+        // pc2 index 303 = GATCR (PIT_C)
         val layers = TileLayers(
-            base = listOf(350),
+            base = listOf(303),
             solid = listOf(-1),
             top = listOf(-1),
             goalLayer = emptyList(),
@@ -159,7 +159,7 @@ class TerrainGridBuilderTest {
             manTypeLayer = emptyList(),
             manAmountLayer = emptyList(),
         )
-        val grid = TerrainGridBuilder.build(layers, makeMetadata(w = 1, h = 1))
+        val grid = TerrainGridBuilder.build(layers, makeMetadata(w = 1, h = 1, world = TankArenaWorld.CITY))
         assertEquals(TerrainMaterial.PIT_BIG, grid.materialAt(0, 0))
     }
 

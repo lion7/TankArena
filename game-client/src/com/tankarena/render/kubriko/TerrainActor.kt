@@ -41,11 +41,17 @@ internal class TerrainActor(
                 val index = x + y * width
                 val px = snapshot.renderOffsetX + x * TILE_SIZE
                 val py = snapshot.renderOffsetY + y * TILE_SIZE
+                drawBackground(theme, x, y, px, py)
                 drawTile(theme, tiles.base[index], px, py)
                 drawTile(theme, tiles.solid[index], px, py)
                 drawTile(theme, tiles.top[index], px, py)
             }
         }
+    }
+
+    private fun DrawScope.drawBackground(world: TankArenaWorld, tileX: Int, tileY: Int, x: Float, y: Float) {
+        val image = sprites.findResource(backgroundTileName(world, tileX, tileY))?.let(spriteManager::get) ?: return
+        drawSprite(image, x, y, TILE_SIZE.toInt(), TILE_SIZE.toInt())
     }
 
     private fun DrawScope.drawTile(world: TankArenaWorld, tileId: Int, x: Float, y: Float) {

@@ -8,83 +8,131 @@ import com.tankarena.content.MissionText
 import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 import com.tankarena.content.TileLayers
 import com.tankarena.input.PlayerIntentFrame
+import com.tankarena.protocol.snapshot.ExplosionKind
+import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.LockMarkerState
 import com.tankarena.protocol.snapshot.TankState
 import kotlin.math.abs
-import kotlin.math.hypot
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * T11 acceptance: rockets accelerate toward a locked target with a bounded turn rate
- * and expire on TTL or impact.
+ * Legacy rocket (src/tanks/fire.c tank_marker_control(), src/objects/rocket.c): fire puts a
+ * lock-on marker on the tank, the drive keys steer it while fire is held, and releasing fire
+ * launches a rocket that homes on whatever is under the marker.
  */
 class ServerRocketTest {
 
     @Test
-    fun `rocket steers toward locked target over time`() {
+    fun `holding fire with rockets selected steers a marker instead of the tank`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(twoTankMap())
         prototype.initialize()
-        // Cycle MAIN -> CHAIN -> MINE -> ROCKET (4 cycles).
         cycleN(prototype, times = 3)
-        // Fire — turret faces east (4) but the locked target is offset south.
+        val shooter = prototype.playerTankForTest(0)!!
+        assertEquals(WEAPON_ROCKET, shooter.currentWeapon)
+        val startX = shooter.positionX
+        val startY = shooter.positionY
+
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        assertTrue(shooter.lockActive, "fire should bring out the marker")
+        repeat(30) { prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true, reverse = true))) }
 
-        val rockets0 = prototype.snapshotRockets()
-        assertEquals(1, rockets0.size, "exactly one rocket should be in flight")
-        val rocket = rockets0.single()
-        val initialVy = rocket.velocityY
-
-        // Let the rocket steer for a few ticks.
-        repeat(20) { prototype.tick() }
-        val laterRockets = prototype.snapshotRockets()
-        if (laterRockets.isEmpty()) {
-            // Rocket already hit / TTL'd in the chase — that's still acceptable, but
-            // we can't compare velocities. Skip the rest with an explicit assert.
-            return
-        }
-        val later = laterRockets.single()
-        assertTrue(
-            later.velocityY > initialVy,
-            "rocket should curve toward south-offset target — vy went from $initialVy to ${later.velocityY}",
-        )
+        assertEquals(startX, shooter.positionX, "the tank must not drive while the marker is out")
+        assertEquals(startY, shooter.positionY, "the tank must not drive while the marker is out")
+        assertTrue(shooter.lockY > startY + 50, "reverse should move the marker down — at ${shooter.lockY}")
+        assertTrue(prototype.snapshotRockets().isEmpty(), "no rocket before fire is released")
+        val view = prototype.buildPlayerViews().single { it.playerId == 0 }
+        assertEquals(shooter.lockX, view.cameraCenterX, "the camera follows the marker")
+        assertEquals(shooter.lockY, view.cameraCenterY, "the camera follows the marker")
+        assertTrue(view.lockMarker != null)
         prototype.dispose()
     }
 
     @Test
-    fun `rocket expires on TTL when no target is reachable`() {
-        val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4))
-        prototype.initialize()
-        cycleN(prototype, times = 3)
-        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
-
-        // Let the rocket fly until TTL expiry — drive ROCKET_TTL_TICKS+5 ticks.
-        repeat(ROCKET_TTL_TICKS + 10) { prototype.tick() }
-        assertTrue(prototype.snapshotRockets().isEmpty(), "rocket should expire after TTL")
-        prototype.dispose()
-    }
-
-    @Test
-    fun `rocket damages a non-owner tank on impact`() {
+    fun `releasing fire launches a rocket that homes on the tank under the marker`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(twoTankMap())
         prototype.initialize()
         cycleN(prototype, times = 3)
         val victimBefore = prototype.snapshot().enemyTank().armor
-        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        val victim = prototype.tanksForTest().single { it.playerIndex < 0 }
 
-        var hit = false
-        repeat(ROCKET_TTL_TICKS) {
-            prototype.tick()
-            if (prototype.snapshotRockets().isEmpty()) {
-                hit = true
-                return@repeat
-            }
+        // The victim drives around, so keep chasing its current position.
+        steerMarkerTo(prototype, { victim.positionX }, { victim.positionY })
+        assertEquals(LockMarkerState.ON_TARGET, prototype.buildPlayerViews().single().lockMarker?.state)
+        prototype.tick(mapOf(0 to PlayerIntentFrame()))
+        assertEquals(1, prototype.snapshotRockets().size, "releasing fire launches the rocket")
+
+        var exploded = false
+        repeat(1000) {
+            if (exploded) return@repeat
+            val frame = prototype.tick()
+            exploded = frame.events.any { it is GameEvent.Explosion && it.kind == ExplosionKind.ROCKET }
         }
         prototype.tick()
+        assertTrue(exploded, "rocket should reach its target")
         val victimAfter = prototype.snapshot().enemyTank().armor
-        assertTrue(hit, "rocket should have detonated within its TTL")
         assertTrue(victimAfter < victimBefore, "victim armor should drop — was $victimBefore, now $victimAfter")
         prototype.dispose()
+    }
+
+    @Test
+    fun `the marker stays within 450 px of the tank`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4))
+        prototype.initialize()
+        cycleN(prototype, times = 3)
+        val shooter = prototype.playerTankForTest(0)!!
+        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        repeat(400) { prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true, turnRight = true))) }
+        val distance = shooter.lockX - shooter.positionX
+        assertTrue(distance in 400 until LOCK_MAX_RANGE_PX, "marker should stop just short of 450 px, got $distance")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `a rocket without a target flies to the marker and explodes there`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4))
+        prototype.initialize()
+        cycleN(prototype, times = 3)
+        val shooter = prototype.playerTankForTest(0)!!
+        val goalX = shooter.positionX + 200
+        val goalY = shooter.positionY
+        steerMarkerTo(prototype, { goalX }, { goalY })
+        val targetX = shooter.lockX
+        prototype.tick(mapOf(0 to PlayerIntentFrame()))
+
+        var explosion: GameEvent.Explosion? = null
+        repeat(1000) {
+            if (explosion != null) return@repeat
+            explosion = prototype.tick().events.filterIsInstance<GameEvent.Explosion>().firstOrNull()
+        }
+        val blast = assertNotNull(explosion, "rocket should arrive")
+        assertTrue(abs(blast.x - targetX) <= ROCKET_ARRIVAL_PX, "blast at ${blast.x}, marker at $targetX")
+        assertTrue(prototype.snapshotRockets().isEmpty())
+        prototype.dispose()
+    }
+
+    /** Hold fire and steer the marker until it is within a few pixels of ([x], [y]), which may move. */
+    private fun steerMarkerTo(prototype: ServerMatchPrototype, x: () -> Int, y: () -> Int) {
+        val shooter = prototype.playerTankForTest(0)!!
+        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        repeat(600) {
+            val dx = x() - shooter.lockX
+            val dy = y() - shooter.lockY
+            if (abs(dx) <= 4 && abs(dy) <= 4) return
+            prototype.tick(
+                mapOf(
+                    0 to PlayerIntentFrame(
+                        firePrimary = true,
+                        turnLeft = dx < -4,
+                        turnRight = dx > 4,
+                        forward = dy < -4,
+                        reverse = dy > 4,
+                    ),
+                ),
+            )
+        }
     }
 
     private fun cycleN(prototype: ServerMatchPrototype, times: Int) {
@@ -96,11 +144,6 @@ class ServerRocketTest {
 
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.enemyTank(): TankState =
         actors.filterIsInstance<TankState>().single { !it.controlled }
-
-    private fun com.tankarena.protocol.snapshot.WorldSnapshot.tankByPlayerIndex(playerIndex: Int): TankState {
-        val controlled = actors.filterIsInstance<TankState>().filter { it.controlled }
-        return controlled.getOrNull(playerIndex) ?: actors.filterIsInstance<TankState>().single()
-    }
 
     private fun soloTankMap(direction: Int): CanonicalMapDefinition {
         val widthTiles = 110

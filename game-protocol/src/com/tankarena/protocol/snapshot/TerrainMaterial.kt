@@ -36,12 +36,21 @@ enum class TerrainMaterial {
 }
 
 /**
+ * Which part of a pit a [TerrainMaterial.PIT_BIG] / [TerrainMaterial.PIT_SMALL] tile is, named after
+ * the legacy `PIT_*` / `S_PIT_*` picture types: an edge or corner tile only swallows a tank on the
+ * side that faces the pit's centre (`in_pit()` in src/check/pit.c).
+ */
+@Serializable
+enum class PitShape { CENTER, TOP, BOTTOM, LEFT, RIGHT, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
+
+/**
  * Per-tile terrain info: material classification and speed multiplier.
  */
 @Serializable
 data class TerrainTile(
     val material: TerrainMaterial = TerrainMaterial.NORMAL,
     val speedMultiplier: Float = 1.0f,
+    val pitShape: PitShape? = null,
 )
 
 /**

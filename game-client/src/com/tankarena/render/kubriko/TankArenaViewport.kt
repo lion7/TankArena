@@ -161,7 +161,7 @@ private class TankArenaKubrikoRuntime(
         snapshot.playerView = playerView
         snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight, playfieldWidth)
         terrainActor.syncBounds()
-        clientScene.sync(world, events)
+        clientScene.sync(world, events, playerView.lockMarker)
         preloadSceneSprites(sidecar)
         viewportManager.setCameraPosition(
             SceneOffset(
@@ -186,6 +186,9 @@ private class TankArenaKubrikoRuntime(
             val world = sidecar.metadata.world
             val width = sidecar.metadata.widthTiles
             val height = sidecar.metadata.heightTiles
+            for (variant in 1..4) {
+                sprites.findResource("BACK${world.ordinal * 4 + variant}")?.let(resources::add)
+            }
             for (index in 0 until width * height) {
                 addTileSprite(resources, world, tiles.base[index], sprites)
                 addTileSprite(resources, world, tiles.solid[index], sprites)

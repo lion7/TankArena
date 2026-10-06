@@ -1,13 +1,9 @@
 package com.tankarena.render.kubriko.actor
 
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacySpriteResources
-import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.render.kubriko.RuntimeSnapshot
@@ -25,7 +21,6 @@ internal class TankActor(
     width = LEGACY_TILE_SIZE,
     height = LEGACY_TILE_SIZE,
 ) {
-    private var team: Team = Team.NEUTRAL
     private var tankType: Int = 0
     private var bodyDirection: Int = 0
     private var turretDirection: Int = 0
@@ -36,7 +31,6 @@ internal class TankActor(
     private var distanceSinceToggle: Int = 0
 
     fun sync(state: TankState) {
-        team = state.team
         tankType = state.tankType
         bodyDirection = state.bodyDirection
         turretDirection = state.turretDirection
@@ -74,16 +68,8 @@ internal class TankActor(
 
     override fun DrawScope.draw() {
         val images = spriteNames().map { name -> sprites.findResource(name)?.let(spriteManager::get) }
-        val body = images.firstOrNull()
-        if (body == null) {
-            if (!alive) return
-            drawRect(
-                color = if (team == Team.PLAYER) Color(0xFF6DD3FF) else Color(0xFFFF6D6D),
-                topLeft = Offset((LEGACY_TILE_SIZE - 24) / 2f, (LEGACY_TILE_SIZE - 24) / 2f),
-                size = Size(24f, 24f),
-            )
-            return
-        }
+        // Sprites load asynchronously at mission start; draw nothing until the body frame is ready.
+        if (images.firstOrNull() == null) return
         for (image in images) {
             // Vehicles without a separate turret have no frames past 31; skip what is missing.
             image ?: continue

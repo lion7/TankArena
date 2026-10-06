@@ -12,12 +12,26 @@ import kotlin.math.hypot
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-internal const val ROCKET_TTL_TICKS: Int = 330
-internal const val ROCKET_MAX_SPEED: Float = 10f
-internal const val ROCKET_ACCELERATION: Float = 0.5f
-internal const val ROCKET_BLAST_RADIUS_PX: Int = 20
-private const val ROCKET_TURN_RATE_RAD_PER_TICK: Float = 0.10f
+/** Legacy `rck.dist`: a rocket that has flown this far without reaching its target blows up. */
+internal const val ROCKET_RANGE_PX: Int = 3300
+/** Legacy `rck.v` cap in px per second; the rocket starts at 0 and gains 1 px/s every tick. */
+internal const val ROCKET_MAX_SPEED_PX_PER_SECOND: Int = 150
+/** Legacy control_rocket(): the rocket detonates once it is closer than this to its target. */
+internal const val ROCKET_ARRIVAL_PX: Int = 7
+/** Legacy `check_obj_hit_radius(..., 10, HT_ROCKET, ...)`. */
+internal const val ROCKET_BLAST_RADIUS_PX: Int = 10
+private const val TICKS_PER_SECOND: Float = 100f
 
+/** Something a rocket homes on: its current centre, or null once it is destroyed. */
+internal fun interface RocketTarget {
+    fun position(): Pair<Int, Int>?
+}
+
+/**
+ * Legacy homing missile (src/objects/rocket.c): it heads straight for its target every tick,
+ * accelerating from standstill, and explodes when it arrives or runs out of range. The target
+ * is whatever was under the lock-on marker when it was launched, or else the marker's spot.
+ */
 class ServerRocketActor internal constructor(state: State) :
     Collidable,
     Dynamic,
@@ -44,44 +58,42 @@ class ServerRocketActor internal constructor(state: State) :
         private set
     var targetY: Int = state.targetY
         private set
-    var ttlTicks: Int = state.ttlTicks
+    /** Current speed in px per second (legacy `rck.v`). */
+    var speed: Int = state.speed
+        private set
+    /** Distance left before the rocket gives up (legacy `rck.dist`). */
+    var rangeLeft: Float = state.rangeLeft
         private set
     var isDead: Boolean = false
         private set
 
     private var pendingExplosion: Boolean = false
     internal var ownerRef: ServerTankActor? = null
+    internal var target: RocketTarget? = null
 
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
-        steerTowardTarget()
-        positionX += velocityX
-        positionY += velocityY
-        val offset = SceneOffset(positionX.sceneUnit, positionY.sceneUnit)
-        body.position = offset
-        collisionMask.position = offset
-        ttlTicks -= 1
-        if (ttlTicks <= 0) markDead()
-    }
-
-    private fun steerTowardTarget() {
+        target?.position()?.let { (x, y) ->
+            targetX = x
+            targetY = y
+        }
         val dx = targetX - positionX
         val dy = targetY - positionY
         val distance = hypot(dx, dy)
-        if (distance < 0.5f) return
-
-        val desiredAngle = kotlin.math.atan2(dy, dx)
-        val currentAngle = kotlin.math.atan2(velocityY, velocityX)
-        var angleDelta = desiredAngle - currentAngle
-        while (angleDelta > kotlin.math.PI) angleDelta = (angleDelta - 2 * kotlin.math.PI).toFloat()
-        while (angleDelta < -kotlin.math.PI) angleDelta = (angleDelta + 2 * kotlin.math.PI).toFloat()
-        val clamped = angleDelta.toFloat().coerceIn(-ROCKET_TURN_RATE_RAD_PER_TICK, ROCKET_TURN_RATE_RAD_PER_TICK)
-        val newAngle = currentAngle + clamped
-
-        val currentSpeed = hypot(velocityX, velocityY)
-        val newSpeed = (currentSpeed + ROCKET_ACCELERATION).coerceAtMost(ROCKET_MAX_SPEED)
-        velocityX = (kotlin.math.cos(newAngle) * newSpeed).toFloat()
-        velocityY = (kotlin.math.sin(newAngle) * newSpeed).toFloat()
+        val arrived = distance < ROCKET_ARRIVAL_PX
+        val step = speed / TICKS_PER_SECOND
+        if (distance > 0f) {
+            velocityX = dx / distance * step
+            velocityY = dy / distance * step
+        }
+        positionX += velocityX
+        positionY += velocityY
+        rangeLeft -= step
+        if (speed < ROCKET_MAX_SPEED_PX_PER_SECOND) speed += 1
+        val offset = SceneOffset(positionX.sceneUnit, positionY.sceneUnit)
+        body.position = offset
+        collisionMask.position = offset
+        if (arrived || rangeLeft < 0f) markDead()
     }
 
     fun markOutOfBoundsIfNeeded(worldWidthPixels: Int, worldHeightPixels: Int) {
@@ -93,21 +105,18 @@ class ServerRocketActor internal constructor(state: State) :
         }
     }
 
-    internal fun explodeOn(@Suppress("UNUSED_PARAMETER") victim: ServerTankActor?) {
-        if (isDead) return
-        markDead()
-    }
-
     private fun markDead() {
         if (isDead) return
         isDead = true
         pendingExplosion = true
     }
 
+    /** The blast lands on the target (legacy: around the target, or at the marker's spot). */
     fun drainExplosion(): Explosion? {
         if (!pendingExplosion) return null
         pendingExplosion = false
-        return Explosion(positionX.toInt(), positionY.toInt())
+        val onTarget = rangeLeft >= 0f
+        return if (onTarget) Explosion(targetX, targetY) else Explosion(positionX.toInt(), positionY.toInt())
     }
 
     data class Explosion(val x: Int, val y: Int)
@@ -120,7 +129,8 @@ class ServerRocketActor internal constructor(state: State) :
         velocityY = velocityY,
         targetX = targetX,
         targetY = targetY,
-        ttlTicks = ttlTicks,
+        speed = speed,
+        rangeLeft = rangeLeft,
     )
 
     @kotlinx.serialization.Serializable
@@ -132,7 +142,8 @@ class ServerRocketActor internal constructor(state: State) :
         @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("targetX") val targetX: Int = 0,
         @SerialName("targetY") val targetY: Int = 0,
-        @SerialName("ttlTicks") val ttlTicks: Int = ROCKET_TTL_TICKS,
+        @SerialName("speed") val speed: Int = 0,
+        @SerialName("rangeLeft") val rangeLeft: Float = ROCKET_RANGE_PX.toFloat(),
     ) : Serializable.State<ServerRocketActor> {
         override fun restore(): ServerRocketActor = ServerRocketActor(this)
         override fun serialize(): String = Json.encodeToString(this)

@@ -36,11 +36,27 @@ private const val CHAIN_DAMAGE: Int = 10
 private const val CHAIN_PROJECTILE_TTL: Int = 21
 private const val MINE_DAMAGE: Int = 7
 private const val MINE_DEPLOY_COOLDOWN_TICKS: Int = 30
-private const val ROCKET_DAMAGE: Int = 10
+// Legacy weapon power is 10 for both the main gun and the rocket; damage is scaled like PRIMARY_DAMAGE
+// until the per-vehicle table (B7) brings in the legacy armor values.
+private const val ROCKET_DAMAGE: Int = PRIMARY_DAMAGE
 private const val ROCKET_FIRE_COOLDOWN_TICKS: Int = 200
-private const val MORTAR_DAMAGE: Int = 15
+// Legacy create_mortar(): a blast growing from 5 to 60 px that hits for 5 per step, so up to 60 at the
+// centre (6x the main gun's power); scaled like PRIMARY_DAMAGE.
+private const val MORTAR_DAMAGE: Int = PRIMARY_DAMAGE * 6
 private const val MORTAR_FIRE_COOLDOWN_TICKS: Int = 100
-private const val MORTAR_LAUNCH_SPEED: Float = 6f
+// Legacy create_bullet(HT_MORTAR): 75 px/s for 120 px, over walls.
+private const val MORTAR_SPEED: Float = 0.75f
+// Legacy tank_marker_control(): the marker moves every 3 ticks, starting at 5 px per step and
+// speeding up to 20, and must stay within 450 px of the tank outside player-vs-player.
+private const val LOCK_STEP_TICKS: Int = 3
+private const val LOCK_START_SPEED: Int = 5
+private const val LOCK_MAX_SPEED: Int = 20
+internal const val LOCK_MAX_RANGE_PX: Int = 450
+/** Legacy `lock.fired = tinit(50)`: the camera stays on the marker this long after launch. */
+private const val LOCK_CAMERA_HOLD_TICKS: Int = 50
+// Legacy control_tank(): HT_LAVA hits for 2 every 10 ticks.
+private const val LAVA_DAMAGE: Int = 2
+private const val LAVA_INTERVAL_TICKS: Int = 10
 internal const val RESPAWN_DELAY_TICKS: Int = 300
 private const val SHIELD_DECAY_TICKS: Int = 50
 
@@ -107,6 +123,7 @@ class ServerTankActor(state: State) :
     /** Legacy player start pad type (`type & 1` = player, `type >> 1` = vehicle kind); -1 for map tanks. */
     val startPadType: Int = state.startPadType
     val tankType: Int = state.tankType
+    val turretMode: TurretMode = LegacyVehicles.turretMode(tankType)
     var armor: Int = state.armor
     var shield: Int = state.shield
         private set
@@ -159,6 +176,24 @@ class ServerTankActor(state: State) :
     var velocityY: Float = state.velocityY
         private set
 
+    /** Rocket lock-on marker (legacy `tnk.lock`): active while the fire key is held with rockets selected. */
+    var lockActive: Boolean = false
+        private set
+    var lockX: Int = 0
+        private set
+    var lockY: Int = 0
+        private set
+    private var lockVelocityX: Int = 0
+    private var lockVelocityY: Int = 0
+    private var lockStepCooldownTicks: Int = 0
+    /** Ticks the camera keeps showing the marker; legacy `lock.fired`. */
+    var lockCameraTicks: Int = 0
+        private set
+    private var lockMaxX: Int = Int.MAX_VALUE
+    private var lockMaxY: Int = Int.MAX_VALUE
+    private var lockRangeLimited: Boolean = true
+    private var lavaCooldownTicks: Int = 0
+
     private var pendingIntent: PlayerIntentFrame = PlayerIntentFrame()
     private var hullTurnCooldownTicks: Int = 0
     private var turretTurnCooldownTicks: Int = 0
@@ -195,8 +230,8 @@ class ServerTankActor(state: State) :
     data class RocketRequest(
         val originX: Int,
         val originY: Int,
-        val initialVelocityX: Float,
-        val initialVelocityY: Float,
+        val targetX: Int,
+        val targetY: Int,
         val damage: Int,
     )
 
@@ -228,6 +263,25 @@ class ServerTankActor(state: State) :
         invulnerableTicks = invulnerableTicks.coerceAtLeast(ticks)
     }
 
+    /** Map limits for the rocket marker; [limitRange] is false in player-vs-player (legacy `game.mode==DUAL`). */
+    internal fun configureRocketLock(maxX: Int, maxY: Int, limitRange: Boolean) {
+        lockMaxX = maxX
+        lockMaxY = maxY
+        lockRangeLimited = limitRange
+    }
+
+    /** Legacy lava contact: [LAVA_DAMAGE] on entering and then every [LAVA_INTERVAL_TICKS] while inside. */
+    internal fun stepLava(inLava: Boolean) {
+        if (lavaCooldownTicks > 0) lavaCooldownTicks -= 1
+        if (!inLava || lavaCooldownTicks > 0) return
+        queueDamage(LAVA_DAMAGE)
+        lavaCooldownTicks = LAVA_INTERVAL_TICKS
+    }
+
+    /** Direction the main gun, flamer and mortar fire in: the turret only for `MAIN_TURRET` vehicles. */
+    val aimDirection: Int
+        get() = if (turretMode == TurretMode.TURRET) turretDirection else bodyDirection
+
     /** Set terrain speed multiplier from the terrain grid. Called each tick by ServerMatchPrototype. */
     fun setTerrainSpeedMultiplier(multiplier: Float) {
         terrainSpeedMultiplier = multiplier.coerceAtLeast(0f)
@@ -256,17 +310,29 @@ class ServerTankActor(state: State) :
                 respawnInTicks -= 1
                 if (respawnInTicks == 0) respawn()
             }
+            lockActive = false
+            lockCameraTicks = 0
             pendingIntent = PlayerIntentFrame()
             return
         }
         stepInvulnAndShield()
-        stepWeaponCycle()
-        stepHullTurn()
-        stepTurretTurn()
-        applyAcceleration()
-        applyFriction()
-        advancePosition()
-        stepFire()
+        if (lockCameraTicks > 0) lockCameraTicks -= 1
+        if (lockActive) {
+            // Legacy control_tank(): while the marker is out the drive keys steer it, so the tank
+            // neither turns nor accelerates and cannot switch weapons.
+            applyFriction()
+            advancePosition()
+            stepCooldowns()
+            stepRocketLock()
+        } else {
+            stepWeaponCycle()
+            stepHullTurn()
+            stepTurretTurn()
+            applyAcceleration()
+            applyFriction()
+            advancePosition()
+            stepFire()
+        }
         pendingIntent = PlayerIntentFrame()
     }
 
@@ -284,6 +350,8 @@ class ServerTankActor(state: State) :
         velocityY = 0f
         primaryCooldownTicks = 0
         respawnInTicks = 0
+        lockActive = false
+        lockCameraTicks = 0
         spawnedThisTick = true
         syncBodyFromPosition()
     }
@@ -467,6 +535,19 @@ class ServerTankActor(state: State) :
     }
 
     private fun stepTurretTurn() {
+        when (turretMode) {
+            // Legacy aim_left()/aim_right() only act on MAIN_TURRET guns.
+            TurretMode.STATIC -> {
+                turretDirection = bodyDirection
+                return
+            }
+            // Legacy tank_effects(): MAIN_ROTATE tops spin one step per tick.
+            TurretMode.ROTATE -> {
+                turretDirection = LegacyDirections.stepRight(turretDirection)
+                return
+            }
+            TurretMode.TURRET -> Unit
+        }
         turretTurnCooldownTicks = (turretTurnCooldownTicks - 1).coerceAtLeast(0)
         if (turretTurnCooldownTicks > 0) return
         when {
@@ -540,12 +621,16 @@ class ServerTankActor(state: State) :
         syncBodyFromPosition()
     }
 
-    private fun stepFire() {
+    private fun stepCooldowns() {
         primaryCooldownTicks = (primaryCooldownTicks - 1).coerceAtLeast(0)
         chainCooldownTicks = (chainCooldownTicks - 1).coerceAtLeast(0)
         mineDeployCooldownTicks = (mineDeployCooldownTicks - 1).coerceAtLeast(0)
         rocketCooldownTicks = (rocketCooldownTicks - 1).coerceAtLeast(0)
         mortarCooldownTicks = (mortarCooldownTicks - 1).coerceAtLeast(0)
+    }
+
+    private fun stepFire() {
+        stepCooldowns()
         if (!pendingIntent.firePrimary || armor <= 0) return
         when (currentWeapon) {
             WEAPON_MAIN -> fireMainCannon()
@@ -558,13 +643,13 @@ class ServerTankActor(state: State) :
 
     private fun fireMortar() {
         if (mortarCooldownTicks > 0 || mortarAmmo <= 0) return
-        val (fx, fy) = LegacyDirections.unitVector(turretDirection)
+        val (fx, fy) = LegacyDirections.unitVector(aimDirection)
         val barrelOffset = SERVER_TANK_HALF + 2
         pendingMortarRequest = MortarRequest(
             originX = positionX + (fx * barrelOffset).toInt(),
             originY = positionY + (fy * barrelOffset).toInt(),
-            velocityX = fx * MORTAR_LAUNCH_SPEED,
-            velocityY = fy * MORTAR_LAUNCH_SPEED,
+            velocityX = fx * MORTAR_SPEED,
+            velocityY = fy * MORTAR_SPEED,
             damage = MORTAR_DAMAGE,
             maxRadius = MORTAR_MAX_RADIUS_PX,
         )
@@ -572,20 +657,77 @@ class ServerTankActor(state: State) :
         mortarAmmo -= 1
     }
 
+    /**
+     * Legacy tank_fire() case 4: a human player gets a lock-on marker at the tank, steered with
+     * the drive keys until fire is released (see [stepRocketLock]); a computer tank launches
+     * straight at its target. The ammo and refire delay are spent when the marker appears.
+     */
     private fun fireRocket() {
         if (rocketCooldownTicks > 0 || rocketAmmo <= 0) return
-        val (fx, fy) = LegacyDirections.unitVector(turretDirection)
-        val launchSpeed = 2f
+        rocketCooldownTicks = ROCKET_FIRE_COOLDOWN_TICKS
+        rocketAmmo -= 1
+        lockActive = true
+        lockX = positionX
+        lockY = positionY
+        lockVelocityX = 0
+        lockVelocityY = 0
+        lockStepCooldownTicks = 0
+        lockCameraTicks = LOCK_CAMERA_HOLD_TICKS
+    }
+
+    /** Fire a rocket straight at a point, as legacy computer tanks do (`tank_fire_locked()`). */
+    internal fun fireRocketAt(targetX: Int, targetY: Int) {
+        if (rocketCooldownTicks > 0 || rocketAmmo <= 0) return
+        rocketCooldownTicks = ROCKET_FIRE_COOLDOWN_TICKS
+        rocketAmmo -= 1
+        launchRocket(targetX, targetY)
+    }
+
+    /** Legacy tank_marker_control(). */
+    private fun stepRocketLock() {
+        lockCameraTicks = LOCK_CAMERA_HOLD_TICKS
+        if (!pendingIntent.firePrimary) {
+            lockActive = false
+            launchRocket(lockX, lockY)
+            return
+        }
+        if (lockStepCooldownTicks > 0) {
+            lockStepCooldownTicks -= 1
+            return
+        }
+        lockVelocityY = markerVelocity(lockVelocityY, negative = pendingIntent.forward, positive = pendingIntent.reverse)
+        lockVelocityX = markerVelocity(lockVelocityX, negative = pendingIntent.turnLeft, positive = pendingIntent.turnRight)
+        val nextX = (lockX + lockVelocityX).coerceIn(0, lockMaxX)
+        val nextY = (lockY + lockVelocityY).coerceIn(0, lockMaxY)
+        val dx = (nextX - positionX).toLong()
+        val dy = (nextY - positionY).toLong()
+        if (!lockRangeLimited || dx * dx + dy * dy < LOCK_MAX_RANGE_PX.toLong() * LOCK_MAX_RANGE_PX) {
+            lockX = nextX
+            lockY = nextY
+        } else {
+            lockVelocityX = 0
+            lockVelocityY = 0
+        }
+        lockStepCooldownTicks = LOCK_STEP_TICKS - 1
+    }
+
+    /** One axis of the legacy marker: jump to 5 px per step in the pressed direction, then speed up to 20. */
+    private fun markerVelocity(current: Int, negative: Boolean, positive: Boolean): Int = when {
+        negative -> if (current >= 0) -LOCK_START_SPEED else (current - 1).coerceAtLeast(-LOCK_MAX_SPEED)
+        positive -> if (current <= 0) LOCK_START_SPEED else (current + 1).coerceAtMost(LOCK_MAX_SPEED)
+        else -> 0
+    }
+
+    private fun launchRocket(targetX: Int, targetY: Int) {
+        val (fx, fy) = LegacyDirections.unitVector(aimDirection)
         val barrelOffset = SERVER_TANK_HALF + 2
         pendingRocketRequest = RocketRequest(
             originX = positionX + (fx * barrelOffset).toInt(),
             originY = positionY + (fy * barrelOffset).toInt(),
-            initialVelocityX = fx * launchSpeed,
-            initialVelocityY = fy * launchSpeed,
+            targetX = targetX,
+            targetY = targetY,
             damage = ROCKET_DAMAGE,
         )
-        rocketCooldownTicks = ROCKET_FIRE_COOLDOWN_TICKS
-        rocketAmmo -= 1
     }
 
     private fun deployMine() {
@@ -602,20 +744,21 @@ class ServerTankActor(state: State) :
 
     private fun fireMainCannon() {
         if (primaryCooldownTicks > 0) return
-        pendingFireRequest = buildFireRequest(damage = PRIMARY_DAMAGE, ttl = PROJECTILE_TTL_TICKS, weapon = WEAPON_MAIN)
+        pendingFireRequest = buildFireRequest(aimDirection, damage = PRIMARY_DAMAGE, ttl = PROJECTILE_TTL_TICKS, weapon = WEAPON_MAIN)
         primaryCooldownTicks = PRIMARY_COOLDOWN_TICKS
     }
 
     private fun fireChainGun() {
         if (chainCooldownTicks > 0 || chainAmmo <= 0) return
-        pendingFireRequest = buildFireRequest(damage = CHAIN_DAMAGE, ttl = CHAIN_PROJECTILE_TTL, weapon = WEAPON_CHAIN)
+        // Legacy tank_fire() case 1: the chain guns are mounted on the hull.
+        pendingFireRequest = buildFireRequest(bodyDirection, damage = CHAIN_DAMAGE, ttl = CHAIN_PROJECTILE_TTL, weapon = WEAPON_CHAIN)
         chainCooldownTicks = CHAIN_COOLDOWN_TICKS
         chainAmmo -= 1
     }
 
-    private fun buildFireRequest(damage: Int, ttl: Int, weapon: Int): FireRequest {
-        val (fx, fy) = LegacyDirections.unitVector(turretDirection)
-        val (vx, vy) = LegacyDirections.toVelocityStep(turretDirection, PROJECTILE_SPEED)
+    private fun buildFireRequest(direction: Int, damage: Int, ttl: Int, weapon: Int): FireRequest {
+        val (fx, fy) = LegacyDirections.unitVector(direction)
+        val (vx, vy) = LegacyDirections.toVelocityStep(direction, PROJECTILE_SPEED)
         val barrelOffset = SERVER_TANK_HALF + 2
         return FireRequest(
             originX = positionX + (fx * barrelOffset).toInt(),

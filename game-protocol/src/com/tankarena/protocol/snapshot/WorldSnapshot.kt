@@ -51,7 +51,33 @@ data class PlayerView(
     val cameraHeight: Int = 400,
     val hud: HudState,
     val radar: List<RadarContact> = emptyList(),
+    /** Rocket lock-on marker while it is being steered or just after launch; null otherwise. */
+    val lockMarker: LockMarker? = null,
 )
+
+/** The legacy rocket marker (`tank_write_marker()` in src/game/mainloop.c), in world pixels. */
+@Serializable
+data class LockMarker(
+    val x: Int,
+    val y: Int,
+    val state: LockMarkerState,
+)
+
+/** Which of the four legacy marker pictures (`MARKER + l`) to draw. */
+@Serializable
+enum class LockMarkerState {
+    /** Steering, nothing under the marker. */
+    SEARCHING,
+
+    /** Steering, a target is under the marker. */
+    ON_TARGET,
+
+    /** The rocket is on its way. */
+    LAUNCHED,
+
+    /** Steering, but further than 400 px from the tank. */
+    OUT_OF_RANGE,
+}
 
 @Serializable
 data class HudState(

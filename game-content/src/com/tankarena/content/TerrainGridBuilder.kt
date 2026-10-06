@@ -1,21 +1,24 @@
 package com.tankarena.content
 
 import com.tankarena.protocol.snapshot.TerrainGrid
-import com.tankarena.protocol.snapshot.TerrainMaterial
 import com.tankarena.protocol.snapshot.TerrainTile
 
 /**
  * Builds a [TerrainGrid] from a [TileLayers] and [MapMetadata].
  *
- * The legacy code applies speed multipliers from both layer 0 (base) and layer 1 (top),
- * multiplying them together. The material comes from whichever layer has a non-default entry.
+ * Follows the legacy lookups in src/tanks/control.c:
+ * - the tile type comes from layer 0 (base) and falls through to layer 1 (solid) when the
+ *   base tile is missing or has type `NOTHING` (`get_underground()` / `get_type()`);
+ * - the speed multiplies the base and solid pictures' speeds (`move_tank()`). The legacy code
+ *   only counts the solid layer once its structure is destroyed, but a tank cannot stand on an
+ *   intact structure, so multiplying both is equivalent.
  */
 object TerrainGridBuilder {
 
     /**
      * Build a TerrainGrid from tile layers and map metadata.
      *
-     * @param layers The tile layers (base + top picture indices).
+     * @param layers The tile layers (base + solid picture indices).
      * @param metadata Map metadata including world type and dimensions.
      * @return A TerrainGrid with per-tile material and speed info.
      */
@@ -27,27 +30,15 @@ object TerrainGridBuilder {
         val w = metadata.widthTiles
         val h = metadata.heightTiles
         val size = w * h
-        val tiles = Array(size) { TerrainTile() }
-
-        val base = layers.base
-        val top = layers.top
-
-        for (i in 0 until size) {
-            val baseIdx = base.getOrElse(i) { -1 }
-            val topIdx = top.getOrElse(i) { -1 }
-
-            // Resolve base layer
-            val baseTile = if (baseIdx >= 0) PictureCatalog.resolve(metadata.world, baseIdx) else TerrainTile()
-            // Resolve top layer
-            val topTile = if (topIdx >= 0) PictureCatalog.resolve(metadata.world, topIdx) else TerrainTile()
-
-            // Speed multipliers multiply (legacy behavior: dv *= pic[layer0].speed; dv *= pic[layer1].speed)
-            val speed = baseTile.speedMultiplier * topTile.speedMultiplier
-
-            // Material: top layer overrides base where it has a non-NORMAL material
-            val material = if (topTile.material != TerrainMaterial.NORMAL) topTile.material else baseTile.material
-
-            tiles[i] = TerrainTile(material = material, speedMultiplier = speed)
+        val world = metadata.world
+        val tiles = Array(size) { i ->
+            val baseIdx = layers.base.getOrElse(i) { -1 }
+            val solidIdx = layers.solid.getOrElse(i) { -1 }
+            val baseRow = PictureCatalog.legacyRow(world, baseIdx)
+            val typeIdx = if (baseRow == null || PictureCatalog.isNothing(baseRow.type)) solidIdx else baseIdx
+            val speed = PictureCatalog.resolve(world, baseIdx).speedMultiplier *
+                PictureCatalog.resolve(world, solidIdx).speedMultiplier
+            PictureCatalog.resolve(world, typeIdx).copy(speedMultiplier = speed)
         }
 
         return TerrainGrid.fromTiles(w, h, tiles)

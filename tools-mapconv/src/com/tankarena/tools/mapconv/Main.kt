@@ -20,6 +20,7 @@ fun main(args: Array<String>) {
           mapconv scene <legacy-map-file> <output-scenes-dir>
           mapconv scene-all <legacy-maps-dir> <output-scenes-dir>
           mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>
+          mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <src/data/pictures.c>
         """.trimIndent()
     }
@@ -88,6 +89,15 @@ fun main(args: Array<String>) {
                 outputCatalogFile = File(args[3]),
                 picturesSourceFile = File(args[4]),
             )
+        }
+
+        "extract-picture-terrain" -> {
+            require(args.size >= 3) {
+                "Usage: mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>"
+            }
+            val output = File(args[2])
+            LegacyPictureTerrainExtractor.generateKotlin(sourceFile = File(args[1]), outputFile = output)
+            println("Extracted legacy picture terrain -> ${output.absolutePath}")
         }
 
         "extract-pictures" -> {

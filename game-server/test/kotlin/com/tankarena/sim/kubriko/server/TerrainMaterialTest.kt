@@ -10,6 +10,7 @@ import com.tankarena.content.TankArenaWorld
 import com.tankarena.content.TerrainGridBuilder
 import com.tankarena.content.TileLayers
 import com.tankarena.protocol.snapshot.TerrainGrid
+import com.tankarena.protocol.snapshot.PitShape
 import com.tankarena.protocol.snapshot.TerrainMaterial
 import com.tankarena.sim.kubriko.server.legacy.LegacyMapImporter
 import org.junit.jupiter.api.Test
@@ -99,11 +100,14 @@ class TerrainMaterialTest {
     }
 
     @Test
-    fun `picture catalog resolves big pit in desert`() {
-        // pc0 index 350 = PIT_A (TL), speed 1.0, PIT_BIG
-        val tile = com.tankarena.content.PictureCatalog.resolve(TankArenaWorld.DESERT, 350)
-        assertEquals(TerrainMaterial.PIT_BIG, tile.material)
-        assertEquals(1.0f, tile.speedMultiplier)
+    fun `picture catalog resolves big pit pieces in city`() {
+        // pc2 index 303 = GATCR (PIT_C), 308 = GATTL (PIT_TL); only the city world has big pits.
+        val centre = com.tankarena.content.PictureCatalog.resolve(TankArenaWorld.CITY, 303)
+        assertEquals(TerrainMaterial.PIT_BIG, centre.material)
+        assertEquals(PitShape.CENTER, centre.pitShape)
+        val corner = com.tankarena.content.PictureCatalog.resolve(TankArenaWorld.CITY, 308)
+        assertEquals(TerrainMaterial.PIT_BIG, corner.material)
+        assertEquals(PitShape.TOP_LEFT, corner.pitShape)
     }
 
     @Test
@@ -242,8 +246,8 @@ class TerrainMaterialTest {
 
     @Test
     fun `picture catalog resolves big ramp in desert`() {
-        // pc0 index 426 = @CHANS1, speed 1.0, RAMP_BIG
-        val tile = com.tankarena.content.PictureCatalog.resolve(TankArenaWorld.DESERT, 426)
+        // pc0 index 429 = @CHANS1, speed 1.0, B_RAMP_U
+        val tile = com.tankarena.content.PictureCatalog.resolve(TankArenaWorld.DESERT, 429)
         assertEquals(TerrainMaterial.RAMP_BIG, tile.material)
         assertEquals(1.0f, tile.speedMultiplier)
     }

@@ -22,6 +22,13 @@ internal object AreaDamageResolver {
         owner: ServerTankActor? = null,
         ownerImmune: Boolean = false,
         turrets: List<ServerTurretActor> = emptyList(),
+        /** Legacy HT_ROCKET: the shield key does not stop it. */
+        unshieldable: Boolean = false,
+        /**
+         * Legacy check_obj_hit_radius() hits everything in range for full power; only the mortar's
+         * growing blast (create_mortar()) loses power with distance.
+         */
+        falloff: Boolean = true,
     ): List<GameEvent> {
         val events = mutableListOf<GameEvent>()
         
@@ -36,9 +43,9 @@ internal object AreaDamageResolver {
                 // centroid so a tank whose body is grazed by the blast still takes some damage.
                 val edgeDist = (centerDist - SERVER_TANK_HALF).coerceAtLeast(0f)
                 if (edgeDist >= radius) continue
-                val scaled = (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt()
+                val scaled = if (falloff) (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt() else damage
                 if (scaled <= 0) continue
-                tank.queueDamage(scaled)
+                if (unshieldable) tank.queueUnshieldableDamage(scaled) else tank.queueDamage(scaled)
             }
             for (turret in turrets) {
                 if (!turret.isAlive) continue
@@ -47,7 +54,7 @@ internal object AreaDamageResolver {
                 val half = (turret.body.size.width.raw / 2f)
                 val edgeDist = (kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat() - half).coerceAtLeast(0f)
                 if (edgeDist >= radius) continue
-                val scaled = (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt()
+                val scaled = if (falloff) (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt() else damage
                 if (scaled > 0) turret.takeDamage(scaled)
             }
         }

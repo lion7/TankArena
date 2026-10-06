@@ -63,12 +63,18 @@ fun TiledPanelBackground(
     }
 }
 
-private fun loadPanelTile(): ImageBitmap? {
-    val customRoot = System.getProperty("tankarena.assets.background")
+private fun loadPanelTile(): ImageBitmap? =
+    loadUnpackedBackground("panel.bmp", System.getProperty("tankarena.assets.background"))
+
+/**
+ * Loads a picture extracted from `DATA/BITMAPS.DAT` into `unpacked/backgrounds/` (the panel
+ * tile, the `BLACK*.BMP` help-page backdrops). Returns `null` when the file is missing.
+ */
+internal fun loadUnpackedBackground(fileName: String, override: String? = null): ImageBitmap? {
     val candidates = buildList {
-        if (!customRoot.isNullOrBlank()) add(File(customRoot))
-        add(File("unpacked/backgrounds/panel.bmp"))
-        add(File(System.getProperty("user.dir") ?: ".", "unpacked/backgrounds/panel.bmp"))
+        if (!override.isNullOrBlank()) add(File(override))
+        add(File("unpacked/backgrounds/$fileName"))
+        add(File(System.getProperty("user.dir") ?: ".", "unpacked/backgrounds/$fileName"))
     }
     val file = candidates.firstOrNull { it.isFile } ?: return null
     return runCatching {

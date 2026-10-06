@@ -21,8 +21,12 @@ internal object LegacyObjectParser {
     private const val TANK_CONTR_ID = 268
     private const val TANK_CONTR_COMPUTER = 276
     private const val TANK_CONTR_GOOD = 280
+    private const val TANK_ARMOR = 328
+    private const val TANK_WEAPON_AMMO = 368
+    private const val TANK_WEAPON_POWER = 432
+    private const val TANK_WEAPON_COUNT = 12
     private const val TANK_WAYPOINT_COUNT = 10
-    private const val TANK_STRUCT_END = TANK_CONTR_GOOD + 4
+    private const val TANK_STRUCT_END = TANK_WEAPON_POWER + TANK_WEAPON_COUNT * 4
 
     private const val TYPE_TANK = 0
     private const val TYPE_B52 = 1
@@ -329,6 +333,10 @@ internal object LegacyObjectParser {
             put("active", reader.readInt(OFFSET_UNION + TANK_ACTIVE).toString())
             put("activationRadius", reader.readInt(OFFSET_UNION + TANK_ACTIVATION_RAD).toString())
             put("stayActive", reader.readInt(OFFSET_UNION + TANK_STAY_ACTIVE).toString())
+            // Legacy `shield.armor`, `weap.nw[]` and `weap.power[]`: maps give each tank its own armor and loadout.
+            put("armor", reader.readInt(OFFSET_UNION + TANK_ARMOR).toString())
+            put("ammo", (0 until TANK_WEAPON_COUNT).joinToString(",") { reader.readInt(OFFSET_UNION + TANK_WEAPON_AMMO + it * 4).toString() })
+            put("power", (0 until TANK_WEAPON_COUNT).joinToString(",") { reader.readInt(OFFSET_UNION + TANK_WEAPON_POWER + it * 4).toString() })
             if (waypoints.isNotEmpty()) put("waypoints", waypoints)
         }
     }

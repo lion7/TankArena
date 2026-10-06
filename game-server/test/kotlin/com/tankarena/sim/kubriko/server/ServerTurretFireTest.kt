@@ -27,7 +27,7 @@ class ServerTurretFireTest {
         val startDirection = prototype.snapshot().turret().turretDirection
         var sawProjectile = false
         var lastDirection = startDirection
-        repeat(120) {
+        repeat(600) {
             val frame = prototype.tick()
             lastDirection = frame.turret().turretDirection
             if (frame.actors.filterIsInstance<ProjectileState>()

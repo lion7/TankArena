@@ -81,11 +81,7 @@ class ServerMineTest {
     }
 
     private fun cycleToMine(prototype: ServerMatchPrototype) {
-        // MAIN -> CHAIN -> MINE
-        prototype.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
-        repeat(15) { prototype.tick() }
-        prototype.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
-        repeat(15) { prototype.tick() }
+        prototype.selectWeaponForTest(WEAPON_MINE)
     }
 
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.tankByPlayerIndex(playerIndex: Int): TankState {

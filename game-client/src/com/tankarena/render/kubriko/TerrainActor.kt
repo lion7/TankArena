@@ -4,7 +4,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
 import com.pandulapeter.kubriko.actor.body.BoxBody
 import com.pandulapeter.kubriko.actor.traits.Visible
 import com.pandulapeter.kubriko.sprites.SpriteManager
@@ -25,13 +24,9 @@ internal class TerrainActor(
     }
 
     override fun DrawScope.draw() {
+        // Outside the map the shell's tiled background shows through, as around the legacy
+        // playfield window.
         val sidecar = snapshot.sidecar
-        drawRect(
-            color = Color(0xFF0B1020),
-            topLeft = Offset.Zero,
-            size = Size(snapshot.sceneWidth.toFloat(), snapshot.sceneHeight.toFloat()),
-            style = Fill,
-        )
         val tiles = sidecar?.tileLayers ?: return
         val width = sidecar.metadata.widthTiles
         val height = sidecar.metadata.heightTiles

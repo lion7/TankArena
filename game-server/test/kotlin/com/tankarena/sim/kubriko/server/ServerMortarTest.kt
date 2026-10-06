@@ -23,7 +23,7 @@ class ServerMortarTest {
     fun `mortar disappears after travel time and emits an explosion event`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4))
         prototype.initialize()
-        cycleN(prototype, times = 4)
+        prototype.selectWeaponForTest(WEAPON_MORTAR)
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         assertEquals(1, prototype.snapshotMortars().size, "mortar should be in flight")
 
@@ -63,13 +63,6 @@ class ServerMortarTest {
 
         assertTrue(nearDamage > 0, "tank at center should take damage — was $nearDamage")
         assertTrue(farDamage < nearDamage, "tank at edge should take less damage than center — center=$nearDamage edge=$farDamage")
-    }
-
-    private fun cycleN(prototype: ServerMatchPrototype, times: Int) {
-        repeat(times) {
-            prototype.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
-            repeat(15) { prototype.tick() }
-        }
     }
 
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.enemyTank(): TankState =

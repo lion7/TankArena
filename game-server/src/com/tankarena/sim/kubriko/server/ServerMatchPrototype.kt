@@ -25,6 +25,7 @@ import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
+import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.B52State
 import com.tankarena.protocol.snapshot.DestroyerState
@@ -52,6 +53,7 @@ import com.tankarena.protocol.snapshot.TurretState
 import com.tankarena.protocol.snapshot.WallState
 import com.tankarena.protocol.snapshot.WorldSnapshot
 import com.tankarena.sim.kubriko.TerrainSlideManager
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -59,6 +61,8 @@ import kotlinx.coroutines.withTimeout
 private const val MILLIS_PER_TICK: Int = 10
 /** Legacy nearest_target(): a rocket locks onto anything within 15 px of the marker. */
 private const val ROCKET_TARGET_RADIUS_PX: Int = 15
+/** Legacy HT_FLAME hit radius. */
+private const val FLAME_HIT_RADIUS_PX: Int = 15
 /** Legacy tank_write_marker(): the marker turns red beyond 400 px. */
 private const val LOCK_OUT_OF_RANGE_PX: Int = 400
 private val DEADLY_TERRAIN = setOf(
@@ -77,6 +81,8 @@ class ServerMatchPrototype private constructor(
     private val terrainGrid: TerrainGrid,
     private val solidLayer: List<Int>,
     val mode: MatchMode,
+    /** Legacy make_tank(): human tanks start with the blinking start shield. */
+    private val startShields: Boolean,
 ) {
 
     private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
@@ -137,11 +143,13 @@ class ServerMatchPrototype private constructor(
         }
         allTanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
         for (tank in allTanks) {
-            tank.configureRocketLock(
+            tank.configureForMatch(
                 maxX = worldWidthPixels - LEGACY_TILE_SIZE,
                 maxY = worldHeightPixels - LEGACY_TILE_SIZE,
-                limitRange = mode != MatchMode.DUAL,
+                dual = mode == MatchMode.DUAL,
             )
+            // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
+            if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_TICKS)
         }
         val all = actorManager.allActors.value
         val reachable = all.filterIsInstance<ServerTankActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
@@ -169,6 +177,7 @@ class ServerMatchPrototype private constructor(
         applyTerrainEffects()
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
+        triggerFlameContacts()
         flushOutOfBoundsRockets()
         flushOutOfBoundsMortars()
         removeDeadProjectiles()
@@ -311,10 +320,9 @@ class ServerMatchPrototype private constructor(
                     kills = missionKills,
                     time = currentTick,
                     currentWeapon = tank.currentWeapon,
-                    chainAmmo = tank.chainAmmo,
-                    mineAmmo = tank.mineAmmo,
-                    rocketAmmo = tank.rocketAmmo,
-                    mortarAmmo = tank.mortarAmmo,
+                    ammo = tank.ammoCounts,
+                    hasFlamer = tank.spec.hasFlamer,
+                    tankId = tank.controllerId,
                     maxArmor = tank.maxArmor,
                     maxFuel = tank.maxFuel,
                     missionProgressBad = goalBad,
@@ -326,15 +334,19 @@ class ServerMatchPrototype private constructor(
         return views
     }
 
+    /**
+     * Legacy write_radar() (src/game/radar.c): every live tank including the player's own, every
+     * turret and every rocket; the client keeps those within 15 tiles of the player.
+     */
     private fun buildRadar(
         self: ServerTankActor,
         tanks: List<ServerTankActor>,
         turrets: List<ServerTurretActor>,
-        goals: List<ServerGoalActor>,
+        @Suppress("UNUSED_PARAMETER") goals: List<ServerGoalActor>,
     ): List<RadarContact> {
         val contacts = mutableListOf<RadarContact>()
         for (tank in tanks) {
-            if (tank === self) continue
+            if (tank.armor <= 0) continue
             val id = actorIds[tank] ?: continue
             contacts += RadarContact(
                 actorId = id,
@@ -355,21 +367,14 @@ class ServerMatchPrototype private constructor(
                 team = turret.team.toProtocolTeam(),
             )
         }
-        for (goal in goals) {
-            if (goal.isClaimed) continue
-            val id = actorIds[goal] ?: continue
-            val position = goal.body.position
-            val size = goal.body.size
+        for (rocket in actorManager.allActors.value.filterIsInstance<ServerRocketActor>()) {
+            if (rocket.isDead) continue
+            val id = actorIds[rocket] ?: continue
             contacts += RadarContact(
                 actorId = id,
-                approximateX = (position.x.raw + size.width.raw / 2f).toInt(),
-                approximateY = (position.y.raw + size.height.raw / 2f).toInt(),
-                kind = RadarContactKind.GOAL,
-                team = when (goal.who) {
-                    0 -> Team.PLAYER
-                    1 -> Team.ENEMY
-                    else -> Team.NEUTRAL
-                },
+                approximateX = rocket.positionX.toInt(),
+                approximateY = rocket.positionY.toInt(),
+                kind = RadarContactKind.PROJECTILE,
             )
         }
         return contacts
@@ -629,6 +634,10 @@ class ServerMatchPrototype private constructor(
                 // Track kills: when an enemy tank is destroyed, count it
                 for (e in events) {
                     if (e !is GameEvent.TankDestroyed) continue
+                    // Legacy hit_tank(): every other side's tanks may refill at their base again.
+                    for (other in allTanks) {
+                        if (other.playerIndex != actor.playerIndex) other.allowBaseRefill()
+                    }
                     if (actor.team == 1) {
                         missionKills++
                         missionScore += 1000
@@ -998,7 +1007,7 @@ class ServerMatchPrototype private constructor(
             val subX = (tank.positionX % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
             val subY = (tank.positionY % LEGACY_TILE_SIZE + LEGACY_TILE_SIZE) % LEGACY_TILE_SIZE
             if (inPit(tile, subX, subY)) {
-                tank.queueDamage(999) // Instant kill
+                tank.startFalling()
             }
         }
     }
@@ -1041,11 +1050,54 @@ class ServerMatchPrototype private constructor(
             .filterIsInstance<ServerProjectileActor>()
             .filter { it.isDead }
         if (doomed.isEmpty()) return
+        for (projectile in doomed) {
+            val end = projectile.drainExplosion() ?: continue
+            hitEffectFor(projectile.weaponKind, end.expired)?.let { pendingEvents += GameEvent.Effect(it, end.x, end.y) }
+        }
         val expected = actorManager.allActors.value.size - doomed.size
         actorManager.remove(doomed)
         awaitActorCount(expected)
         for (projectile in doomed) {
             actorIds.remove(projectile)
+        }
+    }
+
+    /**
+     * Legacy `hit[type].explosion` (src/check/hitwall.c) for a bullet that hits something, and
+     * control_bullets() for one that runs out of range: the main gun explodes either way, a chain-gun
+     * round sparks or puffs, a flame burns where it hit and simply dies out otherwise.
+     */
+    private fun hitEffectFor(weaponKind: Int, expired: Boolean): EffectKind? = when (weaponKind) {
+        WEAPON_CHAIN -> if (expired) EffectKind.PLUF else EffectKind.CHAIN
+        WEAPON_FLAME -> if (expired) null else EffectKind.FLAME
+        else -> EffectKind.EXPLOSION
+    }
+
+    /**
+     * Legacy line_obj_hit_radius(..., 15, HT_FLAME, ...): a flame burns the first live tank or
+     * turret within 15 px of it, other than the tank that fired it.
+     */
+    private fun triggerFlameContacts() {
+        val flames = actorManager.allActors.value.filterIsInstance<ServerProjectileActor>()
+            .filter { it.weaponKind == WEAPON_FLAME && !it.isDead }
+        if (flames.isEmpty()) return
+        for (flame in flames) {
+            val tank = allTanks.firstOrNull { tank ->
+                tank !== flame.ownerRef && tank.armor > 0 &&
+                    withinRadius(tank.positionX, tank.positionY, flame.positionX, flame.positionY, FLAME_HIT_RADIUS_PX)
+            }
+            if (tank != null) {
+                tank.queueDamage(flame.damage)
+                flame.burn(tank)
+                continue
+            }
+            val turret = actorManager.allActors.value.filterIsInstance<ServerTurretActor>().firstOrNull { turret ->
+                turret.isAlive && withinRadius(turret.positionX, turret.positionY, flame.positionX, flame.positionY, FLAME_HIT_RADIUS_PX)
+            }
+            if (turret != null) {
+                turret.takeDamage(flame.damage)
+                flame.burn(null)
+            }
         }
     }
 
@@ -1106,8 +1158,10 @@ class ServerMatchPrototype private constructor(
                 radius = ROCKET_BLAST_RADIUS_PX,
                 damage = actor.damage,
                 kind = ExplosionKind.ROCKET,
+                falloff = false,
                 owner = actor.ownerRef,
                 ownerImmune = true,
+                unshieldable = true,
                 turrets = actorManager.allActors.value.filterIsInstance<ServerTurretActor>(),
             ))
         }
@@ -1270,6 +1324,7 @@ class ServerMatchPrototype private constructor(
                 radius = actor.radius,
                 damage = actor.damage,
                 kind = ExplosionKind.MINE,
+                falloff = false,
             ))
         }
     }
@@ -1323,8 +1378,7 @@ class ServerMatchPrototype private constructor(
     private fun drainFireRequests() {
         val spawns = mutableListOf<ServerProjectileActor>()
         for (tank in allTanks) {
-            val request = tank.drainFireRequest() ?: continue
-            spawns += projectileFromRequest(tank, request)
+            for (request in tank.drainFireRequests()) spawns += projectileFromRequest(tank, request)
         }
         for (actor in actorManager.allActors.value) {
             if (actor is ServerTurretActor) {
@@ -1393,6 +1447,8 @@ class ServerMatchPrototype private constructor(
                 damage = request.damage,
                 velocityX = request.velocityX,
                 velocityY = request.velocityY,
+                ttlTicks = request.ttlTicks,
+                weaponKind = if (request.chain) WEAPON_CHAIN else WEAPON_MAIN,
             ),
         )
         projectile.ownerTurretRef = owner
@@ -1464,10 +1520,9 @@ class ServerMatchPrototype private constructor(
                     controlled = actor.playerIndex >= 0,
                     primaryCooldownTicks = actor.primaryCooldownTicks,
                     currentWeapon = actor.currentWeapon,
-                    chainAmmo = actor.chainAmmo,
-                    mineAmmo = actor.mineAmmo,
-                    rocketAmmo = actor.rocketAmmo,
-                    mortarAmmo = actor.mortarAmmo,
+                    height = actor.height,
+                    // Legacy write_tank(): ARMOR overlay while the shield key works or the start shield blinks on.
+                    shielded = actor.shieldActive || (actor.invulnerableTicks / 5) % 2 == 1,
                 )
             }
 
@@ -1506,10 +1561,15 @@ class ServerMatchPrototype private constructor(
                 ownerId = actor.ownerActorId,
                 x = actor.positionX,
                 y = actor.positionY,
-                vx = actor.velocityX,
-                vy = actor.velocityY,
+                vx = actor.velocityX.roundToInt(),
+                vy = actor.velocityY.roundToInt(),
                 ownerKind = actor.ownerKind,
-                kind = if (actor.weaponKind == WEAPON_CHAIN) ProjectileKind.CHAIN else ProjectileKind.BULLET,
+                kind = when (actor.weaponKind) {
+                    WEAPON_CHAIN -> ProjectileKind.CHAIN
+                    WEAPON_FLAME -> ProjectileKind.FLAME
+                    else -> ProjectileKind.BULLET
+                },
+                rangeLeft = actor.rangeLeft,
             )
 
             is ServerRocketActor -> ProjectileState(
@@ -1526,6 +1586,7 @@ class ServerMatchPrototype private constructor(
                 x = actor.positionX.toInt(),
                 y = actor.positionY.toInt(),
                 kind = ProjectileKind.MORTAR,
+                rangeLeft = (actor.travelTicksRemaining * kotlin.math.hypot(actor.velocityX, actor.velocityY)).toInt(),
             )
 
             is ServerMineActor -> MineState(
@@ -1652,13 +1713,21 @@ class ServerMatchPrototype private constructor(
     }
 
     companion object {
-        internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): ServerMatchPrototype {
+        /**
+         * Test fixtures. They start without the legacy start shield ([startShields]) so a fixture can
+         * hurt a tank on its first tick.
+         */
+        internal fun fromCanonicalMap(
+            map: CanonicalMapDefinition,
+            mode: MatchMode = MatchMode.SINGLE,
+            startShields: Boolean = false,
+        ): ServerMatchPrototype {
             // Round-trip through scene JSON so fixtures exercise the same load path as shipped scenes.
             val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
                 *tankArenaSerializableMetadata,
             )
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
-            return create(map.metadata, map.layers, serializationManagerForBuild.deserializeActors(sceneJson), mode)
+            return create(map.metadata, map.layers, serializationManagerForBuild.deserializeActors(sceneJson), mode, startShields)
         }
 
         /**
@@ -1670,7 +1739,7 @@ class ServerMatchPrototype private constructor(
                 *tankArenaSerializableMetadata,
             )
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            return create(sidecar.metadata, sidecar.tileLayers, actors, mode)
+            return create(sidecar.metadata, sidecar.tileLayers, actors, mode, startShields = true)
         }
 
         private fun create(
@@ -1678,6 +1747,7 @@ class ServerMatchPrototype private constructor(
             layers: TileLayers?,
             actors: List<Serializable<*>>,
             mode: MatchMode,
+            startShields: Boolean,
         ): ServerMatchPrototype {
             val cellCount = metadata.widthTiles * metadata.heightTiles
             val solidLayer = layers?.solid?.takeIf { it.size == cellCount } ?: List(cellCount) { -1 }
@@ -1687,6 +1757,7 @@ class ServerMatchPrototype private constructor(
                 terrainGrid = TerrainGridBuilder.build(layers, metadata),
                 solidLayer = solidLayer,
                 mode = mode,
+                startShields = startShields,
             )
             instance.aiModeDispatcher = AiModeDispatcher(
                 mode = metadata.modeCompatibility,

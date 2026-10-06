@@ -16,9 +16,12 @@ interface MatchClient {
 
 class LocalMatchClient private constructor(
     private val prototype: ServerMatchPrototype,
+    /** Records the inputs and result of the match, so it can be replayed as a test. */
+    val recorder: MatchRecorder? = null,
 ) : MatchClient {
 
     private val latestInputs: MutableMap<Int, InputFrame> = mutableMapOf()
+    private var tickIndex: Long = 0
 
     override fun submitInput(input: InputFrame) {
         latestInputs[input.playerId] = input
@@ -30,7 +33,11 @@ class LocalMatchClient private constructor(
         } else {
             latestInputs.mapValues { (_, frame) -> frame.toIntent() }
         }
-        return toServerFrame(prototype.tick(intents))
+        recorder?.record(tickIndex, intents)
+        val world = prototype.tick(intents)
+        recorder?.recordEvents(prototype, tickIndex, world.events)
+        tickIndex++
+        return toServerFrame(world)
     }
 
     override fun currentServerFrame(): ServerFrame = toServerFrame(prototype.snapshot())
@@ -46,10 +53,16 @@ class LocalMatchClient private constructor(
     )
 
     companion object {
-        fun fromSceneJson(sceneJson: String, sidecar: MapSceneSidecar, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {
+        /** [recordAs] names the shipped scene to record the match under; null plays without recording. */
+        fun fromSceneJson(
+            sceneJson: String,
+            sidecar: MapSceneSidecar,
+            mode: MatchMode = MatchMode.SINGLE,
+            recordAs: String? = null,
+        ): LocalMatchClient {
             val prototype = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, mode)
             prototype.initialize()
-            return LocalMatchClient(prototype)
+            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode) })
         }
 
         internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {

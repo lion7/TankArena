@@ -17,6 +17,9 @@ object RetroColors {
     val ItemDisabled = Color(0xFF3F4762)
     val Subtitle = Color(0xFF8FA2C8)
     val Footer = Color(0xFF6F7DA0)
+
+    /** Legacy `read_string` cursor block, VGA colour 0x0A. */
+    val PromptCursor = Color(0xFF55FF55)
 }
 
 object RetroTypography {
@@ -38,6 +41,14 @@ object RetroTypography {
         fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
+    )
+
+    /** The legacy 6x6 system font: prompt bars, password lists and help pages. */
+    val Line: TextStyle = TextStyle(
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp,
+        letterSpacing = 1.sp,
     )
 
     val Footer: TextStyle = TextStyle(

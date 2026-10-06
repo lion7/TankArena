@@ -39,33 +39,44 @@ class ServerProjectileActor internal constructor(state: State) :
     val ownerKind: ProjectileOwnerKind = state.ownerKind
     val damage: Int = state.damage
     val weaponKind: Int = state.weaponKind
-    val velocityX: Int = state.velocityX
-    val velocityY: Int = state.velocityY
+    /** Velocity in px per tick. */
+    val velocityX: Float = state.velocityX
+    val velocityY: Float = state.velocityY
 
-    var positionX: Int = body.position.x.raw.toInt()
+    private var exactX: Float = body.position.x.raw
+    private var exactY: Float = body.position.y.raw
+    var positionX: Int = exactX.toInt()
         private set
-    var positionY: Int = body.position.y.raw.toInt()
+    var positionY: Int = exactY.toInt()
         private set
     var ttlTicks: Int = state.ttlTicks
         private set
     var isDead: Boolean = false
         private set
 
+    /** Pixels left to fly (legacy `b->dist`). */
+    val rangeLeft: Int get() = (ttlTicks * kotlin.math.hypot(velocityX, velocityY)).toInt()
+
     private var explosionX: Int = 0
     private var explosionY: Int = 0
     private var explosionPending: Boolean = false
+    /** True when the projectile ran out of range instead of hitting something. */
+    private var expired: Boolean = false
     private var tankHitRef: ServerTankActor? = null
     internal var ownerRef: ServerTankActor? = null
     internal var ownerTurretRef: ServerTurretActor? = null
 
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
-        positionX += velocityX
-        positionY += velocityY
+        exactX += velocityX
+        exactY += velocityY
+        positionX = exactX.toInt()
+        positionY = exactY.toInt()
         syncBody()
         ttlTicks -= 1
         if (ttlTicks <= 0) {
             markDead(positionX, positionY)
+            expired = true
         }
     }
 
@@ -88,6 +99,8 @@ class ServerProjectileActor internal constructor(state: State) :
             when (other) {
                 is ServerWallActor -> markDead(positionX, positionY)
                 is ServerTankActor -> {
+                    // Flames hit by proximity (ServerMatchPrototype.triggerFlameContacts()).
+                    if (weaponKind == WEAPON_FLAME) continue
                     if (ownerKind == ProjectileOwnerKind.TANK && other === ownerRef) continue
                     if (other.armor <= 0) continue
                     other.queueDamage(damage)
@@ -96,6 +109,7 @@ class ServerProjectileActor internal constructor(state: State) :
                 }
 
                 is ServerTurretActor -> {
+                    if (weaponKind == WEAPON_FLAME) continue
                     // Wrecked turrets no longer stop bullets.
                     if (!other.isAlive) continue
                     if (other === ownerTurretRef) continue
@@ -107,15 +121,22 @@ class ServerProjectileActor internal constructor(state: State) :
         }
     }
 
+    /** Legacy line_obj_hit_radius(): a flame stops at the first thing it burns. */
+    internal fun burn(target: ServerTankActor?) {
+        if (isDead) return
+        tankHitRef = target
+        markDead(positionX, positionY)
+    }
+
     fun drainExplosion(): Explosion? {
         if (!explosionPending) return null
         explosionPending = false
         val hit = tankHitRef
         tankHitRef = null
-        return Explosion(explosionX, explosionY, hit)
+        return Explosion(explosionX, explosionY, hit, expired)
     }
 
-    data class Explosion(val x: Int, val y: Int, val tankHit: ServerTankActor?)
+    data class Explosion(val x: Int, val y: Int, val tankHit: ServerTankActor?, val expired: Boolean = false)
 
     override fun save(): State = State(
         body = body,
@@ -148,8 +169,8 @@ class ServerProjectileActor internal constructor(state: State) :
         @SerialName("ownerActorId") val ownerActorId: Long = 0L,
         @SerialName("ownerKind") val ownerKind: ProjectileOwnerKind = ProjectileOwnerKind.TANK,
         @SerialName("damage") val damage: Int = 0,
-        @SerialName("velocityX") val velocityX: Int = 0,
-        @SerialName("velocityY") val velocityY: Int = 0,
+        @SerialName("velocityX") val velocityX: Float = 0f,
+        @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("ttlTicks") val ttlTicks: Int = PROJECTILE_TTL_TICKS,
         @SerialName("weaponKind") val weaponKind: Int = WEAPON_MAIN,
     ) : Serializable.State<ServerProjectileActor> {

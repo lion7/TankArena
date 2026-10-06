@@ -10,10 +10,14 @@ import com.tankarena.core.LegacyDirections
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-private const val FIRE_DELAY_TICKS: Int = 150
-private const val RANGE_PIXELS: Int = 240
-private const val PRIMARY_DAMAGE: Int = 25
-private const val PROJECTILE_SPEED: Float = 8f
+/** Legacy `ti[0]` (src/objects/turret.c): delay 150 ticks, power 5, radius 200. */
+private const val DEFAULT_FIRE_DELAY_TICKS: Int = 150
+private const val DEFAULT_RANGE_PIXELS: Int = 200
+private const val DEFAULT_POWER: Int = 5
+/** Legacy control_turret(): the gun turns one step every 35 ticks. */
+private const val TURN_DELAY_TICKS: Int = 35
+/** Legacy create_bullet(): 200 px/s, i.e. 2 px per tick. */
+private const val BULLET_SPEED_PX_PER_TICK: Float = 2f
 
 class ServerTurretActor internal constructor(state: State) : Collidable, Editable<ServerTurretActor> {
 
@@ -34,6 +38,11 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
     var goalContribution: Int = state.goalContribution
         internal set
     val isAlive: Boolean get() = armor > 0
+    /** Legacy `tur.power`, `tur.delay` and `tur.radius`, stored with the turret in the map. */
+    val power: Int = state.power
+    val fireDelayTicks: Int = state.delay
+    val rangePixels: Int = state.radius
+    private var turnCooldownTicks: Int = 0
 
     private var destroyedThisTick: Boolean = false
 
@@ -45,9 +54,11 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
     data class FireRequest(
         val originX: Int,
         val originY: Int,
-        val velocityX: Int,
-        val velocityY: Int,
+        val velocityX: Float,
+        val velocityY: Float,
         val damage: Int,
+        val ttlTicks: Int,
+        val chain: Boolean,
     )
 
     fun step(tanks: List<ServerTankActor>) {
@@ -59,20 +70,25 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
             facingX = (target.positionX - positionX).coerceIn(-1, 1),
             facingY = (target.positionY - positionY).coerceIn(-1, 1),
         )
-        turretDirection = LegacyDirections.stepToward(turretDirection, desired)
+        turnCooldownTicks = (turnCooldownTicks - 1).coerceAtLeast(0)
+        if (turnCooldownTicks == 0 && turretDirection != desired) {
+            turretDirection = LegacyDirections.stepToward(turretDirection, desired)
+            turnCooldownTicks = TURN_DELAY_TICKS
+        }
 
         if (cooldownTicks == 0 && turretDirection == desired) {
-            val (vx, vy) = LegacyDirections.toVelocityStep(turretDirection, PROJECTILE_SPEED)
-            val vxi = vx.toInt().let { if (it == 0 && vx != 0f) (if (vx > 0) 1 else -1) else it }
-            val vyi = vy.toInt().let { if (it == 0 && vy != 0f) (if (vy > 0) 1 else -1) else it }
+            val (fx, fy) = LegacyDirections.unitVector(turretDirection)
             pendingFireRequest = FireRequest(
-                originX = positionX + vxi * 2,
-                originY = positionY + vyi * 2,
-                velocityX = vxi,
-                velocityY = vyi,
-                damage = PRIMARY_DAMAGE,
+                originX = positionX + (fx * 12).toInt(),
+                originY = positionY + (fy * 12).toInt(),
+                velocityX = fx * BULLET_SPEED_PX_PER_TICK,
+                velocityY = fy * BULLET_SPEED_PX_PER_TICK,
+                damage = power,
+                ttlTicks = (rangePixels / BULLET_SPEED_PX_PER_TICK).toInt(),
+                // Legacy: turrets with power below 2 fire chain-gun rounds.
+                chain = power < 2,
             )
-            cooldownTicks = FIRE_DELAY_TICKS
+            cooldownTicks = fireDelayTicks
         }
     }
 
@@ -108,12 +124,15 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         armor = armor,
         cooldownTicks = cooldownTicks,
         goalContribution = goalContribution,
+        power = power,
+        delay = fireDelayTicks,
+        radius = rangePixels,
     )
 
     private fun nearestTargetInRange(tanks: List<ServerTankActor>): ServerTankActor? {
         var best: ServerTankActor? = null
         var bestDistSq = Long.MAX_VALUE
-        val rangeSq = RANGE_PIXELS.toLong() * RANGE_PIXELS.toLong()
+        val rangeSq = rangePixels.toLong() * rangePixels.toLong()
         for (tank in tanks) {
             if (tank.armor <= 0) continue
             if (tank.team == team) continue
@@ -133,11 +152,22 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         @SerialName("body") val body: SerializableBoxBody = BoxBody(),
         @SerialName("turretDirection") val turretDirection: Int = 0,
         @SerialName("team") val team: Int = 1,
-        @SerialName("armor") val armor: Int = 100,
+        @SerialName("armor") val armor: Int = DEFAULT_TURRET_ARMOR,
         @SerialName("cooldownTicks") val cooldownTicks: Int = 0,
         @SerialName("goalContribution") val goalContribution: Int = 0,
+        @SerialName("power") val power: Int = DEFAULT_POWER,
+        @SerialName("delay") val delay: Int = DEFAULT_FIRE_DELAY_TICKS,
+        @SerialName("radius") val radius: Int = DEFAULT_RANGE_PIXELS,
     ) : Serializable.State<ServerTurretActor> {
         override fun restore(): ServerTurretActor = ServerTurretActor(this)
         override fun serialize(): String = Json.encodeToString(this)
+    }
+
+    companion object {
+        /**
+         * Legacy turrets have no armor of their own: they fall with the structure they stand on
+         * (control_turret()). Until structures are destructible a turret takes as many hits as a tank.
+         */
+        const val DEFAULT_TURRET_ARMOR: Int = 30
     }
 }

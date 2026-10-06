@@ -6,7 +6,9 @@ import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LegacySpriteResources
 import com.tankarena.protocol.snapshot.B52State
 import com.tankarena.protocol.snapshot.DestroyerState
+import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.EnforcerState
+import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.FlagState
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.GoalState
@@ -31,10 +33,27 @@ import com.tankarena.render.kubriko.actor.TankActor
 import com.tankarena.render.kubriko.actor.TurretActor
 import org.jetbrains.compose.resources.DrawableResource
 
-/** Ticks each explosion frame stays on screen (5 frames at 100 Hz ≈ 0.3 s). */
-private const val EXPLOSION_TICKS_PER_FRAME = 6
-private const val EXPLOSION_FRAMES = 5
 private const val EFFECT_LAYER = 3
+
+/**
+ * Legacy `eff[]` (src/world/effects.c): each effect is a run of pictures, each shown for its
+ * delay in ticks. After the first frame the original adds up to half the delay again at random.
+ */
+private val EFFECT_FRAMES: Map<EffectKind, List<Pair<String, Int>>> = mapOf(
+    EffectKind.SMOKE to listOf("SMOKE1" to 50, "SMOKE2" to 50),
+    EffectKind.RUIN to listOf("RUIN1" to 25, "RUIN2" to 25, "RUIN3" to 25, "RUIN4" to 25),
+    EffectKind.FIRE to listOf("FIRE1" to 13, "FIRE2" to 25, "FIRE3" to 25),
+    EffectKind.EXPLOSION to listOf("EXP1" to 25, "EXP2" to 25, "EXP3" to 25, "EXP4" to 25, "EXP5" to 25),
+    EffectKind.CHAIN to listOf("CHAIN1" to 13, "CHAIN2" to 13, "CHAIN3" to 13),
+    EffectKind.FLAME to listOf("FLAME1" to 25, "FLAME2" to 25, "FLAME3" to 25, "FLAME4" to 25, "FLAME5" to 25),
+    EffectKind.PLUF to listOf("PLUF1" to 13, "PLUF2" to 13),
+    EffectKind.SPLASH to listOf("SPLASH1" to 25, "SPLASH2" to 25, "SPLASH3" to 25),
+    EffectKind.SFIRE to listOf("SFIRE" to 10),
+    EffectKind.ROOK to listOf("ROOK1" to 25, "ROOK2" to 25, "ROOK3" to 25, "ROOK4" to 25, "ROOK5" to 25),
+    EffectKind.LEXPLOSION to listOf("IXP1" to 25, "IXP2" to 25, "IXP3" to 25, "IXP4" to 25, "IXP5" to 25),
+    EffectKind.MORTAR_FIRE to listOf("MFIRE1" to 13, "MFIRE2" to 25, "MFIRE3" to 25),
+    EffectKind.LAVA to listOf("LAVA1" to 25, "LAVA2" to 25, "LAVA3" to 25, "LAVA4" to 25),
+)
 private const val LOCK_MARKER_ID = Long.MIN_VALUE
 
 internal class ClientScene(
@@ -49,11 +68,10 @@ internal class ClientScene(
     private val projectiles = LinkedHashMap<Long, ProjectileActor>()
     private val objects = LinkedHashMap<Long, SpriteActor>()
 
-    private class Effect(val actor: SpriteActor, val startTick: Long)
+    private class Effect(val actor: SpriteActor, val frames: List<Pair<String, Int>>, var frame: Int, var nextFrameTick: Long)
 
     private val effects = mutableListOf<Effect>()
     private var nextEffectId = -1L
-    private val tankPositions = HashMap<Long, Pair<Int, Int>>()
 
     private var lockMarkerActor: SpriteActor? = null
 
@@ -68,7 +86,6 @@ internal class ClientScene(
             when (state) {
                 is TankState -> {
                     tankIds += state.actorId
-                    tankPositions[state.actorId] = state.x to state.y
                     tanks.getOrPut(state.actorId) {
                         TankActor(
                             id = state.actorId,
@@ -111,7 +128,9 @@ internal class ClientScene(
                         }.sync(state)
                     }
                     ProjectileKind.ROCKET -> syncObject(objectIds, state.actorId, state.x, state.y, rocketSprite(state))
-                    ProjectileKind.MORTAR -> syncObject(objectIds, state.actorId, state.x, state.y, "MORT3")
+                    // Legacy write_bullets(): flames and mortar shells change picture as they fly (`b->dist`).
+                    ProjectileKind.MORTAR -> syncObject(objectIds, state.actorId, state.x, state.y, "MORT${flightFrame(state.rangeLeft)}")
+                    ProjectileKind.FLAME -> syncObject(objectIds, state.actorId, state.x, state.y, "FLAME${flightFrame(state.rangeLeft)}")
                 }
                 is MineState -> syncObject(objectIds, state.actorId, state.x, state.y, "MINE")
                 is FlagState -> syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")
@@ -134,7 +153,6 @@ internal class ClientScene(
         prune(goals, goalIds)
         prune(projectiles, projectileIds)
         prune(objects, objectIds)
-        tankPositions.keys.retainAll(tankIds)
         rocketPositions.keys.retainAll(objectIds)
         rocketDirections.keys.retainAll(objectIds)
         syncEffects(world.tick, events)
@@ -164,9 +182,14 @@ internal class ClientScene(
         tanks.values.forEach { it.collectSpriteResources(target) }
         turrets.values.forEach { it.collectSpriteResources(target) }
         objects.values.forEach { it.collectSpriteResources(target) }
-        for (stage in 0 until EXPLOSION_FRAMES) {
-            sprites.findResource(LegacySpriteResources.nameForExplosion(stage))?.let(target::add)
+        for (frames in EFFECT_FRAMES.values) {
+            frames.forEach { (name, _) -> sprites.findResource(name)?.let(target::add) }
         }
+        for (index in 1..5) {
+            sprites.findResource("FLAME$index")?.let(target::add)
+            sprites.findResource("MORT$index")?.let(target::add)
+        }
+        sprites.findResource("ARMOR")?.let(target::add)
         for (name in listOf("MARKER", "MARKER2", "MARKER3", "MARKER4")) {
             sprites.findResource(name)?.let(target::add)
         }
@@ -181,6 +204,9 @@ internal class ClientScene(
             moveTo(x, y)
         }
     }
+
+    /** Legacy `FLAME + 4 - dist / 25` (and the same for MORTAR): frame 1 at launch, 5 when nearly spent. */
+    private fun flightFrame(rangeLeft: Int): Int = (5 - rangeLeft / 25).coerceIn(1, 5)
 
     /** Rockets steer, so their facing is derived from movement between snapshots. */
     private fun rocketSprite(state: ProjectileState): String {
@@ -204,35 +230,47 @@ internal class ClientScene(
         return if (index < 10) "PRODUCT$index" else "PRODUC$index"
     }
 
-    /** Explosions (and destroyed tanks) become short EXP1..EXP5 animations. */
+    /** Legacy create_effect()/control_effects(): server effect events play as picture runs. */
     private fun syncEffects(tick: Long, events: List<GameEvent>) {
         for (event in events) {
             when (event) {
-                is GameEvent.Explosion -> spawnExplosion(event.x, event.y, tick)
-                is GameEvent.TankDestroyed -> tankPositions[event.actorId]?.let { (x, y) -> spawnExplosion(x, y, tick) }
+                is GameEvent.Effect -> spawnEffect(event.kind, event.x, event.y, tick)
+                is GameEvent.Explosion -> spawnEffect(
+                    if (event.kind == ExplosionKind.ROCKET) EffectKind.LEXPLOSION else EffectKind.EXPLOSION,
+                    event.x,
+                    event.y,
+                    tick,
+                )
                 else -> Unit
             }
         }
         val iterator = effects.iterator()
         while (iterator.hasNext()) {
             val effect = iterator.next()
-            val stage = ((tick - effect.startTick) / EXPLOSION_TICKS_PER_FRAME).toInt()
-            if (stage >= EXPLOSION_FRAMES || stage < 0) {
+            while (tick >= effect.nextFrameTick && effect.frame < effect.frames.size) {
+                effect.frame += 1
+                val delay = effect.frames.getOrNull(effect.frame)?.second ?: 0
+                effect.nextFrameTick += delay + effectRandom.nextInt(delay / 2 + 1)
+            }
+            if (effect.frame >= effect.frames.size) {
                 actorManager.remove(effect.actor)
                 iterator.remove()
             } else {
-                effect.actor.spriteName = LegacySpriteResources.nameForExplosion(stage)
+                effect.actor.spriteName = effect.frames[effect.frame].first
             }
         }
     }
 
-    private fun spawnExplosion(x: Int, y: Int, tick: Long) {
+    private val effectRandom = kotlin.random.Random(0)
+
+    private fun spawnEffect(kind: EffectKind, x: Int, y: Int, tick: Long) {
+        val frames = EFFECT_FRAMES[kind] ?: return
         val actor = SpriteActor(nextEffectId--, snapshot, spriteManager, sprites, layerIndex = EFFECT_LAYER).apply {
-            spriteName = LegacySpriteResources.nameForExplosion(0)
+            spriteName = frames.first().first
             moveTo(x, y)
         }
         actorManager.add(actor)
-        effects += Effect(actor, tick)
+        effects += Effect(actor, frames, frame = 0, nextFrameTick = tick + frames.first().second)
     }
 
     private fun <T : Actor> prune(actorsById: MutableMap<Long, T>, keepIds: Set<Long>) {

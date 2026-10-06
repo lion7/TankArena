@@ -69,9 +69,15 @@ class ShippedSceneMatchTest {
             "BEGIN2 has a big pit",
         )
         val player = assertNotNull(match.playerTankForTest(0))
+        repeat(START_SHIELD_TICKS) { match.tick() }
         player.teleportTo(tileX * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2, tileY * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2)
-        val destroyed = (0 until 5).any { _ -> match.tick().events.any { it is GameEvent.TankDestroyed } }
+        // Legacy new_velocity(): the tank first sinks (h 1 → -4 under 100 px/s² gravity, ~0.3 s) ...
+        repeat(10) { match.tick() }
+        assertTrue(player.falling && player.armor > 0, "the tank sinks before it is destroyed")
+        // ... and is destroyed at the bottom, through the start shield (HT_DESTROY).
+        val destroyed = (0 until 60).any { _ -> match.tick().events.any { it is GameEvent.TankDestroyed } }
         assertTrue(destroyed, "a tank in the middle of a pit falls in")
+        assertEquals(-4, player.height)
     }
 
     @Test
@@ -89,7 +95,7 @@ class ShippedSceneMatchTest {
         repeat(5) { match.tick() }
         assertTrue(player.armor > 0, "on the rim of the pit the tank is safe")
         player.teleportTo(centreX, tileY * LEGACY_TILE_SIZE + 20)
-        repeat(5) { match.tick() }
+        repeat(60) { match.tick() }
         assertEquals(0, player.armor, "past the rim it falls in")
     }
 
@@ -107,12 +113,10 @@ class ShippedSceneMatchTest {
 
     @Test
     fun `a mortar shell lands about 120 px away and explodes`() {
-        val match = start("begin1", MatchMode.SINGLE)
+        // BEGIN3 ("Now for the bigger weapons!") gives the Devastator 50 mortar shells.
+        val match = start("begin3", MatchMode.SINGLE)
         val player = assertNotNull(match.playerTankForTest(0))
-        while (player.currentWeapon != WEAPON_MORTAR) {
-            match.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
-            repeat(15) { match.tick() }
-        }
+        match.selectWeaponForTest(WEAPON_MORTAR)
         val startX = player.positionX
         val startY = player.positionY
         match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
@@ -124,6 +128,71 @@ class ShippedSceneMatchTest {
         val explosion = assertNotNull(blast, "the shell should explode")
         val distance = kotlin.math.hypot((explosion.x - startX).toDouble(), (explosion.y - startY).toDouble())
         assertTrue(distance in 110.0..150.0, "legacy mortar range is 120 px from the barrel, got $distance")
+    }
+
+    @Test
+    fun `BEGIN1's Devastator carries the main gun and the flamethrower and nothing else`() {
+        val match = start("begin1", MatchMode.SINGLE)
+        val player = assertNotNull(match.playerTankForTest(0))
+        assertEquals(WEAPON_MAIN, player.currentWeapon)
+        assertEquals(50, player.ammoFor(WEAPON_MAIN))
+        assertEquals(30, player.armor)
+        // Cycling only ever lands on the main gun and the flamethrower.
+        val seen = mutableSetOf(player.currentWeapon)
+        repeat(4) {
+            match.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
+            repeat(16) { match.tick() }
+            seen += player.currentWeapon
+        }
+        assertEquals(setOf(WEAPON_MAIN, WEAPON_FLAME), seen)
+    }
+
+    @Test
+    fun `BEGIN2 starts the player on the flamethrower`() {
+        val match = start("begin2", MatchMode.SINGLE)
+        val player = assertNotNull(match.playerTankForTest(0))
+        assertEquals(WEAPON_FLAME, player.currentWeapon)
+        assertTrue(player.ammoCounts.all { it == 0 })
+    }
+
+    @Test
+    fun `a tank tops out near the legacy speed of about 1 px per tick`() {
+        val match = start("begin2", MatchMode.SINGLE)
+        val player = assertNotNull(match.playerTankForTest(0))
+        // STANDARD: thrust acc/mass = 100 px/s², friction (1000·v + 2000)/1000 → top speed 98 px/s.
+        // BEGIN2's player drives into the pit ring, so take the peak speed on the way.
+        var speed = 0f
+        repeat(400) {
+            match.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
+            speed = maxOf(speed, kotlin.math.hypot(player.velocityX, player.velocityY))
+        }
+        assertTrue(speed in 50f..100f, "STANDARD should approach 98 px/s and never exceed it, got $speed")
+    }
+
+    @Test
+    fun `the flamethrower burns fuel and sets a nearby car on fire`() {
+        val match = start("begin1", MatchMode.SINGLE)
+        val player = assertNotNull(match.playerTankForTest(0))
+        val car = match.tanksForTest().first { it.computer }
+        repeat(START_SHIELD_TICKS) { match.tick() }
+        match.selectWeaponForTest(WEAPON_FLAME)
+        // Park the Devastator right next to the car, facing it.
+        player.teleportTo(car.positionX - 40, car.positionY)
+        while (player.bodyDirection != 4) {
+            match.tick(mapOf(0 to PlayerIntentFrame(turnRight = true)))
+        }
+        player.teleportTo(car.positionX - 40, car.positionY)
+        val fuelBefore = player.fuel
+        val carArmor = car.armor
+        // Open floor inside BEGIN1's road ring, clear of walls.
+        val (carX, carY) = 8 * LEGACY_TILE_SIZE to 3 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
+        repeat(300) {
+            car.teleportTo(carX, carY)
+            player.teleportTo(carX - 40, carY)
+            match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        }
+        assertTrue(player.fuel <= fuelBefore - 40, "each flame burst costs 40 fuel")
+        assertTrue(car.armor < carArmor, "the flames should hurt the car")
     }
 
     @Test
@@ -145,6 +214,8 @@ class ShippedSceneMatchTest {
     @Test
     fun `losing BEGIN1's only player tank loses the mission`() {
         val match = start("begin1", MatchMode.SINGLE)
+        // Legacy make_tank(): the start shield protects the player for its first 75 ticks.
+        repeat(START_SHIELD_TICKS + 1) { match.tick() }
         match.queueDamageForTest(0, 999)
         repeat(5) { match.tick() }
         assertEquals(ServerMatchPrototype.MissionStatus.LOST, match.mission)

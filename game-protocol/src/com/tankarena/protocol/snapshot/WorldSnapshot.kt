@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
  * and server versions must fail fast at decode time rather than producing silent drift.
  */
-const val PROTOCOL_VERSION: Int = 3
+const val PROTOCOL_VERSION: Int = 4
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.
@@ -93,10 +93,12 @@ data class HudState(
     val kills: Int = 0,
     val time: Long = 0,
     val currentWeapon: Int = 0,
-    val chainAmmo: Int = 0,
-    val mineAmmo: Int = 0,
-    val rocketAmmo: Int = 0,
-    val mortarAmmo: Int = 0,
+    /** Ammo per legacy weapon number (`weap.nw`). */
+    val ammo: List<Int> = emptyList(),
+    /** Legacy `weap.flame`: the flamethrower is available without ammo. */
+    val hasFlamer: Boolean = false,
+    /** Legacy `game.id`: the F1–F10 id of the tank this player drives (-1 for none). */
+    val tankId: Int = -1,
     val maxArmor: Int = 0,
     val maxFuel: Int = 0,
     val missionProgressBad: Int = 0,

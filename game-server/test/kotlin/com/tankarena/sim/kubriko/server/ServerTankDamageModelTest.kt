@@ -20,19 +20,42 @@ import kotlin.test.assertTrue
 class ServerTankDamageModelTest {
 
     @Test
-    fun `shield absorbs damage before armor and depletes first`() {
+    fun `holding the shield key blocks hits but not rockets while the pool lasts`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap())
         prototype.initialize()
         val tank = prototype.playerTankForTest(0)!!
-        tank.grantShield(20)
+        val armorBefore = tank.armor
+        val shielded = mapOf(0 to PlayerIntentFrame(shield = true))
+
+        // Legacy hit_tank(): `contr.shield && shield.power` stops everything except HT_ROCKET.
+        prototype.tick(shielded)
+        prototype.queueDamageForTest(playerIndex = 0, amount = 20)
+        tank.queueUnshieldableDamage(5)
+        prototype.tick(shielded)
+        assertEquals(armorBefore - 5, tank.armor, "only the rocket should get through the shield")
+
+        // Legacy shield_effects(): the pool drains 60 per tick while held, recharges 10 per tick.
+        val poolWhileHeld = tank.shield
+        repeat(10) { prototype.tick(shielded) }
+        assertEquals(poolWhileHeld - 600, tank.shield)
+        repeat(10) { prototype.tick() }
+        assertEquals(poolWhileHeld - 500, tank.shield)
+        prototype.dispose()
+    }
+
+    @Test
+    fun `an empty shield pool lets hits through`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap())
+        prototype.initialize()
+        val tank = prototype.playerTankForTest(0)!!
+        val shielded = mapOf(0 to PlayerIntentFrame(shield = true))
+        repeat(SHIELD_START_POWER / 60 + 2) { prototype.tick(shielded) }
+        assertEquals(0, tank.shield)
         val armorBefore = tank.armor
 
-        prototype.queueDamageForTest(playerIndex = 0, amount = 30)
-        prototype.tick()
-        prototype.tick()
-
-        assertEquals(0, tank.shield, "shield should absorb the first 20 of 30 damage")
-        assertEquals(armorBefore - 10, tank.armor, "armor should take only the 10 that bled through")
+        prototype.queueDamageForTest(playerIndex = 0, amount = 7)
+        prototype.tick(shielded)
+        assertEquals(armorBefore - 7, tank.armor)
         prototype.dispose()
     }
 
@@ -86,7 +109,7 @@ class ServerTankDamageModelTest {
     }
 
     @Test
-    fun `respawn refills armor and fuel and clears shield and invulnerability`() {
+    fun `respawn refills armor and the shield pool and starts a new start shield`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4, armor = 10, lives = 2))
         prototype.initialize()
         val tank = prototype.playerTankForTest(0)!!
@@ -100,8 +123,9 @@ class ServerTankDamageModelTest {
         repeat(RESPAWN_DELAY_TICKS + 5) { prototype.tick() }
 
         assertTrue(tank.armor > 0, "tank should have respawned with armor — got ${tank.armor}")
-        assertEquals(0, tank.shield, "shield should be cleared on respawn")
-        assertEquals(0, tank.invulnerableTicks, "invulnerability should be cleared on respawn")
+        // Legacy make_tank(): `shield.power = 3000` and a blinking start shield for human tanks.
+        assertTrue(tank.shield in SHIELD_START_POWER..SHIELD_START_POWER + 100, "a new tank starts with a 3000 shield pool, recharging since")
+        assertTrue(tank.invulnerableTicks in 1..START_SHIELD_TICKS, "a new tank starts with the start shield")
         prototype.dispose()
     }
 

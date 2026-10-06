@@ -15,7 +15,8 @@ import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 private const val TURRET_FOOTPRINT: Int = LEGACY_TILE_SIZE
 private const val GOAL_FOOTPRINT: Int = 16
-private const val DEFAULT_ARMOR: Int = 100
+/** Fallback armor for authored objects without one (the STANDARD tank's legacy `props.armor`). */
+private const val DEFAULT_ARMOR: Int = ServerTankActor.DEFAULT_TANK_ARMOR
 /** `make_player()` in src/objects/player.c gives dual-mode pads four lives. */
 private const val LEGACY_PAD_LIVES: Int = 4
 private const val LIGHT_MINE_DAMAGE: Int = 7
@@ -82,7 +83,7 @@ object CanonicalSceneBuilder {
                             bodyDirection = direction,
                             turretDirection = direction,
                             tankType = 0,
-                            armor = props.int("armor") ?: DEFAULT_ARMOR,
+                            armor = LegacyVehicles.spec(0).armor,
                             lives = (props.int("lives") ?: 0).takeIf { it > 0 } ?: LEGACY_PAD_LIVES,
                             team = 0,
                             computer = false,
@@ -118,6 +119,8 @@ object CanonicalSceneBuilder {
                         turretDirection = props.int("direction") ?: 0,
                         tankType = props.int("tankType") ?: 0,
                         armor = props.int("armor") ?: DEFAULT_ARMOR,
+                        ammo = props.intList("ammo"),
+                        power = props.intList("power"),
                         lives = props.int("lives") ?: 1,
                         team = if (good) 0 else 1,
                         computer = computer,
@@ -137,8 +140,11 @@ object CanonicalSceneBuilder {
                         cy = obj.y,
                         turretDirection = props.int("direction") ?: 0,
                         team = 1,
-                        armor = props.int("armor") ?: DEFAULT_ARMOR,
+                        armor = props.int("armor") ?: ServerTurretActor.DEFAULT_TURRET_ARMOR,
                         goalContribution = goalContribution,
+                        power = props.int("power"),
+                        delay = props.int("delay"),
+                        radius = props.int("radius"),
                     )
                 }
 
@@ -250,6 +256,9 @@ object CanonicalSceneBuilder {
 
     private fun Map<String, String>.int(key: String): Int? = this[key]?.toIntOrNull()
 
+    private fun Map<String, String>.intList(key: String): List<Int>? =
+        this[key]?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.takeIf { it.isNotEmpty() }
+
     private fun wallActor(cx: Int, cy: Int, width: Int, height: Int): ServerWallActor =
         ServerWallActor(
             ServerWallActor.State(
@@ -269,6 +278,9 @@ object CanonicalSceneBuilder {
         tankType: Int,
         armor: Int,
         fuel: Int = LEGACY_MAX_FUEL,
+        /** Legacy `weap.nw` / `weap.power` from the map; null means the vehicle's defaults (legacy make_tank()). */
+        ammo: List<Int>? = null,
+        power: List<Int>? = null,
         lives: Int,
         team: Int,
         computer: Boolean = true,
@@ -292,6 +304,10 @@ object CanonicalSceneBuilder {
             tankType = tankType,
             armor = armor,
             fuel = fuel,
+            ammo = ammo ?: LegacyVehicles.spec(tankType).ammo,
+            power = power ?: LegacyVehicles.spec(tankType).power,
+            currentWeapon = LegacyVehicles.startingWeapon(LegacyVehicles.spec(tankType), ammo ?: LegacyVehicles.spec(tankType).ammo),
+            maxArmor = LegacyVehicles.spec(tankType).armor.coerceAtLeast(armor),
             lives = lives,
             team = team,
             computer = computer,
@@ -306,7 +322,17 @@ object CanonicalSceneBuilder {
         ),
     )
 
-    private fun turretActor(cx: Int, cy: Int, turretDirection: Int, team: Int, armor: Int, goalContribution: Int): ServerTurretActor =
+    private fun turretActor(
+        cx: Int,
+        cy: Int,
+        turretDirection: Int,
+        team: Int,
+        armor: Int,
+        goalContribution: Int,
+        power: Int? = null,
+        delay: Int? = null,
+        radius: Int? = null,
+    ): ServerTurretActor =
         ServerTurretActor(
             ServerTurretActor.State(
                 body = BoxBody(
@@ -317,6 +343,9 @@ object CanonicalSceneBuilder {
                 team = team,
                 armor = armor,
                 goalContribution = goalContribution,
+                power = power ?: ServerTurretActor.State().power,
+                delay = delay?.takeIf { it > 0 } ?: ServerTurretActor.State().delay,
+                radius = radius?.takeIf { it > 0 } ?: ServerTurretActor.State().radius,
             ),
         )
 

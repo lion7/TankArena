@@ -29,10 +29,10 @@ data class TankState(
     val controlled: Boolean = false,
     val primaryCooldownTicks: Int = 0,
     val currentWeapon: Int = 0,
-    val chainAmmo: Int = 0,
-    val mineAmmo: Int = 0,
-    val rocketAmmo: Int = 0,
-    val mortarAmmo: Int = 0,
+    /** Legacy `o->h`: 1 on the ground, 0 down to -4 while sinking into a pit (and lying at its bottom). */
+    val height: Int = 1,
+    /** Legacy ARMOR overlay: the shield key is held, or the start shield is blinking on. */
+    val shielded: Boolean = false,
 ) : ActorState
 
 @Serializable
@@ -57,6 +57,8 @@ data class ProjectileState(
     val vy: Int = 0,
     val ownerKind: ProjectileOwnerKind = ProjectileOwnerKind.TANK,
     val kind: ProjectileKind = ProjectileKind.BULLET,
+    /** Pixels left to fly (legacy `b->dist`); flames and mortar shells are drawn by it. */
+    val rangeLeft: Int = 0,
 ) : ActorState
 
 @Serializable
@@ -180,4 +182,4 @@ data class B52State(
 enum class ProjectileOwnerKind { TANK, TURRET }
 
 @Serializable
-enum class ProjectileKind { BULLET, CHAIN, ROCKET, MORTAR }
+enum class ProjectileKind { BULLET, CHAIN, ROCKET, MORTAR, FLAME }

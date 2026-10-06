@@ -8,6 +8,7 @@ import com.tankarena.content.MissionText
 import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 import com.tankarena.content.TileLayers
 import com.tankarena.protocol.Team
+import com.tankarena.protocol.snapshot.ProjectileState
 import com.tankarena.protocol.snapshot.GoalState
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.TurretState
@@ -55,13 +56,14 @@ class ServerMatchPrototypeTest {
         val map = begin1Like()
         val prototype = ServerMatchPrototype.fromCanonicalMap(map)
         prototype.initialize()
-        val baselineIds = prototype.snapshot().actors.map { it.actorId }.toSet()
+        // Shots come and go; every persistent actor keeps its id.
+        val baselineIds = prototype.snapshot().actors.filter { it !is ProjectileState }.map { it.actorId }.toSet()
 
         var last = prototype.snapshot()
         repeat(300) { last = prototype.tick() }
 
         assertEquals(300L, last.tick)
-        val postIds = last.actors.map { it.actorId }.toSet()
+        val postIds = last.actors.filter { it !is ProjectileState }.map { it.actorId }.toSet()
         assertEquals(baselineIds, postIds, "actorIds must be stable across ticks")
         assertTrue(last.actors.all { it.hasFinitePosition() }, "no actor should report NaN/infinite positions")
 

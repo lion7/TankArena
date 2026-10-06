@@ -30,7 +30,7 @@ class MissionEvaluationTest {
         prototype.initialize()
 
         var missionResult: GameEvent.MissionResult? = null
-        loop@ for (i in 0..119) {
+        loop@ for (i in 0..599) {
             val frame = prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             missionResult = frame.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
             if (prototype.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break@loop
@@ -197,7 +197,7 @@ class MissionEvaluationTest {
         prototype.initialize()
 
         var missionResult: GameEvent.MissionResult? = null
-        loop@ for (i in 0..119) {
+        loop@ for (i in 0..599) {
             val frame = prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             missionResult = frame.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
             if (prototype.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break@loop
@@ -221,7 +221,7 @@ class MissionEvaluationTest {
         prototype.initialize()
 
         var missionResult: GameEvent.MissionResult? = null
-        loop@ for (i in 0..119) {
+        loop@ for (i in 0..599) {
             val frame = prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             missionResult = frame.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
             if (prototype.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break@loop
@@ -243,7 +243,7 @@ class MissionEvaluationTest {
         prototype.initialize()
 
         // Run until mission ends
-        loop@ for (i in 0..119) {
+        loop@ for (i in 0..599) {
             prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             if (prototype.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break@loop
         }

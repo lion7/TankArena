@@ -26,16 +26,16 @@ class ServerPlayerViewTest {
         assertEquals(0, view.playerId)
         assertEquals(prototype.snapshot().playerTankX(), view.cameraCenterX)
         assertEquals("M01", view.hud.missionCode)
-        assertEquals(100, view.hud.armor)
+        assertEquals(ServerTankActor.DEFAULT_TANK_ARMOR, view.hud.armor)
         assertEquals(3, view.hud.lives)
         assertEquals(0, view.hud.missionProgress)
         assertEquals(0, view.hud.score)
         assertEquals(0, view.hud.kills)
         assertEquals(0L, view.hud.time)
 
-        val goalContact = view.radar.single { it.kind == RadarContactKind.GOAL }
-        assertEquals(Team.PLAYER, goalContact.team)
-        assertTrue(view.radar.none { it.actorId == view.controlledActorId }, "self is excluded from radar")
+        // Legacy write_radar(): the player's own tank is a black blip; goals are not shown.
+        assertTrue(view.radar.any { it.actorId == view.controlledActorId }, "self is on the radar")
+        assertTrue(view.radar.none { it.kind == RadarContactKind.GOAL }, "goals are not on the radar")
         prototype.dispose()
     }
 

@@ -23,6 +23,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
@@ -56,17 +61,24 @@ import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
 import com.tankarena.ui.compose.hud.HudOverlay
-import com.tankarena.ui.compose.hud.RadarOverlay
 import com.tankarena.ui.compose.menu.DebriefScreen
-import com.tankarena.ui.compose.menu.GameModeMenuScreen
-import com.tankarena.ui.compose.menu.MainMenuScreen
-import com.tankarena.ui.compose.menu.MissionCatalog
-import com.tankarena.ui.compose.menu.MissionEntry
-import com.tankarena.ui.compose.menu.MissionSelectScreen
-import com.tankarena.ui.compose.menu.RetroColors
-import com.tankarena.ui.compose.menu.TiledPanelBackground
 import com.tankarena.ui.compose.menu.findByCode
-import com.tankarena.ui.compose.menu.playableIn
+import com.tankarena.ui.compose.menu.GameModeMenuScreen
+import com.tankarena.ui.compose.menu.HelpFile
+import com.tankarena.ui.compose.menu.MainMenuScreen
+import com.tankarena.ui.compose.menu.MessageBarScreen
+import com.tankarena.ui.compose.menu.MISSION_END_BANNER_MILLIS
+import com.tankarena.ui.compose.menu.MissionCatalog
+import com.tankarena.ui.compose.menu.MissionCodes
+import com.tankarena.ui.compose.menu.MissionEndBanner
+import com.tankarena.ui.compose.menu.MissionEntry
+import com.tankarena.ui.compose.menu.MissionGate
+import com.tankarena.ui.compose.menu.PasswordStore
+import com.tankarena.ui.compose.menu.PickListScreen
+import com.tankarena.ui.compose.menu.PromptBarScreen
+import com.tankarena.ui.compose.menu.RetroColors
+import com.tankarena.ui.compose.menu.TextViewerScreen
+import com.tankarena.ui.compose.menu.TiledPanelBackground
 import kotlinx.coroutines.delay
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
@@ -78,8 +90,8 @@ private const val SPLIT_PLAYFIELD_WIDTH = 320
 fun main() = application {
     val controls = remember { DesktopControls() }
     var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.MainMenu) }
-    var selectedMode by remember { mutableStateOf(GameMode.SINGLE_PLAYER_VS_COMPUTER) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
+    val missionGate = remember { MissionGate(PasswordStore()) }
     val exitToMainMenu: () -> Unit = {
         controls.resetAll()
         screen = DesktopShellScreen.MainMenu
@@ -98,6 +110,13 @@ fun main() = application {
                     DesktopShellScreen.MainMenu -> MainMenuScreen(
                         onStartNewGame = { screen = DesktopShellScreen.GameModeSelect },
                         onExit = ::exitApplication,
+                        onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
+                        onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
+                    )
+
+                    is DesktopShellScreen.Help -> TextViewerScreen(
+                        text = remember(current.file) { current.file.load() },
+                        onClose = { screen = DesktopShellScreen.MainMenu },
                     )
 
                     DesktopShellScreen.GameModeSelect -> {
@@ -105,35 +124,56 @@ fun main() = application {
                             if (missions == null) missions = MissionCatalog.load()
                         }
                         GameModeMenuScreen(
-                            onSelectPlayerVsPlayer = {
-                                selectedMode = GameMode.PLAYER_VS_PLAYER
-                                screen = DesktopShellScreen.MissionSelect
-                            },
-                            onSelectSinglePlayer = {
-                                selectedMode = GameMode.SINGLE_PLAYER_VS_COMPUTER
-                                screen = DesktopShellScreen.MissionSelect
-                            },
-                            onSelectDualVsComputer = {
-                                selectedMode = GameMode.DUAL_PLAYER_VS_COMPUTER
-                                screen = DesktopShellScreen.MissionSelect
-                            },
+                            onSelectPlayerVsPlayer = { screen = DesktopShellScreen.CodePrompt(GameMode.PLAYER_VS_PLAYER) },
+                            onSelectSinglePlayer = { screen = DesktopShellScreen.CodePrompt(GameMode.SINGLE_PLAYER_VS_COMPUTER) },
+                            onSelectDualVsComputer = { screen = DesktopShellScreen.CodePrompt(GameMode.DUAL_PLAYER_VS_COMPUTER) },
                             onCancel = { screen = DesktopShellScreen.MainMenu },
                         )
                     }
 
-                    DesktopShellScreen.MissionSelect -> {
-                        LaunchedEffect(Unit) {
-                            if (missions == null) missions = MissionCatalog.load()
+                    is DesktopShellScreen.CodePrompt -> PromptBarScreen(
+                        prompt = MissionCodes.prompt(current.mode),
+                        initialText = missionGate.currentCode(current.mode),
+                        maxLength = MissionCodes.maxLength(current.mode),
+                        onSubmit = { code ->
+                            missions?.let { screen = missionGate.submit(it, code, current.mode) }
+                        },
+                        onCancel = { screen = DesktopShellScreen.CodeList(current.mode) },
+                    )
+
+                    is DesktopShellScreen.CodeList -> {
+                        val entries = remember(missions, current.mode) {
+                            missions?.let { missionGate.listEntries(it, current.mode) }
                         }
-                        MissionSelectScreen(
-                            missions = missions?.playableIn(selectedMode),
-                            onSelect = { mission ->
-                                controls.resetAll()
-                                screen = DesktopShellScreen.Playing(mission, selectedMode)
-                            },
-                            onCancel = { screen = DesktopShellScreen.GameModeSelect },
-                        )
+                        when {
+                            entries == null -> Unit
+                            entries.isEmpty() -> MessageBarScreen(
+                                message = MissionCodes.emptyListMessage(current.mode),
+                                onDismiss = { screen = DesktopShellScreen.GameModeSelect },
+                            )
+                            else -> PickListScreen(
+                                title = MissionCodes.listTitle(current.mode),
+                                entries = entries,
+                                onSelect = { code ->
+                                    screen = missionGate.submit(missions.orEmpty(), code, current.mode)
+                                },
+                                onCancel = { screen = DesktopShellScreen.GameModeSelect },
+                            )
+                        }
                     }
+
+                    is DesktopShellScreen.Message -> MessageBarScreen(
+                        message = current.text,
+                        onDismiss = { screen = current.next },
+                    )
+
+                    is DesktopShellScreen.Briefing -> TextViewerScreen(
+                        text = current.mission.sidecar.missionText.briefing,
+                        onClose = {
+                            controls.resetAll()
+                            screen = DesktopShellScreen.Playing(current.mission, current.mode)
+                        },
+                    )
 
                     is DesktopShellScreen.Playing -> GameplayScreen(
                         mission = current.mission,
@@ -141,6 +181,7 @@ fun main() = application {
                         controls = controls,
                         onMissionEnd = { outcome, score, kills, captures, time ->
                             controls.resetAll()
+                            missionGate.missionEnded(current.mission, current.mode, outcome)
                             screen = DesktopShellScreen.Debrief(
                                 current.mission, current.mode, outcome,
                                 score = score, kills = kills, captures = captures, time = time,
@@ -195,7 +236,7 @@ private fun GameplayScreen(
 ) {
     val host = remember(mission.baseName, mode) {
         controls.mode = mode
-        LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode())
+        LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName)
     }
     DisposableEffect(host) { onDispose(host::dispose) }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
@@ -204,9 +245,12 @@ private fun GameplayScreen(
     var serverFrame by remember(host) { mutableStateOf<ServerFrame>(host.currentServerFrame()) }
     val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
 
+    var missionEndBanner by remember(host) { mutableStateOf<MissionOutcome?>(null) }
+
     LaunchedEffect(host) {
         var inputSequence = 0L
-        var consumed = false
+        var pendingEnd: (() -> Unit)? = null
+        var bannerTicksLeft = 0L
         while (true) {
             for (playerId in playerIds) {
                 host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence))
@@ -216,7 +260,15 @@ private fun GameplayScreen(
             serverFrame = frame
             eventQueues.forEach { it.push(frame.world.events) }
             audio.processEvents(frame.world.events, frame.playerViews)
-            if (!consumed) {
+            val end = pendingEnd
+            if (end != null) {
+                // Legacy game.end_round = tinit(300): the game runs on under the banner for 3 s.
+                if (--bannerTicksLeft <= 0) {
+                    host.recorder?.let { RecordingStore.save(it.recording()) }
+                    end()
+                    break
+                }
+            } else {
                 val outcome = frame.world.events.firstNotNullOfOrNull { event ->
                     when (event) {
                         is GameEvent.MissionWon -> MissionOutcome.WON
@@ -226,14 +278,17 @@ private fun GameplayScreen(
                 }
                 val result = frame.world.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
                 if (outcome != null) {
-                    consumed = true
-                    onMissionEnd(
-                        outcome,
-                        result?.score ?: 0,
-                        result?.kills ?: 0,
-                        result?.captures ?: 0,
-                        result?.ticks ?: 0,
-                    )
+                    missionEndBanner = outcome
+                    bannerTicksLeft = MISSION_END_BANNER_MILLIS / FixedStepClock.MILLIS_PER_TICK
+                    pendingEnd = {
+                        onMissionEnd(
+                            outcome,
+                            result?.score ?: 0,
+                            result?.kills ?: 0,
+                            result?.captures ?: 0,
+                            result?.ticks ?: 0,
+                        )
+                    }
                 }
             }
             delay(FixedStepClock.MILLIS_PER_TICK)
@@ -250,43 +305,48 @@ private fun GameplayScreen(
                 .align(Alignment.Center)
                 .padding(32.dp)
                 .fillMaxHeight()
-                .aspectRatio(LEGACY_PLAYFIELD_ASPECT_RATIO)
-                .border(2.dp, RetroColors.PanelBorderOuter, RectangleShape)
-                .padding(2.dp)
-                .background(Color.Black),
+                .aspectRatio(LEGACY_PLAYFIELD_ASPECT_RATIO),
         ) {
-            if (views.size > 1) {
-                // Legacy dual.c / dualvc.c: two side-by-side views, one per player.
-                Row(modifier = Modifier.fillMaxSize()) {
-                    views.forEachIndexed { index, view ->
+            // Legacy draw_screen(): the losing player's view turns grey under the banner.
+            Box(modifier = Modifier.fillMaxSize().grayscale(missionEndBanner == MissionOutcome.LOST)) {
+                if (views.size > 1) {
+                    // Legacy dual.c / dualvc.c: two side-by-side views, one per player.
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        views.forEachIndexed { index, view ->
+                            PlayerPane(
+                                mission = mission,
+                                serverFrame = serverFrame,
+                                playerView = view,
+                                events = eventQueues[index],
+                                worldWidth = worldWidth,
+                                worldHeight = worldHeight,
+                                playfieldWidth = SPLIT_PLAYFIELD_WIDTH,
+                                compactHud = true,
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                            if (index == 0) Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(RetroColors.PanelBorderOuter))
+                        }
+                    }
+                } else {
+                    views.firstOrNull()?.let { view ->
                         PlayerPane(
                             mission = mission,
                             serverFrame = serverFrame,
                             playerView = view,
-                            events = eventQueues[index],
+                            events = eventQueues[0],
                             worldWidth = worldWidth,
                             worldHeight = worldHeight,
-                            playfieldWidth = SPLIT_PLAYFIELD_WIDTH,
-                            compactHud = true,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            playfieldWidth = null,
+                            compactHud = false,
+                            modifier = Modifier.fillMaxSize(),
                         )
-                        if (index == 0) Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(RetroColors.PanelBorderOuter))
                     }
                 }
-            } else {
-                views.firstOrNull()?.let { view ->
-                    PlayerPane(
-                        mission = mission,
-                        serverFrame = serverFrame,
-                        playerView = view,
-                        events = eventQueues[0],
-                        worldWidth = worldWidth,
-                        worldHeight = worldHeight,
-                        playfieldWidth = null,
-                        compactHud = false,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+            }
+            // Legacy write_winner_1p; player vs player (write_winner_2p's "YOU WIN") has no winner id yet.
+            val banner = missionEndBanner
+            if (banner != null && mode != GameMode.PLAYER_VS_PLAYER) {
+                MissionEndBanner(outcome = banner)
             }
         }
     }
@@ -322,21 +382,19 @@ private fun PlayerPane(
             playfieldWidth = playfieldWidth ?: playerView.cameraWidth,
             onGeometryChanged = { viewportGeometry = it },
         )
-        HudOverlay(
-            hudState = playerView.hud,
-            compact = compactHud,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 6.dp),
-        )
-        RadarOverlay(
-            playerView = playerView,
-            worldWidth = worldWidth,
-            worldHeight = worldHeight,
-            modifier = Modifier
-                .align(if (compactHud) Alignment.BottomEnd else Alignment.TopEnd)
-                .padding(8.dp),
-        )
+        val geometry = viewportGeometry
+        if (geometry != null && viewportRect != Rect.Zero) {
+            val sceneWidth = (playfieldWidth ?: playerView.cameraWidth).toFloat()
+            val scale = viewportRect.width / sceneWidth
+            HudOverlay(
+                hudState = playerView.hud,
+                playerView = playerView,
+                playfield = visiblePlayfield(geometry, viewportRect, sceneWidth, playerView.cameraHeight.toFloat()),
+                scale = scale,
+                compact = compactHud,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         if (showDebugOverlay) {
             ViewportDebugOverlay(
                 playerView = playerView,
@@ -346,6 +404,35 @@ private fun PlayerPane(
             )
         }
     }
+}
+
+/** Draws the content without colour (legacy `b_convert(scr, gray, ...)` for a lost mission). */
+private fun Modifier.grayscale(enabled: Boolean): Modifier = if (!enabled) this else drawWithContent {
+    val paint = Paint().apply { colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) }
+    drawIntoCanvas { it.saveLayer(Rect(Offset.Zero, size), paint) }
+    drawContent()
+    drawIntoCanvas { it.restore() }
+}
+
+/**
+ * The part of the viewport that shows the map, in pane pixels. Legacy maps smaller than the
+ * 640×400 playfield are shown in a window of the map's own size, and the status display sits in
+ * that window's corners.
+ */
+private fun visiblePlayfield(geometry: ViewportGeometry, viewportRect: Rect, sceneWidth: Float, sceneHeight: Float): Rect {
+    val scale = viewportRect.width / sceneWidth
+    val sceneLeft = geometry.cameraCenterX - sceneWidth / 2f
+    val sceneTop = geometry.cameraCenterY - sceneHeight / 2f
+    val left = maxOf(geometry.renderOffsetX, sceneLeft)
+    val top = maxOf(geometry.renderOffsetY, sceneTop)
+    val right = minOf(geometry.renderOffsetX + geometry.worldWidth, sceneLeft + sceneWidth)
+    val bottom = minOf(geometry.renderOffsetY + geometry.worldHeight, sceneTop + sceneHeight)
+    return Rect(
+        left = viewportRect.left + (left - sceneLeft) * scale,
+        top = viewportRect.top + (top - sceneTop) * scale,
+        right = viewportRect.left + (right - sceneLeft) * scale,
+        bottom = viewportRect.top + (bottom - sceneTop) * scale,
+    )
 }
 
 @Composable

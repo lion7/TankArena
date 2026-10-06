@@ -23,7 +23,7 @@ class ServerTankMovementTest {
         val start = prototype.snapshot().playerTank()
 
         var last = start
-        repeat(10) {
+        repeat(50) {
             last = prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true))).playerTank()
         }
 
@@ -40,7 +40,7 @@ class ServerTankMovementTest {
         val start = prototype.snapshot().playerTank()
 
         var last = start
-        repeat(10) {
+        repeat(50) {
             last = prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true))).playerTank()
         }
 
@@ -92,7 +92,7 @@ class ServerTankMovementTest {
         val accelerated = prototype.snapshot().playerTank()
         assertTrue(accelerated.vx > 0f, "tank should have positive x velocity after forward ticks")
 
-        repeat(60) { prototype.tick() }
+        repeat(300) { prototype.tick() }
         val settled = prototype.snapshot().playerTank()
 
         assertEquals(0f, settled.vx, 0.01f)

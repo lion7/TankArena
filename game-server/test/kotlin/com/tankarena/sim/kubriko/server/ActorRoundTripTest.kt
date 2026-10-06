@@ -123,8 +123,8 @@ class ActorRoundTripTest {
                 ownerActorId = 42L,
                 ownerKind = ProjectileOwnerKind.TURRET,
                 damage = 17,
-                velocityX = 6,
-                velocityY = -3,
+                velocityX = 6f,
+                velocityY = -3f,
                 ttlTicks = 23,
             ),
         )
@@ -133,8 +133,8 @@ class ActorRoundTripTest {
         assertEquals(42L, restored.ownerActorId)
         assertEquals(ProjectileOwnerKind.TURRET, restored.ownerKind)
         assertEquals(17, restored.damage)
-        assertEquals(6, restored.velocityX)
-        assertEquals(-3, restored.velocityY)
+        assertEquals(6f, restored.velocityX)
+        assertEquals(-3f, restored.velocityY)
         assertEquals(23, restored.ttlTicks)
         assertEquals(150, restored.positionX)
         assertEquals(250, restored.positionY)

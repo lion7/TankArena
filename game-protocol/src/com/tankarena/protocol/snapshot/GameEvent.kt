@@ -45,8 +45,46 @@ enum class SoundKind {
     BONUS,
 }
 
+/**
+ * Legacy effect animations (`eff[]` in src/world/effects.c): a sequence of pictures, each shown
+ * for its own number of ticks. Only the kinds the server emits are listed.
+ */
+@Serializable
+enum class EffectKind {
+    /** SMOKE1..2: exhaust puffs of a moving vehicle. */
+    SMOKE,
+    /** RUIN1..4: debris of a hit structure. */
+    RUIN,
+    /** FIRE1..3: main-gun muzzle flash. */
+    FIRE,
+    /** EXP1..5: hit or burning explosion. */
+    EXPLOSION,
+    /** CHAIN1..3: a chain-gun round hitting something. */
+    CHAIN,
+    /** FLAME1..5: a flame burning on what it hit. */
+    FLAME,
+    /** PLUF1..2: a chain-gun round that runs out of range. */
+    PLUF,
+    /** SPLASH1..3: water splash. */
+    SPLASH,
+    /** SFIRE: chain-gun muzzle flash. */
+    SFIRE,
+    /** ROOK1..5: smoke rising from a wreck. */
+    ROOK,
+    /** IXP1..5: large explosion (rocket). */
+    LEXPLOSION,
+    /** MFIRE1..3: mortar muzzle flash. */
+    MORTAR_FIRE,
+    /** LAVA1..4: lava bubbling under a vehicle. */
+    LAVA,
+}
+
 @Serializable
 sealed interface GameEvent {
+    /** A purely visual legacy effect (`create_effect()`) at world position ([x], [y]). */
+    @Serializable
+    data class Effect(val kind: EffectKind, val x: Int, val y: Int) : GameEvent
+
     @Serializable
     data class Fired(val actorId: Long, val x: Int, val y: Int) : GameEvent
 

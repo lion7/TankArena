@@ -86,7 +86,7 @@ class ServerTankFireTest {
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
 
         var impactFrame = 0
-        while (impactFrame < 30) {
+        while (impactFrame < 300) {
             prototype.tick()
             val victim = prototype.snapshot().tankByPlayerIndex(1)
             if (victim.armor < victimBefore.armor) break
@@ -169,7 +169,7 @@ class ServerTankFireTest {
         main.initialize()
         val mainBefore = main.snapshot().tankByPlayerIndex(1).armor
         main.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
-        repeat(40) { main.tick() }
+        repeat(200) { main.tick() }
         val mainAfter = main.snapshot().tankByPlayerIndex(1).armor
         val mainDamage = mainBefore - mainAfter
         main.dispose()
@@ -182,7 +182,7 @@ class ServerTankFireTest {
         repeat(15) { chain.tick() }
         val chainBefore = chain.snapshot().tankByPlayerIndex(1).armor
         chain.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
-        repeat(40) { chain.tick() }
+        repeat(200) { chain.tick() }
         val chainAfter = chain.snapshot().tankByPlayerIndex(1).armor
         val chainDamage = chainBefore - chainAfter
         chain.dispose()

@@ -29,7 +29,7 @@ class ServerRocketTest {
     fun `holding fire with rockets selected steers a marker instead of the tank`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(twoTankMap())
         prototype.initialize()
-        cycleN(prototype, times = 3)
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
         val shooter = prototype.playerTankForTest(0)!!
         assertEquals(WEAPON_ROCKET, shooter.currentWeapon)
         val startX = shooter.positionX
@@ -54,7 +54,7 @@ class ServerRocketTest {
     fun `releasing fire launches a rocket that homes on the tank under the marker`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(twoTankMap())
         prototype.initialize()
-        cycleN(prototype, times = 3)
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
         val victimBefore = prototype.snapshot().enemyTank().armor
         val victim = prototype.tanksForTest().single { it.playerIndex < 0 }
 
@@ -81,7 +81,7 @@ class ServerRocketTest {
     fun `the marker stays within 450 px of the tank`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4))
         prototype.initialize()
-        cycleN(prototype, times = 3)
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
         val shooter = prototype.playerTankForTest(0)!!
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         repeat(400) { prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true, turnRight = true))) }
@@ -94,7 +94,7 @@ class ServerRocketTest {
     fun `a rocket without a target flies to the marker and explodes there`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(soloTankMap(direction = 4))
         prototype.initialize()
-        cycleN(prototype, times = 3)
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
         val shooter = prototype.playerTankForTest(0)!!
         val goalX = shooter.positionX + 200
         val goalY = shooter.positionY
@@ -132,13 +132,6 @@ class ServerRocketTest {
                     ),
                 ),
             )
-        }
-    }
-
-    private fun cycleN(prototype: ServerMatchPrototype, times: Int) {
-        repeat(times) {
-            prototype.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
-            repeat(15) { prototype.tick() }
         }
     }
 

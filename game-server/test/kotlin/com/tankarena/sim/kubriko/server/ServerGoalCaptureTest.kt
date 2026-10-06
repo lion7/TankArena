@@ -28,7 +28,7 @@ class ServerGoalCaptureTest {
         prototype.initialize()
 
         assertFalse(prototype.snapshot().soleGoal().captured)
-        repeat(60) {
+        repeat(600) {
             prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
         }
 
@@ -47,7 +47,7 @@ class ServerGoalCaptureTest {
         prototype.initialize()
 
         var sawWin = false
-        repeat(80) {
+        repeat(600) {
             val frame = prototype.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
             if (frame.events.any { it is GameEvent.MissionWon }) sawWin = true
         }

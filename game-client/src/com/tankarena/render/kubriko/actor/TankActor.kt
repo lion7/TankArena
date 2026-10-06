@@ -25,6 +25,8 @@ internal class TankActor(
     private var bodyDirection: Int = 0
     private var turretDirection: Int = 0
     private var alive: Boolean = true
+    private var shielded: Boolean = false
+    private var height: Int = 1
     private var trackFrame: Int = 0
     private var lastX: Int = Int.MIN_VALUE
     private var lastY: Int = Int.MIN_VALUE
@@ -35,6 +37,8 @@ internal class TankActor(
         bodyDirection = state.bodyDirection
         turretDirection = state.turretDirection
         alive = state.alive
+        shielded = state.shielded
+        height = state.height
         // Legacy new_position(): the body alternates between frames dir and dir+16 every
         // `motion.change` pixels driven.
         if (lastX != Int.MIN_VALUE) {
@@ -54,10 +58,16 @@ internal class TankActor(
 
     fun collectSpriteResources(target: MutableSet<DrawableResource>) {
         spriteNames().forEach { name -> sprites.findResource(name)?.let(target::add) }
+        sprites.findResource(SHIELD_SPRITE)?.let(target::add)
+        for (depth in 0..4) {
+            sprites.findResource(LegacySpriteResources.nameForTankBody(tankType, PIT_FRAME_BASE + depth))?.let(target::add)
+        }
     }
 
     /** Legacy frames (0-based): body `dir` (+16 animated), turret `32 + ldir`, wreck `48`. */
     private fun spriteNames(): List<String> {
+        // Legacy write_tank(): `pic[49 - h]` while sinking into a pit, and at its bottom once dead.
+        if (height < 1) return listOf(LegacySpriteResources.nameForTankBody(tankType, PIT_FRAME_BASE - height))
         if (!alive) return listOf(LegacySpriteResources.nameForTankBody(tankType, WRECK_FRAME))
         val direction = LegacySpriteResources.tankBodyFrameForFacing(bodyDirection)
         return listOf(
@@ -75,6 +85,12 @@ internal class TankActor(
             image ?: continue
             drawSprite(image, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
         }
+        // Legacy write_tank(): the ARMOR ring while the shield key works or the start shield blinks on.
+        if (shielded && alive && height >= 1) {
+            sprites.findResource(SHIELD_SPRITE)?.let(spriteManager::get)?.let { ring ->
+                drawSprite(ring, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
+            }
+        }
     }
 
     private companion object {
@@ -82,5 +98,7 @@ internal class TankActor(
         const val TRACK_TOGGLE_DISTANCE = 6
         const val TURRET_FRAME_OFFSET = 32
         const val WRECK_FRAME = 48
+        const val PIT_FRAME_BASE = 49
+        const val SHIELD_SPRITE = "ARMOR"
     }
 }

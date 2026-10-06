@@ -22,7 +22,7 @@ class ServerTankLifecycleTest {
         val prototype = ServerMatchPrototype.fromCanonicalMap(
             twoTanksDuel(
                 shooterArmor = 100,
-                victimArmor = 25, // one hit kill
+                victimArmor = 10, // one legacy main-gun hit (power 10)
                 victimLives = 2,
             ),
         )
@@ -34,7 +34,7 @@ class ServerTankLifecycleTest {
 
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         var ticks = 0
-        while (ticks < 400 && !(sawDestroyed.seen && sawSpawned.seen)) {
+        while (ticks < 800 && !(sawDestroyed.seen && sawSpawned.seen)) {
             val frame = prototype.tick()
             for (event in frame.events) {
                 if (event is GameEvent.TankDestroyed && event.actorId == victimBefore.actorId) {
@@ -50,7 +50,8 @@ class ServerTankLifecycleTest {
         assertTrue(sawDestroyed.seen, "TankDestroyed should have fired for the victim")
         assertTrue(sawSpawned.seen, "TankSpawned should have fired after respawn delay")
         val victimAfter = prototype.snapshot().controlledTank(playerIndex = 1)
-        assertEquals(victimBefore.armor, victimAfter.armor, "respawn should refill to original armor")
+        // Legacy: a new tank comes with its vehicle's full `props.armor`.
+        assertEquals(LegacyVehicles.spec(0).armor, victimAfter.armor, "respawn should refill to the vehicle's full armor")
         prototype.dispose()
     }
 
@@ -65,7 +66,7 @@ class ServerTankLifecycleTest {
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         var damageAmount = 0
         var destroyed = false
-        repeat(30) {
+        repeat(300) {
             val frame = prototype.tick()
             for (event in frame.events) {
                 if (event is GameEvent.DamageTaken && event.actorId == victimId) {
@@ -85,13 +86,13 @@ class ServerTankLifecycleTest {
     @Test
     fun `destroying a single-life enemy tank with no other enemies wins the mission`() {
         val prototype = ServerMatchPrototype.fromCanonicalMap(
-            playerVsEnemy(shooterArmor = 100, enemyArmor = 25, enemyLives = 1),
+            playerVsEnemy(shooterArmor = 100, enemyArmor = 10, enemyLives = 1),
         )
         prototype.initialize()
 
         var sawWin = false
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
-        repeat(40) {
+        repeat(400) {
             val frame = prototype.tick()
             if (frame.events.any { it is GameEvent.MissionWon }) sawWin = true
         }

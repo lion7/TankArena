@@ -11,6 +11,8 @@ import com.pandulapeter.kubriko.serialization.Serializable
 import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.LEGACY_TILE_SIZE
+import com.tankarena.content.LegacySpriteResources
+import com.tankarena.content.PictureMasks
 import com.tankarena.core.LegacyDirections
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.EffectKind
@@ -67,6 +69,9 @@ private const val SHIELD_DRAIN_PER_TICK: Int = 60
 private const val SHIELD_RECHARGE_PER_TICK: Int = 10
 /** Legacy `shield.icount = 15` blinks of `tinit(5)`: a fresh human tank cannot be hurt for 75 ticks. */
 internal const val START_SHIELD_TICKS: Int = 15 * 5
+/** Legacy new_position()/check_obj_collide(): crash damage at most every 10 ticks; a heavy rammer hits for 2. */
+private const val CRASH_INTERVAL_TICKS: Int = 10
+private const val RAM_DAMAGE: Int = 2
 /** Legacy control_player(): a tank counts as in its base within 7 px of its start pad. */
 private const val BASE_RADIUS_PX: Int = 7
 /** Legacy new_velocity(): gravity in px/s² and the depth (`lowest`) at which a pit destroys a tank. */
@@ -107,12 +112,8 @@ class ServerTankActor(state: State) :
     )
     override val isAlwaysActive: Boolean = true
 
-    override val collidableTypes: List<KClass<out Collidable>> = listOf(
-        ServerWallActor::class,
-        ServerTankActor::class,
-        ServerGoalActor::class,
-        ServerTurretActor::class,
-    )
+    // Structures and other vehicles are handled by the legacy movement rules in advancePosition().
+    override val collidableTypes: List<KClass<out Collidable>> = listOf(ServerGoalActor::class)
 
     var bodyDirection: Int = state.bodyDirection
         private set
@@ -232,10 +233,7 @@ class ServerTankActor(state: State) :
     private var pendingDamageThisTick: Int = 0
     private var pendingRocketProofDamage: Int = 0
     private var pendingDestroy: Boolean = false
-    /** Set when this tick's move ran into a wall or turret (legacy static_collide()). */
-    private var hitStatic: Boolean = false
-    private var staticImpactX: Float = 0f
-    private var staticImpactY: Float = 0f
+
     private val pendingFireRequests = mutableListOf<FireRequest>()
     /** Legacy `weap.activegun`: the main-gun barrel that fires next. */
     private var activeGun: Int = 0
@@ -393,6 +391,7 @@ class ServerTankActor(state: State) :
         exactY = y.toFloat()
         positionX = x
         positionY = y
+        lastOverlap = Int.MAX_VALUE
         syncBodyFromPosition()
     }
 
@@ -443,6 +442,7 @@ class ServerTankActor(state: State) :
         exactY = spawnY.toFloat()
         positionX = spawnX
         positionY = spawnY
+        lastOverlap = Int.MAX_VALUE
         bodyDirection = spawnBodyDirection
         turretDirection = spawnTurretDirection
         armor = maxArmor
@@ -509,49 +509,10 @@ class ServerTankActor(state: State) :
         return request
     }
 
-    override fun onCollisionDetected(collidables: List<Collidable>) {
-        val impactX = velocityX
-        val impactY = velocityY
-        for (other in collidables) {
-            when (other) {
-                is ServerWallActor -> {
-                    val position = other.body.position
-                    val size = other.body.size
-                    val halfW = (size.width.raw / 2f).toInt()
-                    val halfH = (size.height.raw / 2f).toInt()
-                    val cx = (position.x.raw + size.width.raw / 2f).toInt()
-                    val cy = (position.y.raw + size.height.raw / 2f).toInt()
-                    if (resolveAabbVsAabb(cx, cy, halfW, halfH, selfFraction = 1f)) hitStatic = true
-                }
-
-                is ServerTankActor -> if (other !== this) {
-                    resolveAabbVsAabb(
-                        otherCx = other.positionX,
-                        otherCy = other.positionY,
-                        otherHalfW = SERVER_TANK_HALF,
-                        otherHalfH = SERVER_TANK_HALF,
-                        selfFraction = 0.5f,
-                    )
-                }
-
-                is ServerTurretActor -> {
-                    val half = (other.body.size.width.raw / 2f).toInt()
-                    if (resolveAabbVsAabb(other.positionX, other.positionY, half, half, selfFraction = 1f)) hitStatic = true
-                }
-
-                is ServerGoalActor -> Unit
-                else -> Unit
-            }
-        }
-        if (hitStatic) {
-            staticImpactX = impactX
-            staticImpactY = impactY
-        }
-    }
+    override fun onCollisionDetected(collidables: List<Collidable>) = Unit
 
     override fun applyPendingResolutions(worldWidthPixels: Int, worldHeightPixels: Int) {
         if (pendingResolveX == 0 && pendingResolveY == 0 && pendingDamageThisTick == 0 && pendingRocketProofDamage == 0 && !pendingDestroy) return
-        if (hitStatic) bounceOffStatic()
         if (pendingResolveX != 0 || pendingResolveY != 0) {
             positionX = (positionX + pendingResolveX)
                 .coerceIn(SERVER_TANK_HALF, worldWidthPixels - SERVER_TANK_HALF - 1)
@@ -634,11 +595,13 @@ class ServerTankActor(state: State) :
             pendingIntent.turnLeft && !pendingIntent.turnRight -> {
                 bodyDirection = LegacyDirections.stepLeft(bodyDirection)
                 hullTurnCooldownTicks = spec.motion.rotation
+                resetOverlap()
             }
 
             pendingIntent.turnRight && !pendingIntent.turnLeft -> {
                 bodyDirection = LegacyDirections.stepRight(bodyDirection)
                 hullTurnCooldownTicks = spec.motion.rotation
+                resetOverlap()
             }
         }
     }
@@ -695,11 +658,41 @@ class ServerTankActor(state: State) :
     }
 
     /** Legacy new_position(): move by the velocity and burn one unit of fuel per pixel (humans only). */
+    /**
+     * Legacy new_position() (src/tanks/control.c): try the move this tick's velocity asks for.
+     * It is refused when the vehicle's picture would overlap standing structures by more pixels
+     * than it does now (it then bounces, [staticCollide]), or when it would come within the two
+     * vehicles' radii of another vehicle ([collideWithVehicle]).
+     */
     private fun advancePosition() {
         val dx = velocityX * TICK_SECONDS
         val dy = velocityY * TICK_SECONDS
-        exactX += dx
-        exactY += dy
+        val nextX = exactX + dx
+        val nextY = exactY + dy
+        val surroundings = surroundings
+        if (surroundings != null && (dx != 0f || dy != 0f)) {
+            val roundedX = nextX.roundToInt()
+            val roundedY = nextY.roundToInt()
+            if (lastOverlap == Int.MAX_VALUE) resetOverlap()
+            val hitTile = IntArray(2)
+            val overlap = structureOverlap(roundedX, roundedY, hitTile)
+            if (overlap > lastOverlap) {
+                staticCollide()
+                crashInto(hitTile[0], hitTile[1])
+                return
+            }
+            lastOverlap = overlap
+            val other = surroundings.tanks().firstOrNull { other ->
+                other !== this && abs(other.height - height) < 2 &&
+                    inRadius(other.positionX - roundedX, other.positionY - roundedY, spec.radius + other.spec.radius)
+            }
+            if (other != null) {
+                collideWithVehicle(other)
+                return
+            }
+        }
+        exactX = nextX.coerceIn(0f, surroundings?.worldWidth?.toFloat() ?: Float.MAX_VALUE)
+        exactY = nextY.coerceIn(0f, surroundings?.worldHeight?.toFloat() ?: Float.MAX_VALUE)
         positionX = exactX.roundToInt()
         positionY = exactY.roundToInt()
         if (playerIndex >= 0 && (dx != 0f || dy != 0f)) {
@@ -715,8 +708,93 @@ class ServerTankActor(state: State) :
 
     private var fuelDebt: Float = 0f
 
+    /** The structures and other vehicles this tank moves among; set by the match. */
+    internal var surroundings: TankSurroundings? = null
+    /** Legacy `motion.overlap`: pixels the picture overlaps structures by at the current spot. */
+    private var lastOverlap: Int = Int.MAX_VALUE
+    /** Legacy `motion.nhit`: crash damage is dealt at most every 10 ticks. */
+    private var crashCooldownTicks: Int = 0
+
+    private fun bodyMask(): PictureMasks.Mask? =
+        PictureMasks.mask(LegacySpriteResources.nameForTankBody(tankType, bodyDirection.mod(16)))
+
+    /** Legacy overlap() for this tank's body picture centred on ([x], [y]). */
+    private fun structureOverlap(x: Int, y: Int, firstHit: IntArray? = null): Int {
+        val grid = surroundings?.structures ?: return 0
+        if (height >= 2) return 0
+        val mask = bodyMask() ?: return 0
+        return grid.overlap(mask, x - LEGACY_TILE_SIZE / 2, y - LEGACY_TILE_SIZE / 2, firstHit)
+    }
+
+    /** Legacy left_right(): turning is always allowed and only resets the overlap baseline. */
+    private fun resetOverlap() {
+        lastOverlap = structureOverlap(positionX, positionY)
+    }
+
+    /**
+     * Legacy static_collide(): running into a structure bounces the vehicle back with `crash` of
+     * its speed, with a crash sound above 10 px/s.
+     */
+    private fun staticCollide() {
+        velocityX *= -spec.motion.crash
+        velocityY *= -spec.motion.crash
+        if (speed > 10f) pendingEffects += GameEvent.Sound(kind = SoundKind.CRASH, x = positionX, y = positionY)
+    }
+
+    /**
+     * Legacy new_position(): a vehicle with `general.crash` damages the structure it rams (crash
+     * strength, `|v| / 25 + crash`), at most every 10 ticks.
+     */
+    private fun crashInto(tileX: Int, tileY: Int) {
+        val surroundings = surroundings ?: return
+        if (spec.crashDamage <= 0 || crashCooldownTicks > 0 || height >= 2) return
+        if (surroundings.structures.strength(tileX, tileY, StructureLayer.SOLID, HitKind.CRASH) == 0) return
+        val power = (speed / 25f).toInt() + spec.crashDamage
+        val tileCentreX = tileX * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
+        val tileCentreY = tileY * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
+        pendingEffects += GameEvent.Effect(
+            EffectKind.RUIN,
+            (tileCentreX + positionX) / 2 - 4 + random.nextInt(8),
+            (tileCentreY + positionY) / 2 - 4 + random.nextInt(8),
+        )
+        surroundings.damageStructure(tileX, tileY, StructureLayer.SOLID, HitKind.CRASH, power)
+        crashCooldownTicks = CRASH_INTERVAL_TICKS
+    }
+
+    /**
+     * Legacy tanks_collide(): this vehicle ran into [other]; the relative velocity is shared by
+     * the mass ratio and this vehicle's `crash` factor. A heavy rammer (`general.crash > 4`) also
+     * hits the other for 2 every 10 ticks. A wreck simply stops the vehicle.
+     */
+    private fun collideWithVehicle(other: ServerTankActor) {
+        if (other.armor <= 0) {
+            velocityX = 0f
+            velocityY = 0f
+            return
+        }
+        if (crashCooldownTicks == 0 && spec.crashDamage > 4) {
+            other.queueDamage(RAM_DAMAGE)
+            crashCooldownTicks = CRASH_INTERVAL_TICKS
+        }
+        val relativeX = velocityX - other.velocityX
+        val relativeY = velocityY - other.velocityY
+        val loss = spec.motion.crash
+        val massRatio = spec.motion.mass / other.spec.motion.mass
+        velocityX -= relativeX * (1 - loss) / massRatio
+        velocityY -= relativeY * (1 - loss) / massRatio
+        other.push(relativeX * loss * massRatio, relativeY * loss * massRatio)
+    }
+
+    internal fun push(dvx: Float, dvy: Float) {
+        velocityX += dvx
+        velocityY += dvy
+    }
+
+    private fun inRadius(dx: Int, dy: Int, radius: Int): Boolean = dx * dx + dy * dy < radius * radius
+
     private fun stepCooldowns() {
         primaryCooldownTicks = (primaryCooldownTicks - 1).coerceAtLeast(0)
+        crashCooldownTicks = (crashCooldownTicks - 1).coerceAtLeast(0)
     }
 
     /**
@@ -992,20 +1070,6 @@ class ServerTankActor(state: State) :
     }
 
     private fun isAvailable(weapon: Int): Boolean = ammoFor(weapon) != 0 || (weapon == WEAPON_FLAME && spec.hasFlamer)
-
-    /**
-     * Legacy static_collide(): running into something solid bounces the vehicle back with
-     * `crash` of its speed, with a crash sound above 10 px/s.
-     */
-    private fun bounceOffStatic() {
-        hitStatic = false
-        val impact = hypot(staticImpactX, staticImpactY)
-        velocityX = -staticImpactX * spec.motion.crash
-        velocityY = -staticImpactY * spec.motion.crash
-        if (impact * spec.motion.crash > 10f) {
-            pendingEffects += GameEvent.Sound(kind = SoundKind.CRASH, x = positionX, y = positionY)
-        }
-    }
 
     /** Pushes this tank out of an overlap; returns true when they overlapped. */
     private fun resolveAabbVsAabb(

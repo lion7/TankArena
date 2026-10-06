@@ -22,6 +22,7 @@ fun main(args: Array<String>) {
           mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-vehicles <src/data/tanks.c> <output-kotlin-file>
+          mapconv extract-masks <drawable dir> <output mask file>
           mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <src/data/pictures.c>
         """.trimIndent()
     }
@@ -90,6 +91,13 @@ fun main(args: Array<String>) {
                 outputCatalogFile = File(args[3]),
                 picturesSourceFile = File(args[4]),
             )
+        }
+
+        "extract-masks" -> {
+            require(args.size >= 3) {
+                "Usage: mapconv extract-masks <drawable dir> <output mask file>"
+            }
+            PictureMaskExtractor.run(File(args[1]), File(args[2]))
         }
 
         "extract-vehicles" -> {

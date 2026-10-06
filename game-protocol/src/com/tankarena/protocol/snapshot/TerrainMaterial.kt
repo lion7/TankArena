@@ -54,7 +54,7 @@ data class TerrainTile(
 )
 
 /**
- * Immutable terrain grid: O(1) lookup of terrain info at any tile coordinate.
+ * Terrain grid: O(1) lookup of terrain info at any tile coordinate.
  * Backed by a flat array indexed as [x + y * width].
  */
 class TerrainGrid(
@@ -70,6 +70,12 @@ class TerrainGrid(
 
     val tileWidth: Int get() = width
     val tileHeight: Int get() = height
+
+    /** Replace a tile (legacy: a destroyed bridge leaves water). */
+    fun update(tileX: Int, tileY: Int, tile: TerrainTile) {
+        if (tileX < 0 || tileX >= width || tileY < 0 || tileY >= height) return
+        data[tileX + tileY * width] = tile
+    }
 
     /** Return the terrain tile at tile (x, y). Returns default NORMAL for out-of-bounds. */
     fun at(tileX: Int, tileY: Int): TerrainTile {

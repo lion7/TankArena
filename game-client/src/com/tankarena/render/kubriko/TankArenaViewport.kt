@@ -86,8 +86,9 @@ private class TankArenaKubrikoRuntime(
         instanceNameForLogging = "tank-arena-sprites",
     )
     private val terrainActor = TerrainActor(snapshot, spriteManager, sprites)
+    private val topLayerActor = TopLayerActor(snapshot, spriteManager, sprites)
     private val actorManager = ActorManager.newInstance(
-        initialActors = listOf(terrainActor),
+        initialActors = listOf(terrainActor, topLayerActor),
         shouldUpdateActorsWhileNotRunning = false,
         shouldPutFarAwayActorsToSleep = false,
         invisibleActorMinimumRefreshTimeInMillis = 16,
@@ -161,6 +162,10 @@ private class TankArenaKubrikoRuntime(
         snapshot.playerView = playerView
         snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight, playfieldWidth)
         terrainActor.syncBounds()
+        topLayerActor.syncBounds()
+        if (world.changedTiles.size != snapshot.changedTiles.size) {
+            snapshot.changedTiles = world.changedTiles.associateBy { it.index }
+        }
         clientScene.sync(world, events, playerView.lockMarker)
         preloadSceneSprites(sidecar)
         viewportManager.setCameraPosition(

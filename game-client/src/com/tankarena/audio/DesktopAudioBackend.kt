@@ -65,6 +65,7 @@ class DesktopAudioBackend(
             SoundKind.SPLASH to "splash",
             SoundKind.MINE to "expl2",
             SoundKind.BONUS to "pickup",
+            SoundKind.COLLAPSE to "collapse",
         )
     }
 

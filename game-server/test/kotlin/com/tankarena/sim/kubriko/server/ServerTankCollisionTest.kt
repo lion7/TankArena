@@ -91,7 +91,9 @@ class ServerTankCollisionTest {
             .sortedBy { it.x }
         assertEquals(2, tanks.size)
         val gap = abs(tanks[1].x - tanks[0].x)
-        assertTrue(gap >= 2 * SERVER_TANK_HALF, "tanks should not overlap — gap=$gap")
+        // Legacy check_obj_collide(): vehicles keep their radii (10 + 10 px for two STANDARD tanks) apart.
+        val radii = 2 * LegacyVehicles.spec(0).radius
+        assertTrue(gap >= radii, "tanks should stay at least $radii px apart — gap=$gap")
         prototype.dispose()
     }
 

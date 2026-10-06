@@ -26,6 +26,7 @@ import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.ActorState
 import com.tankarena.protocol.snapshot.EffectKind
+import com.tankarena.protocol.snapshot.TileState
 import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.B52State
 import com.tankarena.protocol.snapshot.DestroyerState
@@ -61,6 +62,8 @@ import kotlinx.coroutines.withTimeout
 private const val MILLIS_PER_TICK: Int = 10
 /** Legacy nearest_target(): a rocket locks onto anything within 15 px of the marker. */
 private const val ROCKET_TARGET_RADIUS_PX: Int = 15
+/** Legacy create_mortar(): each growth step of the blast hits structures for 5. */
+private const val MORTAR_STEP_POWER: Int = 5
 /** Legacy HT_FLAME hit radius. */
 private const val FLAME_HIT_RADIUS_PX: Int = 15
 /** Legacy tank_write_marker(): the marker turns red beyond 400 px. */
@@ -79,7 +82,8 @@ class ServerMatchPrototype private constructor(
     private val mapMetadata: MapMetadata,
     private val initialActors: List<Serializable<*>>,
     private val terrainGrid: TerrainGrid,
-    private val solidLayer: List<Int>,
+    /** The map's buildings: strengths, ruins and the pixel masks tanks and bullets collide with. */
+    internal val structures: StructureGrid,
     val mode: MatchMode,
     /** Legacy make_tank(): human tanks start with the blinking start shield. */
     private val startShields: Boolean,
@@ -148,9 +152,16 @@ class ServerMatchPrototype private constructor(
                 maxY = worldHeightPixels - LEGACY_TILE_SIZE,
                 dual = mode == MatchMode.DUAL,
             )
+            tank.surroundings = tankSurroundings
             // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
             if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_TICKS)
         }
+        // Legacy control_turret(): turrets placed off a building are gone from the first tick
+        // (their goal contribution still counts, but they are not kills).
+        removeFallenTurrets()
+        drainTurretDestructions()
+        missionKills = 0
+        missionScore = 0
         val all = actorManager.allActors.value
         val reachable = all.filterIsInstance<ServerTankActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
             all.filterIsInstance<ServerTurretActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
@@ -177,6 +188,7 @@ class ServerMatchPrototype private constructor(
         applyTerrainEffects()
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
+        checkProjectileStructureHits()
         triggerFlameContacts()
         flushOutOfBoundsRockets()
         flushOutOfBoundsMortars()
@@ -218,7 +230,7 @@ class ServerMatchPrototype private constructor(
     internal fun turretsForTest(): List<ServerTurretActor> =
         actorManager.allActors.value.filterIsInstance<ServerTurretActor>()
 
-    internal fun solidTileCountForTest(): Int = solidLayer.count { it >= 0 }
+    internal fun solidTileCountForTest(): Int = structures.blockingLayer().count { it >= 0 }
 
     internal fun terrainTileForTest(predicate: (TerrainTile) -> Boolean): Pair<Int, Int>? {
         for (y in 0 until mapMetadata.heightTiles) {
@@ -674,8 +686,6 @@ class ServerMatchPrototype private constructor(
             if (turret !is ServerTurretActor || !turret.drainDestroyed()) continue
             val id = actorIds[turret] ?: continue
             pendingEvents += GameEvent.TurretDestroyed(id)
-            pendingEvents += GameEvent.Explosion(turret.positionX, turret.positionY, LEGACY_TILE_SIZE, ExplosionKind.ROCKET)
-            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, turret.positionX, turret.positionY)
             if (turret.team == 1) {
                 missionKills++
                 missionScore += 500
@@ -873,14 +883,153 @@ class ServerMatchPrototype private constructor(
     }
 
     /** Walls plus terrain that hurts on contact, so computer tanks route around pits and lava. */
-    private fun navigationLayer(): List<Int> = solidLayer.mapIndexed { index, solid ->
-        if (solid >= 0) return@mapIndexed solid
-        val material = terrainGrid.at(index % mapMetadata.widthTiles, index / mapMetadata.widthTiles).material
-        if (material in DEADLY_TERRAIN) 0 else -1
+    private fun navigationLayer(): List<Int> {
+        val blocking = structures.blockingLayer()
+        // A live view: destroyed buildings open new routes.
+        return object : AbstractList<Int>() {
+            override val size: Int get() = blocking.size
+            override fun get(index: Int): Int {
+                val solid = blocking[index]
+                if (solid >= 0) return solid
+                val material = terrainGrid.at(index % mapMetadata.widthTiles, index / mapMetadata.widthTiles).material
+                return if (material in DEADLY_TERRAIN) 0 else -1
+            }
+        }
     }
 
     private val lineOfSight: LineOfSight by lazy {
-        LineOfSight(mapMetadata.widthTiles, mapMetadata.heightTiles, solidLayer)
+        LineOfSight(mapMetadata.widthTiles, mapMetadata.heightTiles, structures.blockingLayer())
+    }
+
+    /** What a tank needs to know about the world it drives in (legacy new_position()). */
+    private val tankSurroundings = object : TankSurroundings {
+        override val structures: StructureGrid get() = this@ServerMatchPrototype.structures
+        override val worldWidth: Int get() = worldWidthPixels
+        override val worldHeight: Int get() = worldHeightPixels
+        override fun tanks(): List<ServerTankActor> = allTanks
+        override fun damageStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int) {
+            hitStructure(tileX, tileY, layer, kind, power, explosion = EffectKind.RUIN)
+        }
+    }
+
+    /**
+     * Legacy hit_wall_for()/hit_wall(): damage a structure and play out what destroying it does —
+     * collapse effects, the tile's goal-counter share, bridges turning into water, burning fuel
+     * dumps, and turrets falling with the building under them.
+     */
+    private fun hitStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int, explosion: EffectKind) {
+        for (destroyed in structures.hit(tileX, tileY, layer, kind, power)) {
+            onStructureDestroyed(destroyed, explosion)
+        }
+    }
+
+    private fun onStructureDestroyed(destroyed: DestroyedStructure, hitExplosion: EffectKind) {
+        val centreX = destroyed.tileX * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
+        val centreY = destroyed.tileY * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
+        if (destroyed.legacyType != "BUSH_SIDE") {
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.COLLAPSE, centreX, centreY)
+            val effect = when (destroyed.explosion) {
+                "RUIN" -> if (hitExplosion == EffectKind.CHAIN) EffectKind.RUIN else hitExplosion
+                "EXPLOSION" -> EffectKind.EXPLOSION
+                "SPLASH" -> EffectKind.SPLASH
+                "FLAME" -> EffectKind.FLAME
+                "OIL_SPLASH" -> EffectKind.OIL_SPLASH
+                else -> EffectKind.RUIN
+            }
+            if (effect == EffectKind.OIL_SPLASH) {
+                pendingEvents += GameEvent.Effect(effect, centreX, centreY)
+            } else {
+                repeat(5) {
+                    pendingEvents += GameEvent.Effect(effect, centreX - 13 + structureRandom.nextInt(26), centreY - 13 + structureRandom.nextInt(26))
+                }
+            }
+        }
+        if (destroyed.layer != StructureLayer.SOLID) return
+        modifyGoalCounter(destroyed.goalContribution)
+        when (destroyed.legacyType) {
+            "BRIDGE_H", "BRIDGE_V", "BRIDGE_CR" -> terrainGrid.update(
+                destroyed.tileX,
+                destroyed.tileY,
+                com.tankarena.content.PictureCatalog.resolve(mapMetadata.world, structures.base[destroyed.tileX + destroyed.tileY * mapMetadata.widthTiles]),
+            )
+            // Legacy create_parts(PT_FLAME): a fuel dump goes up in flames.
+            "FUEL_DUMP" -> repeat(8) {
+                pendingEvents += GameEvent.Effect(EffectKind.FLAME, centreX - 24 + structureRandom.nextInt(48), centreY - 24 + structureRandom.nextInt(48))
+            }
+        }
+        removeFallenTurrets()
+    }
+
+    private val structureRandom = kotlin.random.Random(mapMetadata.widthTiles * 31 + mapMetadata.heightTiles)
+
+    /**
+     * Legacy control_turret(): a map turret stands on a building and is removed (applying its
+     * goal contribution) as soon as that building is gone.
+     */
+    private fun removeFallenTurrets() {
+        for (turret in actorManager.allActors.value) {
+            if (turret !is ServerTurretActor || !turret.isAlive) continue
+            val tileX = turret.positionX / LEGACY_TILE_SIZE
+            val tileY = turret.positionY / LEGACY_TILE_SIZE
+            if (!structures.isStanding(tileX, tileY)) turret.fall()
+        }
+    }
+
+    /**
+     * Legacy control_bullets() with line_wall_hit_point(): bullets and flames that cross an opaque
+     * pixel of a structure stop there and damage it. A turret's own shots leave its building
+     * (they ignore structures within two tiles of it).
+     */
+    private fun checkProjectileStructureHits() {
+        for (projectile in actorManager.allActors.value) {
+            if (projectile !is ServerProjectileActor || projectile.isDead) continue
+            val turret = projectile.ownerTurretRef
+            val (fromX, fromY) = projectile.previousPosition
+            val toX = projectile.positionX
+            val toY = projectile.positionY
+            val steps = maxOf(kotlin.math.abs(toX - fromX), kotlin.math.abs(toY - fromY)).coerceAtLeast(1)
+            for (step in 1..steps) {
+                val x = fromX + (toX - fromX) * step / steps
+                val y = fromY + (toY - fromY) * step / steps
+                if (turret != null && withinRadius(turret.positionX, turret.positionY, x, y, 2 * LEGACY_TILE_SIZE)) continue
+                val layer = structures.hitLayerAt(x, y) ?: continue
+                val kind = if (projectile.weaponKind == WEAPON_FLAME) HitKind.FLAME else HitKind.NORMAL
+                val effect = when (projectile.weaponKind) {
+                    WEAPON_CHAIN -> EffectKind.CHAIN
+                    WEAPON_FLAME -> EffectKind.FLAME
+                    else -> EffectKind.EXPLOSION
+                }
+                hitStructure(Math.floorDiv(x, LEGACY_TILE_SIZE), Math.floorDiv(y, LEGACY_TILE_SIZE), layer, kind, projectile.damage, effect)
+                projectile.stopAt(x, y)
+                break
+            }
+        }
+    }
+
+    /** Legacy check_wall_hit() at a world point: wears down the top or else the solid structure there. */
+    private fun blastStructureAt(x: Int, y: Int, power: Int, explosion: EffectKind) {
+        val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+        val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+        val layer = structures.blastLayerAt(tileX, tileY) ?: return
+        hitStructure(tileX, tileY, layer, HitKind.NORMAL, power, explosion)
+    }
+
+    /**
+     * Legacy create_mortar(): the blast grows from 5 to 60 px, and each step (hit_wall_big())
+     * wears 5 off every structure within the radius plus 16.
+     */
+    private fun blastStructuresAround(x: Int, y: Int) {
+        for (radius in MORTAR_MIN_RADIUS_PX..MORTAR_MAX_RADIUS_PX step 5) {
+            var y2 = y - radius
+            while (y2 < y + radius) {
+                var x2 = x - radius
+                while (x2 < x + radius) {
+                    if (withinRadius(x2, y2, x, y, radius + 16)) blastStructureAt(x2, y2, MORTAR_STEP_POWER, EffectKind.EXPLOSION)
+                    x2 += LEGACY_TILE_SIZE
+                }
+                y2 += LEGACY_TILE_SIZE
+            }
+        }
     }
 
     private lateinit var aiModeDispatcher: AiModeDispatcher
@@ -1089,14 +1238,6 @@ class ServerMatchPrototype private constructor(
             if (tank != null) {
                 tank.queueDamage(flame.damage)
                 flame.burn(tank)
-                continue
-            }
-            val turret = actorManager.allActors.value.filterIsInstance<ServerTurretActor>().firstOrNull { turret ->
-                turret.isAlive && withinRadius(turret.positionX, turret.positionY, flame.positionX, flame.positionY, FLAME_HIT_RADIUS_PX)
-            }
-            if (turret != null) {
-                turret.takeDamage(flame.damage)
-                flame.burn(null)
             }
         }
     }
@@ -1121,8 +1262,8 @@ class ServerMatchPrototype private constructor(
     }
 
     /**
-     * Legacy nearest_target(): the closest live tank or turret within 15 px of ([x], [y]),
-     * other than [owner].
+     * Legacy nearest_target(): the closest live tank within 15 px of ([x], [y]), other than
+     * [owner]. Turrets have no hit radius in the original, so a rocket cannot lock onto one.
      */
     private fun rocketTargetAt(x: Int, y: Int, owner: ServerTankActor): RocketTarget? {
         var best: RocketTarget? = null
@@ -1131,8 +1272,6 @@ class ServerMatchPrototype private constructor(
             val (ax, ay, target) = when {
                 actor is ServerTankActor && actor !== owner && actor.armor > 0 ->
                     Triple(actor.positionX, actor.positionY, RocketTarget { actor.takeIf { it.armor > 0 }?.let { it.positionX to it.positionY } })
-                actor is ServerTurretActor && actor.isAlive ->
-                    Triple(actor.positionX, actor.positionY, RocketTarget { actor.takeIf { it.isAlive }?.let { it.positionX to it.positionY } })
                 else -> continue
             }
             val dx = (ax - x).toLong()
@@ -1151,6 +1290,12 @@ class ServerMatchPrototype private constructor(
         for (actor in actorManager.allActors.value) {
             if (actor !is ServerRocketActor) continue
             val explosion = actor.drainExplosion() ?: continue
+            // Legacy control_rocket(): a rocket without a target hits the structure at the marker.
+            if (actor.target?.position() == null) {
+                blastStructureAt(explosion.x, explosion.y, actor.damage, EffectKind.LEXPLOSION)
+                pendingEvents += GameEvent.Explosion(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, ExplosionKind.ROCKET)
+                continue
+            }
             pendingEvents.addAll(AreaDamageResolver.resolve(
                 tanks = tanks,
                 x = explosion.x,
@@ -1162,7 +1307,6 @@ class ServerMatchPrototype private constructor(
                 owner = actor.ownerRef,
                 ownerImmune = true,
                 unshieldable = true,
-                turrets = actorManager.allActors.value.filterIsInstance<ServerTurretActor>(),
             ))
         }
     }
@@ -1240,8 +1384,8 @@ class ServerMatchPrototype private constructor(
                 damage = explosion.damage,
                 kind = ExplosionKind.MORTAR,
                 owner = actor.ownerRef,
-                turrets = actorManager.allActors.value.filterIsInstance<ServerTurretActor>(),
             ))
+            blastStructuresAround(explosion.x, explosion.y)
         }
     }
 
@@ -1326,6 +1470,8 @@ class ServerMatchPrototype private constructor(
                 kind = ExplosionKind.MINE,
                 falloff = false,
             ))
+            // Legacy blowup_mine(): the mine also hits the structure it lies on.
+            blastStructureAt(det.x, det.y, actor.damage, EffectKind.EXPLOSION)
         }
     }
 
@@ -1486,7 +1632,21 @@ class ServerMatchPrototype private constructor(
             drainEvents -> pendingEvents.toList().also { pendingEvents.clear() }
             else -> pendingEvents.toList()
         }
-        return WorldSnapshot(tick = currentTick, actors = states, events = events)
+        return WorldSnapshot(tick = currentTick, actors = states, events = events, changedTiles = changedTileStates())
+    }
+
+    /** The tiles whose pictures changed (legacy rewrite_block()), for the client's terrain. */
+    private fun changedTileStates(): List<TileState> = structures.changedTiles.map { index ->
+        val tileX = index % mapMetadata.widthTiles
+        val tileY = index / mapMetadata.widthTiles
+        TileState(
+            index = index,
+            base = structures.base[index],
+            solid = structures.solid[index],
+            top = structures.top[index],
+            solidStanding = structures.isStanding(tileX, tileY),
+            topIntact = structures.isTopIntact(tileX, tileY),
+        )
     }
 
     private fun projectToWireState(actor: Actor, id: Long): ActorState? {
@@ -1749,13 +1909,13 @@ class ServerMatchPrototype private constructor(
             mode: MatchMode,
             startShields: Boolean,
         ): ServerMatchPrototype {
-            val cellCount = metadata.widthTiles * metadata.heightTiles
-            val solidLayer = layers?.solid?.takeIf { it.size == cellCount } ?: List(cellCount) { -1 }
             val instance = ServerMatchPrototype(
                 mapMetadata = metadata,
-                initialActors = MatchSetup.assignControl(actors, mode),
+                // Structures block by their pixels through the StructureGrid; the scene's wall actors
+                // only serve the editor.
+                initialActors = MatchSetup.assignControl(actors.filter { it !is ServerWallActor }, mode),
                 terrainGrid = TerrainGridBuilder.build(layers, metadata),
-                solidLayer = solidLayer,
+                structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers),
                 mode = mode,
                 startShields = startShields,
             )

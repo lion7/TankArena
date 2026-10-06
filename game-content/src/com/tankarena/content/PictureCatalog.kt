@@ -4,8 +4,18 @@ import com.tankarena.protocol.snapshot.PitShape
 import com.tankarena.protocol.snapshot.TerrainMaterial
 import com.tankarena.protocol.snapshot.TerrainTile
 
-/** The gameplay columns of one `pictureinfotype` row: its legacy `type` constant name and `speed`. */
-data class LegacyPictureTerrain(val type: String, val speed: Float)
+/**
+ * The gameplay columns of one `pictureinfotype` row (src/include/types.h): its legacy `type`
+ * constant name, `speed`, `str[3]` (strength against normal hits, crashes and flames; 1000 is
+ * indestructible), `exptype` (effect when destroyed) and `linked` (`UP+DOWN+LEFT+RIGHT+STOP` flags).
+ */
+data class LegacyPictureTerrain(
+    val type: String,
+    val speed: Float,
+    val strength: List<Int> = listOf(0, 0, 0),
+    val explosion: String = "RUIN",
+    val links: String = "NONE",
+)
 
 /**
  * Maps (world, picture-index) → terrain properties (material + speed multiplier).
@@ -35,6 +45,18 @@ object PictureCatalog {
             speedMultiplier = row.speed,
             pitShape = pitShapeFor(row.type),
         )
+    }
+
+    /** Legacy picture names of a picture index: intact, destroyed and (rarely) a third variant. */
+    fun pictureNames(world: TankArenaWorld, pictureIndex: Int): List<String>? {
+        if (pictureIndex < 0) return null
+        val records = when (world) {
+            TankArenaWorld.DESERT -> GeneratedLegacyPictureCatalog.desertRecords
+            TankArenaWorld.TEMPERATE -> GeneratedLegacyPictureCatalog.temperateRecords
+            TankArenaWorld.CITY -> GeneratedLegacyPictureCatalog.cityRecords
+            TankArenaWorld.NIGHT -> GeneratedLegacyPictureCatalog.nightRecords
+        }
+        return records.getOrNull(pictureIndex)?.nameVariants
     }
 
     private fun rowsFor(world: TankArenaWorld): List<LegacyPictureTerrain> = when (world) {

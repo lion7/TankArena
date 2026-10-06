@@ -92,6 +92,14 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         }
     }
 
+    /** Legacy control_turret(): the building under the turret is gone, so the turret goes too. */
+    fun fall() {
+        if (armor <= 0) return
+        armor = 0
+        destroyedThisTick = true
+        pendingFireRequest = null
+    }
+
     /** Applies hit damage; returns true when this hit destroyed the turret. */
     fun takeDamage(amount: Int): Boolean {
         if (amount <= 0 || armor <= 0) return false

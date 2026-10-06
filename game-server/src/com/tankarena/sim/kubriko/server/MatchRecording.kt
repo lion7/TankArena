@@ -14,8 +14,10 @@ import kotlinx.serialization.json.Json
  *
  * 1: first recordings (centre-fired guns, sliding along walls).
  * 2: guns fire from their legacy barrels, chain guns per barrel, tanks bounce off walls.
+ * 3: destructible structures with pixel collisions, turrets fall with their building, vehicles
+ *    collide by radius and shove each other by mass.
  */
-const val GAME_RULES_VERSION: Int = 2
+const val GAME_RULES_VERSION: Int = 3
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

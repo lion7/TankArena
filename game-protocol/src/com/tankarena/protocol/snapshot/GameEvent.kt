@@ -43,6 +43,8 @@ enum class SoundKind {
     MINE,
     /** Bonus/product pickup */
     BONUS,
+    /** A building collapses */
+    COLLAPSE,
 }
 
 /**
@@ -77,6 +79,8 @@ enum class EffectKind {
     MORTAR_FIRE,
     /** LAVA1..4: lava bubbling under a vehicle. */
     LAVA,
+    /** OLIE1..3: an oil tank bursting. */
+    OIL_SPLASH,
 }
 
 @Serializable

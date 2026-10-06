@@ -120,6 +120,11 @@ class ServerTurretFireTest {
         players: List<AuthoredObject>,
     ): CanonicalMapDefinition {
         val cellCount = widthTiles * heightTiles
+        // Legacy turrets stand on a building (desert picture 1, BASE1A) or fall at once.
+        val solid = MutableList(cellCount) { -1 }
+        for (turret in players.filter { it.kind == ObjectKinds.TURRET }) {
+            solid[turret.x / LEGACY_TILE_SIZE + (turret.y / LEGACY_TILE_SIZE) * widthTiles] = 1
+        }
         return CanonicalMapDefinition(
             metadata = MapMetadata(
                 name = "turret-fixture",
@@ -129,7 +134,7 @@ class ServerTurretFireTest {
             ),
             layers = TileLayers(
                 base = List(cellCount) { -1 },
-                solid = MutableList(cellCount) { -1 },
+                solid = solid,
                 top = List(cellCount) { -1 },
                 goalLayer = List(cellCount) { 0 },
                 bonusLayer = List(cellCount) { -1 },

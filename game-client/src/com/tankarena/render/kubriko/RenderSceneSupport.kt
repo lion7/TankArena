@@ -17,6 +17,7 @@ import com.tankarena.content.LegacySpriteResources
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.TankArenaWorld
 import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.TileState
 import org.jetbrains.compose.resources.DrawableResource
 import kotlin.math.max
 import kotlin.math.min
@@ -44,6 +45,9 @@ internal class RuntimeSnapshot(
     var playerView: PlayerView,
     var geometry: ViewportGeometry,
 ) {
+    /** Tiles the server reports as changed (destroyed buildings, bridges turned to water), by index. */
+    var changedTiles: Map<Int, TileState> = emptyMap()
+
     val sceneWidth: Int
         get() = geometry.sceneWidth
 
@@ -123,8 +127,11 @@ internal fun addTileSprite(
     sprites: LegacySpriteCatalog,
 ) {
     if (tileId < 0) return
-    val name = LegacySpriteResources.nameForTile(world, tileId, LegacyPictureVariant.INTACT) ?: return
-    sprites.findResource(name)?.let(target::add)
+    // Every variant: buildings switch to their ruined pictures when destroyed.
+    for (variant in LegacyPictureVariant.entries) {
+        val name = LegacySpriteResources.nameForTile(world, tileId, variant) ?: continue
+        sprites.findResource(name)?.let(target::add)
+    }
 }
 
 internal fun DrawScope.drawSprite(

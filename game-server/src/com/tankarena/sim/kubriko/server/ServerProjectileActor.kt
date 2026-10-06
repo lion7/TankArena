@@ -30,9 +30,9 @@ class ServerProjectileActor internal constructor(state: State) :
     override val isAlwaysActive: Boolean = true
 
     override val collidableTypes: List<KClass<out Collidable>> = listOf(
-        ServerWallActor::class,
+        // Structures are hit by their pixels (ServerMatchPrototype.checkProjectileStructureHits());
+        // turrets cannot be hit at all, only the building under them.
         ServerTankActor::class,
-        ServerTurretActor::class,
     )
 
     val ownerActorId: Long = state.ownerActorId
@@ -54,6 +54,18 @@ class ServerProjectileActor internal constructor(state: State) :
     var isDead: Boolean = false
         private set
 
+    /** Where the projectile was before this tick's move. */
+    var previousPosition: Pair<Int, Int> = positionX to positionY
+        private set
+
+    /** Stop at a structure it ran into. */
+    internal fun stopAt(x: Int, y: Int) {
+        if (isDead) return
+        positionX = x
+        positionY = y
+        markDead(x, y)
+    }
+
     /** Pixels left to fly (legacy `b->dist`). */
     val rangeLeft: Int get() = (ttlTicks * kotlin.math.hypot(velocityX, velocityY)).toInt()
 
@@ -68,6 +80,7 @@ class ServerProjectileActor internal constructor(state: State) :
 
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
+        previousPosition = positionX to positionY
         exactX += velocityX
         exactY += velocityY
         positionX = exactX.toInt()
@@ -97,7 +110,6 @@ class ServerProjectileActor internal constructor(state: State) :
         for (other in collidables) {
             if (isDead) return
             when (other) {
-                is ServerWallActor -> markDead(positionX, positionY)
                 is ServerTankActor -> {
                     // Flames hit by proximity (ServerMatchPrototype.triggerFlameContacts()).
                     if (weaponKind == WEAPON_FLAME) continue
@@ -108,14 +120,6 @@ class ServerProjectileActor internal constructor(state: State) :
                     markDead(positionX, positionY)
                 }
 
-                is ServerTurretActor -> {
-                    if (weaponKind == WEAPON_FLAME) continue
-                    // Wrecked turrets no longer stop bullets.
-                    if (!other.isAlive) continue
-                    if (other === ownerTurretRef) continue
-                    other.takeDamage(damage)
-                    markDead(positionX, positionY)
-                }
                 else -> Unit
             }
         }

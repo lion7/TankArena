@@ -33,7 +33,8 @@ import com.tankarena.render.kubriko.actor.TankActor
 import com.tankarena.render.kubriko.actor.TurretActor
 import org.jetbrains.compose.resources.DrawableResource
 
-private const val EFFECT_LAYER = 3
+/** Above vehicles (2) and the top structure layer (3). */
+private const val EFFECT_LAYER = 4
 
 /**
  * Legacy `eff[]` (src/world/effects.c): each effect is a run of pictures, each shown for its

@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
  * and server versions must fail fast at decode time rather than producing silent drift.
  */
-const val PROTOCOL_VERSION: Int = 4
+const val PROTOCOL_VERSION: Int = 5
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.
@@ -22,6 +22,8 @@ data class WorldSnapshot(
     val tick: Long,
     val actors: List<ActorState> = emptyList(),
     val events: List<GameEvent> = emptyList(),
+    /** Map tiles whose pictures changed since the start (destroyed buildings, bridges turned to water). */
+    val changedTiles: List<TileState> = emptyList(),
     val protocolVersion: Int = PROTOCOL_VERSION,
 )
 
@@ -125,4 +127,19 @@ data class ServerFrame(
     val tick: Long,
     val world: WorldSnapshot,
     val playerViews: List<PlayerView> = emptyList(),
+)
+
+/**
+ * The current pictures of one map tile (legacy `mapm.m[0..2]`) and whether its solid and top
+ * structures still stand. A fallen solid structure shows its ruined picture and takes the top
+ * layer with it; a fallen top-layer piece shows its ruined picture.
+ */
+@Serializable
+data class TileState(
+    val index: Int,
+    val base: Int,
+    val solid: Int,
+    val top: Int,
+    val solidStanding: Boolean,
+    val topIntact: Boolean,
 )

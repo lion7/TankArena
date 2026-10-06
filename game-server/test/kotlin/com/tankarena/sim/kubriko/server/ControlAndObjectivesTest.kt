@@ -66,7 +66,7 @@ class ControlAndObjectivesTest {
     }
 
     @Test
-    fun `projectiles destroy turrets and a turret's goal contribution can win the mission`() {
+    fun `shooting down the building under a turret brings the turret down and its goal contribution wins`() {
         val match = start(
             map(
                 humanTank(id = 1, tileX = 1, direction = 4, armor = 5000),
@@ -79,7 +79,8 @@ class ControlAndObjectivesTest {
             if (frame.events.any { it is GameEvent.TurretDestroyed }) destroyed = true
             if (match.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break
         }
-        assertTrue(destroyed, "turret should be destroyed by main-gun hits")
+        // Legacy control_turret(): the turret itself cannot be hit; it falls with its building.
+        assertTrue(destroyed, "turret should fall when the building under it is shot down")
         assertTrue(match.turretsForTest().none { it.isAlive })
         assertEquals(ServerMatchPrototype.MissionStatus.WON, match.mission)
     }
@@ -132,11 +133,15 @@ class ControlAndObjectivesTest {
         val width = 16
         val height = 10
         val cells = width * height
+        // Turrets stand on buildings (desert picture 8, @ASEAA: strength 20).
+        val turretTiles = objects.filter { it.kind == ObjectKinds.TURRET }
+            .map { it.x / LEGACY_TILE_SIZE + (it.y / LEGACY_TILE_SIZE) * width }
+            .toSet()
         return CanonicalMapDefinition(
             metadata = MapMetadata(name = "fixture", widthTiles = width, heightTiles = height, missionCode = "FIXTURE"),
             layers = TileLayers(
                 base = List(cells) { -1 },
-                solid = List(cells) { -1 },
+                solid = List(cells) { if (it in turretTiles) BUILDING_PICTURE else -1 },
                 top = List(cells) { -1 },
                 goalLayer = List(cells) { 0 },
                 bonusLayer = List(cells) { -1 },
@@ -146,5 +151,9 @@ class ControlAndObjectivesTest {
             missionText = MissionText(),
             objects = objects.toList(),
         )
+    }
+
+    private companion object {
+        const val BUILDING_PICTURE = 8
     }
 }

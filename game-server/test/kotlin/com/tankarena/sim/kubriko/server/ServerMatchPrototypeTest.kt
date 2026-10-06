@@ -34,7 +34,9 @@ class ServerMatchPrototypeTest {
         val goals = snapshot.actors.filterIsInstance<GoalState>()
 
         val solidTileCount = map.layers.solid.count { it >= 0 }
-        assertEquals(solidTileCount + 4, walls.size, "walls should cover every solid tile plus four boundary walls")
+        // Structures block through the StructureGrid; the scene's wall actors are editor-only.
+        assertTrue(walls.isEmpty(), "wall actors are not simulated")
+        assertEquals(solidTileCount, prototype.solidTileCountForTest(), "every solid tile with strength blocks")
         assertEquals(2, tanks.size)
         assertEquals(1, turrets.size)
         assertEquals(1, goals.size)
@@ -91,7 +93,9 @@ class ServerMatchPrototypeTest {
             val y = idx / widthTiles
             val onEdge = x == 0 || y == 0 || x == widthTiles - 1 || y == heightTiles - 1
             val interiorBlock = x in 4..5 && y in 4..5
-            if (onEdge || interiorBlock) 0 else -1
+            // The turret at (9, 8) stands on a building, as legacy turrets must.
+            val turretBase = x == 9 && y == 8
+            if (onEdge || interiorBlock || turretBase) 0 else -1
         }
         return CanonicalMapDefinition(
             metadata = MapMetadata(

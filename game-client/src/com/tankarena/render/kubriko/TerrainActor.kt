@@ -8,6 +8,7 @@ import com.pandulapeter.kubriko.actor.body.BoxBody
 import com.pandulapeter.kubriko.actor.traits.Visible
 import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LegacyPictureVariant
+import com.tankarena.content.PictureCatalog
 import com.tankarena.content.LegacySpriteResources
 import com.tankarena.content.TankArenaWorld
 
@@ -36,10 +37,13 @@ internal class TerrainActor(
                 val index = x + y * width
                 val px = snapshot.renderOffsetX + x * TILE_SIZE
                 val py = snapshot.renderOffsetY + y * TILE_SIZE
+                val changed = snapshot.changedTiles[index]
                 drawBackground(theme, x, y, px, py)
-                drawTile(theme, tiles.base[index], px, py)
-                drawTile(theme, tiles.solid[index], px, py)
-                drawTile(theme, tiles.top[index], px, py)
+                drawTile(theme, changed?.base ?: tiles.base[index], px, py)
+                // Legacy bottom_layer(): a fallen building shows its ruined picture (`ptr[1]`).
+                val solid = changed?.solid ?: tiles.solid[index]
+                val standing = changed?.solidStanding ?: initiallyStanding(theme, solid, tiles.top[index])
+                drawTile(theme, solid, px, py, if (standing) LegacyPictureVariant.INTACT else LegacyPictureVariant.DAMAGED)
             }
         }
     }
@@ -49,9 +53,15 @@ internal class TerrainActor(
         drawSprite(image, x, y, TILE_SIZE.toInt(), TILE_SIZE.toInt())
     }
 
-    private fun DrawScope.drawTile(world: TankArenaWorld, tileId: Int, x: Float, y: Float) {
+    private fun DrawScope.drawTile(
+        world: TankArenaWorld,
+        tileId: Int,
+        x: Float,
+        y: Float,
+        variant: LegacyPictureVariant = LegacyPictureVariant.INTACT,
+    ) {
         if (tileId < 0) return
-        val name = LegacySpriteResources.nameForTile(world, tileId, LegacyPictureVariant.INTACT) ?: return
+        val name = LegacySpriteResources.nameForTile(world, tileId, variant) ?: return
         val resource = sprites.findResource(name)
         val image = resource?.let(spriteManager::get)
         if (image == null) {
@@ -64,5 +74,62 @@ internal class TerrainActor(
             return
         }
         drawSprite(image, x, y, TILE_SIZE.toInt(), TILE_SIZE.toInt())
+    }
+}
+
+/**
+ * Legacy load_map(): a solid-layer structure stands while its normal strength is above zero; a
+ * tile that is indestructible in either layer counts as standing.
+ */
+internal fun initiallyStanding(world: TankArenaWorld, solid: Int, top: Int): Boolean {
+    val solidStrength = PictureCatalog.legacyRow(world, solid)?.strength?.firstOrNull() ?: 0
+    val topStrength = PictureCatalog.legacyRow(world, top)?.strength?.firstOrNull() ?: 0
+    return solidStrength > 0 || topStrength == 1000
+}
+
+/**
+ * Legacy top layer (`mapm.m[2]`, drawn after the objects in src/world/under.c): roofs and tree
+ * tops above the vehicles, only over a standing building, with the ruined picture once the
+ * top-layer piece itself is destroyed.
+ */
+internal class TopLayerActor(
+    private val snapshot: RuntimeSnapshot,
+    private val spriteManager: SpriteManager,
+    private val sprites: LegacySpriteCatalog,
+) : Visible {
+    override var body: BoxBody = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
+    override val layerIndex: Int = 3
+
+    fun syncBounds() {
+        body = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
+    }
+
+    override fun DrawScope.draw() {
+        val sidecar = snapshot.sidecar ?: return
+        val tiles = sidecar.tileLayers ?: return
+        val width = sidecar.metadata.widthTiles
+        val height = sidecar.metadata.heightTiles
+        val world = sidecar.metadata.world
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val index = x + y * width
+                val changed = snapshot.changedTiles[index]
+                val top = changed?.top ?: tiles.top[index]
+                if (top < 0) continue
+                val standing = changed?.solidStanding ?: initiallyStanding(world, tiles.solid[index], top)
+                if (!standing) continue
+                val intact = changed?.topIntact ?: true
+                val variant = if (intact) LegacyPictureVariant.INTACT else LegacyPictureVariant.DAMAGED
+                val name = LegacySpriteResources.nameForTile(world, top, variant) ?: continue
+                val image = sprites.findResource(name)?.let(spriteManager::get) ?: continue
+                drawSprite(
+                    image,
+                    snapshot.renderOffsetX + x * TILE_SIZE,
+                    snapshot.renderOffsetY + y * TILE_SIZE,
+                    TILE_SIZE.toInt(),
+                    TILE_SIZE.toInt(),
+                )
+            }
+        }
     }
 }

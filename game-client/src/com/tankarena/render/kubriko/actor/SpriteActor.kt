@@ -75,7 +75,7 @@ internal open class SpriteActor(
         val left = (centre - image.width / 2f).toInt()
         val top = (centre - image.height / 2f).toInt()
         if (shadowOffset != 0) {
-            drawLegacyPicture(image, left + shadowOffset, top + 2 * shadowOffset, flipHorizontal, flipVertical, SHADOW_FILTER)
+            drawLegacyShadow(image, left + shadowOffset, top + 2 * shadowOffset, flipHorizontal, flipVertical)
         }
         drawLegacyPicture(image, left, top, flipHorizontal, flipVertical)
     }
@@ -94,8 +94,25 @@ internal fun directionalFrame(direction: Int): DirectionalFrame {
     }
 }
 
-/** Legacy b_add_shadow(): the picture's opaque pixels darken what lies under them. */
-internal val SHADOW_FILTER: ColorFilter = ColorFilter.tint(Color(0x80000000), BlendMode.SrcIn)
+/**
+ * Legacy b_add_shadow() (src/graph/sprites.s): where the picture is opaque, the screen pixel
+ * underneath becomes the palette grey `gray[]` of its brightness — a grey at about 57 % of the
+ * pixel's luma (init.c: grey entry `luma / 6` of the 16-step ramp, whose entry 10 is 36/63). It is
+ * drawn as two passes over what is already there: take its colour away, then darken it.
+ */
+internal fun DrawScope.drawLegacyShadow(
+    image: ImageBitmap,
+    left: Int,
+    top: Int,
+    flipHorizontal: Boolean = false,
+    flipVertical: Boolean = false,
+) {
+    drawLegacyPicture(image, left, top, flipHorizontal, flipVertical, SHADOW_GREY, BlendMode.Saturation)
+    drawLegacyPicture(image, left, top, flipHorizontal, flipVertical, SHADOW_DARKEN, BlendMode.Multiply)
+}
+
+private val SHADOW_GREY: ColorFilter = ColorFilter.tint(Color(0xFF808080), BlendMode.SrcIn)
+private val SHADOW_DARKEN: ColorFilter = ColorFilter.tint(Color(0.57f, 0.57f, 0.57f), BlendMode.SrcIn)
 
 /** Draw [image] at its native size with its top-left at ([left], [top]), optionally mirrored. */
 internal fun DrawScope.drawLegacyPicture(
@@ -105,6 +122,7 @@ internal fun DrawScope.drawLegacyPicture(
     flipHorizontal: Boolean = false,
     flipVertical: Boolean = false,
     colorFilter: ColorFilter? = null,
+    blendMode: BlendMode = BlendMode.SrcOver,
 ) {
     val draw: DrawScope.() -> Unit = {
         drawImage(
@@ -115,6 +133,7 @@ internal fun DrawScope.drawLegacyPicture(
             dstSize = IntSize(image.width, image.height),
             filterQuality = FilterQuality.None,
             colorFilter = colorFilter,
+            blendMode = blendMode,
         )
     }
     if (!flipHorizontal && !flipVertical) {

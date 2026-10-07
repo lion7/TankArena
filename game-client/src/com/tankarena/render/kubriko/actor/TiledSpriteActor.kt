@@ -44,7 +44,7 @@ internal class TiledSpriteActor(
         if (shadowOffset != 0) {
             for ((tile, image) in images) {
                 if (image == null || !tile.castsShadow) continue
-                drawLegacyPicture(image, half + tile.dx + shadowOffset, half + tile.dy + 2 * shadowOffset, colorFilter = SHADOW_FILTER)
+                drawLegacyShadow(image, half + tile.dx + shadowOffset, half + tile.dy + 2 * shadowOffset)
             }
         }
         for ((tile, image) in images) {

@@ -23,6 +23,7 @@ import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.RadarContactKind
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import org.jetbrains.compose.resources.imageResource
@@ -58,6 +59,13 @@ fun HudOverlay(
     compact: Boolean = false,
     /** Legacy `map.night`: the light switch shows as a 13th weapon. */
     night: Boolean = false,
+    /** Player vs player: the other player's vehicle, which an arrow points at when it is out of view. */
+    opponent: TankState? = null,
+    /** Legacy write_arrow(): no arrow while this player's own vehicle is cloaked. */
+    ownCloaked: Boolean = false,
+    /** World position of the playfield's top-left corner (legacy `ssx`, `ssy`). */
+    viewLeft: Float = 0f,
+    viewTop: Float = 0f,
 ) {
     val sprites = LegacySpriteCatalog.shared
     @Composable
@@ -66,6 +74,7 @@ fun HudOverlay(
     val smallIcons = (1..15).map { picture("ICON$it") }
     val largeIcons = (1..15).map { picture("XCON$it") }
     val select = picture("SELECT")
+    val arrows = (1..8).map { picture("ARROW$it") }
     // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
     val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
     val textMeasurer = rememberTextMeasurer()
@@ -115,6 +124,13 @@ fun HudOverlay(
 
         hud.radar(playerView, width, height)
 
+        // write_arrow(): an arrow at the edge of the view points at the other player.
+        if (opponent != null && !ownCloaked) {
+            arrowFor(opponent.x - 16 - viewLeft, opponent.y - 16 - viewTop, width, height)?.let { (index, x, y) ->
+                hud.picture(arrows[index], x, y)
+            }
+        }
+
         // write_message(): the pilot's face talks (speech[]) while the two lines show; in their
         // last 16 steps the lines blink.
         val steps = hudState.messageSteps
@@ -125,6 +141,33 @@ fun HudOverlay(
                 hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE, hudState.messageLine1, Color.White)
                 hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE + 10, hudState.messageLine2, Color.White)
             }
+        }
+    }
+}
+
+/**
+ * Legacy write_arrow(): which of ARROW1..8 to show and where, for another vehicle whose top-left
+ * corner is at ([x], [y]) relative to a view of [width]×[height]; null while it is in view.
+ */
+internal fun arrowFor(x: Float, y: Float, width: Float, height: Float): Triple<Int, Float, Float>? {
+    val b = LEGACY_TILE_SIZE
+    val middleX = (width - b) / 2
+    val middleY = (height - b) / 2
+    return when {
+        x + b > width -> when {
+            y < 0 -> Triple(1, width - b, 0f)
+            y + b < height -> Triple(2, width - b, middleY)
+            else -> Triple(3, width - b, height - b)
+        }
+        x > 0 -> when {
+            y < 0 -> Triple(0, middleX, 0f)
+            y + b > height -> Triple(4, middleX, height - b)
+            else -> null
+        }
+        else -> when {
+            y < 0 -> Triple(7, 0f, 0f)
+            y + b < height -> Triple(6, 0f, middleY)
+            else -> Triple(5, 0f, height - b)
         }
     }
 }

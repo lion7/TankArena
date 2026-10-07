@@ -1,5 +1,7 @@
 package com.tankarena.render.kubriko
 
+import com.tankarena.render.kubriko.actor.drawLegacyShadow
+
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -104,12 +106,17 @@ internal class TopLayerActor(
         body = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
     }
 
+    /**
+     * Legacy top_layer(): first every roof casts its shadow 1 px right and 2 px down, then the
+     * roofs are drawn over the shadows.
+     */
     override fun DrawScope.draw() {
         val sidecar = snapshot.sidecar ?: return
         val tiles = sidecar.tileLayers ?: return
         val width = sidecar.metadata.widthTiles
         val height = sidecar.metadata.heightTiles
         val world = sidecar.metadata.world
+        val roofs = ArrayList<Triple<androidx.compose.ui.graphics.ImageBitmap, Int, Int>>()
         for (y in 0 until height) {
             for (x in 0 until width) {
                 val index = x + y * width
@@ -122,14 +129,10 @@ internal class TopLayerActor(
                 val variant = if (intact) LegacyPictureVariant.INTACT else LegacyPictureVariant.DAMAGED
                 val name = LegacySpriteResources.nameForTile(world, top, variant) ?: continue
                 val image = sprites.findResource(name)?.let(spriteManager::get) ?: continue
-                drawSprite(
-                    image,
-                    snapshot.renderOffsetX + x * TILE_SIZE,
-                    snapshot.renderOffsetY + y * TILE_SIZE,
-                    TILE_SIZE.toInt(),
-                    TILE_SIZE.toInt(),
-                )
+                roofs += Triple(image, (snapshot.renderOffsetX + x * TILE_SIZE).toInt(), (snapshot.renderOffsetY + y * TILE_SIZE).toInt())
             }
         }
+        for ((image, left, top) in roofs) drawLegacyShadow(image, left + 1, top + 2)
+        for ((image, left, top) in roofs) drawSprite(image, left.toFloat(), top.toFloat(), TILE_SIZE.toInt(), TILE_SIZE.toInt())
     }
 }

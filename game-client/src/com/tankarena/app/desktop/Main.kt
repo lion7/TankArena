@@ -50,6 +50,7 @@ import com.tankarena.core.FixedStepClock
 import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
@@ -327,6 +328,13 @@ private fun GameplayScreen(
                                 worldHeight = worldHeight,
                                 playfieldWidth = SPLIT_PLAYFIELD_WIDTH,
                                 compactHud = true,
+                                // Legacy write_arrow(): only player-vs-player points at the other player.
+                                opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
+                                    val otherId = views.getOrNull(1 - index)?.controlledActorId
+                                    serverFrame.world.actors.firstOrNull { it is TankState && it.actorId == otherId } as TankState?
+                                } else {
+                                    null
+                                },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
                             if (index == 0) Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(RetroColors.PanelBorderOuter))
@@ -368,6 +376,7 @@ private fun PlayerPane(
     playfieldWidth: Int?,
     compactHud: Boolean,
     modifier: Modifier,
+    opponent: TankState? = null,
 ) {
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
@@ -398,6 +407,10 @@ private fun PlayerPane(
                 scale = scale,
                 compact = compactHud,
                 night = mission.sidecar.metadata.night,
+                opponent = opponent?.takeIf { !it.cloaked },
+                ownCloaked = serverFrame.world.actors.any { it is TankState && it.actorId == playerView.controlledActorId && it.cloaked },
+                viewLeft = (geometry.cameraCenterX - sceneWidth / 2f - geometry.renderOffsetX).coerceAtLeast(0f),
+                viewTop = (geometry.cameraCenterY - playerView.cameraHeight / 2f - geometry.renderOffsetY).coerceAtLeast(0f),
                 modifier = Modifier.fillMaxSize(),
             )
         }

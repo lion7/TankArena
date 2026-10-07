@@ -96,7 +96,7 @@ internal class TankActor(
             val shadows = if (chopper) images else images.take(1)
             for (image in shadows) {
                 image ?: continue
-                drawLegacyPicture(image, height, 2 * height, colorFilter = SHADOW_FILTER)
+                drawLegacyShadow(image, height, 2 * height)
             }
         }
         for (image in images) {

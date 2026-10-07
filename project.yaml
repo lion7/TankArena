@@ -1,0 +1,7 @@
+modules:
+  - game-client
+  - game-content
+  - game-editor
+  - game-protocol
+  - game-server
+  - tools-mapconv

@@ -1,0 +1,17 @@
+product:
+  type: kmp/lib
+  platforms: [jvm]
+
+dependencies:
+  - ../game-content
+  - ../game-protocol
+  - $compose.desktop.currentOs
+  - io.github.pandulapeter.kubriko:engine-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:tool-scene-editor-api-desktop:0.7.3
+
+settings:
+  kotlin:
+    serialization: json
+  compose: enabled

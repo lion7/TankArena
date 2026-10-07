@@ -1,0 +1,20 @@
+product: jvm/app
+
+dependencies:
+  - ../game-content
+  - ../game-protocol
+  - ../game-server
+  - $compose.desktop.currentOs
+  - org.jetbrains.compose.material3:material3:1.12.0-alpha03
+  - io.github.pandulapeter.kubriko:engine-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-keyboard-input-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-sprites-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-collision-desktop:0.7.3
+  - io.github.pandulapeter.kubriko:plugin-serialization-desktop:0.7.3
+
+settings:
+  kotlin:
+    serialization: json
+  compose: enabled
+  jvm:
+    mainClass: com.tankarena.app.desktop.MainKt

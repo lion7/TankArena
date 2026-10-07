@@ -1,0 +1,11 @@
+product: jvm/app
+
+dependencies:
+  - ../game-content
+  - ../game-server
+
+settings:
+  kotlin:
+    serialization: json
+  jvm:
+    mainClass: com.tankarena.tools.mapconv.MainKt

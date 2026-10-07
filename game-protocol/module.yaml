@@ -1,0 +1,7 @@
+product:
+  type: kmp/lib
+  platforms: [jvm]
+
+settings:
+  kotlin:
+    serialization: json

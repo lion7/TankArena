@@ -1,0 +1,10 @@
+product:
+  type: kmp/lib
+  platforms: [jvm]
+
+dependencies:
+  - ../game-protocol
+
+settings:
+  kotlin:
+    serialization: json

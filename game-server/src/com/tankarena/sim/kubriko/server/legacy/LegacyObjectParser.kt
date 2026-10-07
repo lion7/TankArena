@@ -126,7 +126,10 @@ internal object LegacyObjectParser {
                 kind = ObjectKinds.B52,
                 x = x,
                 y = y,
+                // Packed `b52struct`: v, count, dir, armor, ...
                 properties = mapOf(
+                    "heading" to reader.readInt(OFFSET_UNION + 8).toString(),
+                    "armor" to reader.readInt(OFFSET_UNION + 12).toString(),
                     "goalContribution" to goalContribution.toString(),
                 ),
             )

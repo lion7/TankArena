@@ -210,6 +210,27 @@ class StructureGrid(
         return destroyed
     }
 
+    /**
+     * Legacy fly_b52(): a bomb that hits open ground may leave a crater — a NORM_KRAT base on an
+     * empty tile, or a ROAD_KRAT on a road. Returns true when the tile changed.
+     */
+    fun placeCrater(tileX: Int, tileY: Int): Boolean {
+        if (!inside(tileX, tileY)) return false
+        val i = index(tileX, tileY)
+        if (base[i] == -1 && solid[i] == -1) {
+            base[i] = firstPicture("NORM_KRAT")
+        } else if (solid[i] == -1 && PictureCatalog.legacyRow(world, base[i])?.type == "ROAD") {
+            solid[i] = firstPicture("ROAD_KRAT")
+        } else {
+            return false
+        }
+        changed += i
+        return true
+    }
+
+    private fun firstPicture(type: String): Int =
+        (0 until 1000).firstOrNull { PictureCatalog.legacyRow(world, it)?.type == type } ?: -1
+
     /** Legacy prepare_lock() with `lock_target == 0`: the locked structure only falls with its lock. */
     fun makeIndestructible(tileX: Int, tileY: Int) {
         if (!inside(tileX, tileY)) return

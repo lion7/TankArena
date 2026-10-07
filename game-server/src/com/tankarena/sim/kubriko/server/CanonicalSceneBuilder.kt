@@ -248,7 +248,13 @@ object CanonicalSceneBuilder {
                 }
 
                 ObjectKinds.B52 -> {
-                    sink += b52Actor(cx = obj.x, cy = obj.y)
+                    sink += b52Actor(
+                        cx = obj.x,
+                        cy = obj.y,
+                        heading = (props.int("heading") ?: 0).mod(4),
+                        armor = props.int("armor")?.takeIf { it > 0 } ?: 30,
+                        goalContribution = goalContribution,
+                    )
                 }
 
                 // Men and bonuses have no runtime actor yet.
@@ -525,18 +531,20 @@ object CanonicalSceneBuilder {
             ),
         )
 
-    private fun b52Actor(cx: Int, cy: Int): ServerB52Actor =
+    private fun b52Actor(cx: Int, cy: Int, heading: Int, armor: Int, goalContribution: Int): ServerB52Actor =
         ServerB52Actor(
             ServerB52Actor.State(
                 body = BoxBody(
                     initialPosition = SceneOffset((cx - B52_FOOTPRINT / 2).toFloat().sceneUnit, (cy - B52_FOOTPRINT / 2).toFloat().sceneUnit),
                     initialSize = SceneSize(B52_FOOTPRINT.toFloat().sceneUnit, B52_FOOTPRINT.toFloat().sceneUnit),
                 ),
-                armor = 30,
+                armor = armor,
                 alive = true,
                 x = cx,
                 y = cy,
                 bombCount = 0,
+                heading = heading,
+                goalContribution = goalContribution,
             ),
         )
 }

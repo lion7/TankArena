@@ -31,16 +31,17 @@ object TerrainGridBuilder {
         val h = metadata.heightTiles
         val size = w * h
         val world = metadata.world
-        val tiles = Array(size) { i ->
-            val baseIdx = layers.base.getOrElse(i) { -1 }
-            val solidIdx = layers.solid.getOrElse(i) { -1 }
-            val baseRow = PictureCatalog.legacyRow(world, baseIdx)
-            val typeIdx = if (baseRow == null || PictureCatalog.isNothing(baseRow.type)) solidIdx else baseIdx
-            val speed = PictureCatalog.resolve(world, baseIdx).speedMultiplier *
-                PictureCatalog.resolve(world, solidIdx).speedMultiplier
-            PictureCatalog.resolve(world, typeIdx).copy(speedMultiplier = speed)
-        }
+        val tiles = Array(size) { i -> tileFor(world, layers.base.getOrElse(i) { -1 }, layers.solid.getOrElse(i) { -1 }) }
 
         return TerrainGrid.fromTiles(w, h, tiles)
+    }
+
+    /** The terrain of one tile from its base and solid pictures (see the class comment). */
+    fun tileFor(world: TankArenaWorld, baseIdx: Int, solidIdx: Int): TerrainTile {
+        val baseRow = PictureCatalog.legacyRow(world, baseIdx)
+        val typeIdx = if (baseRow == null || PictureCatalog.isNothing(baseRow.type)) solidIdx else baseIdx
+        val speed = PictureCatalog.resolve(world, baseIdx).speedMultiplier *
+            PictureCatalog.resolve(world, solidIdx).speedMultiplier
+        return PictureCatalog.resolve(world, typeIdx).copy(speedMultiplier = speed)
     }
 }

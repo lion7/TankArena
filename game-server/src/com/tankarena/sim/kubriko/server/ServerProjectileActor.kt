@@ -16,6 +16,8 @@ import kotlinx.serialization.json.Json
 
 internal const val PROJECTILE_TTL_TICKS: Int = 31
 private const val PROJECTILE_RADIUS_PX: Float = 1.5f
+/** Legacy `b->safety = 4` after a bounce off a force field. */
+private const val FIELD_SAFETY_PX: Float = 4f
 
 class ServerProjectileActor internal constructor(state: State) :
     CollisionDetector,
@@ -39,9 +41,11 @@ class ServerProjectileActor internal constructor(state: State) :
     val ownerKind: ProjectileOwnerKind = state.ownerKind
     val damage: Int = state.damage
     val weaponKind: Int = state.weaponKind
-    /** Velocity in px per tick. */
-    val velocityX: Float = state.velocityX
-    val velocityY: Float = state.velocityY
+    /** Velocity in px per tick; a force field turns it. */
+    var velocityX: Float = state.velocityX
+        private set
+    var velocityY: Float = state.velocityY
+        private set
 
     private var exactX: Float = body.position.x.raw
     private var exactY: Float = body.position.y.raw
@@ -69,6 +73,28 @@ class ServerProjectileActor internal constructor(state: State) :
     /** Where the projectile was before this tick's move. */
     var previousPosition: Pair<Int, Int> = positionX to positionY
         private set
+
+    /**
+     * Legacy control_bullets(): a shot that hits a force field bounces off it from ([x], [y]) in
+     * [direction], belongs to nobody any more (so it can hit whoever fired it) and flies on 4 px
+     * before it can hit anything again.
+     */
+    internal fun deflect(x: Int, y: Int, direction: Int) {
+        val speed = kotlin.math.hypot(velocityX, velocityY)
+        val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(direction)
+        velocityX = fx * speed
+        velocityY = fy * speed
+        exactX = x.toFloat()
+        exactY = y.toFloat()
+        positionX = x
+        positionY = y
+        previousPosition = x to y
+        safetyLeft = FIELD_SAFETY_PX
+        ownerRef = null
+        ownerTurretRef = null
+        ownerSoldierRef = null
+        syncBody()
+    }
 
     /** Stop at a structure it ran into. */
     internal fun stopAt(x: Int, y: Int) {

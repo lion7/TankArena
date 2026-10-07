@@ -94,6 +94,9 @@ private const val GLIDE_FACTOR: Float = 20f
 /** Legacy new_velocity(): `motion.boost` (the speed-up weapon) multiplies thrust by 1.5 for 1000 ticks. */
 private const val BOOST_FACTOR: Float = 1.5f
 private const val BOOST_TICKS: Int = 1000
+/** Legacy new_position(): `vz += |vx| / 5` off a big ramp, `/ 10` off a small one. */
+private const val BIG_RAMP_LIFT: Float = 5f
+private const val SMALL_RAMP_LIFT: Float = 10f
 /** Legacy tank_add_impulse(): `2000 * power / mass` px/s; the mortar kicks back with power 50. */
 private const val IMPULSE_FACTOR: Float = 2000f
 private const val MORTAR_RECOIL_POWER: Int = 50
@@ -878,6 +881,7 @@ class ServerTankActor(state: State) :
                 collideWithVehicle(other)
                 return
             }
+            launchOffRamp(surroundings, roundedX, roundedY)
         }
         exactX = nextX.coerceIn(0f, surroundings?.worldWidth?.toFloat() ?: Float.MAX_VALUE)
         exactY = nextY.coerceIn(0f, surroundings?.worldHeight?.toFloat() ?: Float.MAX_VALUE)
@@ -895,6 +899,33 @@ class ServerTankActor(state: State) :
     }
 
     private var fuelDebt: Float = 0f
+
+    /**
+     * Legacy on_big_ramp()/on_small_ramp() in new_position(): a tank or car on the ground that
+     * rolls off a ramp tile over its high edge is thrown up at a fifth (big ramp) or a tenth
+     * (small ramp) of its speed along the hull, and flies until gravity brings it down.
+     */
+    private fun launchOffRamp(surroundings: TankSurroundings, nextX: Int, nextY: Int) {
+        if (height != 1 || (kind != VehicleKind.TANK && kind != VehicleKind.CAR)) return
+        val tileX = Math.floorDiv(positionX, LEGACY_TILE_SIZE)
+        val tileY = Math.floorDiv(positionY, LEGACY_TILE_SIZE)
+        val nextTileX = Math.floorDiv(nextX, LEGACY_TILE_SIZE)
+        val nextTileY = Math.floorDiv(nextY, LEGACY_TILE_SIZE)
+        val type = surroundings.baseType(tileX, tileY) ?: return
+        val ramp = type.removePrefix("B_").removePrefix("S_")
+        if (!ramp.startsWith("RAMP_")) return
+        val offTheEdge = when (ramp) {
+            "RAMP_L" -> nextTileX == tileX - 1
+            "RAMP_R" -> nextTileX == tileX + 1
+            "RAMP_U" -> nextTileY == tileY - 1
+            "RAMP_D" -> nextTileY == tileY + 1
+            else -> false
+        }
+        if (!offTheEdge) return
+        val (fx, fy) = LegacyDirections.unitVector(bodyDirection)
+        val along = abs(velocityX * fx + velocityY * fy)
+        verticalSpeed += along / if (type.startsWith("B_")) BIG_RAMP_LIFT else SMALL_RAMP_LIFT
+    }
 
     /** The structures and other vehicles this tank moves among; set by the match. */
     internal var surroundings: TankSurroundings? = null

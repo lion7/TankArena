@@ -214,6 +214,8 @@ data class ZeppelinState(
     val x: Int,
     val y: Int,
     val alive: Boolean = true,
+    /** Legacy `z.img`: ZEPxx (0) or ZEP2xx (1). */
+    val frame: Int = 0,
 ) : ActorState
 
 @Serializable
@@ -224,6 +226,15 @@ data class B52State(
     val armor: Int = 30,
     val alive: Boolean = true,
     val bombCount: Int = 0,
+    /** Legacy `b52.dir`: 0 north, 1 east, 2 south, 3 west. */
+    val heading: Int = 0,
+    /** Legacy `o->h`: shadow offset, and drawn above the top layer from 4 up. */
+    val height: Int = 1,
+    /** Legacy `b52.bomb`: bay frames 0..3, 4 shut. */
+    val bombBay: Int = 4,
+    val wreck: Boolean = false,
+    /** Legacy write_b52_wreck(): a wreck in water is not drawn. */
+    val onWater: Boolean = false,
 ) : ActorState
 
 @Serializable

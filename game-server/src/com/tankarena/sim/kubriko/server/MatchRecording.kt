@@ -20,8 +20,10 @@ import kotlinx.serialization.json.Json
  *    hits push vehicles, the start shield lasts 275 ticks.
  * 5: trains run on the rails, locks, destroyers and enforcers work, objects sit at their legacy
  *    centres, blasts set off mines.
+ * 6: B52 bombers and the zeppelin fly like the original, shots bounce off force fields, ramps
+ *    throw vehicles into the air.
  */
-const val GAME_RULES_VERSION: Int = 5
+const val GAME_RULES_VERSION: Int = 6
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

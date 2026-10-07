@@ -32,6 +32,8 @@ import com.tankarena.render.kubriko.actor.GoalActor
 import com.tankarena.render.kubriko.actor.ProjectileActor
 import com.tankarena.render.kubriko.actor.SpriteActor
 import com.tankarena.render.kubriko.actor.TankActor
+import com.tankarena.render.kubriko.actor.TiledSpriteActor
+import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.render.kubriko.actor.TurretActor
 import org.jetbrains.compose.resources.DrawableResource
 
@@ -40,6 +42,8 @@ private const val EFFECT_LAYER = 4
 private const val VEHICLE_LAYER = 2
 private const val HIGH_FLIGHT_HEIGHT = 4
 private const val MORTAR_ARC = 15
+/** Legacy make_zeppelin(): it flies at height 20. */
+private const val ZEPPELIN_HEIGHT = 20
 
 /**
  * Legacy `eff[]` (src/world/effects.c): each effect is a run of pictures, each shown for its
@@ -79,6 +83,7 @@ internal class ClientScene(
     private val goals = LinkedHashMap<Long, GoalActor>()
     private val projectiles = LinkedHashMap<Long, ProjectileActor>()
     private val objects = LinkedHashMap<Long, SpriteActor>()
+    private val tiled = LinkedHashMap<Long, TiledSpriteActor>()
 
     private class Effect(val actor: SpriteActor, val frames: List<Pair<String, Int>>, var frame: Int, var nextFrameTick: Long)
 
@@ -99,6 +104,7 @@ internal class ClientScene(
         val goalIds = LinkedHashSet<Long>()
         val projectileIds = LinkedHashSet<Long>()
         val objectIds = LinkedHashSet<Long>()
+        val tiledIds = LinkedHashSet<Long>()
 
         for (state in world.actors) {
             when (state) {
@@ -191,8 +197,21 @@ internal class ClientScene(
                     syncObject(objectIds, state.actorId, state.x, state.y, null)
                         .showDirectional(state.direction) { "WAGO${state.picture}-${it + 1}" }
                 }
-                is ZeppelinState -> if (state.alive) syncObject(objectIds, state.actorId, state.x, state.y, "ZEPAA")
-                is B52State -> if (state.alive) syncObject(objectIds, state.actorId, state.x, state.y, "B52AA")
+                // Legacy write_zeppelin(): 8×4 pictures from 148 px left of and 82 px above its centre.
+                is ZeppelinState -> if (state.alive) {
+                    syncTiled(tiledIds, state.actorId, state.x, state.y, EFFECT_LAYER, extent = 10, shadow = ZEPPELIN_HEIGHT) {
+                        (0 until 32).map { l ->
+                            val name = zeppelinPicture(l, state.frame)
+                            TiledSpriteActor.Tile(name, -148 + (l % 8) * LEGACY_TILE_SIZE, -82 + (l / 8) * LEGACY_TILE_SIZE)
+                        }
+                    }
+                }
+                is B52State -> if (state.alive && !(state.wreck && state.onWater)) {
+                    val layer = if (state.height >= HIGH_FLIGHT_HEIGHT) EFFECT_LAYER else VEHICLE_LAYER
+                    syncTiled(tiledIds, state.actorId, state.x, state.y, layer, extent = 4, shadow = if (state.wreck) 0 else state.height) {
+                        b52Tiles(state)
+                    }
+                }
                 // Terrain draws walls; locks, destroyers and enforcers are invisible editor markers.
                 is WallState, is LockState, is DestroyerState, is EnforcerState -> Unit
             }
@@ -203,6 +222,7 @@ internal class ClientScene(
         prune(goals, goalIds)
         prune(projectiles, projectileIds)
         prune(objects, objectIds)
+        prune(tiled, tiledIds)
         rocketPositions.keys.retainAll(objectIds)
         rocketDirections.keys.retainAll(objectIds)
         syncEffects(world.tick, events)
@@ -232,6 +252,7 @@ internal class ClientScene(
         tanks.values.forEach { it.collectSpriteResources(target) }
         turrets.values.forEach { it.collectSpriteResources(target) }
         objects.values.forEach { it.collectSpriteResources(target) }
+        tiled.values.forEach { it.collectSpriteResources(target) }
         for (frames in EFFECT_FRAMES.values) {
             frames.forEach { (name, _) -> sprites.findResource(name)?.let(target::add) }
         }
@@ -256,6 +277,58 @@ internal class ClientScene(
             shadowOffset = 0
             moveTo(x, y)
         }
+    }
+
+    private fun syncTiled(
+        ids: MutableSet<Long>,
+        actorId: Long,
+        x: Int,
+        y: Int,
+        layer: Int,
+        extent: Int,
+        shadow: Int,
+        tiles: () -> List<TiledSpriteActor.Tile>,
+    ) {
+        ids += actorId
+        tiled[actorId]?.takeIf { it.layerIndex != layer }?.let {
+            actorManager.remove(it)
+            tiled.remove(actorId)
+        }
+        tiled.getOrPut(actorId) {
+            TiledSpriteActor(actorId, snapshot, spriteManager, sprites, layer, extent).also { actorManager.add(it) }
+        }.apply {
+            this.tiles = tiles()
+            shadowOffset = shadow
+            moveTo(x, y)
+        }
+    }
+
+    /** Legacy `ZEP%c%c` / `ZEP2%c%c` with the index spelled in two letters. */
+    private fun zeppelinPicture(index: Int, frame: Int): String =
+        (if (frame == 0) "ZEP" else "ZEP2") + ('A' + index / 26) + ('A' + index % 26)
+
+    /**
+     * Legacy write_b52() / write_b52_wreck(): 2×2 pictures `B52<dir><tile>` (wreck `_52<dir><tile>`)
+     * from 32 px left of and above the centre, with the open bomb bay `B52B<dir>-<frame>` over the
+     * two tiles at the back while a stick of bombs is coming.
+     */
+    private fun b52Tiles(state: B52State): List<TiledSpriteActor.Tile> {
+        val d = state.heading.mod(4)
+        val tiles = mutableListOf<TiledSpriteActor.Tile>()
+        for (l in 0 until 4) {
+            val j = l % 2
+            val k = l / 2
+            val dx = -32 + j * LEGACY_TILE_SIZE
+            val dy = -32 + k * LEGACY_TILE_SIZE
+            if (state.wreck) {
+                tiles += TiledSpriteActor.Tile("_52${'A' + d}${'A' + l}", dx, dy, castsShadow = false)
+                continue
+            }
+            val bayTile = (d == 0 && k != 0) || (d == 1 && j == 0) || (d == 2 && k == 0) || (d == 3 && j != 0)
+            if (bayTile && state.bombBay != 4) tiles += TiledSpriteActor.Tile("B52B${d + 1}-${state.bombBay + 1}", dx, dy, castsShadow = false)
+            tiles += TiledSpriteActor.Tile("B52${'A' + d}${'A' + l}", dx, dy)
+        }
+        return tiles
     }
 
     /** Legacy write_bullets(): `h = -15·dist²/3600 + 15·dist/30`, the height of a shell on its arc. */

@@ -10,7 +10,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 /**
- * Zeppelin. Flies across screen at height 20, speed 10. Wraps around map edges.
+ * The zeppelin of the unregistered original (legacy make_zeppelin(), src/objects/zeppelin.c):
+ * an 8×4-tile airship at height 20 drifting west at 10 px/s and coming back in from the east
+ * edge at a random height on the map. Its picture alternates every 100 ticks.
  */
 class ServerZeppelinActor internal constructor(state: State) : Collidable, Editable<ServerZeppelinActor> {
 
@@ -24,6 +26,10 @@ class ServerZeppelinActor internal constructor(state: State) : Collidable, Edita
     var alive: Boolean = state.alive
     var positionX: Int = state.x
     var positionY: Int = state.y
+    internal var exactX: Float = state.x.toFloat()
+    /** Legacy `z.img`: which of the two pictures is shown. */
+    var frame: Int = 0
+    internal var frameCooldownTicks: Int = 100
 
     override fun save(): State = State(
         body = body,

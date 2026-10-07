@@ -78,6 +78,15 @@ private const val WAGON_DISTANCE: Int = 31
 private const val TRAIN_MAX_SPEED: Int = 50
 private val TRAIN_SMOKE_OFFSET: Pair<Int, Int> = 0 to -11
 private const val ABOMB_WAGON: Int = 7
+/** Legacy b52.c: where the ten bombs leave the bay, the four engines, and the bombs' power. */
+private val B52_BOMBS: List<Pair<Int, Int>> = listOf(
+    -27 to 17, -15 to 17, -21 to 23, -14 to 28, -27 to 30,
+    16 to 17, 28 to 20, 15 to 24, 27 to 29, 9 to 32,
+)
+private val B52_ENGINES: List<Pair<Int, Int>> = listOf(-16 to 9, -10 to 8, 9 to 8, 15 to 9)
+private const val B52_BOMB_POWER: Int = 20
+/** Legacy `vzep`. */
+private const val ZEPPELIN_SPEED: Float = 10f
 /** Legacy create_mine(): r = 3. */
 private const val MINE_RADIUS_PX: Int = 3
 /** Legacy HT_SROCK, as the man layer stores a soldier's weapon. */
@@ -184,6 +193,7 @@ class ServerMatchPrototype private constructor(
             if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_TICKS)
         }
         linkTrains()
+        prepareB52s()
         prepareLocks()
         // Legacy control_turret(): turrets placed off a building are gone from the first tick
         // (their goal contribution still counts, but they are not kills).
@@ -268,6 +278,8 @@ class ServerMatchPrototype private constructor(
     internal fun trainsForTest(): List<ServerTrainActor> = trains
 
     internal fun locksForTest(): List<ServerLockActor> = locks
+
+    internal fun zeppelinsForTest(): List<ServerZeppelinActor> = actorManager.allActors.value.filterIsInstance<ServerZeppelinActor>()
 
     internal fun hitTrainForTest(car: ServerTrainActor, power: Int) = hitTrain(car, power)
 
@@ -595,7 +607,7 @@ class ServerMatchPrototype private constructor(
             is ServerTrainActor -> hitTrain(actor, StructureGrid.INDESTRUCTIBLE)
             is ServerDestroyerActor -> fireDestroyer(actor)
             is ServerMineActor -> actor.detonateOn(null)
-            is ServerB52Actor -> actor.armor = 0
+            is ServerB52Actor -> hitB52(actor, StructureGrid.INDESTRUCTIBLE)
             // Turrets, goals and locks have no hit function in the original.
             else -> Unit
         }
@@ -961,49 +973,274 @@ class ServerMatchPrototype private constructor(
         }
     }
 
+    /** Legacy control_zeppelin(): drift west at 10 px/s and come back in from the east. */
     private fun stepZeppelins() {
         for (zep in actorManager.allActors.value.filterIsInstance<ServerZeppelinActor>()) {
             if (!zep.alive) continue
-            zep.positionX += 10
+            zep.exactX -= ZEPPELIN_SPEED * 0.01f
+            if (zep.exactX - LEGACY_TILE_SIZE / 2 < -4 * LEGACY_TILE_SIZE) {
+                zep.exactX = ((mapMetadata.widthTiles + 4) * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2).toFloat()
+                zep.positionY = airRandom.nextInt(worldHeightPixels) + LEGACY_TILE_SIZE / 2
+            }
+            zep.positionX = Math.round(zep.exactX)
             zep.body.position = SceneOffset(
                 (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
                 (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
             )
-            if (zep.positionX > worldWidthPixels) {
-                zep.positionX = -ZEPPELIN_FOOTPRINT
-                zep.body.position = SceneOffset(
-                    (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
-                    (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
-                )
+            if (--zep.frameCooldownTicks <= 0) {
+                zep.frame = zep.frame xor 1
+                zep.frameCooldownTicks = 100
             }
         }
     }
 
+    // ---- B52 bombers (src/objects/b52.c) ----
+
+    private var b52s: List<ServerB52Actor> = emptyList()
+    private val airRandom = kotlin.random.Random(mapMetadata.widthTiles * 523 + mapMetadata.heightTiles * 97)
+
+    /** Legacy prepare_b52(): a bomber waits 500..1000 ticks before it starts its take-off run. */
+    private fun prepareB52s() {
+        b52s = actorManager.allActors.value.filterIsInstance<ServerB52Actor>()
+        for (b52 in b52s) {
+            b52.moveTo(b52.positionX.toFloat(), b52.positionY.toFloat())
+            b52.speedCooldownTicks = 500 + airRandom.nextInt(500)
+        }
+    }
+
     private fun stepB52s() {
-        for (b52 in actorManager.allActors.value.filterIsInstance<ServerB52Actor>()) {
-            if (!b52.alive || b52.armor <= 0) continue
-            b52.positionX += 5
-            b52.body.position = SceneOffset(
-                (b52.positionX - B52_FOOTPRINT / 2).toFloat().sceneUnit,
-                (b52.positionY - B52_FOOTPRINT / 2).toFloat().sceneUnit,
-            )
-            b52.bombTimer++
-            if (b52.bombTimer >= 500 && b52.bombCount < 10) {
-                b52.bombTimer = 0
-                b52.bombCount++
-                val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-                pendingEvents.addAll(AreaDamageResolver.resolve(
-                    tanks = tanks,
-                    x = b52.positionX,
-                    y = b52.positionY,
-                    radius = 60,
-                    damage = 20,
-                    kind = ExplosionKind.ABOMB,
-                ))
+        for (b52 in b52s) {
+            if (!b52.alive) continue
+            when (b52.phase) {
+                ServerB52Actor.Phase.LIFTING -> liftB52(b52)
+                ServerB52Actor.Phase.FLYING -> flyB52(b52)
+                ServerB52Actor.Phase.CRASHING -> crashB52(b52)
+                // Legacy control_b52_wreck(): the wreck burns for 300 ticks.
+                ServerB52Actor.Phase.WRECK -> if (b52.explosionCooldownTicks > 0) {
+                    b52.explosionCooldownTicks -= 1
+                    pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, b52.positionX - 20 + airRandom.nextInt(40), b52.positionY - 20 + airRandom.nextInt(40))
+                }
             }
-            if (b52.positionX > worldWidthPixels + B52_FOOTPRINT) {
+        }
+    }
+
+    /** Count a legacy `tinit()` timer down; true when it has run out. */
+    private fun ready(ticks: Int): Boolean = ticks <= 0
+
+    /** Legacy lift_b52(): speed up by 1 px/s every 80 ticks to 25, and climb every 60 ticks above 20 px/s. */
+    private fun liftB52(b52: ServerB52Actor) {
+        controlB52(b52)
+        if (b52.phase != ServerB52Actor.Phase.LIFTING) return
+        b52.speedCooldownTicks -= 1
+        b52.heightCooldownTicks -= 1
+        if (ready(b52.speedCooldownTicks) && b52.speed < 25) {
+            b52.speed += 1
+            b52.speedCooldownTicks = 80
+        }
+        if (ready(b52.heightCooldownTicks) && b52.speed > 20) {
+            b52.height += 1
+            b52.heightCooldownTicks = 60
+        }
+        if (b52.height == ServerB52Actor.CRUISE_HEIGHT) b52.phase = ServerB52Actor.Phase.FLYING
+    }
+
+    /**
+     * Legacy control_b52(): fly on along the heading; collide with vehicles, trains and other
+     * bombers at about the same height (all of them destroyed); low down, a building is fatal.
+     */
+    private fun controlB52(b52: ServerB52Actor) {
+        val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(b52.heading * 4)
+        b52.moveTo(b52.exactX + fx * b52.speed * 0.01f, b52.exactY + fy * b52.speed * 0.01f)
+        val x = b52.positionX
+        val y = b52.positionY
+        val r = ServerB52Actor.RADIUS
+        fun crash(otherX: Int, otherY: Int) {
+            val mx = (x + otherX) / 2
+            val my = (y + otherY) / 2
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, mx, my)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, mx, my)
+            hitB52(b52, StructureGrid.INDESTRUCTIBLE)
+        }
+        for (tank in allTanks) {
+            if (kotlin.math.abs(tank.height - b52.height) >= 2) continue
+            if (!withinRadius(tank.positionX, tank.positionY, x, y, r + tank.spec.radius - 1)) continue
+            tank.queueDestroy()
+            crash(tank.positionX, tank.positionY)
+        }
+        if (kotlin.math.abs(1 - b52.height) < 2) {
+            for (car in trains) {
+                if (!car.alive || !withinRadius(car.positionX, car.positionY, x, y, r + ServerTrainActor.RADIUS - 1)) continue
+                hitTrain(car, StructureGrid.INDESTRUCTIBLE)
+                crash(car.positionX, car.positionY)
+            }
+        }
+        for (other in b52s) {
+            if (other === b52 || !other.alive || kotlin.math.abs(other.height - b52.height) >= 2) continue
+            if (!withinRadius(other.positionX, other.positionY, x, y, 2 * r - 1)) continue
+            hitB52(other, StructureGrid.INDESTRUCTIBLE)
+            crash(other.positionX, other.positionY)
+        }
+        if (b52.height <= 1) {
+            for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, r + SOLDIER_RADIUS_PX - 1)) removeSoldier(soldier)
+            soldiers.removeAll { it.removed }
+            for (mine in actorManager.allActors.value) {
+                if (mine is ServerMineActor && mine.isActive && withinRadius(mine.positionX, mine.positionY, x, y, r + MINE_RADIUS_PX - 1)) mine.detonateOn(null)
+            }
+        }
+        if (b52.height <= 3) {
+            val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+            val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+            val layer = structures.blastLayerAt(tileX, tileY)
+            if (layer != null) {
+                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x, y)
+                hitStructure(tileX, tileY, layer, HitKind.NORMAL, StructureGrid.INDESTRUCTIBLE, EffectKind.EXPLOSION)
+                hitB52(b52, StructureGrid.INDESTRUCTIBLE)
+            }
+        }
+    }
+
+    /**
+     * Legacy fly_b52(): leaving the map, the bomber comes back over a random edge on a random
+     * heading; every 650 ticks it opens its bay (four frames of 30 ticks) and drops ten bombs of
+     * power 20, which hit a building or a vehicle under them, or else may leave a crater.
+     */
+    private fun flyB52(b52: ServerB52Actor) {
+        val left = b52.positionX - LEGACY_TILE_SIZE / 2
+        val top = b52.positionY - LEGACY_TILE_SIZE / 2
+        controlB52(b52)
+        if (b52.phase != ServerB52Actor.Phase.FLYING) return
+        val b = LEGACY_TILE_SIZE
+        if (left > (mapMetadata.widthTiles + 3) * b || left < -3 * b || top > (mapMetadata.heightTiles + 3) * b || top < -3 * b) {
+            resetB52(b52)
+            return
+        }
+        b52.bombCooldownTicks -= 1
+        if (!ready(b52.bombCooldownTicks)) return
+        b52.bomb = (b52.bomb + 1) % 5
+        b52.bombCooldownTicks = if (b52.bomb == 4) 500 else 30
+        if (b52.bomb != 4) return
+        b52.bombCount += 1
+        for (offset in B52_BOMBS) {
+            val (dx, dy) = rotate(b52.heading * 4, offset)
+            val x = b52.positionX + dx
+            val y = b52.positionY + dy
+            if (bombStructure(x, y) || bombObjects(b52, x, y)) continue
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x, y)
+            if (airRandom.nextInt(10) == 0) {
+                val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+                val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+                if (structures.placeCrater(tileX, tileY)) {
+                    val i = tileX + tileY * mapMetadata.widthTiles
+                    terrainGrid.update(tileX, tileY, TerrainGridBuilder.tileFor(mapMetadata.world, structures.base[i], structures.solid[i]))
+                }
+            }
+        }
+    }
+
+    /** Legacy check_wall_hit_point(..., HT_BOMB, 20): a bomb on an opaque pixel of a structure hits it. */
+    private fun bombStructure(x: Int, y: Int): Boolean {
+        val layer = structures.hitLayerAt(x, y) ?: return false
+        pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x, y)
+        pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, x, y)
+        hitStructure(Math.floorDiv(x, LEGACY_TILE_SIZE), Math.floorDiv(y, LEGACY_TILE_SIZE), layer, HitKind.NORMAL, B52_BOMB_POWER, EffectKind.EXPLOSION)
+        return true
+    }
+
+    /**
+     * Legacy check_obj_hit_point(..., HT_BOMB, 20): a vehicle under the bomb takes it (and stops
+     * it); soldiers, bonuses, trains and low bombers within their radius are hit as well.
+     */
+    private fun bombObjects(bomber: ServerB52Actor, x: Int, y: Int): Boolean {
+        fun hitAt(px: Int, py: Int) {
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, px, py)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, px, py)
+        }
+        for (tank in allTanks) {
+            if (!withinRadius(tank.positionX, tank.positionY, x, y, tank.spec.radius)) continue
+            hitAt(x, y)
+            tank.queueDamage(B52_BOMB_POWER)
+            return true
+        }
+        for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, SOLDIER_RADIUS_PX - 1)) {
+            hitAt(x, y)
+            removeSoldier(soldier)
+        }
+        for (bonus in bonuses) if (!bonus.removed && withinRadius(bonus.x, bonus.y, x, y, BONUS_RADIUS_PX - 1)) destroyBonus(bonus)
+        for (car in trains) if (car.alive && withinRadius(car.positionX, car.positionY, x, y, ServerTrainActor.RADIUS - 1)) {
+            hitAt(x, y)
+            hitTrain(car, B52_BOMB_POWER)
+        }
+        for (other in b52s) if (other !== bomber && other.alive && other.height < 8 && withinRadius(other.positionX, other.positionY, x, y, ServerB52Actor.RADIUS - 1)) {
+            hitAt(x, y)
+            hitB52(other, B52_BOMB_POWER)
+        }
+        soldiers.removeAll { it.removed }
+        bonuses.removeAll { it.removed }
+        return false
+    }
+
+    /** Legacy reset_b52(): back in over a random edge on a random heading. */
+    private fun resetB52(b52: ServerB52Actor) {
+        val b = LEGACY_TILE_SIZE
+        b52.heading = airRandom.nextInt(4)
+        val (left, top) = when (b52.heading) {
+            0 -> airRandom.nextInt(worldWidthPixels) to (mapMetadata.heightTiles + 2) * b
+            1 -> -2 * b to airRandom.nextInt(worldHeightPixels)
+            2 -> airRandom.nextInt(worldWidthPixels) to -2 * b
+            else -> (mapMetadata.widthTiles + 2) * b to airRandom.nextInt(worldHeightPixels)
+        }
+        b52.moveTo((left + b / 2).toFloat(), (top + b / 2).toFloat())
+    }
+
+    /** Legacy hit_b52() and hit_b52_wreck(). */
+    private fun hitB52(b52: ServerB52Actor, power: Int) {
+        if (!b52.alive) return
+        when (b52.phase) {
+            ServerB52Actor.Phase.WRECK -> if (b52.explosionCooldownTicks <= 0) {
+                repeat(10) {
+                    pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, b52.positionX - 20 + airRandom.nextInt(40), b52.positionY - 20 + airRandom.nextInt(40))
+                }
                 b52.alive = false
             }
+            else -> {
+                b52.armor -= power
+                if (b52.armor <= 0) {
+                    b52.armor = 0
+                    b52.bomb = 4
+                    b52.phase = ServerB52Actor.Phase.CRASHING
+                }
+            }
+        }
+    }
+
+    /**
+     * Legacy crash_b52(): a shot-down bomber flies on, sinking one step every 60 ticks with an
+     * engine burning, and explodes the last bit of the way; on the ground it is a burning wreck
+     * and its goal share counts.
+     */
+    private fun crashB52(b52: ServerB52Actor) {
+        controlB52(b52)
+        b52.heightCooldownTicks -= 1
+        if (ready(b52.heightCooldownTicks)) {
+            b52.height -= 1
+            b52.heightCooldownTicks = 60
+        }
+        if (b52.height <= 2) {
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, b52.positionX - 20 + airRandom.nextInt(40), b52.positionY - 20 + airRandom.nextInt(40))
+        }
+        if (b52.height <= 0) {
+            b52.height = 0
+            b52.phase = ServerB52Actor.Phase.WRECK
+            modifyGoalCounter(b52.goalContribution)
+            b52.goalContribution = 0
+            b52.explosionCooldownTicks = 300
+            return
+        }
+        b52.explosionCooldownTicks -= 1
+        if (ready(b52.explosionCooldownTicks)) {
+            val (ex, ey) = rotate(b52.heading * 4, B52_ENGINES[airRandom.nextInt(4)])
+            pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, b52.positionX + ex, b52.positionY + ey)
+            b52.explosionCooldownTicks = 40
         }
     }
 
@@ -1375,10 +1612,19 @@ class ServerMatchPrototype private constructor(
         override val worldWidth: Int get() = worldWidthPixels
         override val worldHeight: Int get() = worldHeightPixels
         override fun tanks(): List<ServerTankActor> = allTanks
+        override fun baseType(tileX: Int, tileY: Int): String? {
+            if (tileX !in 0 until mapMetadata.widthTiles || tileY !in 0 until mapMetadata.heightTiles) return null
+            return com.tankarena.content.PictureCatalog.legacyRow(mapMetadata.world, structures.base[tileX + tileY * mapMetadata.widthTiles])?.type
+        }
         override fun trainAt(x: Int, y: Int, radius: Int, height: Int): Boolean = trains.any { car ->
             car.alive && kotlin.math.abs(height - 1) < 2 &&
                 (car.positionX - x) * (car.positionX - x) + (car.positionY - y) * (car.positionY - y) <
                 (radius + ServerTrainActor.RADIUS) * (radius + ServerTrainActor.RADIUS)
+        } || b52s.any { b52 ->
+            // Legacy check_obj_collide(): a bomber (or its wreck) is an obstacle too.
+            b52.alive && kotlin.math.abs(height - b52.height) < 2 &&
+                (b52.positionX - x) * (b52.positionX - x) + (b52.positionY - y) * (b52.positionY - y) <
+                (radius + ServerB52Actor.RADIUS) * (radius + ServerB52Actor.RADIUS)
         }
         override fun damageStructure(tileX: Int, tileY: Int, layer: StructureLayer, kind: HitKind, power: Int, by: ServerTankActor?) {
             hitStructure(tileX, tileY, layer, kind, power, explosion = EffectKind.RUIN, by = by)
@@ -1492,18 +1738,39 @@ class ServerMatchPrototype private constructor(
                     WEAPON_FLAME -> EffectKind.FLAME
                     else -> EffectKind.EXPLOSION
                 }
-                hitStructure(
-                    Math.floorDiv(x, LEGACY_TILE_SIZE),
-                    Math.floorDiv(y, LEGACY_TILE_SIZE),
-                    layer,
-                    kind,
-                    projectile.damage,
-                    effect,
-                    by = projectile.ownerRef,
-                )
-                projectile.stopAt(x, y)
+                val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+                val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+                hitStructure(tileX, tileY, layer, kind, projectile.damage, effect, by = projectile.ownerRef)
+                // Legacy control_bullets(): a shot (not a flame) that hits a force field still
+                // standing bounces off it.
+                val bounce = if (projectile.weaponKind != WEAPON_FLAME && structures.isStanding(tileX, tileY)) {
+                    fieldBounce(tileX, tileY, projectileDirection(projectile))
+                } else {
+                    null
+                }
+                if (bounce != null) projectile.deflect(x, y, bounce) else projectile.stopAt(x, y)
                 break
             }
+        }
+    }
+
+    /** The 16-step direction a projectile flies in. */
+    private fun projectileDirection(projectile: ServerProjectileActor): Int =
+        com.tankarena.core.LegacyDirections.fromAngle((projectile.velocityX * 1000).roundToInt(), (projectile.velocityY * 1000).roundToInt())
+
+    /**
+     * Legacy control_bullets(): the four force-field pictures mirror a shot — horizontal
+     * (`8 - dir`), vertical (`-dir`) and the two diagonals (`4 - dir`, `12 - dir`). Null when the
+     * tile's solid picture is no force field.
+     */
+    private fun fieldBounce(tileX: Int, tileY: Int, direction: Int): Int? {
+        val picture = structures.solid.getOrNull(tileX + tileY * mapMetadata.widthTiles) ?: return null
+        return when (com.tankarena.content.PictureCatalog.legacyRow(mapMetadata.world, picture)?.type) {
+            "FIELD_H" -> (8 - direction).mod(16)
+            "FIELD_V" -> (0 - direction).mod(16)
+            "FIELD_P" -> (4 - direction).mod(16)
+            "FIELD_N" -> (12 - direction).mod(16)
+            else -> null
         }
     }
 
@@ -1753,7 +2020,15 @@ class ServerMatchPrototype private constructor(
     }
 
     /** Legacy check_obj_hit_radius() for the small objects: soldiers, bonuses and (not for nukes) A-bombs. */
-    private fun blastSmallObjects(x: Int, y: Int, radius: Int, nuke: Boolean = false, power: Int = 0) {
+    private fun blastSmallObjects(x: Int, y: Int, radius: Int, nuke: Boolean = false, power: Int = 0, rocket: Boolean = false) {
+        // Legacy determine_hit(): a bomber is only within reach low down, or of a rocket.
+        for (b52 in b52s) {
+            if (b52.alive && power > 0 && (rocket || b52.height < 8) &&
+                withinRadius(b52.positionX, b52.positionY, x, y, maxOf(radius, ServerB52Actor.RADIUS))
+            ) {
+                hitB52(b52, power)
+            }
+        }
         // Train cars (r = 12) take the blast's power; mines in it go off too.
         for (car in trains) {
             if (car.alive && power > 0 && withinRadius(car.positionX, car.positionY, x, y, maxOf(radius, ServerTrainActor.RADIUS))) hitTrain(car, power)
@@ -1789,7 +2064,7 @@ class ServerMatchPrototype private constructor(
             if (projectile !is ServerProjectileActor) continue
             projectile.drainTrail()?.let { (x, y) -> pendingEvents += GameEvent.Effect(EffectKind.EXHAUST, x, y) }
         }
-        if (soldiers.isEmpty() && bonuses.isEmpty() && abombs.isEmpty() && trains.isEmpty()) return
+        if (soldiers.isEmpty() && bonuses.isEmpty() && abombs.isEmpty() && trains.isEmpty() && b52s.isEmpty()) return
         for (projectile in actorManager.allActors.value) {
             if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
             val (x1, y1) = projectile.previousPosition
@@ -1820,6 +2095,15 @@ class ServerMatchPrototype private constructor(
             }
             if (car != null) {
                 hitTrain(car, projectile.damage)
+                projectile.stopAt(x2, y2)
+                continue
+            }
+            val bomber = b52s.firstOrNull {
+                it.alive && it.height < 8 &&
+                    nearSegment(x1, y1, x2, y2, it.positionX, it.positionY, if (flame) FLAME_HIT_RADIUS_PX else ServerB52Actor.RADIUS)
+            }
+            if (bomber != null) {
+                hitB52(bomber, projectile.damage)
                 projectile.stopAt(x2, y2)
                 continue
             }
@@ -2196,7 +2480,7 @@ class ServerMatchPrototype private constructor(
                 ownerImmune = true,
                 unshieldable = true,
             ))
-            blastSmallObjects(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, power = actor.damage)
+            blastSmallObjects(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, power = actor.damage, rocket = true)
         }
     }
 
@@ -2792,6 +3076,7 @@ class ServerMatchPrototype private constructor(
                 x = actor.positionX,
                 y = actor.positionY,
                 alive = actor.alive,
+                frame = actor.frame,
             )
 
             is ServerB52Actor -> B52State(
@@ -2801,6 +3086,11 @@ class ServerMatchPrototype private constructor(
                 armor = actor.armor,
                 alive = actor.alive,
                 bombCount = actor.bombCount,
+                heading = actor.heading,
+                height = actor.height,
+                bombBay = actor.bomb,
+                wreck = actor.phase == ServerB52Actor.Phase.WRECK,
+                onWater = terrainGrid.at(actor.positionX / LEGACY_TILE_SIZE, actor.positionY / LEGACY_TILE_SIZE).material == TerrainMaterial.WATER,
             )
 
             else -> null

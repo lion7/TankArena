@@ -30,6 +30,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-4 to -8, 4 to -8),
             smokePoints = listOf(-6 to 10, 6 to 10),
             rocketOffset = 0 to -10,
+            lights = listOf(VehicleLight(0, -2 to 1)),
         ),
         // 1 "DEVASTATOR"
         VehicleSpec(
@@ -56,6 +57,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-2 to -9, 3 to -9),
             smokePoints = listOf(-2 to 10, 3 to 10),
             rocketOffset = 0 to 0,
+            lights = listOf(VehicleLight(0, -4 to -3)),
         ),
         // 2 "MOUSE"
         VehicleSpec(
@@ -82,6 +84,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-2 to -6, 2 to -6),
             smokePoints = listOf(-2 to 10, 3 to 10),
             rocketOffset = 6 to -2,
+            lights = listOf(VehicleLight(0, 4 to -2)),
         ),
         // 3 "CROCODILE"
         VehicleSpec(
@@ -108,6 +111,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-7 to -14, 7 to -14),
             smokePoints = listOf(-6 to 10, 6 to 10),
             rocketOffset = 0 to -10,
+            lights = listOf(VehicleLight(0, -2 to -1)),
         ),
         // 4 "THUNDERBOLT"
         VehicleSpec(
@@ -134,6 +138,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(1 to -15, 2 to -15),
             smokePoints = listOf(-5 to 10, 5 to 10),
             rocketOffset = 6 to -5,
+            lights = listOf(),
         ),
         // 5 "CHOPPER"
         VehicleSpec(
@@ -160,6 +165,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(0 to -13),
             smokePoints = listOf(0 to 16, 0 to 16),
             rocketOffset = 4 to -9,
+            lights = listOf(VehicleLight(0, 1 to -9)),
         ),
         // 6 "RACE TANK"
         VehicleSpec(
@@ -186,6 +192,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-4 to -1, 4 to -1),
             smokePoints = listOf(-2 to 11, -2 to 11),
             rocketOffset = 7 to -3,
+            lights = listOf(VehicleLight(1, 1 to -1)),
         ),
         // 7 "LOSERS TANK"
         VehicleSpec(
@@ -212,6 +219,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-2 to -9, 2 to -9),
             smokePoints = listOf(1 to 12, -1 to 12),
             rocketOffset = -8 to -2,
+            lights = listOf(VehicleLight(0, -6 to 1)),
         ),
         // 8 "LIZZARD"
         VehicleSpec(
@@ -238,6 +246,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-3 to -11, 3 to -11),
             smokePoints = listOf(-2 to 8, 2 to 8),
             rocketOffset = -1 to -14,
+            lights = listOf(VehicleLight(1, -4 to -1)),
         ),
         // 9 "COMPUTER DRONE"
         VehicleSpec(
@@ -264,6 +273,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(1 to -3),
             smokePoints = listOf(-2 to 6, -2 to 6),
             rocketOffset = 0 to 0,
+            lights = listOf(),
         ),
         // 10 "LAUNCHER"
         VehicleSpec(
@@ -290,6 +300,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(3 to -9),
             smokePoints = listOf(-3 to 7, 3 to 7),
             rocketOffset = 0 to -5,
+            lights = listOf(VehicleLight(1, -2 to -1)),
         ),
         // 11 "SIDE-ARM"
         VehicleSpec(
@@ -316,6 +327,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-4 to -10, -2 to -10),
             smokePoints = listOf(-4 to 10, -4 to 10),
             rocketOffset = 4 to -9,
+            lights = listOf(VehicleLight(1, 2 to -3)),
         ),
         // 12 "GREEN PLANE"
         VehicleSpec(
@@ -342,6 +354,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-11 to -7, 10 to -7),
             smokePoints = listOf(-3 to -8, 3 to -8),
             rocketOffset = 0 to 0,
+            lights = listOf(),
         ),
         // 13 "JET"
         VehicleSpec(
@@ -368,6 +381,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-5 to -5, 5 to -5),
             smokePoints = listOf(-3 to 6, 3 to 6),
             rocketOffset = 6 to -4,
+            lights = listOf(),
         ),
         // 14 "CAR"
         VehicleSpec(
@@ -394,6 +408,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-5 to -3),
             smokePoints = listOf(3 to 10, 3 to 10),
             rocketOffset = -5 to -3,
+            lights = listOf(VehicleLight(2, 4 to -9), VehicleLight(2, -3 to -9)),
         ),
         // 15 "BOB'S BUS"
         VehicleSpec(
@@ -420,6 +435,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-6 to -5),
             smokePoints = listOf(3 to 15, 3 to 15),
             rocketOffset = -6 to -5,
+            lights = listOf(VehicleLight(2, 4 to -9), VehicleLight(2, -4 to -9)),
         ),
         // 16 "BATTLE CHOPPER"
         VehicleSpec(
@@ -446,6 +462,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-2 to -16),
             smokePoints = listOf(0 to 16, 0 to 16),
             rocketOffset = 6 to -6,
+            lights = listOf(),
         ),
         // 17 "BUG LAUNCHER"
         VehicleSpec(
@@ -472,6 +489,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(5 to -8),
             smokePoints = listOf(-3 to 7, -3 to 7),
             rocketOffset = 4 to -6,
+            lights = listOf(VehicleLight(1, 0 to 1)),
         ),
         // 18 "TRUCK"
         VehicleSpec(
@@ -498,6 +516,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-6 to -9),
             smokePoints = listOf(-5 to 14, -5 to 14),
             rocketOffset = 8 to 2,
+            lights = listOf(VehicleLight(2, -6 to -12), VehicleLight(2, 6 to -12)),
         ),
         // 19 "FLAMER"
         VehicleSpec(
@@ -524,6 +543,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-3 to -8),
             smokePoints = listOf(-4 to 9, 4 to 9),
             rocketOffset = 0 to -14,
+            lights = listOf(),
         ),
         // 20 "BULLDOZER"
         VehicleSpec(
@@ -550,6 +570,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-1 to 2),
             smokePoints = listOf(3 to 13, 3 to 13),
             rocketOffset = 5 to 0,
+            lights = listOf(VehicleLight(2, 3 to 2)),
         ),
         // 21 "ATOMIC TANK"
         VehicleSpec(
@@ -576,6 +597,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-3 to -8),
             smokePoints = listOf(-4 to 9, 4 to 9),
             rocketOffset = 0 to -14,
+            lights = listOf(),
         ),
         // 22 "SHOPPING CAR"
         VehicleSpec(
@@ -602,6 +624,7 @@ internal object GeneratedLegacyVehicles {
             chainGuns = listOf(-4 to -8, 4 to -8),
             smokePoints = listOf(-6 to 10, 6 to 10),
             rocketOffset = 0 to -10,
+            lights = listOf(VehicleLight(0, -2 to 1)),
         ),
     )
 }

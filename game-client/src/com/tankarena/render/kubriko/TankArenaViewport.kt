@@ -6,6 +6,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import com.pandulapeter.kubriko.manager.ActorManager
 import com.pandulapeter.kubriko.Kubriko
 import com.pandulapeter.kubriko.KubrikoViewport
@@ -61,7 +64,15 @@ fun TankArenaViewport(
     }
 
     KubrikoViewport(
-        modifier = modifier,
+        // Legacy night missions: the view goes through the night palette, lit where lights fall.
+        modifier = if (sidecar?.metadata?.night == true) {
+            modifier.graphicsLayer {
+                runtime.nightVersion.value
+                renderEffect = runtime.nightFilter(size.width, size.height)?.asComposeRenderEffect()
+            }
+        } else {
+            modifier
+        },
         kubriko = runtime.kubriko,
         WindowInsets(0, 0, 0, 0),
     )
@@ -136,6 +147,13 @@ private class TankArenaKubrikoRuntime(
         instanceNameForLogging = "tank-arena-runtime",
     )
 
+    private val nightLighting = NightLighting(spriteManager, sprites)
+    /** Bumped whenever the night light mask is redrawn, so the layer picks up the new filter. */
+    val nightVersion = mutableIntStateOf(0)
+
+    fun nightFilter(width: Float, height: Float): org.jetbrains.skia.ImageFilter? =
+        nightLighting.filter(width, height, playfieldWidth, LEGACY_PLAYFIELD_HEIGHT.toInt())
+
     private val clientScene = ClientScene(
         snapshot = snapshot,
         actorManager = actorManager,
@@ -168,6 +186,13 @@ private class TankArenaKubrikoRuntime(
         }
         clientScene.sync(world, events, playerView.lockMarker, playerView.controlledActorId)
         preloadSceneSprites(sidecar)
+        if (sidecar?.metadata?.night == true) {
+            val extra = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
+            nightLighting.collectResources(extra)
+            nightLighting.update(world, snapshot, playfieldWidth, LEGACY_PLAYFIELD_HEIGHT.toInt(), extra)
+            scenePreloadManager.requestPreload(extra)
+            nightVersion.intValue += 1
+        }
         viewportManager.setCameraPosition(
             SceneOffset(
                 snapshot.geometry.cameraCenterX.sceneUnit,

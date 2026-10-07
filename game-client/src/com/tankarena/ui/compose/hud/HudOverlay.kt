@@ -56,6 +56,8 @@ fun HudOverlay(
     modifier: Modifier = Modifier,
     /** Player-vs-player halves have no goal counters (legacy DUAL skips write_1p_info). */
     compact: Boolean = false,
+    /** Legacy `map.night`: the light switch shows as a 13th weapon. */
+    night: Boolean = false,
 ) {
     val sprites = LegacySpriteCatalog.shared
     @Composable
@@ -64,6 +66,8 @@ fun HudOverlay(
     val smallIcons = (1..15).map { picture("ICON$it") }
     val largeIcons = (1..15).map { picture("XCON$it") }
     val select = picture("SELECT")
+    // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
+    val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
     val textMeasurer = rememberTextMeasurer()
 
     Canvas(modifier = modifier) {
@@ -98,15 +102,39 @@ fun HudOverlay(
             if (hudState.currentWeapon == weapon) hud.picture(select, x, height - 11)
             x += 9f
         }
-        hud.picture(largeIcons.getOrNull(hudState.currentWeapon), width - 24, height - 27)
-        if (hudState.currentWeapon != FLAME_WEAPON) {
+        if (night) {
+            hud.picture(smallIcons[LIGHT_ICON], x, height - 11)
+            if (hudState.currentWeapon == LIGHT_WEAPON) hud.picture(select, x, height - 11)
+        }
+        val largeIcon = if (hudState.currentWeapon == LIGHT_WEAPON) LIGHT_ICON else hudState.currentWeapon
+        hud.picture(largeIcons.getOrNull(largeIcon), width - 24, height - 27)
+        if (hudState.currentWeapon != FLAME_WEAPON && hudState.currentWeapon != LIGHT_WEAPON) {
             val ammo = hudState.ammo.getOrElse(hudState.currentWeapon) { 0 }.toString()
             hud.text(width - ammo.length * 6 - 2, height - 8, ammo, Color.White)
         }
 
         hud.radar(playerView, width, height)
+
+        // write_message(): the pilot's face talks (speech[]) while the two lines show; in their
+        // last 16 steps the lines blink.
+        val steps = hudState.messageSteps
+        if (steps > 0) {
+            val face = if (hudState.alive) SPEECH[(MESSAGE_STEPS - steps).coerceIn(0, SPEECH.size - 1)] else 4
+            hud.picture(faces[face], 5f, height - 11 - 5 - LEGACY_TILE_SIZE)
+            if (steps > 16 || steps % 2 == 1) {
+                hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE, hudState.messageLine1, Color.White)
+                hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE + 10, hudState.messageLine2, Color.White)
+            }
+        }
     }
 }
+
+/** Legacy `speech[]` (src/world/status.c): the pilot's face picture for each step of a message. */
+private val SPEECH = intArrayOf(0, 1, 2, 3, 3, 2, 2, 3, 2, 1, 2, 3, 2, 0, 0, 1, 2, 3, 3, 2, 1, 2, 3, 2, 1, 3, 2, 0, 0, 0)
+private const val MESSAGE_STEPS = 29
+/** Legacy `num_weapon`: the light switch, drawn with ICON15/XCON15. */
+private const val LIGHT_WEAPON = 12
+private const val LIGHT_ICON = 14
 
 /** Legacy write_number(): numbers above 99 show as 99, single digits are shifted right by 3. */
 private fun percent(value: Int, max: Int): Int =

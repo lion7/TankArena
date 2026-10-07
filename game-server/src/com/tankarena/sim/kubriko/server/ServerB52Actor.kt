@@ -52,6 +52,9 @@ class ServerB52Actor internal constructor(state: State) : Collidable, Editable<S
     internal var heightCooldownTicks: Int = 0
     internal var bombCooldownTicks: Int = 0
     internal var explosionCooldownTicks: Int = 0
+    /** Legacy `b52.light` and `b52.nl`: navigation lights on night maps. */
+    var lightOn: Boolean = false
+    internal var lightCooldownTicks: Int = 0
 
     internal fun moveTo(x: Float, y: Float) {
         exactX = x

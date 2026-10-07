@@ -113,6 +113,14 @@ object LegacyVehicleExtractor {
         val chainGuns = points(numbers(8), counted = true)
         val smokes = points(numbers(9), counted = false)
         val rocket = numbers(10).let { if (it.size >= 2) "${it[0]} to ${it[1]}" else "0 to 0" }
+        // `{count, LI_SIZE, x, y, ...}`: the headlights used on night maps (light_tank()).
+        val lights = numbers(11).let { values ->
+            val count = values.firstOrNull()?.toIntOrNull() ?: 0
+            values.drop(1).chunked(3).take(count).filter { it.size == 3 }.joinToString(", ", "listOf(", ")") { (size, x, y) ->
+                val index = when (size) { "LI_LARGE" -> 0; "LI_MEDIUM" -> 1; "LI_SMALL" -> 2; else -> size.toInt() }
+                "VehicleLight($index, $x to $y)"
+            }
+        }
         fun ints(values: List<String>) = values.joinToString(", ") { it.toBoolean01() }
         return buildString {
             appendLine("        // $index ${general[2]}")
@@ -140,6 +148,7 @@ object LegacyVehicleExtractor {
             appendLine("            chainGuns = $chainGuns,")
             appendLine("            smokePoints = $smokes,")
             appendLine("            rocketOffset = $rocket,")
+            appendLine("            lights = $lights,")
             appendLine("        ),")
         }
     }

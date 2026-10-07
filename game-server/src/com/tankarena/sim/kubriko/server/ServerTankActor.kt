@@ -119,6 +119,17 @@ private val SOLDIER_DROP_OFFSET: Pair<Int, Int> = 0 to -20
 /** Legacy pickup_bonus(): the amounts each bonus type gives. */
 private const val ARMOR_BONUS: Int = 10
 
+/** Legacy create_message(): a message stays 29 steps of 10 ticks (msg_control()). */
+internal const val MESSAGE_STEPS: Int = 29
+private const val MESSAGE_STEP_TICKS: Int = 10
+/** Legacy tank_fire(): switching the light blocks the trigger for 50 ticks. */
+private const val LIGHT_SWITCH_TICKS: Int = 50
+/** Legacy `desc[]` in src/tanks/fire.c: what weapon_left()/right() announce. */
+private val WEAPON_NAMES: List<String> = listOf(
+    "MAIN CANNON", "CHAIN GUN", "FLAME THROWER", "MINES", "ROCKET", "MORTAR", "A-BOMB",
+    "MEN WITH CG", "MEN WITH FL", "SMOKE SCREEN", "INVISIBILITY", "EXTRA SPEED", "LIGHT",
+)
+
 /** Legacy WRECK_LIFE_TIME: a wreck smokes (ROOK every 500..800 ticks) for 30 s. */
 private const val WRECK_SMOKE_MIN_TICKS: Int = 500
 private const val WRECK_SMOKE_SPREAD_TICKS: Int = 300
@@ -135,6 +146,8 @@ const val WEAPON_FLAMERS: Int = 8
 const val WEAPON_SMOKE: Int = 9
 const val WEAPON_CLOAK: Int = 10
 const val WEAPON_SPEEDUP: Int = 11
+/** Legacy `num_weapon`: the headlight switch, an extra weapon slot on night maps only. */
+const val WEAPON_LIGHT: Int = 12
 /**
  * Projectile kind (not a weapon number) for the legacy HT_SROCK main gun of aircraft and
  * launchers: a small rocket that hits like a main-gun shell.
@@ -300,6 +313,62 @@ class ServerTankActor(state: State) :
     /** Legacy `weap.extragun`: the extra-gun bonus adds one chain gun. */
     var extraGun: Boolean = false
         private set
+    /** Legacy `msg`: the pilot's two lines and the steps (29 → 0) they stay on screen. */
+    var messageLine1: String = ""
+        private set
+    var messageLine2: String = ""
+        private set
+    var messageSteps: Int = 0
+        private set
+    private var messageStepTicks: Int = 0
+    /** Legacy `map.night`: the light switch is a weapon and vehicles light the dark. */
+    private var night: Boolean = false
+    /** Legacy `last_min.light_on`. */
+    var lightOn: Boolean = true
+        private set
+
+    /** Legacy create_message(). */
+    fun showMessage(line1: String, line2: String = "") {
+        messageLine1 = line1.take(29)
+        messageLine2 = line2.take(29)
+        messageSteps = MESSAGE_STEPS
+        messageStepTicks = 0
+    }
+
+    /** Legacy msg_control(). */
+    private fun stepMessage() {
+        if (messageSteps == 0) return
+        if (messageStepTicks > 0) messageStepTicks -= 1
+        if (messageStepTicks == 0) {
+            messageSteps -= 1
+            messageStepTicks = MESSAGE_STEP_TICKS
+        }
+    }
+
+    /**
+     * Legacy light_tank(): the headlight cones of this vehicle (none while cloaked, switched off or
+     * destroyed). They sit on the turret of a turret vehicle and point where it points; for the
+     * other weapons than main gun, flamer and mortar they point along the hull.
+     */
+    fun headlights(): List<com.tankarena.protocol.snapshot.LightCone> {
+        if (!night || !lightOn || cloaked || armor <= 0 || spec.lights.isEmpty()) return emptyList()
+        var x = positionX
+        var y = positionY
+        val d1 = if (turretMode == TurretMode.TURRET) {
+            val (tx, ty) = rotate(bodyDirection, spec.turretOffset)
+            x += tx
+            y += ty
+            turretDirection
+        } else {
+            bodyDirection
+        }
+        val d2 = if (currentWeapon == WEAPON_MAIN || currentWeapon == WEAPON_FLAME || currentWeapon == WEAPON_MORTAR) d1 else bodyDirection
+        return spec.lights.map { light ->
+            val (lx, ly) = rotate(d1, light.offset)
+            com.tankarena.protocol.snapshot.LightCone(light.size, x + lx, y + ly, d2.mod(16))
+        }
+    }
+
     /** Where this computer tank aims locked weapons (legacy `computer.target_x/y`); set by the match. */
     internal var aiTargetX: Int = -1
     internal var aiTargetY: Int = -1
@@ -470,10 +539,11 @@ class ServerTankActor(state: State) :
     fun powerFor(weapon: Int): Int = power.getOrElse(weapon) { 0 }
 
     /** Map limits for the rocket marker and the player-vs-player rules (legacy `game.mode == DUAL`). */
-    internal fun configureForMatch(maxX: Int, maxY: Int, dual: Boolean) {
+    internal fun configureForMatch(maxX: Int, maxY: Int, dual: Boolean, night: Boolean = false) {
         lockMaxX = maxX
         lockMaxY = maxY
         dualMode = dual
+        this.night = night
     }
 
     /** Legacy lava contact: [LAVA_DAMAGE] on entering and then every [LAVA_INTERVAL_TICKS] while inside. */
@@ -536,6 +606,7 @@ class ServerTankActor(state: State) :
     }
 
     override fun update(deltaTimeInMilliseconds: Int) {
+        stepMessage()
         if (falling && armor > 0) {
             stepFall()
             pendingIntent = PlayerIntentFrame()
@@ -1033,6 +1104,13 @@ class ServerTankActor(state: State) :
         if (!pendingIntent.firePrimary || armor <= 0 || primaryCooldownTicks > 0 || height < 1) return
         val weapon = currentWeapon
         if (onWater && height < 2 && !canFireFromWater(weapon)) return
+        if (weapon == WEAPON_LIGHT) {
+            // Legacy tank_fire(): the light switch needs no ammo.
+            primaryCooldownTicks = LIGHT_SWITCH_TICKS
+            pendingEffects += GameEvent.Sound(kind = SoundKind.LIGHT, x = positionX, y = positionY)
+            lightOn = !lightOn
+            return
+        }
         if (!computer) {
             if (weapon == WEAPON_FLAME) {
                 if (!spec.hasFlamer && ammo[WEAPON_FLAME] <= 0) return
@@ -1459,18 +1537,22 @@ class ServerTankActor(state: State) :
             pendingIntent.cycleWeaponLeft && !pendingIntent.cycleWeaponRight -> -1
             else -> return
         }
+        // Legacy weapon_left()/right(): night maps add the light switch as a 13th slot.
+        val slots = if (night) WEAPON_COUNT + 1 else WEAPON_COUNT
         var weapon = currentWeapon
-        repeat(WEAPON_COUNT) {
-            weapon = (weapon + step).mod(WEAPON_COUNT)
+        repeat(slots) {
+            weapon = (weapon + step).mod(slots)
             if (isAvailable(weapon)) {
                 currentWeapon = weapon
                 weaponCycleCooldownTicks = WEAPON_CYCLE_COOLDOWN_TICKS
+                showMessage(WEAPON_NAMES[weapon], "SELECTED!")
                 return
             }
         }
     }
 
-    private fun isAvailable(weapon: Int): Boolean = ammoFor(weapon) != 0 || (weapon == WEAPON_FLAME && spec.hasFlamer)
+    private fun isAvailable(weapon: Int): Boolean =
+        ammoFor(weapon) != 0 || (weapon == WEAPON_FLAME && spec.hasFlamer) || (weapon == WEAPON_LIGHT && night)
 
     /** Pushes this tank out of an overlap; returns true when they overlapped. */
     private fun resolveAabbVsAabb(

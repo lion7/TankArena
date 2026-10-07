@@ -49,6 +49,8 @@ enum class SoundKind {
     NUKE,
     /** A soldier dies */
     SCREAM,
+    /** A rocket is coming for this vehicle */
+    INCOMING,
 }
 
 /**
@@ -159,10 +161,6 @@ sealed interface GameEvent {
      */
     @Serializable
     data class Sound(val kind: SoundKind, val x: Int, val y: Int) : GameEvent
-
-    /** Legacy create_message(): two lines for the pilot of [actorId] (e.g. "PICKED UP" / "3 ROCKETS"). */
-    @Serializable
-    data class Message(val actorId: Long, val line1: String, val line2: String = "") : GameEvent
 
     /**
      * Emitted when a flag is captured (picked up) by a tank.

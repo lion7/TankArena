@@ -39,7 +39,16 @@ data class TankState(
     val cloaked: Boolean = false,
     /** Legacy `invis.flash`: the driver of a cloaked vehicle sees it blink. */
     val cloakFlash: Boolean = true,
+    /** Legacy light_tank(): the headlight cones it casts on a night map. */
+    val lights: List<LightCone> = emptyList(),
 ) : ActorState
+
+/**
+ * One legacy light bundle (write_bundle() in src/game/night.c): cone [size] 0 large, 1 medium,
+ * 2 small, from world point ([x], [y]) in one of 16 [direction]s.
+ */
+@Serializable
+data class LightCone(val size: Int, val x: Int, val y: Int, val direction: Int)
 
 @Serializable
 data class TurretState(
@@ -235,6 +244,8 @@ data class B52State(
     val wreck: Boolean = false,
     /** Legacy write_b52_wreck(): a wreck in water is not drawn. */
     val onWater: Boolean = false,
+    /** Legacy `b52.light`: its navigation lights, blinking on night maps. */
+    val lightOn: Boolean = false,
 ) : ActorState
 
 @Serializable

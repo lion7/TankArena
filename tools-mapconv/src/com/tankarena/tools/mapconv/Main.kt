@@ -93,6 +93,13 @@ fun main(args: Array<String>) {
             )
         }
 
+        "extract-night" -> {
+            require(args.size >= 3) {
+                "Usage: mapconv extract-night <DATA dir> <output drawable dir>"
+            }
+            NightAssetsExtractor.run(File(args[1]), File(args[2]))
+        }
+
         "extract-masks" -> {
             require(args.size >= 3) {
                 "Usage: mapconv extract-masks <drawable dir> <output mask file>"

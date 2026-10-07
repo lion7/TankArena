@@ -397,6 +397,7 @@ private fun PlayerPane(
                 playfield = visiblePlayfield(geometry, viewportRect, sceneWidth, playerView.cameraHeight.toFloat()),
                 scale = scale,
                 compact = compactHud,
+                night = mission.sidecar.metadata.night,
                 modifier = Modifier.fillMaxSize(),
             )
         }

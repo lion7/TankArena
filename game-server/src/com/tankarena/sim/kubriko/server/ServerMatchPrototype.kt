@@ -85,6 +85,11 @@ private val B52_BOMBS: List<Pair<Int, Int>> = listOf(
 )
 private val B52_ENGINES: List<Pair<Int, Int>> = listOf(-16 to 9, -10 to 8, 9 to 8, 15 to 9)
 private const val B52_BOMB_POWER: Int = 20
+/** Legacy `prodname[]` (src/objects/product.c). */
+private val PRODUCT_NAMES: List<String> = listOf(
+    "WASHING POWDER", "CHOCOLATE BAR", "APPLE", "WINE", "M&M'S", "TOILET PAPER", "ONION", "CIGARETTES",
+    "COOKIES", "BEER", "COLA", "SAUSAGE", "BAMI", "CAN", "SPAGHETTI",
+)
 /** Legacy `vzep`. */
 private const val ZEPPELIN_SPEED: Float = 10f
 /** Legacy create_mine(): r = 3. */
@@ -187,6 +192,7 @@ class ServerMatchPrototype private constructor(
                 maxX = worldWidthPixels - LEGACY_TILE_SIZE,
                 maxY = worldHeightPixels - LEGACY_TILE_SIZE,
                 dual = mode == MatchMode.DUAL,
+                night = mapMetadata.night,
             )
             tank.surroundings = tankSurroundings
             // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
@@ -394,6 +400,11 @@ class ServerMatchPrototype private constructor(
                     maxArmor = tank.maxArmor,
                     maxFuel = tank.maxFuel,
                     missionProgressBad = goalBad,
+                    messageLine1 = tank.messageLine1,
+                    messageLine2 = tank.messageLine2,
+                    messageSteps = tank.messageSteps,
+                    vehicleType = tank.tankType,
+                    alive = tank.armor > 0,
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
                 lockMarker = lockMarkerFor(tank),
@@ -1049,6 +1060,14 @@ class ServerMatchPrototype private constructor(
      * bombers at about the same height (all of them destroyed); low down, a building is fatal.
      */
     private fun controlB52(b52: ServerB52Actor) {
+        // Legacy control_b52(): on night maps the navigation lights blink, 10 ticks on, 200..300 off.
+        if (mapMetadata.night) {
+            b52.lightCooldownTicks -= 1
+            if (ready(b52.lightCooldownTicks)) {
+                b52.lightOn = !b52.lightOn
+                b52.lightCooldownTicks = if (b52.lightOn) 10 else 200 + airRandom.nextInt(100)
+            }
+        }
         val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(b52.heading * 4)
         b52.moveTo(b52.exactX + fx * b52.speed * 0.01f, b52.exactY + fy * b52.speed * 0.01f)
         val x = b52.positionX
@@ -1259,6 +1278,7 @@ class ServerMatchPrototype private constructor(
                     withinRadius(tank.positionX, tank.positionY, pcx, pcy, pickupRadius)
             } ?: continue
             product.isCollected = true
+            pickup.showMessage("PICKED UP", PRODUCT_NAMES.getOrElse(product.productType) { "" })
             pendingEvents += GameEvent.ProductCollected(
                 productActorId = actorIds[product] ?: 0L,
                 tankActorId = actorIds[pickup]!!,
@@ -1304,6 +1324,7 @@ class ServerMatchPrototype private constructor(
                     withinRadius(tank.positionX, tank.positionY, fcx, fcy, pickupRadius)
             } ?: continue
             // Pick up the flag
+            pickup.showMessage("GOT A FLAG!")
             flag.isCarried = true
             flag.carrierActorId = actorIds[pickup]
             pendingEvents += GameEvent.FlagCaptured(
@@ -1350,6 +1371,7 @@ class ServerMatchPrototype private constructor(
                 pendingEvents.addAll(events)
                 // Track kills: when an enemy tank is destroyed, count it
                 for (e in events) {
+                    if (e is GameEvent.DamageTaken || e is GameEvent.TankDestroyed) announceHit(actor)
                     if (e !is GameEvent.TankDestroyed) continue
                     // Legacy hit_tank(): every other side's tanks may refill at their base again.
                     for (other in allTanks) {
@@ -1362,6 +1384,17 @@ class ServerMatchPrototype private constructor(
                     onTankDestroyed(actor)
                 }
             }
+        }
+    }
+
+    /**
+     * Legacy hit_tank(): outside player-vs-player, the players hear when one of their other
+     * drivable tanks (those with an F1–F10 id) is hit.
+     */
+    private fun announceHit(tank: ServerTankActor) {
+        if (mode == MatchMode.DUAL || tank.controllerId < 0) return
+        for (viewed in tanksByPlayerIndex.values) {
+            if (viewed !== tank) viewed.showMessage("TANK ${tank.controllerId} HAS", "BEEN HIT!")
         }
     }
 
@@ -2151,7 +2184,7 @@ class ServerMatchPrototype private constructor(
                 val what = tank.pickUpBonus(bonus.type)
                 bonus.removed = true
                 pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.BONUS, tank.positionX, tank.positionY)
-                actorIds[tank]?.let { pendingEvents += GameEvent.Message(it, "PICKED UP", what) }
+                tank.showMessage("PICKED UP", what)
             }
         }
         soldiers.removeAll { it.removed }
@@ -2457,6 +2490,16 @@ class ServerMatchPrototype private constructor(
         return best
     }
 
+    /** Legacy create_rocket(): the vehicle a rocket is launched at hears it coming. */
+    private fun warnIncoming(x: Int, y: Int, owner: ServerTankActor?) {
+        val target = allTanks
+            .filter { it !== owner && it.armor > 0 && withinRadius(it.positionX, it.positionY, x, y, ROCKET_TARGET_RADIUS_PX - 1) }
+            .minByOrNull { (it.positionX - x).toLong() * (it.positionX - x) + (it.positionY - y).toLong() * (it.positionY - y) }
+            ?: return
+        target.showMessage("INCOMING", "MISSILE!")
+        pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.INCOMING, target.positionX, target.positionY)
+    }
+
     private fun drainRocketExplosions() {
         val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
         for (actor in actorManager.allActors.value) {
@@ -2527,6 +2570,7 @@ class ServerMatchPrototype private constructor(
         )
         rocket.ownerRef = owner
         rocket.target = rocketTargetAt(request.targetX, request.targetY, owner)
+        warnIncoming(request.targetX, request.targetY, owner)
 
         // Emit sound event for rocket launch
         pendingEvents += GameEvent.Sound(
@@ -2903,6 +2947,7 @@ class ServerMatchPrototype private constructor(
                     chopper = actor.kind == VehicleKind.CHOPPER,
                     cloaked = actor.cloaked,
                     cloakFlash = actor.cloakFlash,
+                    lights = actor.headlights(),
                 )
             }
 
@@ -3091,6 +3136,7 @@ class ServerMatchPrototype private constructor(
                 bombBay = actor.bomb,
                 wreck = actor.phase == ServerB52Actor.Phase.WRECK,
                 onWater = terrainGrid.at(actor.positionX / LEGACY_TILE_SIZE, actor.positionY / LEGACY_TILE_SIZE).material == TerrainMaterial.WATER,
+                lightOn = actor.lightOn,
             )
 
             else -> null

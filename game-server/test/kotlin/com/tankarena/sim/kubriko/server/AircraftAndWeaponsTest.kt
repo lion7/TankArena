@@ -164,13 +164,10 @@ class AircraftAndWeaponsTest {
         val tank = assertNotNull(match.playerTankForTest(0))
         val rockets = tank.ammoFor(WEAPON_ROCKET)
         assertEquals(4, match.snapshot().actors.filterIsInstance<BonusState>().single().bonusType)
-        var message: GameEvent.Message? = null
-        repeat(300) {
-            val frame = match.tick(mapOf(0 to east))
-            message = message ?: frame.events.filterIsInstance<GameEvent.Message>().firstOrNull()
-        }
+        repeat(300) { match.tick(mapOf(0 to east)) }
         assertEquals(rockets + 3, tank.ammoFor(WEAPON_ROCKET))
-        assertEquals(GameEvent.Message(message!!.actorId, "PICKED UP", "3 ROCKETS"), message)
+        val hud = match.buildPlayerViews().single().hud
+        assertEquals("PICKED UP" to "3 ROCKETS", hud.messageLine1 to hud.messageLine2)
         assertTrue(match.snapshot().actors.none { it is BonusState })
     }
 

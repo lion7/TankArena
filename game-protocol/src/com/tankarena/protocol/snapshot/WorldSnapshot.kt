@@ -106,6 +106,13 @@ data class HudState(
     val maxArmor: Int = 0,
     val maxFuel: Int = 0,
     val missionProgressBad: Int = 0,
+    /** Legacy `msg`: the pilot's message lines and the steps (29 → 0) it has left. */
+    val messageLine1: String = "",
+    val messageLine2: String = "",
+    val messageSteps: Int = 0,
+    /** The vehicle whose pilot speaks (`tank[n].face`), and whether it still lives (face 5 if not). */
+    val vehicleType: Int = 0,
+    val alive: Boolean = true,
 )
 
 @Serializable

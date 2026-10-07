@@ -69,7 +69,12 @@ data class VehicleSpec(
     val smokePoints: List<Pair<Int, Int>> = emptyList(),
     /** Rocket launcher (`rocket[]`), on the turret. */
     val rocketOffset: Pair<Int, Int> = 0 to 0,
+    /** Headlights (`light[]`) for the night maps, on the turret of a turret vehicle. */
+    val lights: List<VehicleLight> = emptyList(),
 )
+
+/** One legacy headlight: its cone size (0 large, 1 medium, 2 small) and where it sits. */
+data class VehicleLight(val size: Int, val offset: Pair<Int, Int>)
 
 /**
  * Legacy loc_x()/loc_y() (src/check/math.c): turn an offset laid out for a north-facing vehicle

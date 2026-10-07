@@ -238,7 +238,7 @@ There is no CI yet. Fix `.gitignore` first: its `.*` rule currently ignores `.gi
 
 | Stage | Trigger | Contents | Budget |
 |---|---|---|---|
-| `check` | every push / PR | `./amper build`, all unit, rule, content and replay tests (§3.1–3.3), client unit + Compose UI + golden images (§3.6) | < 10 min |
+| `check` | every push / PR | `./kotlin build`, all unit, rule, content and replay tests (§3.1–3.3), client unit + Compose UI + golden images (§3.6) | < 10 min |
 | `smoke` | every PR | desktop smoke under Xvfb (§3.6) | < 3 min |
 | `nightly` | schedule | soak, fuzz and winnability bots (§3.4), every-scene × every-mode boot, balance telemetry artifact | < 60 min |
 | `weekly` | schedule / manual | visual agent pass (§3.7) → issues | manual triage |
@@ -249,7 +249,7 @@ There is no CI yet. Fix `.gitignore` first: its `.*` rule currently ignores `.gi
 - A failure is reproduced with its seed or replay, then fixed or the test is corrected in the same PR.
 - Quarantine is not allowed (see Principle 4).
 
-**Environment note.** Compose 1.10's desktop runtime artifacts (`androidx.*`) are published only on Google Maven (`dl.google.com`). Any CI runner or cloud agent session must allow that host as well as Maven Central and the JetBrains Amper repository, or nothing beyond `:game-protocol`/`:game-content` will build.
+**Environment note.** Compose 1.10's desktop runtime artifacts (`androidx.*`) are published only on Google Maven (`dl.google.com`). Any CI runner or cloud agent session must allow that host as well as Maven Central and the JetBrains Kotlin toolchain repository (`packages.jetbrains.team`), or nothing beyond `:game-protocol`/`:game-content` will build.
 
 ## 5. Coverage targets
 

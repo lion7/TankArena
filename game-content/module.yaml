@@ -1,5 +1,5 @@
 product:
-  type: lib
+  type: kmp/lib
   platforms: [jvm]
 
 dependencies:
@@ -7,7 +7,4 @@ dependencies:
 
 settings:
   kotlin:
-    version: 2.4.20
-    serialization:
-      format: json
-      version: 1.11.0
+    serialization: json

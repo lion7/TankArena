@@ -14,12 +14,7 @@ dependencies:
 
 settings:
   kotlin:
-    version: 2.4.20
-    serialization:
-      format: json
-      version: 1.11.0
-  compose:
-    enabled: true
-    version: 1.12.1
+    serialization: json
+  compose: enabled
   jvm:
     mainClass: com.tankarena.app.desktop.MainKt

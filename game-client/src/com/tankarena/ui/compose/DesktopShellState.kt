@@ -31,14 +31,11 @@ sealed interface DesktopShellScreen {
     data class Briefing(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
 
     data class Playing(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
-    data class Debrief(
-        val mission: MissionEntry,
-        val mode: GameMode,
-        val outcome: MissionOutcome,
-        val score: Int = 0,
-        val kills: Int = 0,
-        val captures: Int = 0,
-        val time: Long = 0,
-    ) : DesktopShellScreen
+
+    /**
+     * Legacy `debrief()` (src/game/single.c): after a won mission its success text, after a lost
+     * one its failure text, in the text viewer; then back to the game mode menu.
+     */
+    data class AfterMission(val text: String) : DesktopShellScreen
     data object Editor : DesktopShellScreen
 }

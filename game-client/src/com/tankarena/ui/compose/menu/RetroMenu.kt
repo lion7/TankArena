@@ -1,53 +1,30 @@
 package com.tankarena.ui.compose.menu
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import com.tankarena.ui.compose.legacy.LegacyColors
+import com.tankarena.ui.compose.legacy.LegacyFonts
+import com.tankarena.ui.compose.legacy.Mode13Screen
+import com.tankarena.ui.compose.legacy.Mode13View
 
 data class RetroMenuItem(
     val label: String,
-    val subtitle: String? = null,
+    /** False for entries the rewrite does not have yet; the cursor skips them. */
     val enabled: Boolean = true,
     val onActivate: () -> Unit,
 )
 
+/**
+ * Legacy `menu()` (src/game/menu.c): the panel screen with a brighter band, a black box in it,
+ * the title and the entries in the big font, centred; the selected entry in `FNT_HIGH`, the
+ * others in `FNT_NORM`. Up and Down move (wrapping round), Enter picks, ESC leaves.
+ */
 @Composable
 fun RetroMenuScreen(
     title: String,
@@ -55,230 +32,50 @@ fun RetroMenuScreen(
     modifier: Modifier = Modifier,
     initialSelection: Int = items.indexOfFirst { it.enabled }.coerceAtLeast(0),
     onCancel: (() -> Unit)? = null,
-    footerHint: String? = null,
 ) {
-    TiledPanelBackground(modifier = modifier) {
-        RetroMenuPanel(
-            title = title,
-            items = items,
-            initialSelection = initialSelection,
-            onCancel = onCancel,
-            footerHint = footerHint,
-            modifier = Modifier.align(Alignment.Center),
-        )
+    var selected by remember(items.map { it.label }) {
+        mutableIntStateOf(initialSelection.coerceIn(0, (items.size - 1).coerceAtLeast(0)))
     }
-}
-
-@Composable
-private fun RetroMenuPanel(
-    title: String,
-    items: List<RetroMenuItem>,
-    initialSelection: Int,
-    onCancel: (() -> Unit)?,
-    footerHint: String?,
-    modifier: Modifier = Modifier,
-) {
-    var selected by remember(items) {
-        mutableStateOf(initialSelection.coerceIn(0, (items.size - 1).coerceAtLeast(0)))
-    }
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
-    Surface(
-        modifier = modifier
-            .widthIn(min = 480.dp, max = 720.dp)
-            .wrapContentHeight()
-            .border(width = 3.dp, color = RetroColors.PanelBorderOuter, shape = RectangleShape)
-            .padding(3.dp)
-            .border(width = 1.dp, color = RetroColors.PanelBorderInner, shape = RectangleShape)
-            .focusRequester(focusRequester)
-            .focusable()
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (event.key) {
-                    Key.DirectionUp -> {
-                        selected = previousEnabled(items, selected)
-                        true
-                    }
-                    Key.DirectionDown -> {
-                        selected = nextEnabled(items, selected)
-                        true
-                    }
-                    Key.Enter, Key.NumPadEnter, Key.Spacebar -> {
-                        items.getOrNull(selected)?.takeIf { it.enabled }?.onActivate?.invoke()
-                        true
-                    }
-                    Key.Escape -> {
-                        onCancel?.invoke()
-                        onCancel != null
-                    }
-                    else -> false
-                }
-            },
-        color = RetroColors.PanelFill,
-        shape = RectangleShape,
-        contentColor = Color.White,
+    Mode13View(
+        modifier = modifier,
+        onKey = { event ->
+            when (event.key) {
+                Key.DirectionUp -> selected = step(items, selected, -1)
+                Key.DirectionDown -> selected = step(items, selected, 1)
+                Key.Enter, Key.NumPadEnter -> items.getOrNull(selected)?.takeIf { it.enabled }?.onActivate?.invoke()
+                Key.Escape -> onCancel?.invoke() ?: return@Mode13View false
+                else -> return@Mode13View false
+            }
+            true
+        },
     ) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 36.dp, vertical = 28.dp)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = title,
-                color = RetroColors.Title,
-                style = RetroTypography.Title,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            RetroMenuItemList(
-                items = items,
-                selected = selected,
-                onHover = { index -> if (items[index].enabled) selected = index },
-                onClick = { index ->
-                    val item = items[index]
-                    if (item.enabled) {
-                        selected = index
-                        item.onActivate()
-                    }
-                },
-            )
-            if (footerHint != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = footerHint,
-                    color = RetroColors.Footer,
-                    style = RetroTypography.Footer,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
+        drawMenu(title, items.map { it.label }, selected)
     }
 }
 
-@Composable
-private fun RetroMenuItemList(
-    items: List<RetroMenuItem>,
-    selected: Int,
-    onHover: (Int) -> Unit,
-    onClick: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val hasSubtitles = items.any { it.subtitle != null }
-    if (hasSubtitles && items.size > 6) {
-        val listState = rememberLazyListState()
-        LaunchedEffect(selected) {
-            if (selected in items.indices) listState.animateScrollToItem(selected)
-        }
-        LazyColumn(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(360.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            itemsIndexed(items) { index, item ->
-                RetroMenuRow(
-                    item = item,
-                    isSelected = index == selected,
-                    onHover = { onHover(index) },
-                    onClick = { onClick(index) },
-                )
-            }
-        }
-    } else {
-        Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            items.forEachIndexed { index, item ->
-                RetroMenuRow(
-                    item = item,
-                    isSelected = index == selected,
-                    onHover = { onHover(index) },
-                    onClick = { onClick(index) },
-                )
-            }
-        }
+/** The picture of legacy `menu()` with entry [selected] (0-based) highlighted. */
+internal fun Mode13Screen.drawMenu(title: String, labels: List<String>, selected: Int) {
+    val height = LegacyFonts.BIG_HEIGHT
+    val widest = labels.maxOfOrNull { Mode13Screen.bigLength(it) } ?: 0
+    // `max` counts the title too: the entries are m[1]..m[max-1].
+    val max = labels.size + 1
+    val top = (180 - labels.size * height) / 2
+    panel()
+    addBar((280 - widest) / 2, top - 10, widest + 40, 20 + max * height + 11, LegacyColors.BAR_ADD)
+    bar((290 - widest) / 2, top - 5, widest + 30, 10 + max * height + 11, LegacyColors.BLACK)
+    bigTextCentre(title, 160, top, LegacyColors.HIGH)
+    labels.forEachIndexed { index, label ->
+        val color = if (index == selected) LegacyColors.HIGH else LegacyColors.NORMAL
+        bigTextCentre(label, 160, top + 11 + (index + 1) * height, color)
     }
 }
 
-@Composable
-private fun RetroMenuRow(
-    item: RetroMenuItem,
-    isSelected: Boolean,
-    onHover: () -> Unit,
-    onClick: () -> Unit,
-) {
-    val color = when {
-        !item.enabled -> RetroColors.ItemDisabled
-        isSelected -> RetroColors.ItemSelected
-        else -> RetroColors.ItemIdle
-    }
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .background(if (isSelected && item.enabled) Color(0xFF0E1D33) else Color.Transparent)
-        .padding(PaddingValues(horizontal = 12.dp, vertical = 4.dp))
-        .pointerInput(item.enabled) {
-            if (!item.enabled) return@pointerInput
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent()
-                    if (event.type == PointerEventType.Enter || event.type == PointerEventType.Move) {
-                        onHover()
-                    }
-                }
-            }
-        }
-        .pointerInput(item.enabled) {
-            if (!item.enabled) return@pointerInput
-            detectTapGestures(onTap = { onClick() })
-        }
-
-    Column(
-        modifier = rowModifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = item.label,
-            color = color,
-            style = RetroTypography.Item,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (item.subtitle != null) {
-            Text(
-                text = item.subtitle,
-                color = if (item.enabled) RetroColors.Subtitle else RetroColors.ItemDisabled,
-                style = RetroTypography.Subtitle,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentWidth(Alignment.CenterHorizontally),
-            )
-        }
-    }
-}
-
-private fun nextEnabled(items: List<RetroMenuItem>, current: Int): Int {
+/** The next enabled entry in [direction], wrapping round like the legacy menu. */
+private fun step(items: List<RetroMenuItem>, current: Int, direction: Int): Int {
     if (items.isEmpty()) return 0
     var index = current
     repeat(items.size) {
-        index = (index + 1) % items.size
-        if (items[index].enabled) return index
-    }
-    return current
-}
-
-private fun previousEnabled(items: List<RetroMenuItem>, current: Int): Int {
-    if (items.isEmpty()) return 0
-    var index = current
-    repeat(items.size) {
-        index = (index - 1 + items.size) % items.size
+        index = (index + direction + items.size) % items.size
         if (items[index].enabled) return index
     }
     return current

@@ -10,15 +10,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.sp
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.HudState
@@ -26,6 +19,9 @@ import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.RadarContactKind
 import com.tankarena.render.kubriko.LegacySpriteCatalog
+import com.tankarena.ui.compose.legacy.LegacyColors
+import com.tankarena.ui.compose.legacy.LegacyFonts
+import kotlin.math.floor
 import org.jetbrains.compose.resources.imageResource
 
 /** Legacy `num_weapon`. */
@@ -77,11 +73,10 @@ fun HudOverlay(
     val arrows = (1..8).map { picture("ARROW$it") }
     // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
     val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
-    val textMeasurer = rememberTextMeasurer()
 
     Canvas(modifier = modifier) {
         if (playfield.width <= 0f || scale <= 0f) return@Canvas
-        val hud = HudPainter(this, textMeasurer, playfield, scale)
+        val hud = HudPainter(this, playfield, scale)
         val width = playfield.width / scale
         val height = playfield.height / scale
 
@@ -185,17 +180,9 @@ private fun percent(value: Int, max: Int): Int =
 
 private class HudPainter(
     private val scope: DrawScope,
-    private val textMeasurer: TextMeasurer,
     private val playfield: Rect,
     private val scale: Float,
 ) {
-    private val textStyle = TextStyle(
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Bold,
-        fontSize = with(scope) { (7f * scale).toSp() },
-        letterSpacing = 0.sp,
-    )
-
     private fun point(x: Float, y: Float) = Offset(playfield.left + x * scale, playfield.top + y * scale)
 
     fun picture(image: ImageBitmap?, x: Float, y: Float) {
@@ -216,10 +203,24 @@ private class HudPainter(
         text(if (shown < 10) x + 3 else x, y, shown.toString(), METER_TEXT)
     }
 
+    /** Legacy b_write_text(): the 5×5 font, 6 pixels per character, only the set pixels. */
     fun text(x: Float, y: Float, value: String, color: Color) {
-        val layout = textMeasurer.measure(value, textStyle.copy(color = color))
-        // The legacy 5x7 font sits on its top line; centre the glyph box on that line.
-        scope.drawText(layout, topLeft = point(x, y) - Offset(0f, layout.size.height * 0.15f))
+        value.forEachIndexed { index, char ->
+            val code = char.code
+            if (code >= 128) return@forEachIndexed
+            for (row in 0 until 5) {
+                val bits = LegacyFonts.small[code * 5 + row].toInt()
+                for (column in 0 until 6) {
+                    if (bits and (0x80 ushr column) == 0) continue
+                    val topLeft = point(x + index * LegacyFonts.SMALL_PITCH + column, y + row)
+                    val bottomRight = point(x + index * LegacyFonts.SMALL_PITCH + column + 1, y + row + 1)
+                    // Whole device pixels, so neighbouring font pixels do not leave seams.
+                    val left = floor(topLeft.x)
+                    val top = floor(topLeft.y)
+                    scope.drawRect(color, Offset(left, top), Size(floor(bottomRight.x) - left, floor(bottomRight.y) - top))
+                }
+            }
+        }
     }
 
     /** Legacy write_radar(): blips for everything within 15 tiles, centred near the bottom-right corner. */
@@ -244,7 +245,8 @@ private class HudPainter(
     }
 
     private companion object {
-        val METER_TEXT = Color(0xFFD0D0D0)
+        /** Legacy write_number(): `cmap[13]`. */
+        val METER_TEXT = Color(0xFF000000.toInt() or LegacyFonts.gamePalette[LegacyColors.STATUS_NUMBER])
         val RADAR_RED = Color(0xFFFF2020)
         val RADAR_YELLOW = Color(0xFFFFE030)
     }

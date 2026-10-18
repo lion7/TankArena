@@ -100,6 +100,13 @@ fun main(args: Array<String>) {
             NightAssetsExtractor.run(File(args[1]), File(args[2]))
         }
 
+        "extract-fonts" -> {
+            require(args.size >= 4) {
+                "Usage: mapconv extract-fonts <src/graph/5x5font.s> <DATA dir> <output-kotlin-file>"
+            }
+            LegacyFontExtractor.run(File(args[1]), File(args[2]), File(args[3]))
+        }
+
         "extract-masks" -> {
             require(args.size >= 3) {
                 "Usage: mapconv extract-masks <drawable dir> <output mask file>"

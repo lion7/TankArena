@@ -46,12 +46,18 @@ class MissionGate(private val passwords: PasswordStore) {
 
     /**
      * End of legacy `single_game` / `dual_v_computer_game`: a won mission makes its
-     * `next_mission_code` the prompt's text and a known password.
+     * `next_mission_code` the prompt's text and a known password. Returns the screen to show
+     * next: the mission's success or failure text (legacy `debrief()`), or straight back to the
+     * game mode menu after ESC ([outcome] null), player vs player, or a mission without text.
      */
-    fun missionEnded(mission: MissionEntry, mode: GameMode, outcome: MissionOutcome) {
-        if (mode == GameMode.PLAYER_VS_PLAYER || outcome != MissionOutcome.WON) return
-        val next = mission.sidecar.metadata.nextMissionCode.orEmpty().trim()
-        currentCodes[mode] = next
-        passwords.add(next)
+    fun missionEnded(mission: MissionEntry, mode: GameMode, outcome: MissionOutcome?): DesktopShellScreen {
+        if (mode == GameMode.PLAYER_VS_PLAYER || outcome == null) return DesktopShellScreen.GameModeSelect
+        if (outcome == MissionOutcome.WON) {
+            val next = mission.sidecar.metadata.nextMissionCode.orEmpty().trim()
+            currentCodes[mode] = next
+            passwords.add(next)
+        }
+        val text = mission.sidecar.missionText.let { if (outcome == MissionOutcome.WON) it.success else it.failure }
+        return if (text.isBlank()) DesktopShellScreen.GameModeSelect else DesktopShellScreen.AfterMission(text)
     }
 }

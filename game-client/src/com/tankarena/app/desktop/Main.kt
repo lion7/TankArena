@@ -4,12 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -52,18 +48,19 @@ import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.ServerFrame
-import com.tankarena.render.kubriko.LEGACY_PLAYFIELD_ASPECT_RATIO
 import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.render.kubriko.ViewportEventQueue
 import com.tankarena.render.kubriko.ViewportGeometry
+import com.tankarena.render.kubriko.legacyMapWindows
 import com.tankarena.sim.kubriko.server.LocalMatchClient
 import com.tankarena.sim.kubriko.server.MatchMode
 import com.tankarena.ui.compose.DesktopShellScreen
+import com.tankarena.ui.compose.GAME_FADE_MILLIS
 import com.tankarena.ui.compose.GameMode
+import com.tankarena.ui.compose.LegacyScreen
+import com.tankarena.ui.compose.LegacyVideoMode
 import com.tankarena.ui.compose.MissionOutcome
 import com.tankarena.ui.compose.hud.HudOverlay
-import com.tankarena.ui.compose.menu.DebriefScreen
-import com.tankarena.ui.compose.menu.findByCode
 import com.tankarena.ui.compose.menu.GameModeMenuScreen
 import com.tankarena.ui.compose.menu.HelpFile
 import com.tankarena.ui.compose.menu.MainMenuScreen
@@ -74,42 +71,41 @@ import com.tankarena.ui.compose.menu.MissionCodes
 import com.tankarena.ui.compose.menu.MissionEndBanner
 import com.tankarena.ui.compose.menu.MissionEntry
 import com.tankarena.ui.compose.menu.MissionGate
+import com.tankarena.ui.compose.menu.PanelPattern
 import com.tankarena.ui.compose.menu.PasswordStore
+import com.tankarena.ui.compose.menu.PickListLayout
 import com.tankarena.ui.compose.menu.PickListScreen
 import com.tankarena.ui.compose.menu.PromptBarScreen
-import com.tankarena.ui.compose.menu.RetroColors
 import com.tankarena.ui.compose.menu.TextViewerScreen
-import com.tankarena.ui.compose.menu.TiledPanelBackground
 import kotlinx.coroutines.delay
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
 private val showDebugOverlay: Boolean = System.getProperty("tankarena.debugOverlay") == "true"
 
-/** Split-screen halves show 320 px of the 640 px legacy playfield each. */
-private const val SPLIT_PLAYFIELD_WIDTH = 320
-
 fun main() = application {
     val controls = remember { DesktopControls() }
     var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.MainMenu) }
+    // Legacy menu(): the game mode menu opens on its first entry, and keeps the chosen one
+    // while games are played from it.
+    var lastMode by remember { mutableStateOf<GameMode?>(null) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
     val missionGate = remember { MissionGate(PasswordStore()) }
-    val exitToMainMenu: () -> Unit = {
-        controls.resetAll()
-        screen = DesktopShellScreen.MainMenu
-    }
 
     Window(
         onCloseRequest = ::exitApplication,
         title = "Tank Arena Rewrite",
         onPreviewKeyEvent = { event ->
-            handleGlobalKeys(event, screen, controls, exitToMainMenu)
+            handleGlobalKeys(event, screen, controls)
         },
     ) {
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                 when (val current = screen) {
                     DesktopShellScreen.MainMenu -> MainMenuScreen(
-                        onStartNewGame = { screen = DesktopShellScreen.GameModeSelect },
+                        onStartNewGame = {
+                            lastMode = null
+                            screen = DesktopShellScreen.GameModeSelect
+                        },
                         onExit = ::exitApplication,
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
@@ -124,11 +120,16 @@ fun main() = application {
                         LaunchedEffect(Unit) {
                             if (missions == null) missions = MissionCatalog.load()
                         }
+                        val choose: (GameMode) -> Unit = { mode ->
+                            lastMode = mode
+                            screen = DesktopShellScreen.CodePrompt(mode)
+                        }
                         GameModeMenuScreen(
-                            onSelectPlayerVsPlayer = { screen = DesktopShellScreen.CodePrompt(GameMode.PLAYER_VS_PLAYER) },
-                            onSelectSinglePlayer = { screen = DesktopShellScreen.CodePrompt(GameMode.SINGLE_PLAYER_VS_COMPUTER) },
-                            onSelectDualVsComputer = { screen = DesktopShellScreen.CodePrompt(GameMode.DUAL_PLAYER_VS_COMPUTER) },
+                            onSelectPlayerVsPlayer = { choose(GameMode.PLAYER_VS_PLAYER) },
+                            onSelectSinglePlayer = { choose(GameMode.SINGLE_PLAYER_VS_COMPUTER) },
+                            onSelectDualVsComputer = { choose(GameMode.DUAL_PLAYER_VS_COMPUTER) },
                             onCancel = { screen = DesktopShellScreen.MainMenu },
+                            selected = lastMode,
                         )
                     }
 
@@ -155,6 +156,7 @@ fun main() = application {
                             else -> PickListScreen(
                                 title = MissionCodes.listTitle(current.mode),
                                 entries = entries,
+                                layout = if (current.mode == GameMode.PLAYER_VS_PLAYER) PickListLayout.MAPS else PickListLayout.PASSWORDS,
                                 onSelect = { code ->
                                     screen = missionGate.submit(missions.orEmpty(), code, current.mode)
                                 },
@@ -180,37 +182,16 @@ fun main() = application {
                         mission = current.mission,
                         mode = current.mode,
                         controls = controls,
-                        onMissionEnd = { outcome, score, kills, captures, time ->
+                        onMissionEnd = { outcome ->
                             controls.resetAll()
-                            missionGate.missionEnded(current.mission, current.mode, outcome)
-                            screen = DesktopShellScreen.Debrief(
-                                current.mission, current.mode, outcome,
-                                score = score, kills = kills, captures = captures, time = time,
-                            )
+                            screen = missionGate.missionEnded(current.mission, current.mode, outcome)
                         },
                     )
 
-                    is DesktopShellScreen.Debrief -> {
-                        val nextMission = missions.orEmpty().findByCode(current.mission.sidecar.metadata.nextMissionCode)
-                        DebriefScreen(
-                            mission = current.mission,
-                            outcome = current.outcome,
-                            score = current.score,
-                            kills = current.kills,
-                            captures = current.captures,
-                            time = current.time,
-                            nextMission = nextMission,
-                            onNextMission = { next ->
-                                controls.resetAll()
-                                screen = DesktopShellScreen.Playing(next, current.mode)
-                            },
-                            onRetry = {
-                                controls.resetAll()
-                                screen = DesktopShellScreen.Playing(current.mission, current.mode)
-                            },
-                            onBackToMenu = exitToMainMenu,
-                        )
-                    }
+                    is DesktopShellScreen.AfterMission -> TextViewerScreen(
+                        text = current.text,
+                        onClose = { screen = DesktopShellScreen.GameModeSelect },
+                    )
 
                     DesktopShellScreen.Editor -> MainMenuScreen(
                         onStartNewGame = { screen = DesktopShellScreen.GameModeSelect },
@@ -233,10 +214,12 @@ private fun GameplayScreen(
     mission: MissionEntry,
     mode: GameMode,
     controls: DesktopControls,
-    onMissionEnd: (MissionOutcome, score: Int, kills: Int, captures: Int, time: Long) -> Unit,
+    /** Called once the screen has faded out; the outcome is null when the player left with ESC. */
+    onMissionEnd: (MissionOutcome?) -> Unit,
 ) {
     val host = remember(mission.baseName, mode) {
         controls.mode = mode
+        controls.exitRequested = false
         LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName)
     }
     DisposableEffect(host) { onDispose(host::dispose) }
@@ -247,11 +230,17 @@ private fun GameplayScreen(
     val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
 
     var missionEndBanner by remember(host) { mutableStateOf<MissionOutcome?>(null) }
+    // Legacy single_game(): start_fade_in() as the game starts, start_fade_out() once the round
+    // has ended or ESC was pressed; the game runs on during both.
+    var brightness by remember(host) { mutableStateOf(0f) }
 
     LaunchedEffect(host) {
         var inputSequence = 0L
-        var pendingEnd: (() -> Unit)? = null
-        var bannerTicksLeft = 0L
+        var outcome: MissionOutcome? = null
+        var bannerTicksLeft = Long.MAX_VALUE
+        var fadeTicks = 0L
+        var fadingOut = false
+        val fadeTotal = (GAME_FADE_MILLIS / FixedStepClock.MILLIS_PER_TICK).coerceAtLeast(1)
         while (true) {
             for (playerId in playerIds) {
                 host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence))
@@ -261,36 +250,32 @@ private fun GameplayScreen(
             serverFrame = frame
             eventQueues.forEach { it.push(frame.world.events) }
             audio.processEvents(frame.world.events, frame.playerViews)
-            val end = pendingEnd
-            if (end != null) {
-                // Legacy game.end_round = tinit(300): the game runs on under the banner for 3 s.
-                if (--bannerTicksLeft <= 0) {
-                    host.recorder?.let { RecordingStore.save(it.recording()) }
-                    end()
-                    break
-                }
-            } else {
-                val outcome = frame.world.events.firstNotNullOfOrNull { event ->
+            if (outcome == null) {
+                outcome = frame.world.events.firstNotNullOfOrNull { event ->
                     when (event) {
                         is GameEvent.MissionWon -> MissionOutcome.WON
                         is GameEvent.MissionLost -> MissionOutcome.LOST
                         else -> null
                     }
                 }
-                val result = frame.world.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
                 if (outcome != null) {
                     missionEndBanner = outcome
+                    // Legacy game.end_round = tinit(300): the game runs on under the banner for 3 s.
                     bannerTicksLeft = MISSION_END_BANNER_MILLIS / FixedStepClock.MILLIS_PER_TICK
-                    pendingEnd = {
-                        onMissionEnd(
-                            outcome,
-                            result?.score ?: 0,
-                            result?.kills ?: 0,
-                            result?.captures ?: 0,
-                            result?.ticks ?: 0,
-                        )
-                    }
                 }
+            } else {
+                bannerTicksLeft--
+            }
+            if (!fadingOut && (bannerTicksLeft <= 0 || controls.exitRequested)) {
+                fadingOut = true
+                fadeTicks = fadeTotal - fadeTicks
+            }
+            fadeTicks = (fadeTicks + 1).coerceAtMost(fadeTotal)
+            brightness = if (fadingOut) 1f - fadeTicks.toFloat() / fadeTotal else fadeTicks.toFloat() / fadeTotal
+            if (fadingOut && fadeTicks >= fadeTotal) {
+                host.recorder?.let { RecordingStore.save(it.recording()) }
+                onMissionEnd(outcome)
+                break
             }
             delay(FixedStepClock.MILLIS_PER_TICK)
         }
@@ -299,67 +284,48 @@ private fun GameplayScreen(
     val worldWidth = mission.sidecar.metadata.widthTiles * LEGACY_TILE_SIZE
     val worldHeight = mission.sidecar.metadata.heightTiles * LEGACY_TILE_SIZE
     val views = playerIds.mapNotNull { id -> serverFrame.playerViews.firstOrNull { it.playerId == id } }
+    val windows = legacyMapWindows(views.size.coerceAtLeast(1), worldWidth, worldHeight)
+    val night = mission.sidecar.metadata.night
 
-    TiledPanelBackground(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(32.dp)
-                .fillMaxHeight()
-                .aspectRatio(LEGACY_PLAYFIELD_ASPECT_RATIO),
-        ) {
-            // Legacy draw_screen(): the losing player's view turns grey under the banner.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .grayscale(missionEndBanner == MissionOutcome.LOST)
-                    .nukeFlash(serverFrame.world.flash),
-            ) {
-                if (views.size > 1) {
-                    // Legacy dual.c / dualvc.c: two side-by-side views, one per player.
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        views.forEachIndexed { index, view ->
-                            PlayerPane(
-                                mission = mission,
-                                serverFrame = serverFrame,
-                                playerView = view,
-                                events = eventQueues[index],
-                                worldWidth = worldWidth,
-                                worldHeight = worldHeight,
-                                playfieldWidth = SPLIT_PLAYFIELD_WIDTH,
-                                compactHud = true,
-                                // Legacy write_arrow(): only player-vs-player points at the other player.
-                                opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
-                                    val otherId = views.getOrNull(1 - index)?.controlledActorId
-                                    serverFrame.world.actors.firstOrNull { it is TankState && it.actorId == otherId } as TankState?
-                                } else {
-                                    null
-                                },
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                            )
-                            if (index == 0) Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(RetroColors.PanelBorderOuter))
-                        }
-                    }
-                } else {
-                    views.firstOrNull()?.let { view ->
-                        PlayerPane(
-                            mission = mission,
-                            serverFrame = serverFrame,
-                            playerView = view,
-                            events = eventQueues[0],
-                            worldWidth = worldWidth,
-                            worldHeight = worldHeight,
-                            playfieldWidth = null,
-                            compactHud = false,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+    LegacyScreen(mode = LegacyVideoMode.GAME, brightness = brightness) {
+        val screen = this
+        // Legacy set_palette() with `nuke_total` brightens the whole screen, panel included.
+        Box(modifier = Modifier.fillMaxSize().nukeFlash(serverFrame.world.flash)) {
+            screen.PanelPattern()
+            views.forEachIndexed { index, view ->
+                val window = windows[index]
+                // Legacy write_screen(): the losing player's window turns grey (not at night).
+                val lost = !night && missionEndBanner == MissionOutcome.LOST
+                Box(
+                    modifier = with(screen) { Modifier.legacyBounds(window.left, window.top, window.width, window.height) }
+                        .grayscale(lost),
+                ) {
+                    PlayerPane(
+                        mission = mission,
+                        serverFrame = serverFrame,
+                        playerView = view,
+                        events = eventQueues[index],
+                        worldWidth = worldWidth,
+                        worldHeight = worldHeight,
+                        playfieldWidth = window.width,
+                        playfieldHeight = window.height,
+                        compactHud = views.size > 1,
+                        // Legacy write_arrow(): only player-vs-player points at the other player.
+                        opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
+                            val otherId = views.getOrNull(1 - index)?.controlledActorId
+                            serverFrame.world.actors.firstOrNull { it is TankState && it.actorId == otherId } as TankState?
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    // Legacy write_winner_1p, in every window; player vs player (write_winner_2p's
+                    // "YOU WIN") has no winner id yet.
+                    val banner = missionEndBanner
+                    if (banner != null && mode != GameMode.PLAYER_VS_PLAYER) {
+                        MissionEndBanner(outcome = banner, playfieldWidth = window.width)
                     }
                 }
-            }
-            // Legacy write_winner_1p; player vs player (write_winner_2p's "YOU WIN") has no winner id yet.
-            val banner = missionEndBanner
-            if (banner != null && mode != GameMode.PLAYER_VS_PLAYER) {
-                MissionEndBanner(outcome = banner)
             }
         }
     }
@@ -373,7 +339,8 @@ private fun PlayerPane(
     events: ViewportEventQueue,
     worldWidth: Int,
     worldHeight: Int,
-    playfieldWidth: Int?,
+    playfieldWidth: Int,
+    playfieldHeight: Int,
     compactHud: Boolean,
     modifier: Modifier,
     opponent: TankState? = null,
@@ -393,24 +360,26 @@ private fun PlayerPane(
                     viewportRect = coordinates.boundsInParent()
                 },
             events = events,
-            playfieldWidth = playfieldWidth ?: playerView.cameraWidth,
+            playfieldWidth = playfieldWidth,
+            playfieldHeight = playfieldHeight,
             onGeometryChanged = { viewportGeometry = it },
         )
         val geometry = viewportGeometry
         if (geometry != null && viewportRect != Rect.Zero) {
-            val sceneWidth = (playfieldWidth ?: playerView.cameraWidth).toFloat()
+            val sceneWidth = playfieldWidth.toFloat()
+            val sceneHeight = playfieldHeight.toFloat()
             val scale = viewportRect.width / sceneWidth
             HudOverlay(
                 hudState = playerView.hud,
                 playerView = playerView,
-                playfield = visiblePlayfield(geometry, viewportRect, sceneWidth, playerView.cameraHeight.toFloat()),
+                playfield = visiblePlayfield(geometry, viewportRect, sceneWidth, sceneHeight),
                 scale = scale,
                 compact = compactHud,
                 night = mission.sidecar.metadata.night,
                 opponent = opponent?.takeIf { !it.cloaked },
                 ownCloaked = serverFrame.world.actors.any { it is TankState && it.actorId == playerView.controlledActorId && it.cloaked },
                 viewLeft = (geometry.cameraCenterX - sceneWidth / 2f - geometry.renderOffsetX).coerceAtLeast(0f),
-                viewTop = (geometry.cameraCenterY - playerView.cameraHeight / 2f - geometry.renderOffsetY).coerceAtLeast(0f),
+                viewTop = (geometry.cameraCenterY - sceneHeight / 2f - geometry.renderOffsetY).coerceAtLeast(0f),
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -419,6 +388,8 @@ private fun PlayerPane(
                 playerView = playerView,
                 geometry = viewportGeometry,
                 viewportRect = viewportRect,
+                sceneWidth = playfieldWidth.toFloat(),
+                sceneHeight = playfieldHeight.toFloat(),
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -469,6 +440,8 @@ private fun ViewportDebugOverlay(
     playerView: PlayerView,
     geometry: ViewportGeometry?,
     viewportRect: Rect,
+    sceneWidth: Float,
+    sceneHeight: Float,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -486,8 +459,8 @@ private fun ViewportDebugOverlay(
                 )
             }
             if (geometry != null && viewportRect != Rect.Zero) {
-                val viewportSceneWidth = playerView.cameraWidth.toFloat()
-                val viewportSceneHeight = playerView.cameraHeight.toFloat()
+                val viewportSceneWidth = sceneWidth
+                val viewportSceneHeight = sceneHeight
                 val sceneLeft = geometry.cameraCenterX - viewportSceneWidth / 2f
                 val sceneTop = geometry.cameraCenterY - viewportSceneHeight / 2f
                 val scaleX = viewportRect.width / viewportSceneWidth
@@ -558,12 +531,12 @@ private fun handleGlobalKeys(
     event: KeyEvent,
     screen: DesktopShellScreen,
     controls: DesktopControls,
-    onExitToMenu: () -> Unit,
 ): Boolean {
     return when (screen) {
         is DesktopShellScreen.Playing -> {
             if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                onExitToMenu()
+                // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends.
+                controls.exitRequested = true
                 true
             } else {
                 controls.handle(event)
@@ -648,6 +621,8 @@ private val TANK_SELECT_KEYS: List<Key> = listOf(
 
 private class DesktopControls {
     var mode: GameMode = GameMode.SINGLE_PLAYER_VS_COMPUTER
+    /** ESC during a game (legacy `game.exit_game`). */
+    var exitRequested = false
     private val players = List(2) { PlayerControls() }
 
     /** Single player uses the legacy cursor block (or WASD); two players split the keyboard. */

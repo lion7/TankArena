@@ -23,11 +23,9 @@ import kotlin.math.max
 import kotlin.math.min
 
 internal const val TILE_SIZE = LEGACY_TILE_SIZE.toFloat()
-internal const val LEGACY_PLAYFIELD_WIDTH = 640f
-internal const val LEGACY_PLAYFIELD_HEIGHT = 400f
-
-const val LEGACY_PLAYFIELD_ASPECT_RATIO: Float =
-    LEGACY_PLAYFIELD_WIDTH / LEGACY_PLAYFIELD_HEIGHT
+/** Legacy `buf_x` × `buf_y` of a single-player game on the 640×480 screen (`compute_window_size()`). */
+internal const val LEGACY_PLAYFIELD_WIDTH = 639f
+internal const val LEGACY_PLAYFIELD_HEIGHT = 480f
 
 data class ViewportGeometry(
     val worldWidth: Int,
@@ -65,12 +63,15 @@ internal fun resolveViewportGeometry(
     playerView: PlayerView,
     worldWidth: Int,
     worldHeight: Int,
-    playfieldWidth: Int = playerView.cameraWidth,
+    playfieldWidth: Int = LEGACY_PLAYFIELD_WIDTH.toInt(),
+    playfieldHeight: Int = LEGACY_PLAYFIELD_HEIGHT.toInt(),
 ): ViewportGeometry {
     val viewportWidth = playfieldWidth.toFloat()
-    val viewportHeight = playerView.cameraHeight.toFloat()
-    val sceneWidth = max(worldWidth.toFloat(), LEGACY_PLAYFIELD_WIDTH)
-    val sceneHeight = max(worldHeight.toFloat(), LEGACY_PLAYFIELD_HEIGHT)
+    val viewportHeight = playfieldHeight.toFloat()
+    // A map smaller than the window gets a window of its own size (legacy compute_window_size());
+    // the scene is only padded when the caller asks for a larger view than that.
+    val sceneWidth = max(worldWidth.toFloat(), viewportWidth)
+    val sceneHeight = max(worldHeight.toFloat(), viewportHeight)
     val renderOffsetX = ((sceneWidth - worldWidth) / 2f).coerceAtLeast(0f)
     val renderOffsetY = ((sceneHeight - worldHeight) / 2f).coerceAtLeast(0f)
     val sceneCenterX = sceneWidth / 2f
@@ -160,3 +161,26 @@ internal fun DrawScope.drawSpriteCentered(
 ) {
     drawSprite(image, centerX - width / 2f, centerY - height / 2f, width, height)
 }
+
+/** A map window on the 640×480 game screen, in screen pixels. */
+data class LegacyMapWindow(val left: Int, val top: Int, val width: Int, val height: Int)
+
+/**
+ * Legacy compute_window_size() (src/world/under.c) and write_screen() (src/game/mainloop.c):
+ * one window per player, `buf_x` = 640 / players − 1 wide and 480 high, or the map's own size
+ * when it is smaller. One window is centred across; two are spread with equal gaps. Both sit a
+ * third of the free height from the top, and start on a multiple of 4 pixels.
+ */
+fun legacyMapWindows(players: Int, worldWidth: Int, worldHeight: Int): List<LegacyMapWindow> {
+    val width = min(SCREEN_WIDTH / players - 1, worldWidth)
+    val height = min(SCREEN_HEIGHT, worldHeight)
+    val first = if (players == 1) (SCREEN_WIDTH - width) / 2 else (SCREEN_WIDTH - 2 * width) / 3
+    val top = (SCREEN_HEIGHT - height) / 3
+    return List(players) { index ->
+        val left = if (index == 1) first + first + width + 1 else first
+        LegacyMapWindow(left = left and 3.inv(), top = top, width = width, height = height)
+    }
+}
+
+private const val SCREEN_WIDTH = 640
+private const val SCREEN_HEIGHT = 480

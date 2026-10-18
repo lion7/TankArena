@@ -35,17 +35,19 @@ fun TankArenaViewport(
     worldHeight: Int,
     modifier: Modifier = Modifier,
     events: ViewportEventQueue? = null,
-    /** Visible scene width; 640 for a full view, 320 for each half of the split screen. */
+    /** Visible scene size: legacy `buf_x` × `buf_y`, the map window on the 640×480 screen. */
     playfieldWidth: Int = LEGACY_PLAYFIELD_WIDTH.toInt(),
+    playfieldHeight: Int = LEGACY_PLAYFIELD_HEIGHT.toInt(),
     onGeometryChanged: (ViewportGeometry) -> Unit = {},
 ) {
     val playerView = serverFrame.playerViews.firstOrNull { it.playerId == playerId }
         ?: serverFrame.playerViews.firstOrNull()
         ?: return
 
-    val runtime = remember(sidecar?.metadata?.name, playerView.playerId, playfieldWidth) {
+    val runtime = remember(sidecar?.metadata?.name, playerView.playerId, playfieldWidth, playfieldHeight) {
         TankArenaKubrikoRuntime(
             playfieldWidth = playfieldWidth,
+            playfieldHeight = playfieldHeight,
             sidecar = sidecar,
             initialView = playerView,
             initialWorld = serverFrame.world,
@@ -71,7 +73,11 @@ fun TankArenaViewport(
                 renderEffect = runtime.nightFilter(size.width, size.height)?.asComposeRenderEffect()
             }
         } else {
-            modifier
+            // Legacy palette_effects(): water, conveyor belts, teleporters, glow and lava cycle.
+            modifier.graphicsLayer {
+                runtime.cyclingVersion.value
+                renderEffect = runtime.cyclingFilter().asComposeRenderEffect()
+            }
         },
         kubriko = runtime.kubriko,
         WindowInsets(0, 0, 0, 0),
@@ -80,6 +86,7 @@ fun TankArenaViewport(
 
 private class TankArenaKubrikoRuntime(
     private val playfieldWidth: Int,
+    private val playfieldHeight: Int,
     sidecar: MapSceneSidecar?,
     initialView: PlayerView,
     initialWorld: WorldSnapshot,
@@ -90,7 +97,7 @@ private class TankArenaKubrikoRuntime(
     private val snapshot = RuntimeSnapshot(
         sidecar = sidecar,
         playerView = initialView,
-        geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight, playfieldWidth),
+        geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight, playfieldWidth, playfieldHeight),
     )
     private val spriteManager = SpriteManager.newInstance(
         isLoggingEnabled = false,
@@ -108,7 +115,7 @@ private class TankArenaKubrikoRuntime(
     )
     private val viewportManager = ViewportManager.newInstance(
         aspectRatioMode = ViewportManager.AspectRatioMode.Fixed(
-            ratio = playfieldWidth / LEGACY_PLAYFIELD_HEIGHT,
+            ratio = playfieldWidth.toFloat() / playfieldHeight,
             width = playfieldWidth.toFloat().sceneUnit,
         ),
         initialScaleFactor = 1f,
@@ -151,8 +158,14 @@ private class TankArenaKubrikoRuntime(
     /** Bumped whenever the night light mask is redrawn, so the layer picks up the new filter. */
     val nightVersion = mutableIntStateOf(0)
 
+    private val paletteCycling = PaletteCycling()
+    /** Bumped whenever a cycled palette range rotated. */
+    val cyclingVersion = mutableIntStateOf(0)
+
+    fun cyclingFilter(): org.jetbrains.skia.ImageFilter = paletteCycling.filter()
+
     fun nightFilter(width: Float, height: Float): org.jetbrains.skia.ImageFilter? =
-        nightLighting.filter(width, height, playfieldWidth, LEGACY_PLAYFIELD_HEIGHT.toInt())
+        nightLighting.filter(width, height, playfieldWidth, playfieldHeight)
 
     private val clientScene = ClientScene(
         snapshot = snapshot,
@@ -178,7 +191,7 @@ private class TankArenaKubrikoRuntime(
     ) {
         snapshot.sidecar = sidecar
         snapshot.playerView = playerView
-        snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight, playfieldWidth)
+        snapshot.geometry = resolveViewportGeometry(playerView, worldWidth, worldHeight, playfieldWidth, playfieldHeight)
         terrainActor.syncBounds()
         topLayerActor.syncBounds()
         if (world.changedTiles.size != snapshot.changedTiles.size) {
@@ -186,10 +199,14 @@ private class TankArenaKubrikoRuntime(
         }
         clientScene.sync(world, events, playerView.lockMarker, playerView.controlledActorId)
         preloadSceneSprites(sidecar)
+        if (sidecar?.metadata?.night != true) {
+            paletteCycling.advanceTo(world.tick)
+            cyclingVersion.intValue = paletteCycling.version
+        }
         if (sidecar?.metadata?.night == true) {
             val extra = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
             nightLighting.collectResources(extra)
-            nightLighting.update(world, snapshot, playfieldWidth, LEGACY_PLAYFIELD_HEIGHT.toInt(), extra)
+            nightLighting.update(world, snapshot, playfieldWidth, playfieldHeight, extra)
             scenePreloadManager.requestPreload(extra)
             nightVersion.intValue += 1
         }

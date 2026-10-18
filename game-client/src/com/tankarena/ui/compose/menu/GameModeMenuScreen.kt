@@ -2,6 +2,7 @@ package com.tankarena.ui.compose.menu
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.tankarena.ui.compose.GameMode
 
 @Composable
 fun GameModeMenuScreen(
@@ -10,6 +11,8 @@ fun GameModeMenuScreen(
     modifier: Modifier = Modifier,
     onSelectSinglePlayer: (() -> Unit)? = null,
     onSelectDualVsComputer: (() -> Unit)? = null,
+    /** The mode last played from this menu; legacy menu() keeps its selection across games. */
+    selected: GameMode? = null,
 ) {
     val items = listOf(
         RetroMenuItem(label = "Player VS Player mode", onActivate = onSelectPlayerVsPlayer),
@@ -29,7 +32,11 @@ fun GameModeMenuScreen(
         title = "SELECT GAME MODE",
         items = items,
         modifier = modifier,
+        initialSelection = when (selected) {
+            null, GameMode.PLAYER_VS_PLAYER -> 0
+            GameMode.SINGLE_PLAYER_VS_COMPUTER -> 1
+            GameMode.DUAL_PLAYER_VS_COMPUTER -> 2
+        },
         onCancel = onCancel,
-        footerHint = "\u2191 / \u2193 select   ENTER confirm   ESC back",
     )
 }

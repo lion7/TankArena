@@ -26,6 +26,5 @@ fun MainMenuScreen(
         items = items,
         modifier = modifier,
         onCancel = onExit,
-        footerHint = "\u2191 / \u2193 select   ENTER confirm   ESC exit",
     )
 }

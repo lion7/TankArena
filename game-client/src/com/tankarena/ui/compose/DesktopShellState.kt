@@ -11,6 +11,24 @@ enum class GameMode {
 
 enum class MissionOutcome { WON, LOST }
 
+/**
+ * Legacy dual_game() (src/game/dual.c): the rounds of one player-vs-player match on [mission].
+ * [round] is 1-based; [wins] counts the rounds each player has won (`game.wins`).
+ */
+data class DualMatch(val mission: MissionEntry, val round: Int = 1, val wins: List<Int> = listOf(0, 0)) {
+    /** The match after a round [winner] won. */
+    fun afterRound(winner: Int): DualMatch =
+        copy(round = round + 1, wins = wins.mapIndexed { player, n -> if (player == winner) n + 1 else n })
+
+    /** Legacy `end_game`: someone has won more than half of the `rnds` rounds. */
+    val decided: Boolean get() = wins.any { it > ROUNDS / 2 }
+
+    companion object {
+        /** Legacy `rnds`: "Match consists of 3 rounds" (the game options are not in the rewrite yet). */
+        const val ROUNDS = 3
+    }
+}
+
 sealed interface DesktopShellScreen {
     data object MainMenu : DesktopShellScreen
     data object GameModeSelect : DesktopShellScreen
@@ -30,7 +48,19 @@ sealed interface DesktopShellScreen {
     /** Legacy `view_file(mapfile, map.mission_text[0], ...)` right before the mission starts. */
     data class Briefing(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
 
-    data class Playing(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
+    /**
+     * One round of a game: [dual] is the player-vs-player match it belongs to and [tankTypes]
+     * the vehicles the players picked for it (legacy `pl_tanks`).
+     */
+    data class Playing(
+        val mission: MissionEntry,
+        val mode: GameMode,
+        val dual: DualMatch? = null,
+        val tankTypes: List<Int> = listOf(0, 0),
+    ) : DesktopShellScreen
+
+    /** Legacy select_tanks() (src/game/seltank.c) before every player-vs-player round. */
+    data class TankSelect(val match: DualMatch) : DesktopShellScreen
 
     /**
      * Legacy `debrief()` (src/game/single.c): after a won mission its success text, after a lost

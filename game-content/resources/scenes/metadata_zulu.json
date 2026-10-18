@@ -10,6 +10,7 @@
         "night": true,
         "publicPassword": true,
         "modeCompatibility": "SINGLE_OR_DUAL",
+        "mapContents": 0,
         "legacyMapVersion": 6
     },
     "missionText": {

@@ -6,6 +6,9 @@ internal interface TankSurroundings {
     val worldWidth: Int
     val worldHeight: Int
 
+    /** The match tick, for the computer driver's timers. */
+    val tick: Long get() = 0L
+
     /** Every vehicle in the match, for the legacy vehicle-against-vehicle check. */
     fun tanks(): List<ServerTankActor>
 

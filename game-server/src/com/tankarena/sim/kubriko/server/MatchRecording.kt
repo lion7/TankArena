@@ -24,8 +24,10 @@ import kotlinx.serialization.json.Json
  *    throw vehicles into the air.
  * 7: night maps add the light switch as a 13th weapon slot.
  * 8: shots hit vehicles by their pictures along their path, after the walls (line_obj_hit_point()).
+ * 9: computer tanks drive like the original (fuzzy logic, waypoints); player-vs-player rounds
+ *    with pads, lives, flags and races.
  */
-const val GAME_RULES_VERSION: Int = 8
+const val GAME_RULES_VERSION: Int = 9
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the
@@ -42,6 +44,8 @@ data class MatchRecording(
     /** Shipped scene base name, e.g. `begin1`. */
     val mission: String,
     val mode: MatchMode,
+    /** Player vs player: the round's vehicles, laps and score. */
+    val dual: DualSetup? = null,
     val inputs: List<RecordedInput> = emptyList(),
     val result: RecordedResult? = null,
     /** Ticks played, including the time under the end-of-mission banner. */
@@ -74,7 +78,7 @@ data class RecordedResult(
 )
 
 /** Collects a [MatchRecording] while a [LocalMatchClient] plays. */
-class MatchRecorder(private val mission: String, private val mode: MatchMode) {
+class MatchRecorder(private val mission: String, private val mode: MatchMode, private val dual: DualSetup? = null) {
     private val inputs = mutableListOf<RecordedInput>()
     private val lastIntent = mutableMapOf<Int, PlayerIntentFrame>()
     private var result: RecordedResult? = null
@@ -106,6 +110,7 @@ class MatchRecorder(private val mission: String, private val mode: MatchMode) {
         rulesVersion = GAME_RULES_VERSION,
         mission = mission,
         mode = mode,
+        dual = dual,
         inputs = inputs.toList(),
         result = result,
         ticks = ticks,
@@ -119,9 +124,9 @@ object MatchReplay {
      * (null if it did not end within the recorded ticks).
      */
     fun play(recording: MatchRecording, sceneJson: String, sidecar: MapSceneSidecar): RecordedResult? {
-        val match = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, recording.mode)
+        val match = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, recording.mode, recording.dual ?: DualSetup())
         match.initialize()
-        val recorder = MatchRecorder(recording.mission, recording.mode)
+        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual)
         try {
             val byTick = recording.inputs.groupBy { it.tick }
             val current = mutableMapOf<Int, PlayerIntentFrame>()

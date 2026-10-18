@@ -51,6 +51,8 @@ enum class SoundKind {
     SCREAM,
     /** A rocket is coming for this vehicle */
     INCOMING,
+    /** Legacy SND_BEEP: a race checkpoint passed. */
+    BEEP,
 }
 
 /**
@@ -127,6 +129,10 @@ sealed interface GameEvent {
 
     @Serializable
     data class DamageTaken(val actorId: Long, val amount: Int) : GameEvent
+
+    /** Player vs player: [playerId] won the round (legacy `game.winner`). */
+    @Serializable
+    data class RoundWon(val playerId: Int) : GameEvent
 
     @Serializable
     data class MissionWon(val playerId: Int, val reason: String = "") : GameEvent

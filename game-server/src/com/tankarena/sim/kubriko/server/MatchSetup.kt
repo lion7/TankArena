@@ -14,6 +14,26 @@ enum class MatchMode {
     DUAL_VS_COMPUTER,
 }
 
+/** Player vs player (legacy dual_game(), src/game/dual.c): what the players chose for this round. */
+@kotlinx.serialization.Serializable
+data class DualSetup(
+    /** Legacy `pl_tanks`: the vehicle each player picked on the selection screen (index into tanks.c). */
+    val tankTypes: List<Int> = listOf(0, 0),
+    /** Legacy `race_laps`. */
+    val raceLaps: Int = DEFAULT_RACE_LAPS,
+    /** Legacy `game.round + 1` and `game.wins`: shown to both players as the round starts. */
+    val round: Int = 1,
+    val wins: List<Int> = listOf(0, 0),
+) {
+    companion object {
+        const val DEFAULT_RACE_LAPS = 3
+        /** Legacy make_tank(o, 6, ...): race pads always spawn the race tank. */
+        const val RACE_TANK = 6
+        /** Start pad kinds (`type >> 1`): tank, helicopter, plane, race. */
+        const val PAD_RACE = 3
+    }
+}
+
 /**
  * Decides which tanks each human player drives once the scene is loaded. Scenes are mode
  * agnostic: human-drivable map tanks carry their legacy `contr.id` and dual start pads carry
@@ -28,7 +48,7 @@ enum class MatchMode {
  */
 internal object MatchSetup {
 
-    fun assignControl(actors: List<Serializable<*>>, mode: MatchMode): List<Serializable<*>> {
+    fun assignControl(actors: List<Serializable<*>>, mode: MatchMode, dual: DualSetup = DualSetup()): List<Serializable<*>> {
         val tanks = actors.filterIsInstance<ServerTankActor>()
         val humanIds = tanks
             .filter { it.startPadType < 0 && !it.computer && it.controllerId >= 0 && it.playerIndex < 0 }
@@ -50,9 +70,9 @@ internal object MatchSetup {
         }
         val padKindForPlayer = mutableMapOf<Int, Int>()
         for (player in players) {
-            if (player in prebound || player in idForPlayer) continue
-            // DUAL always spawns from pads; the co-operative modes only fall back to pads when the
-            // map has no human-drivable tank for this player.
+            if (player in prebound || player in idForPlayer || mode == MatchMode.DUAL) continue
+            // The co-operative modes only fall back to pads when the map has no human-drivable
+            // tank for this player.
             pads.filter { (it.startPadType and 1) == player }
                 .minOfOrNull { it.startPadType shr 1 }
                 ?.let { padKindForPlayer[player] = it }
@@ -62,7 +82,15 @@ internal object MatchSetup {
             if (actor !is ServerTankActor) return@mapNotNull actor
             if (actor.startPadType >= 0) {
                 val player = actor.startPadType and 1
-                return@mapNotNull actor.takeIf { padKindForPlayer[player] == actor.startPadType shr 1 }
+                val kind = actor.startPadType shr 1
+                if (mode == MatchMode.DUAL) {
+                    // Legacy prepare_player(): race pads always race; the others only spawn when
+                    // they are for the kind of vehicle the player picked.
+                    if (kind == DualSetup.PAD_RACE) return@mapNotNull actor.asVehicle(DualSetup.RACE_TANK)
+                    val chosen = dual.tankTypes.getOrElse(player) { 0 }
+                    return@mapNotNull actor.asVehicle(chosen).takeIf { padKind(chosen) == kind }
+                }
+                return@mapNotNull actor.takeIf { padKindForPlayer[player] == kind }
             }
             if (actor.playerIndex >= 0 || actor.computer || actor.controllerId < 0) return@mapNotNull actor
             // Legacy prepare_tank(): human map tanks are removed in player-vs-player.
@@ -74,4 +102,28 @@ internal object MatchSetup {
 
     private fun ServerTankActor.withPlayerIndex(index: Int): ServerTankActor =
         ServerTankActor(save().copy(playerIndex = index))
+
+    /** Legacy prepare_player() pad types: 0 tanks (and cars), 1 helicopters, 2 planes. */
+    private fun padKind(tankType: Int): Int = when (LegacyVehicles.spec(tankType).kind) {
+        VehicleKind.CHOPPER -> 1
+        VehicleKind.PLANE -> 2
+        else -> 0
+    }
+
+    /** Legacy make_tank(o, pl_tanks[c], ...): a pad spawns the chosen vehicle with its own loadout. */
+    private fun ServerTankActor.asVehicle(tankType: Int): ServerTankActor {
+        val spec = LegacyVehicles.spec(tankType)
+        return ServerTankActor(
+            save().copy(
+                tankType = tankType,
+                armor = spec.armor,
+                maxArmor = spec.armor,
+                fuel = spec.maxFuel,
+                maxFuel = spec.maxFuel,
+                ammo = spec.ammo,
+                power = spec.power,
+                currentWeapon = LegacyVehicles.startingWeapon(spec, spec.ammo),
+            ),
+        )
+    }
 }

@@ -39,14 +39,28 @@ fun MissionEndBanner(
     playfieldWidth: Int = PLAYFIELD_WIDTH,
 ) {
     val bottomRow = if (outcome == MissionOutcome.WON) "COMPL" else "FAILED"
+    TileBanner(listOf("MISSION", bottomRow), columns = 4, modifier = modifier, playfieldWidth = playfieldWidth)
+}
+
+/**
+ * Legacy `write_winner_2p` (src/world/status.c): in the window of the player who won the round,
+ * `YOUA` `YOUB` and one tile lower `WINA` `WINB`, centred like the mission banner.
+ */
+@Composable
+fun YouWinBanner(modifier: Modifier = Modifier, playfieldWidth: Int = PLAYFIELD_WIDTH) {
+    TileBanner(listOf("YOU", "WIN"), columns = 2, modifier = modifier, playfieldWidth = playfieldWidth)
+}
+
+/** Rows of [columns] 33 px tiles `<prefix>A`, `<prefix>B`, ... centred, a blank tile row apart. */
+@Composable
+private fun TileBanner(prefixes: List<String>, columns: Int, modifier: Modifier, playfieldWidth: Int) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val pixel = maxWidth / playfieldWidth
         val viewHeight = maxHeight / pixel
-        val x = (playfieldWidth - 4 * TILE) / 2f
+        val x = (playfieldWidth - columns * TILE) / 2f
         val y = (viewHeight - 3 * TILE) / 2f
-        for (row in 0..1) {
-            val prefix = if (row == 0) "MISSION" else bottomRow
-            for (column in 0..3) {
+        prefixes.forEachIndexed { row, prefix ->
+            for (column in 0 until columns) {
                 val resource = LegacySpriteCatalog.shared.findResource(prefix + ('A' + column)) ?: continue
                 Box(
                     modifier = Modifier

@@ -103,62 +103,7 @@ class MissionEvaluationTest {
 
     // --- DUAL mode: team elimination ---
 
-    @Test
-    fun `DUAL mode team1 eliminated emits MissionWon with OPPONENT_ELIMINATED`() {
-        val prototype = ServerMatchPrototype.fromCanonicalMap(
-            dualPlayerMap(team1Armor = 10, team1Lives = 1),
-            MatchMode.DUAL,
-        )
-        prototype.initialize()
-
-        // Kill team 1 tank
-        val team1Tank = prototype.playerTankForTest(1)
-        if (team1Tank != null) {
-            team1Tank.queueDamage(999)
-        }
-
-        var missionResult: GameEvent.MissionResult? = null
-        loop@ for (i in 0..399) {
-            val frame = prototype.tick()
-            missionResult = frame.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
-            if (prototype.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break@loop
-        }
-
-        assertEquals(ServerMatchPrototype.MissionStatus.WON, prototype.mission)
-        assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(true, missionResult!!.won)
-        assertEquals("OPPONENT_ELIMINATED", missionResult!!.reason)
-
-        prototype.dispose()
-    }
-
     // --- DUAL mode: team 0 eliminated ---
-
-    @Test
-    fun `DUAL mode team0 eliminated emits MissionLost with PLAYER_ELIMINATED`() {
-        val prototype = ServerMatchPrototype.fromCanonicalMap(
-            dualPlayerMap(team0Armor = 10, team0Lives = 1),
-            MatchMode.DUAL,
-        )
-        prototype.initialize()
-
-        // Kill team 0 tank
-        prototype.queueDamageForTest(0, 999)
-
-        var missionResult: GameEvent.MissionResult? = null
-        loop@ for (i in 0..399) {
-            val frame = prototype.tick()
-            missionResult = frame.events.filterIsInstance<GameEvent.MissionResult>().lastOrNull()
-            if (prototype.mission != ServerMatchPrototype.MissionStatus.IN_PROGRESS) break@loop
-        }
-
-        assertEquals(ServerMatchPrototype.MissionStatus.LOST, prototype.mission)
-        assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(false, missionResult!!.won)
-        assertEquals("PLAYER_ELIMINATED", missionResult!!.reason)
-
-        prototype.dispose()
-    }
 
     // --- DUAL_VS_COMPUTER mode: same as SINGLE ---
 

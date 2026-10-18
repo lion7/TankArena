@@ -55,6 +55,7 @@ import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.render.kubriko.ViewportEventQueue
 import com.tankarena.render.kubriko.ViewportGeometry
 import com.tankarena.render.kubriko.legacyMapWindows
+import com.tankarena.sim.kubriko.server.DualSetup
 import com.tankarena.sim.kubriko.server.LocalMatchClient
 import com.tankarena.sim.kubriko.server.MatchMode
 import com.tankarena.ui.compose.DesktopShellScreen
@@ -72,6 +73,7 @@ import com.tankarena.ui.compose.menu.MISSION_END_BANNER_MILLIS
 import com.tankarena.ui.compose.menu.MissionCatalog
 import com.tankarena.ui.compose.menu.MissionCodes
 import com.tankarena.ui.compose.menu.MissionEndBanner
+import com.tankarena.ui.compose.menu.YouWinBanner
 import com.tankarena.ui.compose.menu.MissionEntry
 import com.tankarena.ui.compose.menu.MissionGate
 import com.tankarena.ui.compose.menu.PanelPattern
@@ -79,7 +81,9 @@ import com.tankarena.ui.compose.menu.PasswordStore
 import com.tankarena.ui.compose.menu.PickListLayout
 import com.tankarena.ui.compose.menu.PickListScreen
 import com.tankarena.ui.compose.menu.PromptBarScreen
+import com.tankarena.ui.compose.menu.TankSelectScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
+import com.tankarena.ui.compose.menu.SelectionKey
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.delay
 
@@ -92,6 +96,8 @@ fun main() = application {
     // Legacy menu(): the game mode menu opens on its first entry, and keeps the chosen one
     // while games are played from it.
     var lastMode by remember { mutableStateOf<GameMode?>(null) }
+    // Legacy `pl_tanks`: the vehicles last picked on the selection screen.
+    var playerTanks by remember { mutableStateOf(listOf(0, 0)) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
     val missionGate = remember { MissionGate(PasswordStore()) }
 
@@ -102,7 +108,12 @@ fun main() = application {
         val all = MissionCatalog.load().also { missions = it }
         val mission = all.firstOrNull { it.code.equals(code, ignoreCase = true) || it.baseName.equals(code, ignoreCase = true) }
             ?: return@LaunchedEffect
-        screen = DesktopShellScreen.Playing(mission, GameMode.SINGLE_PLAYER_VS_COMPUTER)
+        // TANKARENA_AUTOSTART_PVP=1 starts a player-vs-player match on that map at the tank selection.
+        screen = if (System.getenv("TANKARENA_AUTOSTART_PVP") == "1") {
+            DesktopShellScreen.TankSelect(com.tankarena.ui.compose.DualMatch(mission))
+        } else {
+            DesktopShellScreen.Playing(mission, GameMode.SINGLE_PLAYER_VS_COMPUTER)
+        }
     }
     LaunchedEffect(Unit) {
         val seconds = System.getenv("TANKARENA_QUIT_AFTER")?.toLongOrNull() ?: return@LaunchedEffect
@@ -194,17 +205,44 @@ fun main() = application {
                         text = current.mission.sidecar.missionText.briefing,
                         onClose = {
                             controls.resetAll()
-                            screen = DesktopShellScreen.Playing(current.mission, current.mode)
+                            screen = missionGate.afterBriefing(current.mission, current.mode)
                         },
+                    )
+
+                    is DesktopShellScreen.TankSelect -> TankSelectScreen(
+                        match = current.match,
+                        selectMap = missions.orEmpty().firstOrNull { it.baseName.equals("select", ignoreCase = true) },
+                        initial = playerTanks,
+                        keyFor = ::selectionKeyFor,
+                        onChosen = { types ->
+                            playerTanks = types
+                            controls.resetAll()
+                            screen = DesktopShellScreen.Playing(current.match.mission, GameMode.PLAYER_VS_PLAYER, current.match, types)
+                        },
+                        onCancel = { screen = DesktopShellScreen.GameModeSelect },
                     )
 
                     is DesktopShellScreen.Playing -> GameplayScreen(
                         mission = current.mission,
                         mode = current.mode,
                         controls = controls,
+                        dual = current.dual?.let { match ->
+                            DualSetup(tankTypes = current.tankTypes, round = match.round, wins = match.wins)
+                        },
                         onMissionEnd = { outcome ->
                             controls.resetAll()
-                            screen = missionGate.missionEnded(current.mission, current.mode, outcome)
+                            val match = current.dual
+                            screen = if (match == null) {
+                                missionGate.missionEnded(current.mission, current.mode, outcome)
+                            } else if (outcome == null) {
+                                // Legacy dual_game(): ESC ends the whole match.
+                                DesktopShellScreen.GameModeSelect
+                            } else {
+                                // Legacy dual_game(): the winner scores; once a player has won the
+                                // match (VICTORY.FLI is not played yet) it is back to the menu.
+                                val next = match.afterRound(if (outcome == MissionOutcome.WON) 0 else 1)
+                                if (next.decided) DesktopShellScreen.GameModeSelect else DesktopShellScreen.TankSelect(next)
+                            }
                         },
                     )
 
@@ -234,13 +272,18 @@ private fun GameplayScreen(
     mission: MissionEntry,
     mode: GameMode,
     controls: DesktopControls,
-    /** Called once the screen has faded out; the outcome is null when the player left with ESC. */
+    /** Player vs player: the round's vehicles and score. */
+    dual: DualSetup? = null,
+    /**
+     * Called once the screen has faded out; the outcome is null when the player left with ESC.
+     * In player vs player WON means player 1 won the round, LOST player 2.
+     */
     onMissionEnd: (MissionOutcome?) -> Unit,
 ) {
-    val host = remember(mission.baseName, mode) {
+    val host = remember(mission.baseName, mode, dual) {
         controls.mode = mode
         controls.exitRequested = false
-        LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName)
+        LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup())
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     DisposableEffect(audio) { onDispose(audio::dispose) }
@@ -292,7 +335,7 @@ private fun GameplayScreen(
             views.forEachIndexed { index, view ->
                 val window = windows[index]
                 // Legacy write_screen(): the losing player's window turns grey (not at night).
-                val lost = !night && missionEndBanner == MissionOutcome.LOST
+                val lost = !night && if (mode == GameMode.PLAYER_VS_PLAYER) view.hud.roundLost else missionEndBanner == MissionOutcome.LOST
                 Box(
                     modifier = with(screen) { Modifier.legacyBounds(window.left, window.top, window.width, window.height) }
                         .grayscale(lost),
@@ -306,7 +349,7 @@ private fun GameplayScreen(
                         worldHeight = worldHeight,
                         playfieldWidth = window.width,
                         playfieldHeight = window.height,
-                        compactHud = views.size > 1,
+                        playerVsPlayer = mode == GameMode.PLAYER_VS_PLAYER,
                         // Legacy write_arrow(): only player-vs-player points at the other player.
                         opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
                             val otherId = views.getOrNull(1 - index)?.controlledActorId
@@ -316,10 +359,12 @@ private fun GameplayScreen(
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
-                    // Legacy write_winner_1p, in every window; player vs player (write_winner_2p's
-                    // "YOU WIN") has no winner id yet.
+                    // Legacy write_winner_1p in every window; player vs player write_winner_2p's
+                    // "YOU WIN" in the winner's window only.
                     val banner = missionEndBanner
-                    if (banner != null && mode != GameMode.PLAYER_VS_PLAYER) {
+                    if (mode == GameMode.PLAYER_VS_PLAYER) {
+                        if (view.hud.roundWon) YouWinBanner(playfieldWidth = window.width)
+                    } else if (banner != null) {
                         MissionEndBanner(outcome = banner, playfieldWidth = window.width)
                     }
                 }
@@ -405,7 +450,7 @@ private fun PlayerPane(
     worldHeight: Int,
     playfieldWidth: Int,
     playfieldHeight: Int,
-    compactHud: Boolean,
+    playerVsPlayer: Boolean,
     modifier: Modifier,
     opponent: TankState? = null,
 ) {
@@ -438,7 +483,7 @@ private fun PlayerPane(
                 playerView = playerView,
                 playfield = visiblePlayfield(geometry, viewportRect, sceneWidth, sceneHeight),
                 scale = scale,
-                compact = compactHud,
+                playerVsPlayer = playerVsPlayer,
                 night = mission.sidecar.metadata.night,
                 opponent = opponent?.takeIf { !it.cloaked },
                 ownCloaked = serverFrame.world.actors.any { it is TankState && it.actorId == playerView.controlledActorId && it.cloaked },
@@ -608,6 +653,25 @@ private fun handleGlobalKeys(
         }
         else -> false
     }
+}
+
+/**
+ * Legacy select_tanks(): each player moves their marker with their own drive keys and confirms
+ * with fire (`keys[i][PLAYER_UP]` ...). Player 1 uses the left-hand keys, player 2 the cursor block.
+ */
+private fun selectionKeyFor(key: Key): Pair<Int, SelectionKey>? {
+    for ((player, binding) in listOf(0 to KeyBinding.PLAYER_ONE, 1 to KeyBinding.CURSOR_BLOCK)) {
+        val action = when (key) {
+            binding.forward -> SelectionKey.UP
+            binding.reverse -> SelectionKey.DOWN
+            binding.turnLeft -> SelectionKey.LEFT
+            binding.turnRight -> SelectionKey.RIGHT
+            binding.fire -> SelectionKey.FIRE
+            else -> null
+        }
+        if (action != null) return player to action
+    }
+    return null
 }
 
 /** One player's keys, in the order of the legacy setup program's key list. */

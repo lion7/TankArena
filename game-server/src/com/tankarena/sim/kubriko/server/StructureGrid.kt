@@ -76,6 +76,10 @@ class StructureGrid(
     /** True while the solid-layer structure on this tile stands (legacy `strength[0][0] > 0`). */
     fun isStanding(tileX: Int, tileY: Int): Boolean = strength(tileX, tileY, StructureLayer.SOLID) > 0
 
+    /** Legacy `mapm.g` of a standing solid structure, the computer tanks' goal buildings; else 0. */
+    fun standingGoal(tileX: Int, tileY: Int): Int =
+        if (inside(tileX, tileY) && isStanding(tileX, tileY)) goal[index(tileX, tileY)] else 0
+
     /** True when the top-layer picture of this tile is intact. */
     fun isTopIntact(tileX: Int, tileY: Int): Boolean = strength(tileX, tileY, StructureLayer.TOP) > 0
 

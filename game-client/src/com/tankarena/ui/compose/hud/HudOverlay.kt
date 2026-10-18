@@ -51,8 +51,11 @@ fun HudOverlay(
     playfield: Rect,
     scale: Float,
     modifier: Modifier = Modifier,
-    /** Player-vs-player halves have no goal counters (legacy DUAL skips write_1p_info). */
-    compact: Boolean = false,
+    /**
+     * Legacy write_status() for DUAL: no goal counters (write_1p_info), but the pad's lives
+     * (write_lives) or, in a flag hunt, the flags picked up (write_flags).
+     */
+    playerVsPlayer: Boolean = false,
     /** Legacy `map.night`: the light switch shows as a 13th weapon. */
     night: Boolean = false,
     /** Player vs player: the other player's vehicle, which an arrow points at when it is out of view. */
@@ -71,6 +74,9 @@ fun HudOverlay(
     val largeIcons = (1..15).map { picture("XCON$it") }
     val select = picture("SELECT")
     val arrows = (1..8).map { picture("ARROW$it") }
+    val tankIcon = picture("TANKICO")
+    // Legacy VLAGICON: VLAG3 for one flag, VLAG4 for two.
+    val flagIcons = listOf(picture("VLAG3"), picture("VLAG4"))
     // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
     val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
 
@@ -86,8 +92,17 @@ fun HudOverlay(
         hud.number(7f, 7f, percent(hudState.armor, hudState.maxArmor))
         hud.number(28f, 7f, percent(hudState.fuel, hudState.maxFuel))
 
+        // write_lives() / write_flags()
+        if (playerVsPlayer) {
+            if (hudState.flagHunt) {
+                if (hudState.flags > 0) hud.picture(flagIcons[(hudState.flags - 1).coerceAtMost(flagIcons.size - 1)], width - 25, -8f)
+            } else if (hudState.lives != PAD_LIVES) {
+                for (i in 0 until hudState.lives - 1) hud.picture(tankIcon, width - LEGACY_TILE_SIZE - i * 20, 0f)
+            }
+        }
+
         // write_1p_info()
-        if (!compact) {
+        if (!playerVsPlayer) {
             hud.picture(meters[2], width - 2 * LEGACY_TILE_SIZE, 0f)
             hud.picture(meters[3], width - LEGACY_TILE_SIZE, 0f)
             hud.number(width - 59, 7f, hudState.missionProgress)
@@ -173,6 +188,9 @@ private const val MESSAGE_STEPS = 29
 /** Legacy `num_weapon`: the light switch, drawn with ICON15/XCON15. */
 private const val LIGHT_WEAPON = 12
 private const val LIGHT_ICON = 14
+
+/** Legacy make_player(): `ply.lives = 4`; write_lives() shows nothing while all four are left. */
+private const val PAD_LIVES = 4
 
 /** Legacy write_number(): numbers above 99 show as 99, single digits are shifted right by 3. */
 private fun percent(value: Int, max: Int): Int =

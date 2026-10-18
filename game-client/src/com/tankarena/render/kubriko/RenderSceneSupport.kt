@@ -43,6 +43,24 @@ internal class RuntimeSnapshot(
     var playerView: PlayerView,
     var geometry: ViewportGeometry,
 ) {
+    /** The visible scene size (legacy `buf_x` × `buf_y`), for drawing only the tiles in view. */
+    var viewWidth: Int = LEGACY_PLAYFIELD_WIDTH.toInt()
+    var viewHeight: Int = LEGACY_PLAYFIELD_HEIGHT.toInt()
+
+    /**
+     * The tile columns and rows in view, with a tile to spare on each side for the pictures and
+     * shadows that reach into the next tile.
+     */
+    fun visibleTiles(widthTiles: Int, heightTiles: Int): Pair<IntRange, IntRange> {
+        val left = geometry.cameraCenterX - viewWidth / 2f - renderOffsetX
+        val top = geometry.cameraCenterY - viewHeight / 2f - renderOffsetY
+        val firstX = (kotlin.math.floor(left / TILE_SIZE).toInt() - 1).coerceAtLeast(0)
+        val firstY = (kotlin.math.floor(top / TILE_SIZE).toInt() - 1).coerceAtLeast(0)
+        val lastX = (kotlin.math.floor((left + viewWidth) / TILE_SIZE).toInt() + 1).coerceAtMost(widthTiles - 1)
+        val lastY = (kotlin.math.floor((top + viewHeight) / TILE_SIZE).toInt() + 1).coerceAtMost(heightTiles - 1)
+        return firstX..lastX to firstY..lastY
+    }
+
     /** Tiles the server reports as changed (destroyed buildings, bridges turned to water), by index. */
     var changedTiles: Map<Int, TileState> = emptyMap()
 

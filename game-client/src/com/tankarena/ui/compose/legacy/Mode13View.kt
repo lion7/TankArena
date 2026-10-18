@@ -17,6 +17,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.tankarena.ui.compose.LegacyScreen
+import com.tankarena.ui.compose.LegacyScreenScope
 import com.tankarena.ui.compose.LegacyVideoMode
 
 /**
@@ -29,6 +30,8 @@ fun Mode13View(
     palette: IntArray = LegacyFonts.gamePalette,
     brightness: Float = 1f,
     onKey: (KeyEvent) -> Boolean = { false },
+    /** Live content over the picture, in legacy screen coordinates (the tank selection's views). */
+    overlay: @Composable LegacyScreenScope.() -> Unit = {},
     draw: Mode13Screen.() -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -50,6 +53,7 @@ fun Mode13View(
                 filterQuality = FilterQuality.None,
             )
         }
+        overlay()
     }
 }
 

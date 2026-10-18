@@ -18,7 +18,7 @@ private const val GOAL_FOOTPRINT: Int = 16
 /** Fallback armor for authored objects without one (the STANDARD tank's legacy `props.armor`). */
 private const val DEFAULT_ARMOR: Int = ServerTankActor.DEFAULT_TANK_ARMOR
 /** `make_player()` in src/objects/player.c gives dual-mode pads four lives. */
-private const val LEGACY_PAD_LIVES: Int = 4
+internal const val LEGACY_PAD_LIVES: Int = 4
 private const val LIGHT_MINE_DAMAGE: Int = 7
 private const val HEAVY_MINE_DAMAGE: Int = 20
 
@@ -133,6 +133,13 @@ object CanonicalSceneBuilder {
                         aiActivator = props.int("activator") ?: 0,
                         aiStayActive = props.int("stayActive") == 1,
                         aiActive = props.int("active") == 1,
+                        aiAttackAt = props.int("attackAt") ?: -1,
+                        aiAttackGoals = props.int("attackGoals") ?: 60,
+                        aiWaveDelay = props.int("waveDelay") ?: -1,
+                        wayType = props.int("wayType") ?: 0,
+                        wayCurrent = props.int("wayCurrent") ?: 0,
+                        wayPoints = props["waypoints"].orEmpty().split(';').filter { it.isNotBlank() }
+                            .flatMap { it.split(',').map(String::trim).map(String::toInt) },
                     )
                 }
 
@@ -301,6 +308,12 @@ object CanonicalSceneBuilder {
         aiActivator: Int = 0,
         aiStayActive: Boolean = false,
         aiActive: Boolean = false,
+        aiAttackAt: Int = -1,
+        aiAttackGoals: Int = 60,
+        aiWaveDelay: Int = -1,
+        wayType: Int = 0,
+        wayCurrent: Int = 0,
+        wayPoints: List<Int> = emptyList(),
     ): ServerTankActor = ServerTankActor(
         ServerTankActor.State(
             body = BoxBody(
@@ -328,6 +341,12 @@ object CanonicalSceneBuilder {
             aiActivator = aiActivator,
             aiStayActive = aiStayActive,
             aiActive = aiActive,
+            aiAttackAt = aiAttackAt,
+            aiAttackGoals = aiAttackGoals,
+            aiWaveDelay = aiWaveDelay,
+            wayType = wayType,
+            wayCurrent = wayCurrent,
+            wayPoints = wayPoints,
         ),
     )
 

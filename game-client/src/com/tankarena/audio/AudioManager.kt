@@ -140,6 +140,7 @@ class AudioManager(
             com.tankarena.protocol.snapshot.SoundKind.NUKE -> SoundKind.NUKE
             com.tankarena.protocol.snapshot.SoundKind.SCREAM -> SoundKind.SCREAM
             com.tankarena.protocol.snapshot.SoundKind.INCOMING -> SoundKind.INCOMING
+            com.tankarena.protocol.snapshot.SoundKind.BEEP -> SoundKind.BEEP
         }
     }
 

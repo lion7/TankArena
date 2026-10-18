@@ -34,8 +34,9 @@ internal class TerrainActor(
         val width = sidecar.metadata.widthTiles
         val height = sidecar.metadata.heightTiles
         val theme = sidecar.metadata.world
-        for (y in 0 until height) {
-            for (x in 0 until width) {
+        val (columns, rows) = snapshot.visibleTiles(width, height)
+        for (y in rows) {
+            for (x in columns) {
                 val index = x + y * width
                 val px = snapshot.renderOffsetX + x * TILE_SIZE
                 val py = snapshot.renderOffsetY + y * TILE_SIZE
@@ -117,8 +118,9 @@ internal class TopLayerActor(
         val height = sidecar.metadata.heightTiles
         val world = sidecar.metadata.world
         val roofs = ArrayList<Triple<androidx.compose.ui.graphics.ImageBitmap, Int, Int>>()
-        for (y in 0 until height) {
-            for (x in 0 until width) {
+        val (columns, rows) = snapshot.visibleTiles(width, height)
+        for (y in rows) {
+            for (x in columns) {
                 val index = x + y * width
                 val changed = snapshot.changedTiles[index]
                 val top = changed?.top ?: tiles.top[index]

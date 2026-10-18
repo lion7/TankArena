@@ -71,6 +71,7 @@ class DesktopAudioBackend(
             SoundKind.NUKE to "nuke",
             SoundKind.SCREAM to "scream",
             SoundKind.INCOMING to "incoming",
+            SoundKind.BEEP to "beep",
         )
     }
 

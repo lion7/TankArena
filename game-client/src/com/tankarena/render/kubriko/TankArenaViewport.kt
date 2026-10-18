@@ -98,7 +98,10 @@ private class TankArenaKubrikoRuntime(
         sidecar = sidecar,
         playerView = initialView,
         geometry = resolveViewportGeometry(initialView, worldWidth, worldHeight, playfieldWidth, playfieldHeight),
-    )
+    ).also {
+        it.viewWidth = playfieldWidth
+        it.viewHeight = playfieldHeight
+    }
     private val spriteManager = SpriteManager.newInstance(
         isLoggingEnabled = false,
         instanceNameForLogging = "tank-arena-sprites",

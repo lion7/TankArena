@@ -187,7 +187,10 @@ internal class ClientScene(
                     syncObject(objectIds, state.actorId, state.x, state.y, "ABOMB${(4 - state.countdown).coerceIn(1, 4)}")
                 }
                 is MineState -> syncObject(objectIds, state.actorId, state.x, state.y, "MINE")
-                is FlagState -> syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")
+                // Legacy write_flag(): a carried flag is not drawn (its carrier shows a flag icon).
+                is FlagState -> if (!state.isCarried) {
+                    syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")
+                }
                 is ProductState -> if (!state.isCollected) {
                     syncObject(objectIds, state.actorId, state.x, state.y, productSprite(state.productType))
                 }

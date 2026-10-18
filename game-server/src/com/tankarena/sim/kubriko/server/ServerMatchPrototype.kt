@@ -98,11 +98,6 @@ private const val MINE_RADIUS_PX: Int = 3
 private const val HT_SROCK: Int = 10
 /** Legacy create_bonus(): the random roll (out of 10000) below which each bonus type drops. */
 private val RANDOM_BONUS_THRESHOLDS = intArrayOf(300, 600, 700, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200, 1225, 1250)
-private val DEADLY_TERRAIN = setOf(
-    TerrainMaterial.PIT_BIG,
-    TerrainMaterial.PIT_SMALL,
-    TerrainMaterial.LAVA,
-)
 private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 private const val TRAIN_FOOTPRINT: Int = 32
 private const val ZEPPELIN_FOOTPRINT: Int = 32
@@ -119,6 +114,8 @@ class ServerMatchPrototype private constructor(
     private val startShields: Boolean,
     /** The map's tile layers, for the bonus and man layers. */
     private val layers: TileLayers? = null,
+    /** Player vs player: the players' vehicles, the race length and the round. */
+    val dual: DualSetup = DualSetup(),
 ) {
 
     private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
@@ -142,6 +139,8 @@ class ServerMatchPrototype private constructor(
     private val tanksByPlayerIndex: MutableMap<Int, ServerTankActor> = HashMap()
     /** Tanks are never spawned or removed after [initialize], so this list is stable for the match. */
     private var allTanks: List<ServerTankActor> = emptyList()
+    /** Player vs player only: pads, flags and races (legacy player.c, flag.c). */
+    private var dualRules: DualRules? = null
     private var nextActorId: Long = 1L
     private var currentTick: Long = 0L
     private var isDisposed: Boolean = false
@@ -198,6 +197,17 @@ class ServerMatchPrototype private constructor(
             // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
             if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_TICKS)
         }
+        // Legacy prepare_player() / prepare_flag(): pads, races and flags only play in player vs
+        // player; elsewhere the flags are removed.
+        val flags = actorManager.allActors.value.filterIsInstance<ServerFlagActor>()
+        val unused = if (mode == MatchMode.DUAL) {
+            DualRules(dual, mapMetadata.world, mapMetadata.widthTiles, mapMetadata.heightTiles, structures, objectRandom)
+                .also { dualRules = it }
+                .prepare(allTanks, flags)
+        } else {
+            flags
+        }
+        if (unused.isNotEmpty()) actorManager.remove(unused)
         linkTrains()
         prepareB52s()
         prepareLocks()
@@ -229,7 +239,6 @@ class ServerMatchPrototype private constructor(
                 intents[tank.playerIndex]?.let(tank::applyIntent)
             }
         }
-        pathfinder.invalidate()
         stepAiTanks()
         stepTurrets()
         applyTerrainEffects()
@@ -269,7 +278,6 @@ class ServerMatchPrototype private constructor(
         stepTrains()
         stepZeppelins()
         stepB52s()
-        collectFlags()
         collectProducts()
         collectGoals()
         evaluateMission()
@@ -388,7 +396,8 @@ class ServerMatchPrototype private constructor(
                     shield = tank.shield,
                     invulnerableTicks = tank.invulnerableTicks,
                     fuel = tank.fuel,
-                    lives = tank.lives,
+                    // Legacy write_lives(): flag hunts and races keep the pad's four lives.
+                    lives = if (tank.infiniteLives) LEGACY_PAD_LIVES else tank.lives,
                     missionProgress = goalGood,
                     missionCode = missionCode,
                     statusText = statusText,
@@ -407,6 +416,10 @@ class ServerMatchPrototype private constructor(
                     messageSteps = tank.messageSteps,
                     vehicleType = tank.tankType,
                     alive = tank.armor > 0,
+                    flagHunt = dualRules?.flagHunt == true,
+                    flags = tank.flagsPicked,
+                    roundWon = dualRules?.winner == playerIndex,
+                    roundLost = dualRules?.winner == (playerIndex xor 1),
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
                 lockMarker = lockMarkerFor(tank),
@@ -1289,53 +1302,6 @@ class ServerMatchPrototype private constructor(
         }
     }
 
-    private fun collectFlags() {
-        if (missionStatus != MissionStatus.IN_PROGRESS) return
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (flag in actorManager.allActors.value.filterIsInstance<ServerFlagActor>()) {
-            // If flag is carried, follow carrier position
-            if (flag.isCarried) {
-                val carrierId = flag.carrierActorId ?: continue
-                val carrier = tanks.find { actorIds[it] == carrierId }
-                if (carrier == null || carrier.armor <= 0) {
-                    // Carrier died — return flag to home
-                    flag.isCarried = false
-                    flag.carrierActorId = null
-                    flag.body.position = SceneOffset(
-                        (flag.homeX - 8).toFloat().sceneUnit,
-                        (flag.homeY - 8).toFloat().sceneUnit,
-                    )
-                    pendingEvents += GameEvent.FlagReturned(flagActorId = actorIds[flag] ?: 0L)
-                } else {
-                    // Follow carrier
-                    flag.body.position = SceneOffset(
-                        (carrier.positionX - 8).toFloat().sceneUnit,
-                        (carrier.positionY - 8).toFloat().sceneUnit,
-                    )
-                }
-                continue
-            }
-            // Check for pickup: friendly tank enters flag radius
-            val size = flag.body.size
-            val pos = flag.body.position
-            val fcx = (pos.x.raw + size.width.raw / 2f).toInt()
-            val fcy = (pos.y.raw + size.height.raw / 2f).toInt()
-            val pickupRadius = 16
-            val pickup = tanks.firstOrNull { tank ->
-                tank.playerIndex >= 0 && tank.armor > 0 &&
-                    withinRadius(tank.positionX, tank.positionY, fcx, fcy, pickupRadius)
-            } ?: continue
-            // Pick up the flag
-            pickup.showMessage("GOT A FLAG!")
-            flag.isCarried = true
-            flag.carrierActorId = actorIds[pickup]
-            pendingEvents += GameEvent.FlagCaptured(
-                flagActorId = actorIds[flag] ?: 0L,
-                tankActorId = actorIds[pickup]!!,
-            )
-        }
-    }
-
     private fun collectGoals() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
         val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
@@ -1496,18 +1462,14 @@ class ServerMatchPrototype private constructor(
         val tanks = all.filterIsInstance<ServerTankActor>()
 
         if (mode == MatchMode.DUAL) {
-            // Player vs player: the last player standing wins; goal counters are ignored.
-            // Legacy control_player(): a player loses as soon as one of their pads runs out of lives.
-            val p0Tanks = tanks.filter { it.playerIndex == 0 }
-            val p1Tanks = tanks.filter { it.playerIndex == 1 }
-            if (p0Tanks.isNotEmpty() && p1Tanks.isNotEmpty()) {
-                val p0Dead = p0Tanks.any { it.armor <= 0 && it.lives <= 0 }
-                val p1Dead = p1Tanks.any { it.armor <= 0 && it.lives <= 0 }
-                if (p0Dead && !p1Dead) {
-                    endMission(false, "PLAYER_ELIMINATED")
-                } else if (p1Dead && !p0Dead) {
-                    endMission(true, "OPPONENT_ELIMINATED")
-                }
+            val rules = dualRules ?: return
+            val flags = all.filterIsInstance<ServerFlagActor>()
+            val decided = rules.step(allTanks, flags) { car ->
+                pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.BEEP, car.positionX, car.positionY)
+            }
+            if (decided) {
+                pendingEvents += GameEvent.RoundWon(rules.winner)
+                endMission(rules.winner == 0, "ROUND_WON_BY_PLAYER_${rules.winner + 1}")
             }
             return
         }
@@ -1571,74 +1533,89 @@ class ServerMatchPrototype private constructor(
         return dx * dx + dy * dy <= r * r
     }
 
+    /** Legacy control_computer_tank() for every computer tank (ComputerTankAi). */
     private fun stepAiTanks() {
-        val all = actorManager.allActors.value
-        val tanks = all.filterIsInstance<ServerTankActor>()
-        if (tanks.isEmpty()) return
-        for (ai in tanks) {
-            if (ai.playerIndex >= 0 || !ai.computer) continue
-            if (ai.armor <= 0) continue
-            if (!updateAiActivation(ai, tanks)) {
-                ai.applyIntent(com.tankarena.input.PlayerIntentFrame())
-                continue
-            }
-            // Legacy attack_tanks == 0 (cars, buses, trucks): never hunts tanks.
-            val target = if (ai.aiAttackTanks > 0) pickAiTarget(ai, tanks) else null
-            if (target != null) {
-                ai.applyIntent(computeAiIntent(ai, target))
-            } else {
-                // No target — patrol waypoints if mode supports it
-                val patrolDir = aiModeDispatcher.getPatrolDirection(ai.positionX, ai.positionY)
-                if (patrolDir >= 0) {
-                    val turn = turnDelta(ai.bodyDirection, patrolDir)
-                    ai.applyIntent(com.tankarena.input.PlayerIntentFrame(
-                        forward = ai.bodyDirection == patrolDir,
-                        turnLeft = turn < 0,
-                        turnRight = turn > 0,
-                    ))
-                } else {
-                    ai.applyIntent(com.tankarena.input.PlayerIntentFrame())
-                }
-            }
+        aiObjectsTick = -1
+        for (ai in allTanks) {
+            if (ai.playerIndex >= 0 || !ai.computer || ai.armor <= 0) continue
+            ai.applyIntent(ComputerTankAi.control(ai, aiWorld))
         }
+    }
+
+    private var aiObjectsCache: List<AiObject> = emptyList()
+    private var aiObjectsTick = -1L
+
+    /** The world as control_computer_tank() reads it. */
+    private val aiWorld = object : ComputerTankWorld {
+        override val tick: Long get() = currentTick
+        override val widthTiles: Int get() = mapMetadata.widthTiles
+        override val heightTiles: Int get() = mapMetadata.heightTiles
+
+        override val objects: List<AiObject>
+            get() {
+                if (aiObjectsTick != currentTick) {
+                    aiObjectsCache = aiObjects()
+                    aiObjectsTick = currentTick
+                }
+                return aiObjectsCache
+            }
+
+        override fun structureGoal(tileX: Int, tileY: Int): Int = structures.standingGoal(tileX, tileY)
+
+        override fun pitOrLava(x: Int, y: Int): Boolean {
+            val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+            val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+            if (tileX !in 0 until mapMetadata.widthTiles || tileY !in 0 until mapMetadata.heightTiles) return false
+            val tile = terrainGrid.at(tileX, tileY)
+            if (tile.material == TerrainMaterial.LAVA) return true
+            return inPit(tile, x - tileX * LEGACY_TILE_SIZE, y - tileY * LEGACY_TILE_SIZE)
+        }
+
+        override fun terrainSpeedPercent(x: Int, y: Int): Int {
+            val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
+            val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
+            if (tileX !in 0 until mapMetadata.widthTiles || tileY !in 0 until mapMetadata.heightTiles) return 100
+            val i = tileX + tileY * mapMetadata.widthTiles
+            var speed = pictureSpeed(structures.base[i])
+            if (structures.solid[i] >= 0 && !structures.isStanding(tileX, tileY)) speed *= pictureSpeed(structures.solid[i])
+            return (speed * 100).toInt()
+        }
+
+        private fun pictureSpeed(picture: Int): Float =
+            if (picture < 0) 1f else com.tankarena.content.PictureCatalog.legacyRow(mapMetadata.world, picture)?.speed ?: 1f
     }
 
     /**
-     * Legacy determine_new_target(): a computer tank is dormant until a tank from its activator
-     * side comes within its activation radius, and falls dormant again unless `stay_active`.
+     * The legacy object list as the computer tanks see it: every object with its height `h`,
+     * radius `r` (0 for the ones nothing bumps into) and goal value `gc`. Wrecks stay obstacles.
      */
-    private fun updateAiActivation(ai: ServerTankActor, tanks: List<ServerTankActor>): Boolean {
-        if (ai.aiActivationRadius < 0) return true
-        val wakerTeam = if (ai.aiActivator == 0) 0 else 1
-        val inRange = tanks.any { other ->
-            other !== ai && other.armor > 0 && other.team == wakerTeam &&
-                withinRadius(other.positionX, other.positionY, ai.positionX, ai.positionY, ai.aiActivationRadius)
-        }
-        ai.aiActive = inRange || (ai.aiStayActive && ai.aiActive)
-        return ai.aiActive
-    }
-
-    private val pathfinder: TilePathfinder by lazy {
-        TilePathfinder(mapMetadata.widthTiles, mapMetadata.heightTiles, navigationLayer())
-    }
-
-    /** Walls plus terrain that hurts on contact, so computer tanks route around pits and lava. */
-    private fun navigationLayer(): List<Int> {
-        val blocking = structures.blockingLayer()
-        // A live view: destroyed buildings open new routes.
-        return object : AbstractList<Int>() {
-            override val size: Int get() = blocking.size
-            override fun get(index: Int): Int {
-                val solid = blocking[index]
-                if (solid >= 0) return solid
-                val material = terrainGrid.at(index % mapMetadata.widthTiles, index / mapMetadata.widthTiles).material
-                return if (material in DEADLY_TERRAIN) 0 else -1
+    private fun aiObjects(): List<AiObject> {
+        val list = ArrayList<AiObject>()
+        for (actor in actorManager.allActors.value) {
+            val (x, y) = centreOf(actor) ?: continue
+            when (actor) {
+                is ServerTankActor -> list += AiObject(actor, x, y, actor.height, actor.spec.radius, tank = actor)
+                is ServerTrainActor -> if (actor.alive) list += AiObject(actor, x, y, 1, ServerTrainActor.RADIUS, goal = actor.goalContribution)
+                is ServerB52Actor -> if (actor.alive) list += AiObject(actor, x, y, actor.height, ServerB52Actor.RADIUS, goal = actor.goalContribution)
+                is ServerZeppelinActor -> if (actor.alive) list += AiObject(actor, x, y, 20, 20)
+                is ServerMineActor -> if (!actor.isDead) list += AiObject(actor, x, y, 0, 3)
+                is ServerRocketActor -> list += AiObject(actor, x, y, 6, 3)
+                is ServerTurretActor -> if (actor.isAlive) list += AiObject(actor, x, y, 1, 0, goal = actor.goalContribution)
+                is ServerGoalActor -> if (!actor.isClaimed) {
+                    list += AiObject(actor, x, y, 24, 0, goal = actor.contribution, privateGoal = actor.who == 3)
+                }
+                is ServerLockActor -> if (!actor.isFired) list += AiObject(actor, x, y, 24, 0, goal = actor.goalContribution)
+                is ServerDestroyerActor -> if (!actor.isFired) list += AiObject(actor, x, y, 24, 0, goal = actor.goalContribution)
+                is ServerEnforcerActor -> list += AiObject(actor, x, y, 24, 0)
+                is ServerFlagActor -> list += AiObject(actor, x, y, 0, 4)
+                is ServerProductActor -> list += AiObject(actor, x, y, 0, 4)
+                else -> Unit
             }
         }
-    }
-
-    private val lineOfSight: LineOfSight by lazy {
-        LineOfSight(mapMetadata.widthTiles, mapMetadata.heightTiles, structures.blockingLayer())
+        for (soldier in soldiers) if (!soldier.removed) list += AiObject(soldier, soldier.x, soldier.y, 0, 5)
+        for (bonus in bonuses) if (!bonus.removed) list += AiObject(bonus, bonus.x, bonus.y, 0, 2)
+        for (bomb in abombs) if (!bomb.removed) list += AiObject(bomb, bomb.x, bomb.y, 0, 3)
+        return list
     }
 
     /** What a tank needs to know about the world it drives in (legacy new_position()). */
@@ -1646,6 +1623,7 @@ class ServerMatchPrototype private constructor(
         override val structures: StructureGrid get() = this@ServerMatchPrototype.structures
         override val worldWidth: Int get() = worldWidthPixels
         override val worldHeight: Int get() = worldHeightPixels
+        override val tick: Long get() = currentTick
         override fun tanks(): List<ServerTankActor> = allTanks
         override fun baseType(tileX: Int, tileY: Int): String? {
             if (tileX !in 0 until mapMetadata.widthTiles || tileY !in 0 until mapMetadata.heightTiles) return null
@@ -2270,103 +2248,6 @@ class ServerMatchPrototype private constructor(
             )
         }
         return states
-    }
-
-    private lateinit var aiModeDispatcher: AiModeDispatcher
-
-    private class AiPathCache(var path: List<Pair<Int, Int>> = emptyList(), var tick: Long = -1L)
-
-    private val aiPathCaches: MutableMap<ServerTankActor, AiPathCache> = IdentityHashMap()
-
-    private fun pickAiTarget(
-        self: ServerTankActor,
-        tanks: List<ServerTankActor>,
-    ): ServerTankActor? {
-        var best: ServerTankActor? = null
-        var bestDistSq = Long.MAX_VALUE
-        for (candidate in tanks) {
-            if (candidate === self) continue
-            if (candidate.armor <= 0) continue
-            if (candidate.team == self.team) continue
-            val dx = (candidate.positionX - self.positionX).toLong()
-            val dy = (candidate.positionY - self.positionY).toLong()
-            val distSq = dx * dx + dy * dy
-            if (distSq < bestDistSq) {
-                best = candidate
-                bestDistSq = distSq
-            }
-        }
-        return best
-    }
-
-    private fun computeAiIntent(
-        self: ServerTankActor,
-        target: ServerTankActor,
-    ): com.tankarena.input.PlayerIntentFrame {
-        val dx = target.positionX - self.positionX
-        val dy = target.positionY - self.positionY
-        val distSq = dx.toLong() * dx + dy.toLong() * dy
-        self.aiTargetX = target.positionX
-        self.aiTargetY = target.positionY
-
-        // Recompute this tank's path every 15 ticks or when it has none
-        val cache = aiPathCaches.getOrPut(self) { AiPathCache() }
-        if ((currentTick - cache.tick) >= 15 || cache.path.isEmpty()) {
-            cache.path = pathfinder.findPath(self.positionX, self.positionY, target.positionX, target.positionY)
-            cache.tick = currentTick
-        }
-        val cachedPath = cache.path
-
-        // Body direction: follow path if available, otherwise go directly
-        val bodyDesired: Int
-        if (cachedPath.isNotEmpty()) {
-            val pathDir = pathfinder.directionToNextStep(self.positionX, self.positionY, cachedPath)
-            bodyDesired = if (pathDir >= 0) pathDir else com.tankarena.core.LegacyDirections.fromFacing(
-                dx.coerceIn(-1, 1),
-                dy.coerceIn(-1, 1),
-            )
-        } else {
-            bodyDesired = com.tankarena.core.LegacyDirections.fromFacing(
-                dx.coerceIn(-1, 1),
-                dy.coerceIn(-1, 1),
-            )
-        }
-
-        // Turret aims directly at target
-        val turretDesired = com.tankarena.core.LegacyDirections.fromFacing(
-            dx.coerceIn(-1, 1),
-            dy.coerceIn(-1, 1),
-        )
-
-        val fireRangeSq = (320L * 320L)
-        val visible = lineOfSight.hasLineOfSight(self.positionX, self.positionY, target.positionX, target.positionY)
-        // A hull-mounted gun (legacy rule_fire() uses motion.dir unless MAIN_TURRET) is aimed by
-        // turning the whole tank toward a target in range.
-        val hullAims = self.turretMode != TurretMode.TURRET && visible && distSq <= fireRangeSq
-        // No route (target across a pit, lava or walls): hold position rather than drive into it.
-        val canReach = cachedPath.isNotEmpty() || distSq <= LEGACY_TILE_SIZE.toLong() * LEGACY_TILE_SIZE * 4
-        val hullDesired = if (hullAims) turretDesired else bodyDesired
-        val bodyTurn = if (canReach || hullAims) turnDelta(self.bodyDirection, hullDesired) else 0
-        val turretTurn = turnDelta(self.turretDirection, turretDesired)
-        val bodyAligned = canReach && self.bodyDirection == hullDesired
-        val gunAligned = self.aimDirection == turretDesired
-        val fire = gunAligned && distSq <= fireRangeSq && self.primaryCooldownTicks == 0 && visible
-        return com.tankarena.input.PlayerIntentFrame(
-            forward = bodyAligned,
-            turnLeft = bodyTurn < 0,
-            turnRight = bodyTurn > 0,
-            aimLeft = turretTurn < 0,
-            aimRight = turretTurn > 0,
-            firePrimary = fire,
-        )
-    }
-
-    private fun turnDelta(current: Int, desired: Int): Int {
-        val c = ((current % 16) + 16) % 16
-        val d = ((desired % 16) + 16) % 16
-        if (c == d) return 0
-        val diff = (d - c + 16) % 16
-        return if (diff <= 8) +1 else -1
     }
 
     private fun stepTurrets() {
@@ -3199,25 +3080,31 @@ class ServerMatchPrototype private constructor(
             map: CanonicalMapDefinition,
             mode: MatchMode = MatchMode.SINGLE,
             startShields: Boolean = false,
+            dual: DualSetup = DualSetup(),
         ): ServerMatchPrototype {
             // Round-trip through scene JSON so fixtures exercise the same load path as shipped scenes.
             val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
                 *tankArenaSerializableMetadata,
             )
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
-            return create(map.metadata, map.layers, serializationManagerForBuild.deserializeActors(sceneJson), mode, startShields)
+            return create(map.metadata, map.layers, serializationManagerForBuild.deserializeActors(sceneJson), mode, startShields, dual)
         }
 
         /**
          * Production bootstrap: a committed scene plus its sidecar. The sidecar's tile layers drive
          * terrain effects, pits, A* pathing and line-of-sight exactly as on the fixture path.
          */
-        fun fromSceneJson(sceneJson: String, sidecar: MapSceneSidecar, mode: MatchMode = MatchMode.SINGLE): ServerMatchPrototype {
+        fun fromSceneJson(
+            sceneJson: String,
+            sidecar: MapSceneSidecar,
+            mode: MatchMode = MatchMode.SINGLE,
+            dual: DualSetup = DualSetup(),
+        ): ServerMatchPrototype {
             val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
                 *tankArenaSerializableMetadata,
             )
             val actors = serializationManagerForBuild.deserializeActors(sceneJson)
-            return create(sidecar.metadata, sidecar.tileLayers, actors, mode, startShields = true)
+            return create(sidecar.metadata, sidecar.tileLayers, actors, mode, startShields = true, dual = dual)
         }
 
         private fun create(
@@ -3226,22 +3113,19 @@ class ServerMatchPrototype private constructor(
             actors: List<Serializable<*>>,
             mode: MatchMode,
             startShields: Boolean,
+            dual: DualSetup = DualSetup(),
         ): ServerMatchPrototype {
             val instance = ServerMatchPrototype(
                 mapMetadata = metadata,
                 // Structures block by their pixels through the StructureGrid; the scene's wall actors
                 // only serve the editor.
-                initialActors = MatchSetup.assignControl(actors.filter { it !is ServerWallActor }, mode),
+                initialActors = MatchSetup.assignControl(actors.filter { it !is ServerWallActor }, mode, dual),
                 terrainGrid = TerrainGridBuilder.build(layers, metadata),
                 structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers),
                 mode = mode,
                 startShields = startShields,
                 layers = layers,
-            )
-            instance.aiModeDispatcher = AiModeDispatcher(
-                mode = metadata.modeCompatibility,
-                waypoints = emptyList(), // Authored waypoints deferred
-                pathfinder = instance.pathfinder,
+                dual = dual,
             )
             return instance
         }

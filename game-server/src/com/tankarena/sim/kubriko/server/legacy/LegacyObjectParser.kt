@@ -12,11 +12,16 @@ internal object LegacyObjectParser {
     // Offsets into the packed `tankstruct` (src/include/types.h) relative to OFFSET_UNION.
     private const val TANK_NUM = 4
     private const val TANK_DIR = 32
+    private const val TANK_ATTACK_AT = 108
     private const val TANK_ATTACK_TANKS = 112
+    private const val TANK_ATTACK_GOALS = 116
+    private const val TANK_WAVE_DELAY = 124
     private const val TANK_ACTIVATOR = 132
     private const val TANK_ACTIVE = 136
     private const val TANK_ACTIVATION_RAD = 140
     private const val TANK_STAY_ACTIVE = 144
+    private const val TANK_WAY_TYPE = 180
+    private const val TANK_WAY_CURRENT = 184
     private const val TANK_WAY_POINTS = 188
     private const val TANK_CONTR_ID = 268
     private const val TANK_CONTR_COMPUTER = 276
@@ -343,24 +348,24 @@ internal object LegacyObjectParser {
     /**
      * Reads the authored controller fields of a legacy tank: vehicle index into
      * `src/data/tanks.c`, facing, `contr.id` (the F1–F10 id), whether the computer drives it,
-     * which side it is on, and its authored waypoints.
+     * which side it is on, its `computer` driving preferences and its authored waypoints.
      */
     private fun parseTankProperties(reader: LegacyObjectReader): Map<String, String> {
         if (!reader.has(OFFSET_UNION + TANK_STRUCT_END)) return emptyMap()
-        val waypoints = (0 until TANK_WAYPOINT_COUNT)
-            .map { i ->
-                reader.readInt(OFFSET_UNION + TANK_WAY_POINTS + i * 8) to
-                    reader.readInt(OFFSET_UNION + TANK_WAY_POINTS + i * 8 + 4)
-            }
-            .filter { (wx, _) -> wx >= 0 }
-            .joinToString(";") { (wx, wy) -> "$wx,$wy" }
+        // All ten slots in order, as `way.current` indexes them; x = -1 marks an empty one.
+        val waypoints = (0 until TANK_WAYPOINT_COUNT).joinToString(";") { i ->
+            "${reader.readInt(OFFSET_UNION + TANK_WAY_POINTS + i * 8)},${reader.readInt(OFFSET_UNION + TANK_WAY_POINTS + i * 8 + 4)}"
+        }
         return buildMap {
             put("tankType", reader.readInt(OFFSET_UNION + TANK_NUM).toString())
             put("direction", reader.readInt(OFFSET_UNION + TANK_DIR).toString())
             put("controllerId", reader.readInt(OFFSET_UNION + TANK_CONTR_ID).toString())
             put("computer", if (reader.readInt(OFFSET_UNION + TANK_CONTR_COMPUTER) != 0) "1" else "0")
             put("good", if (reader.readInt(OFFSET_UNION + TANK_CONTR_GOOD) != 0) "1" else "0")
+            put("attackAt", reader.readInt(OFFSET_UNION + TANK_ATTACK_AT).toString())
             put("attackTanks", reader.readInt(OFFSET_UNION + TANK_ATTACK_TANKS).toString())
+            put("attackGoals", reader.readInt(OFFSET_UNION + TANK_ATTACK_GOALS).toString())
+            put("waveDelay", reader.readInt(OFFSET_UNION + TANK_WAVE_DELAY).toString())
             put("activator", reader.readInt(OFFSET_UNION + TANK_ACTIVATOR).toString())
             put("active", reader.readInt(OFFSET_UNION + TANK_ACTIVE).toString())
             put("activationRadius", reader.readInt(OFFSET_UNION + TANK_ACTIVATION_RAD).toString())
@@ -369,7 +374,9 @@ internal object LegacyObjectParser {
             put("armor", reader.readInt(OFFSET_UNION + TANK_ARMOR).toString())
             put("ammo", (0 until TANK_WEAPON_COUNT).joinToString(",") { reader.readInt(OFFSET_UNION + TANK_WEAPON_AMMO + it * 4).toString() })
             put("power", (0 until TANK_WEAPON_COUNT).joinToString(",") { reader.readInt(OFFSET_UNION + TANK_WEAPON_POWER + it * 4).toString() })
-            if (waypoints.isNotEmpty()) put("waypoints", waypoints)
+            put("wayType", reader.readInt(OFFSET_UNION + TANK_WAY_TYPE).toString())
+            put("wayCurrent", reader.readInt(OFFSET_UNION + TANK_WAY_CURRENT).toString())
+            put("waypoints", waypoints)
         }
     }
 }

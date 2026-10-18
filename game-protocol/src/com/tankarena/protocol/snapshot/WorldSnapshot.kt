@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
  * and server versions must fail fast at decode time rather than producing silent drift.
  */
-const val PROTOCOL_VERSION: Int = 6
+const val PROTOCOL_VERSION: Int = 7
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.
@@ -113,6 +113,12 @@ data class HudState(
     /** The vehicle whose pilot speaks (`tank[n].face`), and whether it still lives (face 5 if not). */
     val vehicleType: Int = 0,
     val alive: Boolean = true,
+    /** Player vs player: a flag hunt shows the flags picked up (`und.flags`) instead of lives. */
+    val flagHunt: Boolean = false,
+    val flags: Int = 0,
+    /** Player vs player: this player won the round (`game.winner == game.tn`), or lost it. */
+    val roundWon: Boolean = false,
+    val roundLost: Boolean = false,
 )
 
 @Serializable

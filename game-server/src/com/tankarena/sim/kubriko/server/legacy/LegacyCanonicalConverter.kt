@@ -27,6 +27,7 @@ object LegacyCanonicalConverter {
                 night = legacy.header.night,
                 publicPassword = legacy.header.publicPassword,
                 modeCompatibility = legacy.header.mapType.toModeCompatibility(),
+                mapContents = legacy.header.mapContents,
                 legacyMapVersion = legacy.header.mapVersion,
             ),
             layers = TileLayers(

@@ -23,6 +23,11 @@ data class MapMetadata(
     val night: Boolean = false,
     val publicPassword: Boolean = false,
     val modeCompatibility: GameModeCompatibility = GameModeCompatibility.DONT_CARE,
+    /**
+     * Legacy `map_contents`: which vehicles and games the map has room for (MAPC_TANK 1,
+     * MAPC_CHOP 2, MAPC_PLANE 4, MAPC_RACE 8, MAPC_FLAG 16); the tank selection allows by it.
+     */
+    val mapContents: Int = 0,
     val legacyMapVersion: Int = 0,
 )
 

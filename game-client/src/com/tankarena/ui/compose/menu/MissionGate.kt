@@ -1,6 +1,7 @@
 package com.tankarena.ui.compose.menu
 
 import com.tankarena.ui.compose.DesktopShellScreen
+import com.tankarena.ui.compose.DualMatch
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
 
@@ -35,14 +36,17 @@ class MissionGate(private val passwords: PasswordStore) {
             is CodeResolution.Accepted -> {
                 if (mode != GameMode.PLAYER_VS_PLAYER) passwords.add(input.trim())
                 val mission = resolution.mission
-                if (mission.sidecar.missionText.briefing.isBlank()) {
-                    DesktopShellScreen.Playing(mission, mode)
-                } else {
-                    DesktopShellScreen.Briefing(mission, mode)
-                }
+                if (mission.sidecar.missionText.briefing.isBlank()) afterBriefing(mission, mode) else DesktopShellScreen.Briefing(mission, mode)
             }
         }
     }
+
+    /**
+     * What follows the briefing: the mission, or for player vs player the tank selection of the
+     * first round (legacy dual_game() shows the map text once, then loops over the rounds).
+     */
+    fun afterBriefing(mission: MissionEntry, mode: GameMode): DesktopShellScreen =
+        if (mode == GameMode.PLAYER_VS_PLAYER) DesktopShellScreen.TankSelect(DualMatch(mission)) else DesktopShellScreen.Playing(mission, mode)
 
     /**
      * End of legacy `single_game` / `dual_v_computer_game`: a won mission makes its

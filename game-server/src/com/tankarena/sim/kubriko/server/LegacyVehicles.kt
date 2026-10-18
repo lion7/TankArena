@@ -88,7 +88,7 @@ fun rotate(direction: Int, offset: Pair<Int, Int>): Pair<Int, Int> {
 }
 
 /** Per-vehicle data from `tank[]` in src/data/tanks.c, indexed by the legacy vehicle number that scenes store as `tankType`. */
-internal object LegacyVehicles {
+object LegacyVehicles {
     fun spec(tankType: Int): VehicleSpec =
         GeneratedLegacyVehicles.vehicles.getOrElse(tankType) { GeneratedLegacyVehicles.vehicles[0] }
 

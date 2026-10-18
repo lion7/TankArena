@@ -207,6 +207,20 @@ class ServerTankActor(state: State) :
     val tankType: Int = state.tankType
     val spec: VehicleSpec = LegacyVehicles.spec(tankType)
     val turretMode: TurretMode = spec.turretMode
+    /** Legacy `computer.attack_at`: fires at targets this close (make_tank(): 0 for cars, else 150). */
+    val aiAttackAt: Int = state.aiAttackAt.takeIf { it >= 0 } ?: if (spec.kind == VehicleKind.CAR) 0 else 150
+    /** Legacy `computer.attack_goals`: how much it prefers goal objects (make_tank(): 60). */
+    val aiAttackGoals: Int = state.aiAttackGoals
+    /** Legacy `computer.wave_delay`: how long an aircraft flies on after a pass (ticks). */
+    val aiWaveDelay: Int = state.aiWaveDelay.takeIf { it >= 0 } ?: spec.waveDelay
+    /** Legacy `way.type` (WAY_INACTIVE, WAY_ACTIVE, WAY_CIRCULAR), `way.current` and `way.point[10]`. */
+    internal val wayPoints: IntArray = IntArray(2 * WAYPOINTS) { i -> state.wayPoints.getOrElse(i) { -1 } }
+    /** Legacy prepare_tank(): the route starts at the first filled slot, and without one it is off. */
+    private val firstWaypoint: Int = (0 until WAYPOINTS).firstOrNull { wayPoints[2 * it] != -1 } ?: -1
+    internal var wayType: Int = if (firstWaypoint < 0) ComputerTankAi.WAY_INACTIVE else state.wayType
+    internal var wayCurrent: Int = if (firstWaypoint < 0) state.wayCurrent else firstWaypoint
+    /** The legacy `computer` timers and target of control_computer_tank() (src/tanks/computer.c). */
+    internal val brain = ComputerTankAi.State()
     /** Legacy `shield.armor`; maps store each tank's own value, the vehicle table its maximum. */
     var armor: Int = state.armor
     /** Legacy `shield.power`: the pool the shield key draws from. */
@@ -220,7 +234,7 @@ class ServerTankActor(state: State) :
         private set
     var fuel: Int = state.fuel
     var lives: Int = state.lives
-        private set
+        internal set
     val team: Int = state.team
     /** Legacy `weap.nf`: one refire timer shared by all weapons. */
     var primaryCooldownTicks: Int = state.primaryCooldownTicks
@@ -238,12 +252,30 @@ class ServerTankActor(state: State) :
 
     val maxArmor: Int = if (state.maxArmor > 0) state.maxArmor else spec.armor.coerceAtLeast(state.armor).coerceAtLeast(1)
     val maxFuel: Int = if (state.maxFuel > 0) state.maxFuel else state.fuel.coerceAtLeast(0)
-    private val spawnX: Int = if (state.spawnX >= 0) state.spawnX
+    internal val spawnX: Int = if (state.spawnX >= 0) state.spawnX
         else (body.position.x.raw + body.size.width.raw / 2f).toInt()
-    private val spawnY: Int = if (state.spawnY >= 0) state.spawnY
+    internal val spawnY: Int = if (state.spawnY >= 0) state.spawnY
         else (body.position.y.raw + body.size.height.raw / 2f).toInt()
     private val spawnBodyDirection: Int = state.spawnBodyDirection.takeIf { it >= 0 } ?: state.bodyDirection
     private val spawnTurretDirection: Int = state.spawnTurretDirection.takeIf { it >= 0 } ?: state.turretDirection
+    /** Legacy control_race(): a race tank restarts at the last checkpoint it passed. */
+    private var restartX: Int = spawnX
+    private var restartY: Int = spawnY
+    private var restartDirection: Int = spawnBodyDirection
+    /** Legacy flag hunts and races: destroyed vehicles come back without using up lives. */
+    internal var infiniteLives: Boolean = false
+    /** Legacy `und.flags`: flags this vehicle has picked up (the HUD shows a flag icon). */
+    internal var flagsPicked: Int = 0
+
+    /** Restart at ([x], [y]) facing [direction] after being destroyed. */
+    internal fun moveSpawn(x: Int, y: Int, direction: Int) {
+        restartX = x
+        restartY = y
+        restartDirection = direction
+    }
+
+    /** Restart at the pad again. */
+    internal fun resetSpawn() = moveSpawn(spawnX, spawnY, spawnBodyDirection)
 
     /** Sub-pixel position (legacy `o->fx`, `o->fy`); [positionX]/[positionY] are its rounded values. */
     private var exactX: Float = body.position.x.raw + body.size.width.raw / 2f
@@ -377,6 +409,16 @@ class ServerTankActor(state: State) :
 
     private var pendingIntent: PlayerIntentFrame = PlayerIntentFrame()
     private var hullTurnCooldownTicks: Int = 0
+
+    /** Legacy `tdone(motion.ndir)`: a turn pressed now happens this tick. */
+    internal val steeringReady: Boolean get() = hullTurnCooldownTicks <= 1
+
+    /** Legacy `motion.v`: speed along the hull, negative when reversing (px/s). */
+    internal val forwardSpeed: Float
+        get() {
+            val (fx, fy) = LegacyDirections.unitVector(bodyDirection)
+            return velocityX * fx + velocityY * fy
+        }
     private var turretTurnCooldownTicks: Int = 0
     private var terrainSpeedMultiplier: Float = 1.0f
     private var pendingResolveX: Int = 0
@@ -663,13 +705,14 @@ class ServerTankActor(state: State) :
     }
 
     private fun respawn() {
-        exactX = spawnX.toFloat()
-        exactY = spawnY.toFloat()
-        positionX = spawnX
-        positionY = spawnY
+        exactX = restartX.toFloat()
+        exactY = restartY.toFloat()
+        positionX = restartX
+        positionY = restartY
         lastOverlap = Int.MAX_VALUE
-        bodyDirection = spawnBodyDirection
-        turretDirection = spawnTurretDirection
+        bodyDirection = restartDirection
+        turretDirection = if (restartX == spawnX && restartY == spawnY) spawnTurretDirection else restartDirection
+        flagsPicked = 0
         armor = maxArmor
         fuel = maxFuel
         shield = SHIELD_START_POWER
@@ -778,7 +821,7 @@ class ServerTankActor(state: State) :
                 if (tankType == ATOMIC_TANK) pendingAbombRequest = AbombRequest(positionX, positionY, countdown = 0)
                 dyingTicks = DYING_TICKS
                 smokeCooldownTicks = WRECK_SMOKE_MIN_TICKS + random.nextInt(WRECK_SMOKE_SPREAD_TICKS)
-                lives = (lives - 1).coerceAtLeast(0)
+                if (!infiniteLives) lives = (lives - 1).coerceAtLeast(0)
                 if (lives > 0) respawnInTicks = RESPAWN_DELAY_TICKS
                 velocityX = 0f
                 velocityY = 0f
@@ -808,6 +851,12 @@ class ServerTankActor(state: State) :
         aiActivator = aiActivator,
         aiStayActive = aiStayActive,
         aiActive = aiActive,
+        aiAttackAt = aiAttackAt,
+        aiAttackGoals = aiAttackGoals,
+        aiWaveDelay = aiWaveDelay,
+        wayType = wayType,
+        wayCurrent = wayCurrent,
+        wayPoints = wayPoints.toList(),
         tankType = tankType,
         armor = armor,
         shield = shield,
@@ -935,6 +984,12 @@ class ServerTankActor(state: State) :
                 staticCollide()
                 // Legacy new_position(): a plane that touches a building crashes.
                 if (kind == VehicleKind.PLANE) queueDestroy()
+                // Legacy new_position(): a computer tank that hits a building other than its
+                // target panics for a moment.
+                if (computer && playerIndex < 0) {
+                    val target = ComputerTankAi.targetTile(this)
+                    if (target != null && target != (hitTile[0] to hitTile[1])) ComputerTankAi.crashed(this, surroundings.tick)
+                }
                 crashInto(hitTile[0], hitTile[1])
                 return
             }
@@ -949,6 +1004,13 @@ class ServerTankActor(state: State) :
                     inRadius(other.positionX - roundedX, other.positionY - roundedY, spec.radius + other.spec.radius)
             }
             if (other != null) {
+                // Legacy check_obj_collide(): bumping into a vehicle that is not its target (or
+                // during an attack pass) makes a computer tank panic too.
+                if (computer && playerIndex < 0 &&
+                    (ComputerTankAi.targetRef(this) !== other || ComputerTankAi.inAttackWave(this, surroundings.tick))
+                ) {
+                    ComputerTankAi.crashed(this, surroundings.tick)
+                }
                 collideWithVehicle(other)
                 return
             }
@@ -1030,9 +1092,19 @@ class ServerTankActor(state: State) :
      * Legacy overlap() for this tank's body picture centred on ([x], [y]): on the ground the
      * buildings themselves, at height 2..7 only their tall top-layer parts, and nothing higher up.
      */
-    private fun structureOverlap(x: Int, y: Int, firstHit: IntArray? = null): Int {
+    private fun structureOverlap(x: Int, y: Int, firstHit: IntArray? = null): Int =
+        overlapWithMask(bodyMask(), x, y, firstHit)
+
+    /**
+     * Legacy overlap(o, tnk.tank->pic[[direction]], x, y, ...) for the computer driver: the overlap
+     * this vehicle would have facing [direction] centred on ([x], [y]); [firstHit] gets the tile.
+     */
+    internal fun overlapAt(direction: Int, x: Int, y: Int, firstHit: IntArray? = null): Int =
+        overlapWithMask(PictureMasks.mask(LegacySpriteResources.nameForTankBody(tankType, direction.mod(16))), x, y, firstHit)
+
+    private fun overlapWithMask(mask: PictureMasks.Mask?, x: Int, y: Int, firstHit: IntArray?): Int {
         val grid = surroundings?.structures ?: return 0
-        val mask = bodyMask() ?: return 0
+        mask ?: return 0
         val left = x - LEGACY_TILE_SIZE / 2
         val top = y - LEGACY_TILE_SIZE / 2
         return when {
@@ -1625,6 +1697,15 @@ class ServerTankActor(state: State) :
         @SerialName("aiActivator") val aiActivator: Int = 0,
         @SerialName("aiStayActive") val aiStayActive: Boolean = false,
         @SerialName("aiActive") val aiActive: Boolean = false,
+        /** -1: the vehicle's default (make_tank()). */
+        @SerialName("aiAttackAt") val aiAttackAt: Int = -1,
+        @SerialName("aiAttackGoals") val aiAttackGoals: Int = 60,
+        /** -1: the vehicle table's `computer.wave_delay`. */
+        @SerialName("aiWaveDelay") val aiWaveDelay: Int = -1,
+        @SerialName("wayType") val wayType: Int = 0,
+        @SerialName("wayCurrent") val wayCurrent: Int = 0,
+        /** Ten x, y pairs (top-left corners, as the original stores them); x = -1 is an empty slot. */
+        @SerialName("wayPoints") val wayPoints: List<Int> = emptyList(),
         @SerialName("tankType") val tankType: Int = 0,
         @SerialName("armor") val armor: Int = DEFAULT_TANK_ARMOR,
         @SerialName("shield") val shield: Int = SHIELD_START_POWER,
@@ -1653,6 +1734,8 @@ class ServerTankActor(state: State) :
     }
 
     companion object {
+        /** Legacy `way.point[10]`. */
+        const val WAYPOINTS = 10
         /** Legacy STANDARD tank `props.armor`. */
         const val DEFAULT_TANK_ARMOR: Int = 30
         /** Legacy `tank[21]`, the ATOMIC TANK. */

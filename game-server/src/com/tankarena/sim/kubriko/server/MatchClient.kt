@@ -59,10 +59,11 @@ class LocalMatchClient private constructor(
             sidecar: MapSceneSidecar,
             mode: MatchMode = MatchMode.SINGLE,
             recordAs: String? = null,
+            dual: DualSetup = DualSetup(),
         ): LocalMatchClient {
-            val prototype = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, mode)
+            val prototype = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, mode, dual)
             prototype.initialize()
-            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode) })
+            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode, dual.takeIf { mode == MatchMode.DUAL }) })
         }
 
         internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {

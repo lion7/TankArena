@@ -13,7 +13,8 @@ class LegacyMapParser {
         val terrain0 = cursor.readShortArray(cellCount)
         val terrain1 = cursor.readShortArray(cellCount)
         val terrain2 = cursor.readShortArray(cellCount)
-        val goalLayer = cursor.readUnsignedByteArray(cellCount)
+        // Legacy `mapm.g` is a signed char: -100..100, negative for the player's own buildings.
+        val goalLayer = cursor.readSignedByteArray(cellCount)
         val bonusLayer = cursor.readUnsignedByteArray(cellCount)
         val manTypeLayer = cursor.readUnsignedByteArray(cellCount)
         val manAmountLayer = cursor.readUnsignedByteArray(cellCount)
@@ -153,4 +154,6 @@ internal class LittleEndianCursor(
     fun readShortArray(size: Int): List<Int> = List(size) { readShort().let { if (it >= 0x8000) it - 0x10000 else it } }
 
     fun readUnsignedByteArray(size: Int): List<Int> = List(size) { readUnsignedByte() }
+
+    fun readSignedByteArray(size: Int): List<Int> = List(size) { bytes[position++].toInt() }
 }

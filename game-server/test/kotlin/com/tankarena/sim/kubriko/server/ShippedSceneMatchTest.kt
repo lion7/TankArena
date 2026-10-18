@@ -223,6 +223,16 @@ class ShippedSceneMatchTest {
     }
 
     @Test
+    fun `AIR STRIKE is not won by the enemy shooting at the player's own buildings`() {
+        // Legacy `mapm.g` is a signed char: the player's buildings carry negative goals.
+        val match = start("air", MatchMode.SINGLE)
+        repeat(3000) { match.tick() }
+        assertEquals(ServerMatchPrototype.MissionStatus.IN_PROGRESS, match.mission)
+        assertEquals(0, match.goalProgressGood)
+        assertTrue(match.goalProgressBad > 0, "losing the base fills the bad counter")
+    }
+
+    @Test
     fun `BEGIN1 plays for several seconds without the idle player dying to terrain`() {
         val match = start("begin1", MatchMode.SINGLE)
         repeat(100) { match.tick(mapOf(0 to PlayerIntentFrame())) }

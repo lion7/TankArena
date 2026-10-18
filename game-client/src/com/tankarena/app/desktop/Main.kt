@@ -38,7 +38,9 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.tankarena.audio.AudioManager
 import com.tankarena.audio.DesktopAudioBackend
 import com.tankarena.content.LEGACY_TILE_SIZE
@@ -94,6 +96,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "Tank Arena Rewrite",
+        state = rememberWindowState(placement = WindowPlacement.Maximized),
         onPreviewKeyEvent = { event ->
             handleGlobalKeys(event, screen, controls)
         },

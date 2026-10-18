@@ -235,6 +235,7 @@ class ServerMatchPrototype private constructor(
         tickSource.tick(MILLIS_PER_TICK)
         flushOutOfBoundsProjectiles()
         checkProjectileStructureHits()
+        checkProjectileVehicleHits()
         triggerFlameContacts()
         checkSmallObjectHits()
         flushOutOfBoundsRockets()
@@ -1787,6 +1788,44 @@ class ServerMatchPrototype private constructor(
         }
     }
 
+    /**
+     * Legacy line_obj_hit_point() (src/check/hitobj.c) for the vehicles: a shot that got past the
+     * walls this tick hits the first vehicle, in object order, whose body picture lies on its path.
+     * The original walks the path from its start one pixel per step diagonally (both axes move by
+     * their sign) for as many steps as the longer axis, plus one. Vehicles sinking into a pit
+     * (height below 1) are only hit by rockets, which are not shots here; flames burn by radius
+     * (triggerFlameContacts()).
+     */
+    private fun checkProjectileVehicleHits() {
+        for (projectile in actorManager.allActors.value) {
+            if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
+            if (projectile.weaponKind == WEAPON_FLAME) continue
+            val (fromX, fromY) = projectile.previousPosition
+            val dx = projectile.positionX - fromX
+            val dy = projectile.positionY - fromY
+            val steps = maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy))
+            val stepX = Integer.signum(dx)
+            val stepY = Integer.signum(dy)
+            for (tank in allTanks) {
+                if (projectile.ownerKind == ProjectileOwnerKind.TANK && tank === projectile.ownerRef) continue
+                if (tank.armor <= 0 || tank.height < 1) continue
+                var x = fromX
+                var y = fromY
+                var hit = false
+                repeat(steps + 1) {
+                    if (hit) return@repeat
+                    x += stepX
+                    y += stepY
+                    if (tank.bodyCovers(x, y)) hit = true
+                }
+                if (hit) {
+                    projectile.hitVehicle(tank, x, y)
+                    break
+                }
+            }
+        }
+    }
+
     /** The 16-step direction a projectile flies in. */
     private fun projectileDirection(projectile: ServerProjectileActor): Int =
         com.tankarena.core.LegacyDirections.fromAngle((projectile.velocityX * 1000).roundToInt(), (projectile.velocityY * 1000).roundToInt())
@@ -2433,17 +2472,18 @@ class ServerMatchPrototype private constructor(
      */
     private fun triggerFlameContacts() {
         val flames = actorManager.allActors.value.filterIsInstance<ServerProjectileActor>()
-            .filter { it.weaponKind == WEAPON_FLAME && !it.isDead }
+            .filter { it.weaponKind == WEAPON_FLAME && !it.isDead && it.armed }
         if (flames.isEmpty()) return
         for (flame in flames) {
-            val tank = allTanks.firstOrNull { tank ->
-                tank !== flame.ownerRef && tank.armor > 0 &&
-                    withinRadius(tank.positionX, tank.positionY, flame.positionX, flame.positionY, FLAME_HIT_RADIUS_PX)
+            // Legacy line_obj_hit_radius(..., 15, HT_FLAME, ...): every vehicle off the ground
+            // within 15 px (or its own radius, if larger) of the flame's path this tick burns.
+            val (fromX, fromY) = flame.previousPosition
+            val burnt = allTanks.filter { tank ->
+                tank !== flame.ownerRef && tank.armor > 0 && tank.height > 0 &&
+                    nearSegment(fromX, fromY, flame.positionX, flame.positionY, tank.positionX, tank.positionY, maxOf(FLAME_HIT_RADIUS_PX, tank.spec.radius))
             }
-            if (tank != null) {
-                tank.queueDamage(flame.damage)
-                flame.burn(tank)
-            }
+            for (tank in burnt) tank.queueDamage(flame.damage)
+            if (burnt.isNotEmpty()) flame.burn(burnt.first())
         }
     }
 

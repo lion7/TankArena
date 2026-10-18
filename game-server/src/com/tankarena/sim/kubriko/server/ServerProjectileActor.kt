@@ -3,14 +3,12 @@ package com.tankarena.sim.kubriko.server
 import com.pandulapeter.kubriko.actor.body.PointBody
 import com.pandulapeter.kubriko.actor.traits.Dynamic
 import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.CollisionDetector
 import com.pandulapeter.kubriko.collision.mask.CircleCollisionMask
 import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
 import com.pandulapeter.kubriko.serialization.Serializable
 import com.pandulapeter.kubriko.serialization.typeSerializers.SerializablePointBody
 import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
-import kotlin.reflect.KClass
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -20,7 +18,7 @@ private const val PROJECTILE_RADIUS_PX: Float = 1.5f
 private const val FIELD_SAFETY_PX: Float = 4f
 
 class ServerProjectileActor internal constructor(state: State) :
-    CollisionDetector,
+    Collidable,
     Dynamic,
     Serializable<ServerProjectileActor> {
 
@@ -31,11 +29,6 @@ class ServerProjectileActor internal constructor(state: State) :
     )
     override val isAlwaysActive: Boolean = true
 
-    override val collidableTypes: List<KClass<out Collidable>> = listOf(
-        // Structures are hit by their pixels (ServerMatchPrototype.checkProjectileStructureHits());
-        // turrets cannot be hit at all, only the building under them.
-        ServerTankActor::class,
-    )
 
     val ownerActorId: Long = state.ownerActorId
     val ownerKind: ProjectileOwnerKind = state.ownerKind
@@ -155,28 +148,19 @@ class ServerProjectileActor internal constructor(state: State) :
         }
     }
 
-    override fun onCollisionDetected(collidables: List<Collidable>) {
+    /**
+     * Legacy line_obj_hit_point(): the shot hit [target] at ([x], [y]); the vehicle takes the
+     * damage and is pushed along the shot (tank_add_impulse()).
+     */
+    internal fun hitVehicle(target: ServerTankActor, x: Int, y: Int) {
         if (isDead) return
-        for (other in collidables) {
-            if (isDead) return
-            when (other) {
-                is ServerTankActor -> {
-                    // Flames hit by proximity (ServerMatchPrototype.triggerFlameContacts()).
-                    if (weaponKind == WEAPON_FLAME || !armed) continue
-                    if (ownerKind == ProjectileOwnerKind.TANK && other === ownerRef) continue
-                    // Legacy line_obj_hit_point(): a vehicle sinking into a pit is out of reach.
-                    if (other.armor <= 0 || other.height < 1) continue
-                    other.queueDamage(damage)
-                    // Legacy tank_add_impulse(): the hit pushes the vehicle along the shot.
-                    val speed = kotlin.math.hypot(velocityX, velocityY)
-                    if (speed > 0f) other.addImpulse(velocityX / speed, velocityY / speed, damage)
-                    tankHitRef = other
-                    markDead(positionX, positionY)
-                }
-
-                else -> Unit
-            }
-        }
+        target.queueDamage(damage)
+        val speed = kotlin.math.hypot(velocityX, velocityY)
+        if (speed > 0f) target.addImpulse(velocityX / speed, velocityY / speed, damage)
+        tankHitRef = target
+        positionX = x
+        positionY = y
+        markDead(x, y)
     }
 
     /** Legacy line_obj_hit_radius(): a flame stops at the first thing it burns. */

@@ -1008,6 +1008,10 @@ class ServerTankActor(state: State) :
     private fun bodyMask(): PictureMasks.Mask? =
         PictureMasks.mask(LegacySpriteResources.nameForTankBody(tankType, bodyDirection.mod(16)))
 
+    /** Legacy check_obj_hit_point() for a vehicle: is world point ([x], [y]) on its body picture? */
+    internal fun bodyCovers(x: Int, y: Int): Boolean =
+        bodyMask()?.isOpaque(x - (positionX - LEGACY_TILE_SIZE / 2), y - (positionY - LEGACY_TILE_SIZE / 2)) == true
+
     /**
      * Legacy overlap() for this tank's body picture centred on ([x], [y]): on the ground the
      * buildings themselves, at height 2..7 only their tall top-layer parts, and nothing higher up.

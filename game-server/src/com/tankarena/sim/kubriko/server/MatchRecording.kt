@@ -23,8 +23,9 @@ import kotlinx.serialization.json.Json
  * 6: B52 bombers and the zeppelin fly like the original, shots bounce off force fields, ramps
  *    throw vehicles into the air.
  * 7: night maps add the light switch as a 13th weapon slot.
+ * 8: shots hit vehicles by their pictures along their path, after the walls (line_obj_hit_point()).
  */
-const val GAME_RULES_VERSION: Int = 7
+const val GAME_RULES_VERSION: Int = 8
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

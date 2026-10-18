@@ -33,6 +33,10 @@ internal object LegacyObjectParser {
     private const val TANK_WAYPOINT_COUNT = 10
     private const val TANK_STRUCT_END = TANK_WEAPON_POWER + TANK_WEAPON_COUNT * 4
 
+    // Offsets into the packed `playerstruct`: six longs and chk[25] of four shorts, then `weap`.
+    private const val PLAYER_WEAPONS_ACTIVE = 224
+    private const val PLAYER_WEAPON_AMMO = 228
+
     private const val TYPE_TANK = 0
     private const val TYPE_B52 = 1
     private const val TYPE_MAN = 2
@@ -194,13 +198,19 @@ internal object LegacyObjectParser {
                 kind = ObjectKinds.PLAYER_START,
                 x = x,
                 y = y,
-                properties = mapOf(
-                    "startType" to reader.readInt(OFFSET_UNION).toString(),
-                    "direction" to reader.readInt(OFFSET_UNION + 4).toString(),
-                    "lives" to reader.readInt(OFFSET_UNION + 8).toString(),
-                    "laps" to reader.readInt(OFFSET_UNION + 12).toString(),
-                    "goalContribution" to goalContribution.toString(),
-                ),
+                properties = buildMap {
+                    put("startType", reader.readInt(OFFSET_UNION).toString())
+                    put("direction", reader.readInt(OFFSET_UNION + 4).toString())
+                    put("lives", reader.readInt(OFFSET_UNION + 8).toString())
+                    put("laps", reader.readInt(OFFSET_UNION + 12).toString())
+                    put("goalContribution", goalContribution.toString())
+                    // Legacy `pl.weap`: when active, every vehicle from this pad gets this ammo.
+                    if (reader.has(OFFSET_UNION + PLAYER_WEAPON_AMMO + TANK_WEAPON_COUNT * 4) &&
+                        reader.readInt(OFFSET_UNION + PLAYER_WEAPONS_ACTIVE) != 0
+                    ) {
+                        put("ammo", (0 until TANK_WEAPON_COUNT).joinToString(",") { reader.readInt(OFFSET_UNION + PLAYER_WEAPON_AMMO + it * 4).toString() })
+                    }
+                },
             )
 
             TYPE_TURRET -> AuthoredObject(

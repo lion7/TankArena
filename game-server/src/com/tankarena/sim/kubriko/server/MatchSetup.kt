@@ -110,9 +110,13 @@ internal object MatchSetup {
         else -> 0
     }
 
-    /** Legacy make_tank(o, pl_tanks[c], ...): a pad spawns the chosen vehicle with its own loadout. */
+    /**
+     * Legacy make_tank(o, pl_tanks[c], ...): a pad spawns the chosen vehicle with its own loadout,
+     * or with the pad's ammo when the pad has one (control_player(), `pl.weap.active`).
+     */
     private fun ServerTankActor.asVehicle(tankType: Int): ServerTankActor {
         val spec = LegacyVehicles.spec(tankType)
+        val ammo = padAmmo ?: spec.ammo
         return ServerTankActor(
             save().copy(
                 tankType = tankType,
@@ -120,9 +124,9 @@ internal object MatchSetup {
                 maxArmor = spec.armor,
                 fuel = spec.maxFuel,
                 maxFuel = spec.maxFuel,
-                ammo = spec.ammo,
+                ammo = ammo,
                 power = spec.power,
-                currentWeapon = LegacyVehicles.startingWeapon(spec, spec.ammo),
+                currentWeapon = LegacyVehicles.startingWeapon(spec, ammo),
             ),
         )
     }

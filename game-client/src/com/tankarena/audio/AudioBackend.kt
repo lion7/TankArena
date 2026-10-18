@@ -27,6 +27,9 @@ interface AudioBackend {
      */
     fun play(kind: SoundKind, volume: Int, pan: Int, pitch: Int)
 
+    /** Allegro set_volume(digi, -1): the option menu's sound volume over every sound, 0..255. */
+    var masterVolume: Int
+
     /** Stop all currently playing sounds. */
     fun stopAll()
 

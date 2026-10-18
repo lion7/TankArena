@@ -26,8 +26,10 @@ import kotlinx.serialization.json.Json
  * 8: shots hit vehicles by their pictures along their path, after the walls (line_obj_hit_point()).
  * 9: computer tanks drive like the original (fuzzy logic, waypoints); player-vs-player rounds
  *    with pads, lives, flags and races.
+ * 10: building goals are signed (the player's own buildings count against them); start pads hand
+ *     out their own weapons.
  */
-const val GAME_RULES_VERSION: Int = 9
+const val GAME_RULES_VERSION: Int = 10
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

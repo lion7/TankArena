@@ -76,6 +76,7 @@ object CanonicalSceneBuilder {
                         // Legacy dual-mode start pad: type & 1 is the player, type >> 1 the vehicle kind,
                         // and the pad direction is a quarter turn (0..3) of the 16-step compass.
                         val direction = ((props.int("direction") ?: 0) * 4).mod(16)
+                        val padAmmo = props.intList("ammo")
                         sink += tankActor(
                             cx = obj.x,
                             cy = obj.y,
@@ -88,6 +89,8 @@ object CanonicalSceneBuilder {
                             team = 0,
                             computer = false,
                             startPadType = padType,
+                            ammo = padAmmo,
+                            padAmmo = padAmmo,
                         )
                     } else {
                         sink += tankActor(
@@ -303,6 +306,7 @@ object CanonicalSceneBuilder {
         controllerId: Int = -1,
         goalContribution: Int = 0,
         startPadType: Int = -1,
+        padAmmo: List<Int>? = null,
         aiAttackTanks: Int = 100,
         aiActivationRadius: Int = -1,
         aiActivator: Int = 0,
@@ -336,6 +340,7 @@ object CanonicalSceneBuilder {
             controllerId = controllerId,
             goalContribution = goalContribution,
             startPadType = startPadType,
+            padAmmo = padAmmo,
             aiAttackTanks = aiAttackTanks,
             aiActivationRadius = aiActivationRadius,
             aiActivator = aiActivator,

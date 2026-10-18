@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,7 +66,17 @@ import com.tankarena.ui.compose.LegacyScreen
 import com.tankarena.ui.compose.LegacyVideoMode
 import com.tankarena.ui.compose.MissionOutcome
 import com.tankarena.ui.compose.hud.HudOverlay
+import com.tankarena.audio.MusicPlayer
+import com.tankarena.content.TankArenaWorld
+import com.tankarena.ui.compose.gammaCorrection
+import com.tankarena.ui.compose.menu.Credits
+import com.tankarena.ui.compose.menu.CreditsScreen
+import com.tankarena.ui.compose.menu.FliScreen
 import com.tankarena.ui.compose.menu.GameModeMenuScreen
+import com.tankarena.ui.compose.menu.GameOptionsScreen
+import com.tankarena.ui.compose.menu.GameOptionsStore
+import com.tankarena.ui.compose.menu.GameSettings
+import com.tankarena.ui.compose.menu.IntroStep
 import com.tankarena.ui.compose.menu.HelpFile
 import com.tankarena.ui.compose.menu.MainMenuScreen
 import com.tankarena.ui.compose.menu.MessageBarScreen
@@ -85,21 +96,39 @@ import com.tankarena.ui.compose.menu.TankSelectScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
 import com.tankarena.ui.compose.menu.SelectionKey
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
 private val showDebugOverlay: Boolean = System.getProperty("tankarena.debugOverlay") == "true"
 
 fun main() = application {
     val controls = remember { DesktopControls() }
-    var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.MainMenu) }
+    var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.Intro(IntroStep.LOGO)) }
     // Legacy menu(): the game mode menu opens on its first entry, and keeps the chosen one
     // while games are played from it.
     var lastMode by remember { mutableStateOf<GameMode?>(null) }
     // Legacy `pl_tanks`: the vehicles last picked on the selection screen.
     var playerTanks by remember { mutableStateOf(listOf(0, 0)) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
-    val missionGate = remember { MissionGate(PasswordStore()) }
+    // Legacy TANK.CFG: the game options, saved whenever they change.
+    val settings = remember { GameSettings(GameOptionsStore()) }
+    val options = settings.options
+    val missionGate = remember { MissionGate(PasswordStore(), settings) }
+
+    // Legacy init_player(): TUNE.MID from the start, BELVED.MID while a night map is played; in
+    // a game the music is turned down to 30% (palette.c fades it with the picture).
+    val music = remember { MusicPlayer() }
+    DisposableEffect(music) { onDispose(music::dispose) }
+    val playing = screen as? DesktopShellScreen.Playing
+    val night = playing?.mission?.sidecar?.metadata?.world == TankArenaWorld.NIGHT
+    LaunchedEffect(night) {
+        withContext(Dispatchers.IO) { music.play(if (night) MusicPlayer.NIGHT_TUNE else MusicPlayer.TUNE) }
+    }
+    LaunchedEffect(options.musicVolume, playing != null) {
+        music.volume = if (playing != null) options.musicVolume * 3 / 10 else options.musicVolume
+    }
 
     // Measuring: TANKARENA_AUTOSTART=<code> skips the menus into a one-player mission, and
     // TANKARENA_QUIT_AFTER=<seconds> closes the game again.
@@ -110,7 +139,7 @@ fun main() = application {
             ?: return@LaunchedEffect
         // TANKARENA_AUTOSTART_PVP=1 starts a player-vs-player match on that map at the tank selection.
         screen = if (System.getenv("TANKARENA_AUTOSTART_PVP") == "1") {
-            DesktopShellScreen.TankSelect(com.tankarena.ui.compose.DualMatch(mission))
+            DesktopShellScreen.TankSelect(com.tankarena.ui.compose.DualMatch(mission, options = settings.options))
         } else {
             DesktopShellScreen.Playing(mission, GameMode.SINGLE_PLAYER_VS_COMPUTER)
         }
@@ -130,14 +159,37 @@ fun main() = application {
         },
     ) {
         MaterialTheme {
-            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+            Surface(modifier = Modifier.fillMaxSize().gammaCorrection(options.gamma), color = Color.Black) {
                 when (val current = screen) {
+                    // Legacy write_title(): a key during LOGO.FLI skips the rest of the intro.
+                    is DesktopShellScreen.Intro -> when (current.step) {
+                        IntroStep.LOGO -> FliScreen("LOGO.FLI", onDone = { stopped ->
+                            screen = if (stopped) DesktopShellScreen.MainMenu else DesktopShellScreen.Intro(IntroStep.TITLE)
+                        })
+                        IntroStep.TITLE -> FliScreen("TITLE.FLI", onDone = { screen = DesktopShellScreen.Intro(IntroStep.CREDITS) })
+                        IntroStep.CREDITS -> CreditsScreen("credits.bmp", 70, 40, Credits.CREDITS, onDone = {
+                            screen = DesktopShellScreen.Intro(IntroStep.THANKS)
+                        })
+                        IntroStep.THANKS -> CreditsScreen("credits2.bmp", 160, 100, Credits.THANKS, onDone = {
+                            screen = DesktopShellScreen.MainMenu
+                        })
+                    }
+
+                    is DesktopShellScreen.Animation -> FliScreen(current.fileName, onDone = { screen = current.next })
+
+                    DesktopShellScreen.Options -> GameOptionsScreen(
+                        options = options,
+                        onChange = settings::update,
+                        onLeave = { screen = DesktopShellScreen.MainMenu },
+                    )
+
                     DesktopShellScreen.MainMenu -> MainMenuScreen(
                         onStartNewGame = {
                             lastMode = null
                             screen = DesktopShellScreen.GameModeSelect
                         },
                         onExit = ::exitApplication,
+                        onGameOptions = { screen = DesktopShellScreen.Options },
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
                     )
@@ -226,22 +278,17 @@ fun main() = application {
                         mission = current.mission,
                         mode = current.mode,
                         controls = controls,
+                        soundVolume = options.soundVolume,
                         dual = current.dual?.let { match ->
-                            DualSetup(tankTypes = current.tankTypes, round = match.round, wins = match.wins)
+                            DualSetup(tankTypes = current.tankTypes, raceLaps = match.options.raceLaps, round = match.round, wins = match.wins)
                         },
                         onMissionEnd = { outcome ->
                             controls.resetAll()
                             val match = current.dual
                             screen = if (match == null) {
                                 missionGate.missionEnded(current.mission, current.mode, outcome)
-                            } else if (outcome == null) {
-                                // Legacy dual_game(): ESC ends the whole match.
-                                DesktopShellScreen.GameModeSelect
                             } else {
-                                // Legacy dual_game(): the winner scores; once a player has won the
-                                // match (VICTORY.FLI is not played yet) it is back to the menu.
-                                val next = match.afterRound(if (outcome == MissionOutcome.WON) 0 else 1)
-                                if (next.decided) DesktopShellScreen.GameModeSelect else DesktopShellScreen.TankSelect(next)
+                                missionGate.roundEnded(match, outcome?.let { if (it == MissionOutcome.WON) 0 else 1 })
                             }
                         },
                     )
@@ -272,6 +319,8 @@ private fun GameplayScreen(
     mission: MissionEntry,
     mode: GameMode,
     controls: DesktopControls,
+    /** The game options' sound volume (legacy `sound_volume`). */
+    soundVolume: Int,
     /** Player vs player: the round's vehicles and score. */
     dual: DualSetup? = null,
     /**
@@ -286,6 +335,7 @@ private fun GameplayScreen(
         LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup())
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
+    SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
     val eventQueues = remember(host) { List(2) { ViewportEventQueue() } }
     val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)

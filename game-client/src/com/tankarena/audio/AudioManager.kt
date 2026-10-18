@@ -24,6 +24,13 @@ class AudioManager(
         private const val NEAR_FIELD = 100
     }
 
+    /** The game options' sound volume (legacy `sound_volume`), 0..255, over every sound. */
+    var soundVolume: Int
+        get() = backend.masterVolume
+        set(value) {
+            backend.masterVolume = value
+        }
+
     private var player1View: PlayerView? = null
     private var player2View: PlayerView? = null
     private val random = java.util.Random()

@@ -204,6 +204,8 @@ class ServerTankActor(state: State) :
         internal set
     /** Legacy player start pad type (`type & 1` = player, `type >> 1` = vehicle kind); -1 for map tanks. */
     val startPadType: Int = state.startPadType
+    /** Legacy `pl.weap`: the ammo this tank's start pad hands out, when the pad has its own loadout. */
+    val padAmmo: List<Int>? = state.padAmmo
     val tankType: Int = state.tankType
     val spec: VehicleSpec = LegacyVehicles.spec(tankType)
     val turretMode: TurretMode = spec.turretMode
@@ -609,14 +611,15 @@ class ServerTankActor(state: State) :
 
     /**
      * Legacy tank_refill(): a player-vs-player tank parked on its own start pad (within 7 px) after
-     * an opponent died gets its vehicle's full ammo, fuel and armor back, once per death.
+     * an opponent died gets its pad's ammo (or else its vehicle's), full fuel and armor back, once
+     * per death.
      */
     private fun stepBaseRefill() {
         if (!refillAllowed || startPadType < 0 || armor <= 0) return
         val dx = positionX - spawnX
         val dy = positionY - spawnY
         if (dx * dx + dy * dy > BASE_RADIUS_PX * BASE_RADIUS_PX) return
-        spec.ammo.forEachIndexed { weapon, count -> if (weapon < WEAPON_COUNT && ammo[weapon] < count) ammo[weapon] = count }
+        (padAmmo ?: spec.ammo).forEachIndexed { weapon, count -> if (weapon < WEAPON_COUNT && ammo[weapon] < count) ammo[weapon] = count }
         fuel = spec.maxFuel
         armor = spec.armor
         refillAllowed = false
@@ -846,6 +849,7 @@ class ServerTankActor(state: State) :
         computer = computer,
         goalContribution = goalContribution,
         startPadType = startPadType,
+        padAmmo = padAmmo,
         aiAttackTanks = aiAttackTanks,
         aiActivationRadius = aiActivationRadius,
         aiActivator = aiActivator,
@@ -1692,6 +1696,8 @@ class ServerTankActor(state: State) :
         @SerialName("computer") val computer: Boolean = true,
         @SerialName("goalContribution") val goalContribution: Int = 0,
         @SerialName("startPadType") val startPadType: Int = -1,
+        /** Legacy `pl.weap.nw` of a start pad with its own loadout; null: the vehicle's defaults. */
+        @SerialName("padAmmo") val padAmmo: List<Int>? = null,
         @SerialName("aiAttackTanks") val aiAttackTanks: Int = 100,
         @SerialName("aiActivationRadius") val aiActivationRadius: Int = -1,
         @SerialName("aiActivator") val aiActivator: Int = 0,

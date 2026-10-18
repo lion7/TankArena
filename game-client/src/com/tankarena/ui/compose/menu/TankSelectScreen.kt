@@ -65,16 +65,16 @@ private const val MAPC_CHOP = 2
 private const val MAPC_PLANE = 4
 private const val MAPC_RACE = 8
 
-/** Legacy `lose`: "Losers tank disabled" (the game options are not in the rewrite yet). */
-private const val LOSE = 0
-
 /** Legacy select_tanks() border colours: player 1, player 2, both. */
 private const val BORDER_P1 = 143
 private const val BORDER_P2 = 127
 private const val BORDER_BOTH = 64
 
-/** Legacy select_tanks(): which of the eight vehicles a map allows. */
-internal fun allowedTanks(mapContents: Int, wins: List<Int>): List<Boolean> = List(CHOICES) { tank ->
+/**
+ * Legacy select_tanks(): which of the eight vehicles a map allows. [losersTank] is the game
+ * option (legacy `lose`): the losers tank is there for a player 1 or 3 rounds behind.
+ */
+internal fun allowedTanks(mapContents: Int, wins: List<Int>, losersTank: Int = 0): List<Boolean> = List(CHOICES) { tank ->
     when (tank) {
         in 0..5 -> when (LegacyVehicles.spec(tank).kind) {
             VehicleKind.TANK -> mapContents and MAPC_TANK != 0
@@ -84,7 +84,7 @@ internal fun allowedTanks(mapContents: Int, wins: List<Int>): List<Boolean> = Li
         }
         6 -> mapContents and MAPC_RACE != 0
         // The losers tank: only with the option on and one player far enough behind.
-        else -> mapContents and MAPC_TANK != 0 && LOSE > 0 && kotlin.math.abs(wins[0] - wins[1]) >= LOSE * 2 - 1
+        else -> mapContents and MAPC_TANK != 0 && losersTank > 0 && kotlin.math.abs(wins[0] - wins[1]) >= losersTank * 2 - 1
     }
 }
 
@@ -108,7 +108,7 @@ fun TankSelectScreen(
     onChosen: (List<Int>) -> Unit,
     onCancel: () -> Unit,
 ) {
-    val allowed = remember(match) { allowedTanks(match.mission.sidecar.metadata.mapContents, match.wins) }
+    val allowed = remember(match) { allowedTanks(match.mission.sidecar.metadata.mapContents, match.wins, match.options.losersTank) }
     var chosen by remember(match) { mutableStateOf(autoSelect(initial, allowed)) }
     var confirmed by remember(match) { mutableIntStateOf(0) }
     var cancelled by remember(match) { mutableStateOf(false) }

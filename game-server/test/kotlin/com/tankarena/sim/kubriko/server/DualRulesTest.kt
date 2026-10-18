@@ -46,6 +46,21 @@ class DualRulesTest {
     }
 
     @Test
+    fun `a pad with its own weapons arms every vehicle it spawns with them`() {
+        val loadout = listOf(7, 300, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0)
+        val match = start(pads = listOf(pad(0, tileX = 2, ammo = loadout), pad(1, tileX = 12)))
+        val p1 = match.tanksForTest().single { it.playerIndex == 0 }
+        val p2 = match.tanksForTest().single { it.playerIndex == 1 }
+        assertEquals(loadout, p1.ammoCounts)
+        assertEquals(LegacyVehicles.spec(p2.tankType).ammo.take(12), p2.ammoCounts, "a pad without weapons gives the vehicle's own")
+        // The next vehicle from the pad gets the pad's weapons again.
+        p1.queueDestroy()
+        repeat(310) { match.tick() }
+        assertTrue(p1.armor > 0)
+        assertEquals(loadout, p1.ammoCounts)
+    }
+
+    @Test
     fun `the round starts with its number and the score`() {
         val match = start(pads = listOf(pad(0, tileX = 2), pad(1, tileX = 12)), dual = DualSetup(round = 3, wins = listOf(1, 0)))
         val views = match.buildPlayerViews()
@@ -134,12 +149,13 @@ class DualRulesTest {
     private fun pictureOfType(world: TankArenaWorld, type: String): Int? =
         (0 until 400).firstOrNull { PictureCatalog.legacyRow(world, it)?.type == type }
 
-    private fun pad(type: Int, tileX: Int, tileY: Int = ROW, direction: Int = 0) = AuthoredObject(
+    private fun pad(type: Int, tileX: Int, tileY: Int = ROW, direction: Int = 0, ammo: List<Int>? = null) = AuthoredObject(
         id = "pad$type-$tileX-$tileY",
         kind = ObjectKinds.PLAYER_START,
         x = tileX * T + T / 2,
         y = tileY * T + T / 2,
-        properties = mapOf("startType" to type.toString(), "direction" to direction.toString()),
+        properties = mapOf("startType" to type.toString(), "direction" to direction.toString()) +
+            (ammo?.let { mapOf("ammo" to it.joinToString(",")) } ?: emptyMap()),
     )
 
     private fun flag(type: Int, tileX: Int) = AuthoredObject(

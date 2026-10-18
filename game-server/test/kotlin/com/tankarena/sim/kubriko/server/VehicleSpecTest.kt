@@ -95,7 +95,8 @@ class VehicleSpecTest {
             match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
             repeat(LegacyVehicles.spec(tank.tankType).refireTicks[WEAPON_MAIN]) { match.tick() }
         }
-        val full = LegacyVehicles.spec(tank.tankType).ammo[WEAPON_MAIN]
+        // WAR's pads hand out their own weapons (legacy `pl.weap`).
+        val full = assertNotNull(tank.padAmmo)[WEAPON_MAIN]
         assertTrue(tank.ammoFor(WEAPON_MAIN) < full, "shots spend main-gun ammo")
 
         // Legacy hit_tank() sets `weap.reload` on the other side's tanks; tank_refill() then tops up on the pad.

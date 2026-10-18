@@ -1,6 +1,8 @@
 package com.tankarena.ui.compose
 
+import com.tankarena.ui.compose.menu.GameOptions
 import com.tankarena.ui.compose.menu.HelpFile
+import com.tankarena.ui.compose.menu.IntroStep
 import com.tankarena.ui.compose.menu.MissionEntry
 
 enum class GameMode {
@@ -13,24 +15,37 @@ enum class MissionOutcome { WON, LOST }
 
 /**
  * Legacy dual_game() (src/game/dual.c): the rounds of one player-vs-player match on [mission].
- * [round] is 1-based; [wins] counts the rounds each player has won (`game.wins`).
+ * [round] is 1-based; [wins] counts the rounds each player has won (`game.wins`). [options]
+ * are the game options the match was started with (rounds, laps, the losers tank).
  */
-data class DualMatch(val mission: MissionEntry, val round: Int = 1, val wins: List<Int> = listOf(0, 0)) {
+data class DualMatch(
+    val mission: MissionEntry,
+    val round: Int = 1,
+    val wins: List<Int> = listOf(0, 0),
+    val options: GameOptions = GameOptions(),
+) {
     /** The match after a round [winner] won. */
     fun afterRound(winner: Int): DualMatch =
         copy(round = round + 1, wins = wins.mapIndexed { player, n -> if (player == winner) n + 1 else n })
 
     /** Legacy `end_game`: someone has won more than half of the `rnds` rounds. */
-    val decided: Boolean get() = wins.any { it > ROUNDS / 2 }
-
-    companion object {
-        /** Legacy `rnds`: "Match consists of 3 rounds" (the game options are not in the rewrite yet). */
-        const val ROUNDS = 3
-    }
+    val decided: Boolean get() = options.matchDecided(wins)
 }
 
 sealed interface DesktopShellScreen {
+    /** Legacy write_title(): the intro animations and credits before the main menu. */
+    data class Intro(val step: IntroStep) : DesktopShellScreen
+
     data object MainMenu : DesktopShellScreen
+
+    /** Legacy game_options(). */
+    data object Options : DesktopShellScreen
+
+    /**
+     * Legacy show_fli() and `fade_out(3)` (VICTORY.FLI after a player-vs-player match,
+     * THUNDER.FLI after every fifth mission won), then [next].
+     */
+    data class Animation(val fileName: String, val next: DesktopShellScreen) : DesktopShellScreen
     data object GameModeSelect : DesktopShellScreen
 
     /** Legacy `arena_info` / `keys_info`: a help file in the text viewer. */

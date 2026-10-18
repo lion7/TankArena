@@ -117,6 +117,9 @@ class DesktopAudioBackend(
         return 900 + random.nextInt(201)
     }
 
+    @Volatile
+    override var masterVolume: Int = 255
+
     override fun play(kind: SoundKind, volume: Int, pan: Int, pitch: Int) {
         // Silencing threshold
         if (volume < MIN_VOLUME_FOR_PLAY || !available) return
@@ -220,7 +223,7 @@ class DesktopAudioBackend(
         voice.data = sample.data
         // Legacy pitch 1000 = normal speed: resampling by pitch/1000 shifts the pitch.
         voice.step = sample.rate * voice.pitch / 1000.0 / OUTPUT_RATE
-        val volume = voice.volume / 255f
+        val volume = voice.volume / 255f * masterVolume / 255f
         // Allegro pan: 0 full left, 128 centre, 255 full right.
         voice.left = volume * ((255 - voice.pan) / 127.5f).coerceAtMost(1f)
         voice.right = volume * (voice.pan / 127.5f).coerceAtMost(1f)
@@ -294,6 +297,8 @@ class DesktopAudioBackend(
  * Stub audio backend that does nothing. Useful for testing or when audio is disabled.
  */
 class StubAudioBackend : AudioBackend {
+    override var masterVolume: Int = 255
+
     override fun play(kind: SoundKind, volume: Int, pan: Int, pitch: Int) {
         // No-op
     }

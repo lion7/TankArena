@@ -87,7 +87,7 @@ class VehicleSpecTest {
 
     @Test
     fun `a player-vs-player tank refills at its base after an opponent dies`() {
-        val scene = assertNotNull(ShippedScenes.load("3_vs_3"))
+        val scene = assertNotNull(ShippedScenes.load("war"))
         val match = ServerMatchPrototype.fromSceneJson(scene.sceneJson, scene.sidecar, MatchMode.DUAL)
         match.initialize()
         val tank = match.tanksForTest().first { it.playerIndex == 0 }

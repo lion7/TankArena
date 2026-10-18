@@ -114,8 +114,9 @@ internal fun Int.toLegacyWorld(): TankArenaWorld = when (this) {
 }
 
 internal fun LegacyMapHeader.isSane(): Boolean {
-    return widthTiles in 1..200 &&
-        heightTiles in 1..200 &&
+    // Legacy init.c allocates every layer as max_map_x * max_map_y (200 * 200) cells and indexes
+    // them by x + width * y, so a long thin map like RACE3 (300 x 52) fits.
+    return widthTiles >= 1 && heightTiles >= 1 && widthTiles * heightTiles <= 200 * 200 &&
         missionTextOffsets.size == 4 &&
         missionTextOffsets.zipWithNext().all { (a, b) -> a in 0..1_000_000 && b >= a } &&
         mapVersion in 0..64 &&

@@ -33,6 +33,19 @@ class DualRulesTest {
     }
 
     @Test
+    fun `every start pad of the chosen kind spawns a vehicle, and the whole group follows its player`() {
+        // Like the 3 VS 3 map that was not in the original release: three tank pads per player.
+        val match = start(pads = listOf(2, 5, 8).flatMap { x -> listOf(pad(0, tileX = x), pad(1, tileX = x, tileY = 4)) })
+        val tanks = match.tanksForTest()
+        assertEquals(3, tanks.count { it.playerIndex == 0 })
+        assertEquals(3, tanks.count { it.playerIndex == 1 })
+        val group = tanks.filter { it.playerIndex == 0 }
+        val before = group.map { it.bodyDirection }
+        repeat(10) { match.tick(mapOf(0 to PlayerIntentFrame(turnRight = true))) }
+        assertTrue(group.zip(before).all { (tank, dir) -> tank.bodyDirection != dir }, "every tank in the group turns")
+    }
+
+    @Test
     fun `the round starts with its number and the score`() {
         val match = start(pads = listOf(pad(0, tileX = 2), pad(1, tileX = 12)), dual = DualSetup(round = 3, wins = listOf(1, 0)))
         val views = match.buildPlayerViews()

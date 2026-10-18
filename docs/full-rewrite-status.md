@@ -52,7 +52,7 @@ Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities
 
 ### Build & content
 - Amper multi-module build is the only build system; Gradle is gone.
-- All 121 shipped legacy maps imported into `:game-content/resources/scenes/` as `(scene_*.json, metadata_*.json)` pairs.
+- All 69 maps of the original release imported into `:game-content/resources/scenes/` as `(scene_*.json, metadata_*.json)` pairs; the 53 maps the release did not ship are kept, unconverted, in `MAPS/extra/`.
 - T05/T06: `LegacyObjectParser` covers every authored type (`TANK`, `B52`, `MAN`, `MINE`, `BONUS`, `TRAIN`, `WAGON`, `ZEPPELIN`, plus the existing turret/player/warp/flag/lock/goal/destroyer/enforcer/product set). Runtime-only types (rocket, abomb, mortar) are silently skipped per the original `load_map` switch. `AllShippedMapsImportCleanTest` pins `MapSceneSidecar.importNotes.isEmpty()` for every shipped map; the regenerated sidecars carry no informational drift notes.
 - Generated legacy picture catalog from `src/data/pictures.c`.
 - Extracted sprite sheets in active use: `floors.png`, `walls.png`, `building.png`, `trees.png`, `tank1.png`–`tank12.png`, `towers.png`, `animations.png`.

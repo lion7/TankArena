@@ -28,8 +28,8 @@ class SceneJsonBootstrapTest {
 
     @Test
     fun `fromSceneJson bootstraps a working server match from a generated scene file`() {
-        val sceneFile = File(scenesDir, "scene_3_vs_3.json")
-        val sidecarFile = File(scenesDir, "metadata_3_vs_3.json")
+        val sceneFile = File(scenesDir, "scene_war.json")
+        val sidecarFile = File(scenesDir, "metadata_war.json")
         assertTrue(sceneFile.isFile, "expected ${sceneFile.absolutePath}")
         assertTrue(sidecarFile.isFile, "expected ${sidecarFile.absolutePath}")
 
@@ -73,11 +73,11 @@ class SceneJsonBootstrapTest {
 
     @Test
     fun `sidecar emitted by LegacyToSceneJson round-trips through parseSidecar`() {
-        val sidecarFile = File(scenesDir, "metadata_3_vs_3.json")
+        val sidecarFile = File(scenesDir, "metadata_war.json")
         val parsed = LegacyToSceneJson.parseSidecar(sidecarFile.readText())
-        assertEquals("3 VS 3", parsed.metadata.missionCode)
-        assertEquals(8, parsed.metadata.widthTiles)
-        assertEquals(8, parsed.metadata.heightTiles)
+        assertEquals("WAR", parsed.metadata.missionCode)
+        assertEquals(12, parsed.metadata.widthTiles)
+        assertEquals(12, parsed.metadata.heightTiles)
     }
 
     @Suppress("unused")

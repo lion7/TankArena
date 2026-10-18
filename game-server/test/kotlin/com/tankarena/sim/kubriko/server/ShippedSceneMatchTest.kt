@@ -37,7 +37,7 @@ class ShippedSceneMatchTest {
     @Test
     fun `every shipped scene is listed in the index`() {
         val names = ShippedScenes.baseNames()
-        assertTrue(names.size >= 121, "expected the full shipped set, got ${names.size}")
+        assertEquals(69, names.size, "the maps the original game shipped with")
         assertTrue("begin1" in names)
     }
 
@@ -241,33 +241,15 @@ class ShippedSceneMatchTest {
     }
 
     @Test
-    fun `player-vs-player spawns every start pad of the chosen vehicle kind for each player`() {
-        val match = start("3_vs_3", MatchMode.DUAL)
-        val tanks = match.tanksForTest()
-        assertEquals(3, tanks.count { it.playerIndex == 0 })
-        assertEquals(3, tanks.count { it.playerIndex == 1 })
-        assertTrue(tanks.none { !it.computer && it.startPadType < 0 }, "human map tanks are removed in DUAL")
-    }
-
-    @Test
-    fun `player-vs-player drives the whole group with one player's input`() {
-        val match = start("3_vs_3", MatchMode.DUAL)
-        val group = match.tanksForTest().filter { it.playerIndex == 0 }
-        val before = group.map { it.bodyDirection }
-        repeat(10) { match.tick(mapOf(0 to PlayerIntentFrame(turnRight = true))) }
-        assertTrue(group.zip(before).all { (tank, dir) -> tank.bodyDirection != dir }, "every tank in the group turns")
-    }
-
-    @Test
     fun `co-operative play gives player 1 id 1 and player 2 id 2`() {
-        val match = start("base2", MatchMode.DUAL_VS_COMPUTER)
+        val match = start("nuke2", MatchMode.DUAL_VS_COMPUTER)
         assertEquals(1, match.playerTankForTest(0)?.controllerId)
         assertEquals(2, match.playerTankForTest(1)?.controllerId)
     }
 
     @Test
     fun `single player drives every tank sharing id 1 at once`() {
-        val match = start("planes2", MatchMode.SINGLE)
+        val match = start("bay", MatchMode.SINGLE)
         val squadron = match.tanksForTest().filter { it.controllerId == 1 && !it.computer }
         assertTrue(squadron.size > 1)
         assertTrue(squadron.all { it.playerIndex == 0 })

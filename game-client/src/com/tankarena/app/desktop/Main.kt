@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -79,6 +80,7 @@ import com.tankarena.ui.compose.menu.PickListLayout
 import com.tankarena.ui.compose.menu.PickListScreen
 import com.tankarena.ui.compose.menu.PromptBarScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.delay
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
@@ -92,6 +94,21 @@ fun main() = application {
     var lastMode by remember { mutableStateOf<GameMode?>(null) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
     val missionGate = remember { MissionGate(PasswordStore()) }
+
+    // Measuring: TANKARENA_AUTOSTART=<code> skips the menus into a one-player mission, and
+    // TANKARENA_QUIT_AFTER=<seconds> closes the game again.
+    LaunchedEffect(Unit) {
+        val code = System.getenv("TANKARENA_AUTOSTART") ?: return@LaunchedEffect
+        val all = MissionCatalog.load().also { missions = it }
+        val mission = all.firstOrNull { it.code.equals(code, ignoreCase = true) || it.baseName.equals(code, ignoreCase = true) }
+            ?: return@LaunchedEffect
+        screen = DesktopShellScreen.Playing(mission, GameMode.SINGLE_PLAYER_VS_COMPUTER)
+    }
+    LaunchedEffect(Unit) {
+        val seconds = System.getenv("TANKARENA_QUIT_AFTER")?.toLongOrNull() ?: return@LaunchedEffect
+        delay(seconds * 1000)
+        exitApplication()
+    }
 
     Window(
         onCloseRequest = ::exitApplication,
@@ -225,62 +242,39 @@ private fun GameplayScreen(
         controls.exitRequested = false
         LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName)
     }
-    DisposableEffect(host) { onDispose(host::dispose) }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     DisposableEffect(audio) { onDispose(audio::dispose) }
     val eventQueues = remember(host) { List(2) { ViewportEventQueue() } }
-    var serverFrame by remember(host) { mutableStateOf<ServerFrame>(host.currentServerFrame()) }
     val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
+    // What the simulation thread last published, and what the screen shows.
+    val published = remember(host) { AtomicReference(GameplayView(host.currentServerFrame())) }
+    var view by remember(host) { mutableStateOf(published.get()) }
+    val serverFrame = view.frame
+    val missionEndBanner = view.banner
 
-    var missionEndBanner by remember(host) { mutableStateOf<MissionOutcome?>(null) }
-    // Legacy single_game(): start_fade_in() as the game starts, start_fade_out() once the round
-    // has ended or ESC was pressed; the game runs on during both.
-    var brightness by remember(host) { mutableStateOf(0f) }
+    DisposableEffect(host) {
+        val loop = SimulationLoop(gameplayStep(host, controls, playerIds, eventQueues, audio, published))
+        PerfLog.start(mission.baseName)
+        loop.start()
+        onDispose {
+            loop.stop()
+            host.dispose()
+        }
+    }
 
+    // Every frame the screen takes the newest published state; once the game has faded out, the
+    // mission ends here, on the UI thread.
     LaunchedEffect(host) {
-        var inputSequence = 0L
-        var outcome: MissionOutcome? = null
-        var bannerTicksLeft = Long.MAX_VALUE
-        var fadeTicks = 0L
-        var fadingOut = false
-        val fadeTotal = (GAME_FADE_MILLIS / FixedStepClock.MILLIS_PER_TICK).coerceAtLeast(1)
         while (true) {
-            for (playerId in playerIds) {
-                host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence))
+            val latest = withFrameNanos { frameNanos ->
+                PerfLog.frame(frameNanos)
+                published.get()
             }
-            inputSequence++
-            val frame = host.tick()
-            serverFrame = frame
-            eventQueues.forEach { it.push(frame.world.events) }
-            audio.processEvents(frame.world.events, frame.playerViews)
-            if (outcome == null) {
-                outcome = frame.world.events.firstNotNullOfOrNull { event ->
-                    when (event) {
-                        is GameEvent.MissionWon -> MissionOutcome.WON
-                        is GameEvent.MissionLost -> MissionOutcome.LOST
-                        else -> null
-                    }
-                }
-                if (outcome != null) {
-                    missionEndBanner = outcome
-                    // Legacy game.end_round = tinit(300): the game runs on under the banner for 3 s.
-                    bannerTicksLeft = MISSION_END_BANNER_MILLIS / FixedStepClock.MILLIS_PER_TICK
-                }
-            } else {
-                bannerTicksLeft--
-            }
-            if (!fadingOut && (bannerTicksLeft <= 0 || controls.exitRequested)) {
-                fadingOut = true
-                fadeTicks = fadeTotal - fadeTicks
-            }
-            fadeTicks = (fadeTicks + 1).coerceAtMost(fadeTotal)
-            brightness = if (fadingOut) 1f - fadeTicks.toFloat() / fadeTotal else fadeTicks.toFloat() / fadeTotal
-            if (fadingOut && fadeTicks >= fadeTotal) {
-                host.recorder?.let { RecordingStore.save(it.recording()) }
-                onMissionEnd(outcome)
+            if (latest !== view) view = latest
+            if (latest.ended) {
+                onMissionEnd(latest.banner)
                 break
             }
-            delay(FixedStepClock.MILLIS_PER_TICK)
         }
     }
 
@@ -290,7 +284,7 @@ private fun GameplayScreen(
     val windows = legacyMapWindows(views.size.coerceAtLeast(1), worldWidth, worldHeight)
     val night = mission.sidecar.metadata.night
 
-    LegacyScreen(mode = LegacyVideoMode.GAME, brightness = brightness) {
+    LegacyScreen(mode = LegacyVideoMode.GAME, brightness = view.brightness) {
         val screen = this
         // Legacy set_palette() with `nuke_total` brightens the whole screen, panel included.
         Box(modifier = Modifier.fillMaxSize().nukeFlash(serverFrame.world.flash)) {
@@ -331,6 +325,73 @@ private fun GameplayScreen(
                 }
             }
         }
+    }
+}
+
+/** What one simulation tick hands to the screen. */
+private data class GameplayView(
+    val frame: ServerFrame,
+    /** The outcome once the mission has been won or lost (legacy `game.winner`). */
+    val banner: MissionOutcome? = null,
+    /** Legacy fade: 0 black .. 1 the full palette. */
+    val brightness: Float = 0f,
+    /** The game has faded out; the screen should end the mission. */
+    val ended: Boolean = false,
+)
+
+/**
+ * One tick of legacy single_game()'s loop, run by [SimulationLoop]: read the controls, advance
+ * the match, hand events to the viewports and the sound, and run the end-of-round banner and the
+ * fades. start_fade_in() as the game starts, start_fade_out() once the round has ended or ESC was
+ * pressed; the game runs on during both.
+ */
+private fun gameplayStep(
+    host: LocalMatchClient,
+    controls: DesktopControls,
+    playerIds: List<Int>,
+    eventQueues: List<ViewportEventQueue>,
+    audio: AudioManager,
+    published: AtomicReference<GameplayView>,
+): () -> Boolean {
+    var inputSequence = 0L
+    var outcome: MissionOutcome? = null
+    var bannerTicksLeft = Long.MAX_VALUE
+    var fadeTicks = 0L
+    var fadingOut = false
+    val fadeTotal = (GAME_FADE_MILLIS / FixedStepClock.MILLIS_PER_TICK).coerceAtLeast(1)
+    return step@{
+        for (playerId in playerIds) {
+            host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence))
+        }
+        inputSequence++
+        val tickStart = System.nanoTime()
+        val frame = host.tick()
+        PerfLog.tick(System.nanoTime() - tickStart, tickStart)
+        eventQueues.forEach { it.push(frame.world.events) }
+        audio.processEvents(frame.world.events, frame.playerViews)
+        if (outcome == null) {
+            outcome = frame.world.events.firstNotNullOfOrNull { event ->
+                when (event) {
+                    is GameEvent.MissionWon -> MissionOutcome.WON
+                    is GameEvent.MissionLost -> MissionOutcome.LOST
+                    else -> null
+                }
+            }
+            // Legacy game.end_round = tinit(300): the game runs on under the banner for 3 s.
+            if (outcome != null) bannerTicksLeft = MISSION_END_BANNER_MILLIS / FixedStepClock.MILLIS_PER_TICK
+        } else {
+            bannerTicksLeft--
+        }
+        if (!fadingOut && (bannerTicksLeft <= 0 || controls.exitRequested)) {
+            fadingOut = true
+            fadeTicks = fadeTotal - fadeTicks
+        }
+        fadeTicks = (fadeTicks + 1).coerceAtMost(fadeTotal)
+        val brightness = if (fadingOut) 1f - fadeTicks.toFloat() / fadeTotal else fadeTicks.toFloat() / fadeTotal
+        val ended = fadingOut && fadeTicks >= fadeTotal
+        if (ended) host.recorder?.let { RecordingStore.save(it.recording()) }
+        published.set(GameplayView(frame, outcome, brightness, ended))
+        !ended
     }
 }
 
@@ -622,9 +683,11 @@ private val TANK_SELECT_KEYS: List<Key> = listOf(
     Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10,
 )
 
+/** The keys held down; written on the UI thread, read by the simulation thread. */
 private class DesktopControls {
     var mode: GameMode = GameMode.SINGLE_PLAYER_VS_COMPUTER
-    /** ESC during a game (legacy `game.exit_game`). */
+    /** ESC during a game (legacy `game.exit_game`); read by the simulation thread. */
+    @Volatile
     var exitRequested = false
     private val players = List(2) { PlayerControls() }
 
@@ -635,6 +698,7 @@ private class DesktopControls {
         else -> listOf(KeyBinding.CURSOR_BLOCK)
     }
 
+    @Synchronized
     fun handle(event: KeyEvent): Boolean {
         val pressed = event.type == KeyEventType.KeyDown
         val tankId = TANK_SELECT_KEYS.indexOf(event.key) + 1
@@ -655,6 +719,7 @@ private class DesktopControls {
         return handled
     }
 
+    @Synchronized
     fun toInputFrame(playerId: Int, inputSequence: Long): InputFrame {
         val p = players[playerId]
         val selectTankId = p.selectTankId
@@ -676,6 +741,7 @@ private class DesktopControls {
         )
     }
 
+    @Synchronized
     fun resetAll() {
         players.forEach { p ->
             p.forward = false

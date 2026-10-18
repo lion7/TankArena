@@ -229,6 +229,7 @@ class ServerMatchPrototype private constructor(
                 intents[tank.playerIndex]?.let(tank::applyIntent)
             }
         }
+        pathfinder.invalidate()
         stepAiTanks()
         stepTurrets()
         applyTerrainEffects()

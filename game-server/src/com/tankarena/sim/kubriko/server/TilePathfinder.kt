@@ -16,6 +16,52 @@ class TilePathfinder(
     private val heightTiles: Int,
     private val solidLayer: List<Int>,
 ) {
+    /** Passability and connected areas, read from [solidLayer] on first use after [invalidate]. */
+    private var passable = BooleanArray(0)
+    private var area = IntArray(0)
+    private var stale = true
+
+    /**
+     * The layer may have changed (a building fell, a bridge went down); the next search reads it
+     * again. The match calls this once per tick.
+     */
+    fun invalidate() {
+        stale = true
+    }
+
+    /** Reads the layer and labels every passable tile with its 8-connected area. */
+    private fun refresh() {
+        if (!stale) return
+        stale = false
+        val size = widthTiles * heightTiles
+        passable = BooleanArray(size) { (solidLayer.getOrNull(it) ?: -1) < 0 }
+        area = IntArray(size) { -1 }
+        val queue = IntArray(size)
+        var label = 0
+        for (seed in 0 until size) {
+            if (!passable[seed] || area[seed] >= 0) continue
+            var head = 0
+            var tail = 0
+            queue[tail++] = seed
+            area[seed] = label
+            while (head < tail) {
+                val tile = queue[head++]
+                val x = tile % widthTiles
+                val y = tile / widthTiles
+                for (dx in -1..1) for (dy in -1..1) {
+                    val nx = x + dx
+                    val ny = y + dy
+                    if (!isPassable(nx, ny)) continue
+                    val next = tileKey(nx, ny)
+                    if (area[next] < 0) {
+                        area[next] = label
+                        queue[tail++] = next
+                    }
+                }
+            }
+            label++
+        }
+    }
 
     /**
      * Find a path from [startX], [startY] to [goalX], [goalY] in pixel coordinates.
@@ -23,6 +69,7 @@ class TilePathfinder(
      * Empty list if no path exists.
      */
     fun findPath(startX: Int, startY: Int, goalX: Int, goalY: Int): List<Pair<Int, Int>> {
+        refresh()
         val startTileX = pixelToTile(startX)
         val startTileY = pixelToTile(startY)
         val goalTileX = pixelToTile(goalX)
@@ -38,6 +85,8 @@ class TilePathfinder(
         if (startKey == goalKey) {
             return listOf(tileCenter(startTileX, startTileY))
         }
+        // Different areas: A* would search the whole area of the start and find nothing.
+        if (area[startKey] != area[goalKey]) return emptyList()
 
         return astar(startKey, goalKey)
     }
@@ -88,61 +137,87 @@ class TilePathfinder(
         return -1
     }
 
+    /**
+     * A* with 8 neighbours and unit step costs. The open set is a heap ordered by f-score and,
+     * among equal scores, by when the tile joined the open set, which picks the same tile as a
+     * scan of an insertion-ordered set would; stale heap entries are skipped when popped.
+     */
     private fun astar(startKey: Int, goalKey: Int): List<Pair<Int, Int>> {
-        val openSet = mutableSetOf(startKey)
-        val cameFrom = mutableMapOf<Int, Int>()
-        val gScore = mutableMapOf<Int, Int>().withDefault { Int.MAX_VALUE }
-        gScore[startKey] = 0
-        val fScore = mutableMapOf<Int, Int>().withDefault { Int.MAX_VALUE }
-        fScore[startKey] = heuristic(startKey, goalKey)
+        val size = widthTiles * heightTiles
+        val g = IntArray(size) { Int.MAX_VALUE }
+        val f = IntArray(size) { Int.MAX_VALUE }
+        val cameFrom = IntArray(size) { -1 }
+        val inOpen = BooleanArray(size)
+        val joined = IntArray(size)
+        var nextJoin = 0
+        // Entries: f-score in the high 32 bits, join number in the low ones.
+        val heap = java.util.PriorityQueue<Long>()
+        val joinedNode = IntArrayList()
 
-        // Use a simple priority queue simulation (find min fScore)
-        while (openSet.isNotEmpty()) {
-            val current = openSet.minByOrNull { fScore[it] ?: Int.MAX_VALUE } ?: break
-
-            if (current == goalKey) {
-                return reconstructPath(cameFrom, startKey, goalKey)
+        fun open(node: Int) {
+            if (!inOpen[node]) {
+                inOpen[node] = true
+                joined[node] = nextJoin++
+                joinedNode.add(node)
             }
+            heap.add((f[node].toLong() shl 32) or joined[node].toLong())
+        }
 
-            openSet.remove(current)
-            val closedSet = mutableSetOf(current)
-
-            val (cx, cy) = keyToTile(current)
-            for ((nx, ny) in neighbors(cx, cy)) {
-                if (closedSet.contains(tileKey(nx, ny))) continue
-                if (!isPassable(nx, ny)) continue
-
-                val neighborKey = tileKey(nx, ny)
-                val tentativeG = (gScore[current] ?: Int.MAX_VALUE) + 1
-
-                if (tentativeG < (gScore[neighborKey] ?: Int.MAX_VALUE)) {
-                    cameFrom[neighborKey] = current
-                    gScore[neighborKey] = tentativeG
-                    fScore[neighborKey] = tentativeG + heuristic(neighborKey, goalKey)
-                    openSet.add(neighborKey)
+        g[startKey] = 0
+        f[startKey] = heuristic(startKey, goalKey)
+        open(startKey)
+        while (heap.isNotEmpty()) {
+            val entry = heap.poll()
+            val join = (entry and 0xFFFFFFFFL).toInt()
+            val current = joinedNode[join]
+            if (!inOpen[current] || joined[current] != join || f[current] != (entry ushr 32).toInt()) continue
+            if (current == goalKey) return reconstructPath(cameFrom, startKey, goalKey)
+            inOpen[current] = false
+            val cx = current % widthTiles
+            val cy = current / widthTiles
+            for (dx in -1..1) {
+                for (dy in -1..1) {
+                    if (dx == 0 && dy == 0) continue
+                    val nx = cx + dx
+                    val ny = cy + dy
+                    if (!isPassable(nx, ny)) continue
+                    val neighbour = tileKey(nx, ny)
+                    val tentative = g[current] + 1
+                    if (tentative < g[neighbour]) {
+                        cameFrom[neighbour] = current
+                        g[neighbour] = tentative
+                        f[neighbour] = tentative + heuristic(neighbour, goalKey)
+                        open(neighbour)
+                    }
                 }
             }
         }
-
         return emptyList()
     }
 
-    private fun reconstructPath(
-        cameFrom: Map<Int, Int>,
-        startKey: Int,
-        goalKey: Int,
-    ): List<Pair<Int, Int>> {
+    private fun reconstructPath(cameFrom: IntArray, startKey: Int, goalKey: Int): List<Pair<Int, Int>> {
         val path = mutableListOf<Pair<Int, Int>>()
         var current = goalKey
-        while (current in cameFrom) {
+        while (cameFrom[current] >= 0) {
             val (x, y) = keyToTile(current)
             path.add(tileCenter(x, y))
-            current = cameFrom[current]!!
+            current = cameFrom[current]
         }
         val (sx, sy) = keyToTile(startKey)
         path.add(tileCenter(sx, sy))
         path.reverse()
         return path
+    }
+
+    /** A growable list of ints without boxing. */
+    private class IntArrayList {
+        private var items = IntArray(64)
+        private var count = 0
+        fun add(value: Int) {
+            if (count == items.size) items = items.copyOf(count * 2)
+            items[count++] = value
+        }
+        operator fun get(index: Int): Int = items[index]
     }
 
     private fun heuristic(a: Int, b: Int): Int {
@@ -152,27 +227,9 @@ class TilePathfinder(
         return kotlin.math.abs(ax - bx) + kotlin.math.abs(ay - by)
     }
 
-    private fun neighbors(x: Int, y: Int): List<Pair<Int, Int>> {
-        val result = mutableListOf<Pair<Int, Int>>()
-        // 8-directional movement
-        for (dx in -1..1) {
-            for (dy in -1..1) {
-                if (dx == 0 && dy == 0) continue
-                val nx = x + dx
-                val ny = y + dy
-                if (nx in 0 until widthTiles && ny in 0 until heightTiles) {
-                    result.add(nx to ny)
-                }
-            }
-        }
-        return result
-    }
-
     private fun isPassable(x: Int, y: Int): Boolean {
         if (x < 0 || x >= widthTiles || y < 0 || y >= heightTiles) return false
-        val idx = x + y * widthTiles
-        val solid = solidLayer.getOrElse(idx) { -1 }
-        return solid < 0
+        return passable[x + y * widthTiles]
     }
 
     private fun tileKey(x: Int, y: Int): Int = x + y * widthTiles

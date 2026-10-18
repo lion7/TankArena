@@ -130,24 +130,12 @@ class AudioMathTest {
     }
 
     @Test
-    fun `single player pan uses horizontal offset`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        // Sound directly in front of camera (same X)
-        val panCenter = computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, 500, 500)
-        // offset = 0, normalized = 0, pan = (1 - 0) * 128 = 128
-        assertEquals(128, panCenter, "Pan should be centered when sound is at camera X")
-        
-        // Sound to the left of camera
-        val panLeft = computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, 200, 500)
-        // offset = -300, normalized = -300/612 ≈ -0.49, pan = (1 - (-0.49)) * 128 ≈ 190.7 → 190 (toInt truncates)
-        assertEquals(190, panLeft, "Pan should shift for left sound")
-        
-        // Sound to the right of camera
-        val panRight = computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, 800, 500)
-        // offset = 300, normalized = 300/612 = 0.49, pan = (1 - 0.49) * 128 = 65
-        assertEquals(65, panRight, "Pan should shift for right sound")
+    fun `a single player hears every sound in the centre`() {
+        // Legacy create_sound_absolute(): pan stays 128 outside the two-player modes.
+        val manager = AudioManager(StubAudioBackend())
+        for (soundX in listOf(200, 500, 800)) {
+            assertEquals(128, computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, soundX, 500))
+        }
     }
 
     private fun computeVolumeViaReflection(manager: AudioManager, distance: Float): Int {

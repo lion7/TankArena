@@ -1005,12 +1005,26 @@ class ServerTankActor(state: State) :
     /** Legacy `motion.nhit`: crash damage is dealt at most every 10 ticks. */
     private var crashCooldownTicks: Int = 0
 
-    private fun bodyMask(): PictureMasks.Mask? =
-        PictureMasks.mask(LegacySpriteResources.nameForTankBody(tankType, bodyDirection.mod(16)))
+    /** The body picture's mask, looked up by name only when the type or direction changed. */
+    private var maskKey: Int = -1
+    private var maskCache: PictureMasks.Mask? = null
+
+    private fun bodyMask(): PictureMasks.Mask? {
+        val key = tankType * 16 + bodyDirection.mod(16)
+        if (key != maskKey) {
+            maskCache = PictureMasks.mask(LegacySpriteResources.nameForTankBody(tankType, bodyDirection.mod(16)))
+            maskKey = key
+        }
+        return maskCache
+    }
 
     /** Legacy check_obj_hit_point() for a vehicle: is world point ([x], [y]) on its body picture? */
-    internal fun bodyCovers(x: Int, y: Int): Boolean =
-        bodyMask()?.isOpaque(x - (positionX - LEGACY_TILE_SIZE / 2), y - (positionY - LEGACY_TILE_SIZE / 2)) == true
+    internal fun bodyCovers(x: Int, y: Int): Boolean {
+        val left = positionX - LEGACY_TILE_SIZE / 2
+        val top = positionY - LEGACY_TILE_SIZE / 2
+        if (x < left || y < top || x > left + PictureMasks.SIZE || y > top + PictureMasks.SIZE) return false
+        return bodyMask()?.isOpaque(x - left, y - top) == true
+    }
 
     /**
      * Legacy overlap() for this tank's body picture centred on ([x], [y]): on the ground the

@@ -96,13 +96,10 @@ class AudioManager(
      * For single player, uses sound position relative to camera center.
      */
     private fun computePan(d1: Float, d2: Float, soundX: Int, cameraX: Int): Int {
-        // Single player mode: pan based on horizontal offset from camera
-        if (d2 == Float.POSITIVE_INFINITY) {
-            val offset = soundX - cameraX
-            val normalized = (offset / MAX_RANGE.toFloat()).coerceIn(-1f, 1f)
-            return ((1f - normalized) * 128).toInt().coerceIn(0, 255)
-        }
-        
+        // Legacy create_sound_absolute(): a single player hears every sound in the centre.
+        if (d2 == Float.POSITIVE_INFINITY) return 128
+
+
         // Dual player mode: legacy formula
         val pan = -(MAX_RANGE - d1) / 4 + (MAX_RANGE - d2) / 4 + 128
         return pan.toInt().coerceIn(0, 255)

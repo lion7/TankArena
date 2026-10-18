@@ -157,7 +157,7 @@ private class TankArenaKubrikoRuntime(
         instanceNameForLogging = "tank-arena-runtime",
     )
 
-    private val nightLighting = NightLighting(spriteManager, sprites)
+    private val nightLighting = NightLighting(sprites)
     /** Bumped whenever the night light mask is redrawn, so the layer picks up the new filter. */
     val nightVersion = mutableIntStateOf(0)
 
@@ -208,7 +208,6 @@ private class TankArenaKubrikoRuntime(
         }
         if (sidecar?.metadata?.night == true) {
             val extra = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
-            nightLighting.collectResources(extra)
             nightLighting.update(world, snapshot, playfieldWidth, playfieldHeight, extra)
             scenePreloadManager.requestPreload(extra)
             nightVersion.intValue += 1

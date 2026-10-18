@@ -1,6 +1,7 @@
 package com.tankarena.ui.compose.hud
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -10,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.tankarena.content.LEGACY_TILE_SIZE
@@ -23,6 +25,12 @@ import com.tankarena.ui.compose.legacy.LegacyColors
 import com.tankarena.ui.compose.legacy.LegacyFonts
 import kotlin.math.floor
 import org.jetbrains.compose.resources.imageResource
+
+/** Legacy `cmap[15]`: the messages and the ammo count; also the radar's friends. */
+private val WHITE = paletteColor(LegacyColors.HIGH)
+
+/** A colour of the game palette, exactly, so that the night table finds it. */
+private fun paletteColor(index: Int) = Color(0xFF000000.toInt() or LegacyFonts.gamePalette[index])
 
 /** Legacy `num_weapon`. */
 private const val WEAPON_COUNT = 12
@@ -80,9 +88,10 @@ fun HudOverlay(
     // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
     val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
 
-    Canvas(modifier = modifier) {
-        if (playfield.width <= 0f || scale <= 0f) return@Canvas
-        val hud = HudPainter(this, playfield, scale)
+    // [layer] null draws everything; at night the dark and the lit pictures go to separate layers.
+    val draw: DrawScope.(layer: NightLayer?) -> Unit = draw@{ layer ->
+        if (playfield.width <= 0f || scale <= 0f) return@draw
+        val hud = HudPainter(this, playfield, scale, lit = layer != NightLayer.DARK, dark = layer != NightLayer.LIT)
         val width = playfield.width / scale
         val height = playfield.height / scale
 
@@ -95,7 +104,7 @@ fun HudOverlay(
         // write_lives() / write_flags()
         if (playerVsPlayer) {
             if (hudState.flagHunt) {
-                if (hudState.flags > 0) hud.picture(flagIcons[(hudState.flags - 1).coerceAtMost(flagIcons.size - 1)], width - 25, -8f)
+                if (hudState.flags > 0) hud.darkPicture(flagIcons[(hudState.flags - 1).coerceAtMost(flagIcons.size - 1)], width - 25, -8f)
             } else if (hudState.lives != PAD_LIVES) {
                 for (i in 0 until hudState.lives - 1) hud.picture(tankIcon, width - LEGACY_TILE_SIZE - i * 20, 0f)
             }
@@ -117,19 +126,19 @@ fun HudOverlay(
                 hudState.ammo.getOrElse(weapon) { 0 } != 0 ||
                 (weapon == FLAME_WEAPON && hudState.hasFlamer)
             if (!available) continue
-            hud.picture(smallIcons.getOrNull(weapon), x, height - 11)
+            hud.darkPicture(smallIcons.getOrNull(weapon), x, height - 11)
             if (hudState.currentWeapon == weapon) hud.picture(select, x, height - 11)
             x += 9f
         }
         if (night) {
-            hud.picture(smallIcons[LIGHT_ICON], x, height - 11)
+            hud.darkPicture(smallIcons[LIGHT_ICON], x, height - 11)
             if (hudState.currentWeapon == LIGHT_WEAPON) hud.picture(select, x, height - 11)
         }
         val largeIcon = if (hudState.currentWeapon == LIGHT_WEAPON) LIGHT_ICON else hudState.currentWeapon
         hud.picture(largeIcons.getOrNull(largeIcon), width - 24, height - 27)
         if (hudState.currentWeapon != FLAME_WEAPON && hudState.currentWeapon != LIGHT_WEAPON) {
             val ammo = hudState.ammo.getOrElse(hudState.currentWeapon) { 0 }.toString()
-            hud.text(width - ammo.length * 6 - 2, height - 8, ammo, Color.White)
+            hud.text(width - ammo.length * 6 - 2, height - 8, ammo, WHITE)
         }
 
         hud.radar(playerView, width, height)
@@ -148,12 +157,26 @@ fun HudOverlay(
             val face = if (hudState.alive) SPEECH[(MESSAGE_STEPS - steps).coerceIn(0, SPEECH.size - 1)] else 4
             hud.picture(faces[face], 5f, height - 11 - 5 - LEGACY_TILE_SIZE)
             if (steps > 16 || steps % 2 == 1) {
-                hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE, hudState.messageLine1, Color.White)
-                hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE + 10, hudState.messageLine2, Color.White)
+                hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE, hudState.messageLine1, WHITE)
+                hud.text(10f + LEGACY_TILE_SIZE, height - 11 - LEGACY_TILE_SIZE + 10, hudState.messageLine2, WHITE)
             }
         }
     }
+
+    if (!night) {
+        Canvas(modifier = modifier) { draw(null) }
+    } else {
+        val darkEffect = rememberNightHudEffect(lit = false)
+        val litEffect = rememberNightHudEffect(lit = true)
+        Box(modifier = modifier) {
+            Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = darkEffect }) { draw(NightLayer.DARK) }
+            Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = litEffect }) { draw(NightLayer.LIT) }
+        }
+    }
 }
+
+/** Legacy load_pictures() at night: pictures without `night_vis` stay in the dark half of NIGHT.PAL. */
+private enum class NightLayer { DARK, LIT }
 
 /**
  * Legacy write_arrow(): which of ARROW1..8 to show and where, for another vehicle whose top-left
@@ -196,14 +219,30 @@ private const val PAD_LIVES = 4
 private fun percent(value: Int, max: Int): Int =
     if (max <= 0) value.coerceAtLeast(0) else (value.coerceAtLeast(0) * 100 / max)
 
+/**
+ * Draws the status display's pieces. With [lit] false only the dark pictures are drawn, with
+ * [dark] false only the rest (the two night layers); by day both are true.
+ */
 private class HudPainter(
     private val scope: DrawScope,
     private val playfield: Rect,
     private val scale: Float,
+    private val lit: Boolean = true,
+    private val dark: Boolean = true,
 ) {
     private fun point(x: Float, y: Float) = Offset(playfield.left + x * scale, playfield.top + y * scale)
 
+    /** A picture marked `night_vis`, which stays in the lit half of the night palette. */
     fun picture(image: ImageBitmap?, x: Float, y: Float) {
+        if (lit) draw(image, x, y)
+    }
+
+    /** A picture without `night_vis` (the small weapon icons, the flags), dark at night. */
+    fun darkPicture(image: ImageBitmap?, x: Float, y: Float) {
+        if (dark) draw(image, x, y)
+    }
+
+    private fun draw(image: ImageBitmap?, x: Float, y: Float) {
         image ?: return
         val origin = point(x, y)
         scope.drawImage(
@@ -223,6 +262,7 @@ private class HudPainter(
 
     /** Legacy b_write_text(): the 5×5 font, 6 pixels per character, only the set pixels. */
     fun text(x: Float, y: Float, value: String, color: Color) {
+        if (!lit) return
         value.forEachIndexed { index, char ->
             val code = char.code
             if (code >= 128) return@forEachIndexed
@@ -243,6 +283,7 @@ private class HudPainter(
 
     /** Legacy write_radar(): blips for everything within 15 tiles, centred near the bottom-right corner. */
     fun radar(view: PlayerView, width: Float, height: Float) {
+        if (!lit) return
         val self = view.radar.firstOrNull { it.actorId == view.controlledActorId } ?: return
         val centreX = width - RADAR_BLIP - RADAR_RADIUS
         val centreY = height - RADAR_BLIP - RADAR_RADIUS
@@ -252,10 +293,10 @@ private class HudPainter(
             val dy = contact.approximateY - self.approximateY
             if (dx.toLong() * dx + dy.toLong() * dy >= range.toLong() * range) continue
             val color = when {
-                contact === self -> Color.Black
+                contact === self -> RADAR_BLACK
                 contact.kind == RadarContactKind.PROJECTILE -> RADAR_YELLOW
                 contact.team == Team.ENEMY -> RADAR_RED
-                else -> Color.White
+                else -> WHITE
             }
             val origin = point(centreX + dx * RADAR_RADIUS / range.toFloat(), centreY + dy * RADAR_RADIUS / range.toFloat())
             scope.drawRect(color, topLeft = origin, size = Size(RADAR_BLIP * scale, RADAR_BLIP * scale))
@@ -264,8 +305,11 @@ private class HudPainter(
 
     private companion object {
         /** Legacy write_number(): `cmap[13]`. */
-        val METER_TEXT = Color(0xFF000000.toInt() or LegacyFonts.gamePalette[LegacyColors.STATUS_NUMBER])
-        val RADAR_RED = Color(0xFFFF2020)
-        val RADAR_YELLOW = Color(0xFFFFE030)
+        val METER_TEXT = paletteColor(LegacyColors.STATUS_NUMBER)
+
+        /** Legacy write_radar() colours (src/game/radar.c). */
+        val RADAR_BLACK = paletteColor(0)
+        val RADAR_RED = paletteColor(95)
+        val RADAR_YELLOW = paletteColor(64)
     }
 }

@@ -413,9 +413,9 @@ private fun GameplayScreen(
                     // "YOU WIN" in the winner's window only.
                     val banner = missionEndBanner
                     if (mode == GameMode.PLAYER_VS_PLAYER) {
-                        if (view.hud.roundWon) YouWinBanner(playfieldWidth = window.width)
+                        if (view.hud.roundWon) YouWinBanner(playfieldWidth = window.width, night = mission.sidecar.metadata.night)
                     } else if (banner != null) {
-                        MissionEndBanner(outcome = banner, playfieldWidth = window.width)
+                        MissionEndBanner(outcome = banner, playfieldWidth = window.width, night = mission.sidecar.metadata.night)
                     }
                 }
             }

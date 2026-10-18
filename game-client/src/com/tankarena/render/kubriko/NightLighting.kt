@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.asSkiaBitmap
-import com.pandulapeter.kubriko.sprites.SpriteManager
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.PictureCatalog
@@ -17,12 +17,15 @@ import com.tankarena.protocol.snapshot.WorldSnapshot
 import game_client.generated.resources.Res
 import game_client.generated.resources.allDrawableResources
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.getDrawableResourceBytes
+import org.jetbrains.compose.resources.getSystemResourceEnvironment
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageFilter
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import org.jetbrains.skia.SamplingMode
+import kotlinx.coroutines.runBlocking
 
 /**
  * The night missions as the original draws them (src/game/night.c, under.c): the whole view is
@@ -36,7 +39,6 @@ import org.jetbrains.skia.SamplingMode
  */
 @OptIn(org.jetbrains.compose.resources.ExperimentalResourceApi::class)
 internal class NightLighting(
-    private val spriteManager: SpriteManager,
     private val sprites: LegacySpriteCatalog,
 ) {
     private val lutResource: DrawableResource? = Res.allDrawableResources["night_lut"]
@@ -45,13 +47,6 @@ internal class NightLighting(
     private var mask: ImageBitmap? = null
     private var maskImage: Image? = null
     private var lutImage: Image? = null
-
-    /** Everything to load before the night can be drawn. */
-    fun collectResources(target: MutableSet<DrawableResource>) {
-        lutResource?.let(target::add)
-        coneResources.forEach { it?.let(target::add) }
-        sprites.findResource(B52_LIGHT)?.let(target::add)
-    }
 
     /** Draw this frame's lights into the mask (scene pixels of the visible area). */
     fun update(world: WorldSnapshot, snapshot: RuntimeSnapshot, playfieldWidth: Int, playfieldHeight: Int, extra: MutableSet<DrawableResource>) {
@@ -79,7 +74,7 @@ internal class NightLighting(
      * [playfieldHeight] scene, or null while the colour table is still loading.
      */
     fun filter(width: Float, height: Float, playfieldWidth: Int, playfieldHeight: Int): ImageFilter? {
-        val lut = lutImage ?: lutResource?.let(spriteManager::get)?.let { Image.makeFromBitmap(it.asSkiaBitmap()) }?.also { lutImage = it }
+        val lut = lutImage ?: lutResource?.let(::image)?.let { Image.makeFromBitmap(it.asSkiaBitmap()) }?.also { lutImage = it }
             ?: return null
         val lights = maskImage ?: return null
         if (width <= 0f || height <= 0f) return null
@@ -115,9 +110,23 @@ internal class NightLighting(
             val glow = PictureCatalog.pictureNames(world, top)?.getOrNull(2) ?: continue
             val resource = sprites.findResource(glow) ?: continue
             extra += resource
-            val image = spriteManager.get(resource) ?: continue
+            val image = image(resource) ?: continue
             canvas.drawImage(image, Offset(x * LEGACY_TILE_SIZE + shiftX, y * LEGACY_TILE_SIZE + shiftY), LIGHT_PAINT)
         }
+    }
+
+    private val images = HashMap<DrawableResource, ImageBitmap?>()
+
+    /**
+     * The colour table and light pictures, read straight from the resources once. Not through
+     * the sprite manager: the first sync runs before the viewport is shown, and a picture asked
+     * for then fails to load and is never loaded again.
+     */
+    private fun image(resource: DrawableResource): ImageBitmap? = images.getOrPut(resource) {
+        runCatching {
+            val bytes = runBlocking { getDrawableResourceBytes(getSystemResourceEnvironment(), resource) }
+            Image.makeFromEncoded(bytes).toComposeImageBitmap()
+        }.getOrNull()
     }
 
     /** Legacy write_bundle(): one of five cone pictures per size, mirrored for the other directions. */
@@ -130,7 +139,7 @@ internal class NightLighting(
             else -> 16 - d
         }
         val index = cone.size.coerceIn(0, 2) * 5 + pattern
-        val image = coneResources[index]?.let(spriteManager::get) ?: return
+        val image = coneResources[index]?.let(::image) ?: return
         val (sx, sy, offx, offy) = CONES[index]
         val x = cone.x + shiftX
         val y = cone.y + shiftY
@@ -150,7 +159,7 @@ internal class NightLighting(
 
     /** Legacy write_b52(): with its lights on, two lamps `B52L` at the wing tips. */
     private fun drawB52Lights(canvas: Canvas, state: B52State, shiftX: Float, shiftY: Float) {
-        val image = sprites.findResource(B52_LIGHT)?.let(spriteManager::get) ?: return
+        val image = sprites.findResource(B52_LIGHT)?.let(::image) ?: return
         val d = state.heading.mod(4)
         for (wing in B52_WINGS) {
             val (lx, ly) = wing[d]

@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.ui.compose.MissionOutcome
+import com.tankarena.ui.compose.hud.rememberNightHudEffect
 import org.jetbrains.compose.resources.imageResource
 
 /**
@@ -37,9 +39,11 @@ fun MissionEndBanner(
     outcome: MissionOutcome,
     modifier: Modifier = Modifier,
     playfieldWidth: Int = PLAYFIELD_WIDTH,
+    /** Legacy `map.night`: the pictures are `night_vis`, in the lit night colours. */
+    night: Boolean = false,
 ) {
     val bottomRow = if (outcome == MissionOutcome.WON) "COMPL" else "FAILED"
-    TileBanner(listOf("MISSION", bottomRow), columns = 4, modifier = modifier, playfieldWidth = playfieldWidth)
+    TileBanner(listOf("MISSION", bottomRow), columns = 4, modifier = modifier, playfieldWidth = playfieldWidth, night = night)
 }
 
 /**
@@ -47,14 +51,15 @@ fun MissionEndBanner(
  * `YOUA` `YOUB` and one tile lower `WINA` `WINB`, centred like the mission banner.
  */
 @Composable
-fun YouWinBanner(modifier: Modifier = Modifier, playfieldWidth: Int = PLAYFIELD_WIDTH) {
-    TileBanner(listOf("YOU", "WIN"), columns = 2, modifier = modifier, playfieldWidth = playfieldWidth)
+fun YouWinBanner(modifier: Modifier = Modifier, playfieldWidth: Int = PLAYFIELD_WIDTH, night: Boolean = false) {
+    TileBanner(listOf("YOU", "WIN"), columns = 2, modifier = modifier, playfieldWidth = playfieldWidth, night = night)
 }
 
 /** Rows of [columns] 33 px tiles `<prefix>A`, `<prefix>B`, ... centred, a blank tile row apart. */
 @Composable
-private fun TileBanner(prefixes: List<String>, columns: Int, modifier: Modifier, playfieldWidth: Int) {
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+private fun TileBanner(prefixes: List<String>, columns: Int, modifier: Modifier, playfieldWidth: Int, night: Boolean) {
+    val nightColours = if (night) rememberNightHudEffect(lit = true) else null
+    BoxWithConstraints(modifier = modifier.fillMaxSize().graphicsLayer { renderEffect = nightColours }) {
         val pixel = maxWidth / playfieldWidth
         val viewHeight = maxHeight / pixel
         val x = (playfieldWidth - columns * TILE) / 2f

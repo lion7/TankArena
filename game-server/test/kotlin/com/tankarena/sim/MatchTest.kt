@@ -12,7 +12,6 @@ import com.tankarena.protocol.snapshot.ProjectileState
 import com.tankarena.protocol.snapshot.GoalState
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.TurretState
-import com.tankarena.protocol.snapshot.WallState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -28,14 +27,12 @@ class MatchTest {
         prototype.initialize()
         val snapshot = prototype.snapshot()
 
-        val walls = snapshot.actors.filterIsInstance<WallState>()
         val tanks = snapshot.actors.filterIsInstance<TankState>()
         val turrets = snapshot.actors.filterIsInstance<TurretState>()
         val goals = snapshot.actors.filterIsInstance<GoalState>()
 
         val solidTileCount = map.layers.solid.count { it >= 0 }
-        // Structures block through the StructureGrid; the scene's wall actors are editor-only.
-        assertTrue(walls.isEmpty(), "wall actors are not simulated")
+        // Structures block through the StructureGrid, not as objects.
         assertEquals(solidTileCount, prototype.solidTileCountForTest(), "every solid tile with strength blocks")
         assertEquals(2, tanks.size)
         assertEquals(1, turrets.size)
@@ -148,7 +145,6 @@ class MatchTest {
 
     private fun com.tankarena.protocol.snapshot.ActorState.hasFinitePosition(): Boolean {
         return when (this) {
-            is WallState -> x.isFinite() && y.isFinite()
             is TankState -> x.isFinite() && y.isFinite()
             is TurretState -> x.isFinite() && y.isFinite()
             is GoalState -> x.isFinite() && y.isFinite()

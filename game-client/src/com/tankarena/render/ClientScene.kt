@@ -21,7 +21,6 @@ import com.tankarena.protocol.snapshot.ProjectileState
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.TrainState
 import com.tankarena.protocol.snapshot.TurretState
-import com.tankarena.protocol.snapshot.WallState
 import com.tankarena.protocol.snapshot.WarpState
 import com.tankarena.protocol.snapshot.WorldSnapshot
 import com.tankarena.protocol.snapshot.ZeppelinState
@@ -212,8 +211,8 @@ internal class ClientScene(
                         b52Tiles(state)
                     }
                 }
-                // Terrain draws walls; locks, destroyers and enforcers are invisible editor markers.
-                is WallState, is LockState, is DestroyerState, is EnforcerState -> Unit
+                // Locks, destroyers and enforcers are invisible markers.
+                is LockState, is DestroyerState, is EnforcerState -> Unit
             }
         }
 

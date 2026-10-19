@@ -132,15 +132,6 @@ data class GoalState(
 ) : ActorState
 
 @Serializable
-data class WallState(
-    override val actorId: Long,
-    val x: Int,
-    val y: Int,
-    val width: Int,
-    val height: Int,
-) : ActorState
-
-@Serializable
 data class FlagState(
     override val actorId: Long,
     val flagType: Int = 0,

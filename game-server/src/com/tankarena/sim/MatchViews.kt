@@ -28,7 +28,6 @@ import com.tankarena.protocol.snapshot.RadarContact
 import com.tankarena.protocol.snapshot.RadarContactKind
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.TurretState
-import com.tankarena.protocol.snapshot.WallState
 import com.tankarena.protocol.snapshot.WorldSnapshot
 import kotlin.math.roundToInt
 
@@ -148,18 +147,6 @@ internal fun Match.changedTileStates(): List<TileState> = structures.changedTile
 
 internal fun Match.projectToWireState(actor: SceneObject<*>, id: Long): ActorState? {
     return when (actor) {
-        is Wall -> {
-            val size = actor.body.size
-            val position = actor.body.position
-            WallState(
-                actorId = id,
-                x = (position.x + size.width / 2f).toInt(),
-                y = (position.y + size.height / 2f).toInt(),
-                width = size.width.toInt(),
-                height = size.height.toInt(),
-            )
-        }
-
         is Tank -> {
             TankState(
                 actorId = id,

@@ -104,9 +104,6 @@ sealed interface GameEvent {
     data class Effect(val kind: EffectKind, val x: Int, val y: Int) : GameEvent
 
     @Serializable
-    data class Fired(val actorId: Long, val x: Int, val y: Int) : GameEvent
-
-    @Serializable
     data class Explosion(
         val x: Int,
         val y: Int,
@@ -167,29 +164,6 @@ sealed interface GameEvent {
      */
     @Serializable
     data class Sound(val kind: SoundKind, val x: Int, val y: Int) : GameEvent
-
-    /**
-     * Emitted when a flag is captured (picked up) by a tank.
-     * @param flagActorId The flag actor that was captured
-     * @param tankActorId The tank that picked up the flag
-     */
-    @Serializable
-    data class FlagCaptured(val flagActorId: Long, val tankActorId: Long) : GameEvent
-
-    /**
-     * Emitted when a flag is returned to its home position (carrier destroyed).
-     * @param flagActorId The flag actor that was returned
-     */
-    @Serializable
-    data class FlagReturned(val flagActorId: Long) : GameEvent
-
-    /**
-     * Emitted when an enemy carries a flag into the base zone — mission win condition.
-     * @param flagActorId The flag actor involved
-     * @param tankActorId The enemy tank that delivered the flag
-     */
-    @Serializable
-    data class FlagDelivered(val flagActorId: Long, val tankActorId: Long) : GameEvent
 
     /**
      * Emitted when a tank picks up a product (supermarket mode).

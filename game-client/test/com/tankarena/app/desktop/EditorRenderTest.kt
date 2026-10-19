@@ -3,6 +3,7 @@ package com.tankarena.app.desktop
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.use
+import com.tankarena.sim.map.MapEditor
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 import javax.imageio.ImageIO
@@ -13,8 +14,9 @@ import kotlin.test.assertTrue
 class EditorRenderTest {
     @Test
     fun `the editor draws a shipped map`() {
+        val choice = EditorMapChoice("begin1", userMap = false)
         ImageComposeScene(1280, 800) {
-            MaterialTheme { EditorScreen(EditorMapChoice("begin1", userMap = false), onClose = {}) }
+            MaterialTheme { EditorScreen(choice, MapEditor(choice.load()), onPlayTest = {}, onClose = {}) }
         }.use { scene ->
             var time = 0L
             repeat(5) { scene.render(time); time += 16_000_000L; Thread.sleep(50) }

@@ -26,6 +26,13 @@ internal object UserMapStore {
 
     fun load(baseName: String): MapDocument = MapFile.read(file(baseName).readText())
 
+    /** Every saved map that can be read; broken files are reported and left out. */
+    fun loadAll(): Map<String, MapDocument> = baseNames().mapNotNull { baseName ->
+        runCatching { baseName to load(baseName) }
+            .onFailure { System.err.println("Cannot read the map ${file(baseName)}: ${it.message}") }
+            .getOrNull()
+    }.toMap()
+
     /** Writes the map; returns the file, or throws when it cannot be written. */
     fun save(baseName: String, document: MapDocument): File {
         val file = file(baseName)

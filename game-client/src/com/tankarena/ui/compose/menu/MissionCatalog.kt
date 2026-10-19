@@ -2,6 +2,7 @@ package com.tankarena.ui.compose.menu
 
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.MapSceneSidecar
+import com.tankarena.sim.map.MapConversion
 import com.tankarena.sim.map.MapDocument
 import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.ui.compose.GameMode
@@ -15,24 +16,34 @@ data class MissionEntry(
     val sidecar: MapSceneSidecar,
     /** The map itself; matches are created from it (`LocalMatchClient.fromMap`). */
     val document: MapDocument,
-)
+) {
+    companion object {
+        fun of(baseName: String, document: MapDocument): MissionEntry {
+            val sidecar = MapConversion.sidecarOf(document)
+            return MissionEntry(
+                code = sidecar.metadata.missionCode.ifBlank { baseName },
+                baseName = baseName,
+                briefingPreview = sidecar.missionText.briefing.summarize(),
+                sidecar = sidecar,
+                document = document,
+            )
+        }
+    }
+}
 
 /**
- * The shipped missions: the native `.tamap` maps in `:game-content`, loaded from the classpath
- * (ADR 0022). Legacy `.MAP` files are not read at runtime.
+ * The missions: the shipped native `.tamap` maps in `:game-content`, loaded from the classpath
+ * (ADR 0022), and the player's own maps ([userMaps], by base name). Like a map saved over one in the
+ * original's `MAPS` directory, a player's map replaces the shipped map of the same name. Legacy `.MAP`
+ * files are not read at runtime.
  */
 object MissionCatalog {
-    suspend fun load(): List<MissionEntry> = withContext(Dispatchers.IO) {
-        ShippedMaps.loadAll()
-            .map { scene ->
-                MissionEntry(
-                    code = scene.sidecar.metadata.missionCode.ifBlank { scene.baseName },
-                    baseName = scene.baseName,
-                    briefingPreview = scene.sidecar.missionText.briefing.summarize(),
-                    sidecar = scene.sidecar,
-                    document = scene.document,
-                )
-            }
+    suspend fun load(userMaps: () -> Map<String, MapDocument> = { emptyMap() }): List<MissionEntry> = withContext(Dispatchers.IO) {
+        val own = userMaps()
+        val shipped = ShippedMaps.loadAll()
+            .filterNot { it.baseName in own }
+            .map { MissionEntry.of(it.baseName, it.document) }
+        (shipped + own.map { (baseName, document) -> MissionEntry.of(baseName, document) })
             .sortedBy { it.code.lowercase() }
     }
 }

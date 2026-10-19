@@ -84,7 +84,14 @@ sealed interface DesktopShellScreen {
     data class AfterMission(val text: String) : DesktopShellScreen
     /** The map editor (ADR 0021): choosing a map, then editing it. */
     data object EditorOpen : DesktopShellScreen
-    data class Editor(val map: com.tankarena.app.desktop.EditorMapChoice) : DesktopShellScreen
+    data class Editor(
+        val map: com.tankarena.app.desktop.EditorMapChoice,
+        /** Kept here so that the edits and their undo history outlive a play-test. */
+        val editor: com.tankarena.sim.map.MapEditor = com.tankarena.sim.map.MapEditor(map.load()),
+    ) : DesktopShellScreen
+
+    /** A play-test of the map being edited, as it is now; afterwards back to [editing]. */
+    data class PlayTest(val editing: Editor, val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
 
     /** First start: Classic or Extended (ADR 0023). */
     data object RulesetChoice : DesktopShellScreen

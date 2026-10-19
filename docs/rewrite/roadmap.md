@@ -105,7 +105,9 @@ Goal: everything the original editor can do, inside the game, plus validation, u
       saving to the player's maps (`~/.local/share/tankarena/maps`); object boxes shown.
       `MapEditor` (`sim.map`) holds the editing rules and is tested without a screen; `EditorRenderTest`
       draws the editor offscreen.
-- [ ] Saved maps in the game's map lists and a play-test from the editor.
+- [x] Saved maps in the game's map lists (a saved map replaces the shipped one of the same name,
+      as saving over a file in the original's `MAPS` did); play-test from the editor (Play or F5) in
+      the map's mode, unrecorded, back to the editor with its undo history.
 - [ ] New map from world templates (convert `DATA/MAP_0..3.DAT`) and size; the structure library
       and links; goal, bonus and men layers.
 - [ ] Every object type with its properties; links; computer-tank settings and waypoints; pad weapons.

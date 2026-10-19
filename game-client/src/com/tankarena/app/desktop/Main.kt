@@ -34,6 +34,7 @@ import com.tankarena.render.ViewportEventQueue
 import com.tankarena.sim.DualSetup
 import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode
+import com.tankarena.content.GameModeCompatibility
 import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
@@ -110,8 +111,8 @@ fun main(args: Array<String>) = application {
     // a game the music is turned down to 30% (palette.c fades it with the picture).
     val music = remember { MusicPlayer() }
     DisposableEffect(music) { onDispose(music::dispose) }
-    val playing = screen as? DesktopShellScreen.Playing
-    val night = playing?.mission?.sidecar?.metadata?.world == TankArenaWorld.NIGHT
+    val playing = (screen as? DesktopShellScreen.Playing)?.mission ?: (screen as? DesktopShellScreen.PlayTest)?.mission
+    val night = playing?.sidecar?.metadata?.world == TankArenaWorld.NIGHT
     LaunchedEffect(night) {
         withContext(Dispatchers.IO) { music.play(if (night) MusicPlayer.NIGHT_TUNE else MusicPlayer.TUNE) }
     }
@@ -123,7 +124,7 @@ fun main(args: Array<String>) = application {
     // TANKARENA_QUIT_AFTER=<seconds> closes the game again.
     LaunchedEffect(Unit) {
         val code = System.getenv("TANKARENA_AUTOSTART") ?: return@LaunchedEffect
-        val all = MissionCatalog.load().also { missions = it }
+        val all = MissionCatalog.load(UserMapStore::loadAll).also { missions = it }
         val mission = all.firstOrNull { it.code.equals(code, ignoreCase = true) || it.baseName.equals(code, ignoreCase = true) }
             ?: return@LaunchedEffect
         // TANKARENA_AUTOSTART_PVP=1 starts a player-vs-player match on that map at the tank selection.
@@ -190,7 +191,7 @@ fun main(args: Array<String>) = application {
 
                     DesktopShellScreen.ExtendedMenu -> {
                         LaunchedEffect(Unit) {
-                            if (missions == null) missions = MissionCatalog.load()
+                            if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
                         }
                         val play: (GameMode) -> Unit = { mode ->
                             lastMode = mode
@@ -230,7 +231,7 @@ fun main(args: Array<String>) = application {
 
                     is DesktopShellScreen.Replay -> {
                         LaunchedEffect(Unit) {
-                            if (missions == null) missions = MissionCatalog.load()
+                            if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
                         }
                         val loaded = remember(current.file, missions) {
                             missions?.let { all ->
@@ -279,7 +280,7 @@ fun main(args: Array<String>) = application {
 
                     DesktopShellScreen.GameModeSelect -> {
                         LaunchedEffect(Unit) {
-                            if (missions == null) missions = MissionCatalog.load()
+                            if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
                         }
                         val choose: (GameMode) -> Unit = { mode ->
                             lastMode = mode
@@ -372,6 +373,21 @@ fun main(args: Array<String>) = application {
                         },
                     )
 
+                    // Not recorded: the map may never be saved, so a recording could not be replayed.
+                    is DesktopShellScreen.PlayTest -> GameplayScreen(
+                        mission = current.mission,
+                        mode = current.mode,
+                        controls = controls,
+                        soundVolume = options.soundVolume,
+                        ruleset = options.ruleset ?: Ruleset.CLASSIC,
+                        dual = if (current.mode == GameMode.PLAYER_VS_PLAYER) DualSetup() else null,
+                        record = false,
+                        onMissionEnd = {
+                            controls.resetAll()
+                            screen = current.editing
+                        },
+                    )
+
                     is DesktopShellScreen.AfterMission -> TextViewerScreen(
                         text = current.text,
                         onClose = { screen = DesktopShellScreen.GameModeSelect },
@@ -384,6 +400,17 @@ fun main(args: Array<String>) = application {
 
                     is DesktopShellScreen.Editor -> EditorScreen(
                         choice = current.map,
+                        editor = current.editor,
+                        onPlayTest = { document ->
+                            val mission = MissionEntry.of(current.map.baseName, document)
+                            val mode = when (mission.sidecar.metadata.modeCompatibility) {
+                                GameModeCompatibility.DUAL -> GameMode.PLAYER_VS_PLAYER
+                                GameModeCompatibility.DUAL_VS_COMPUTER -> GameMode.DUAL_PLAYER_VS_COMPUTER
+                                else -> GameMode.SINGLE_PLAYER_VS_COMPUTER
+                            }
+                            controls.resetAll()
+                            screen = DesktopShellScreen.PlayTest(current, mission, mode)
+                        },
                         onClose = {
                             // A saved map may be one the game lists; read the maps again.
                             missions = null
@@ -410,6 +437,8 @@ private fun GameplayScreen(
     /** The game options' sound volume (legacy `sound_volume`). */
     soundVolume: Int,
     ruleset: Ruleset,
+    /** Whether the match is saved as a recording when it ends. */
+    record: Boolean = true,
     /** Player vs player: the round's vehicles and score. */
     dual: DualSetup? = null,
     /**
@@ -421,7 +450,7 @@ private fun GameplayScreen(
     val host = remember(mission.baseName, mode, dual) {
         controls.mode = mode
         controls.exitRequested = false
-        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup(), ruleset = ruleset)
+        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(), ruleset = ruleset)
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }
@@ -545,7 +574,7 @@ private fun handleGlobalKeys(
     controls: DesktopControls,
 ): Boolean {
     return when (screen) {
-        is DesktopShellScreen.Playing -> {
+        is DesktopShellScreen.Playing, is DesktopShellScreen.PlayTest -> {
             if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
                 // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends.
                 controls.exitRequested = true

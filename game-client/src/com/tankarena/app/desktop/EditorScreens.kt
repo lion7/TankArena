@@ -114,18 +114,27 @@ private const val MAX_ZOOM = 3f
  * The map editor (ADR 0021), first version: the three picture layers painted with the world's
  * pictures, undo and redo, saving to the player's maps. Left button paints, right button picks the
  * picture under the cursor, middle button or the arrow keys scroll, the wheel zooms. Keys: 1/2/3 pick
- * the layer, Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, ESC leaves (twice with unsaved changes).
+ * the layer, Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, F5 play-tests the map as it is, ESC leaves (twice with unsaved changes).
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun EditorScreen(choice: EditorMapChoice, onClose: () -> Unit) {
-    MaterialTheme(colorScheme = darkColorScheme()) { EditorContent(choice, onClose) }
+internal fun EditorScreen(
+    choice: EditorMapChoice,
+    editor: MapEditor,
+    onPlayTest: (MapDocument) -> Unit,
+    onClose: () -> Unit,
+) {
+    MaterialTheme(colorScheme = darkColorScheme()) { EditorContent(choice, editor, onPlayTest, onClose) }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun EditorContent(choice: EditorMapChoice, onClose: () -> Unit) {
-    val editor = remember(choice) { MapEditor(choice.load()) }
+private fun EditorContent(
+    choice: EditorMapChoice,
+    editor: MapEditor,
+    onPlayTest: (MapDocument) -> Unit,
+    onClose: () -> Unit,
+) {
     val pictures = PictureCache.shared
     val sprites = LegacySpriteCatalog.shared
     val world = editor.world
@@ -142,7 +151,7 @@ private fun EditorContent(choice: EditorMapChoice, onClose: () -> Unit) {
     var leaveArmed by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
 
-    val objectBoxes = remember(choice) {
+    val objectBoxes = remember(editor) {
         editor.toDocument().objects.mapNotNull { record ->
             val at = record["at"]?.jsonArray ?: return@mapNotNull null
             val size = record["size"]?.jsonArray
@@ -193,6 +202,7 @@ private fun EditorContent(choice: EditorMapChoice, onClose: () -> Unit) {
                     event.isCtrlPressed && event.key == Key.Z -> if (editor.undo()) revision++
                     event.isCtrlPressed && event.key == Key.Y -> if (editor.redo()) revision++
                     event.isCtrlPressed && event.key == Key.S -> save()
+                    event.key == Key.F5 -> onPlayTest(editor.toDocument())
                     event.key == Key.One -> layer = MapLayer.FLOOR
                     event.key == Key.Two -> layer = MapLayer.SOLID
                     event.key == Key.Three -> layer = MapLayer.TOP
@@ -237,6 +247,7 @@ private fun EditorContent(choice: EditorMapChoice, onClose: () -> Unit) {
             Button(onClick = { if (editor.undo()) revision++ }, enabled = revision.let { editor.canUndo }) { Text("Undo") }
             Button(onClick = { if (editor.redo()) revision++ }, enabled = revision.let { editor.canRedo }) { Text("Redo") }
             Button(onClick = ::save) { Text("Save") }
+            Button(onClick = { onPlayTest(editor.toDocument()) }) { Text("Play") }
             Button(onClick = onClose) { Text("Close") }
         }
         Row(modifier = Modifier.fillMaxSize()) {
@@ -244,7 +255,7 @@ private fun EditorContent(choice: EditorMapChoice, onClose: () -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .pointerInput(choice) {
+                    .pointerInput(editor) {
                         awaitPointerEventScope {
                             var last: Offset? = null
                             while (true) {

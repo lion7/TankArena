@@ -48,7 +48,7 @@ class ReferenceRenderTest {
         Scenario("begin1-start", "begin1", GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin1-20261019-172316-won.json", tick = 60),
         Scenario("begin1-fight", "begin1", GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin1-20261019-172316-won.json", tick = 1500),
         Scenario("begin1-won", "begin1", GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin1-20261019-172316-won.json", tick = 3950, MissionOutcome.WON),
-        Scenario("combat1-lost", "combat1", GameMode.SINGLE_PLAYER_VS_COMPUTER, "combat1-20261019-142812-lost.json", tick = 1900, MissionOutcome.LOST),
+        Scenario("combat1-lost", "combat1", GameMode.SINGLE_PLAYER_VS_COMPUTER, "combat1-20261019-142812-lost.json", tick = 1400, MissionOutcome.LOST),
         Scenario("begin3-play", "begin3", GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin3-20261019-142540-won.json", tick = 2500),
         Scenario("zulu-night", "zulu", GameMode.SINGLE_PLAYER_VS_COMPUTER, recording = null, tick = 300),
         Scenario("air-two-players", "air", GameMode.DUAL_PLAYER_VS_COMPUTER, recording = null, tick = 300),
@@ -141,7 +141,8 @@ class ReferenceRenderTest {
     }
 
     private companion object {
-        const val RECORDINGS = "../game-server/testResources/recordings"
+        /** Old recordings: the renders only need some play to draw, not results that still hold. */
+        const val RECORDINGS = "../game-server/testResources/recordings/v11"
         const val REFERENCES = "testResources/reference-renders"
         const val OUTPUT = "build/reference-renders"
         const val SCREEN_WIDTH = 640

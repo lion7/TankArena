@@ -7,8 +7,9 @@ internal fun Match.selectWeaponForTest(weapon: Int, playerIndex: Int = 0) {
     val tank = checkNotNull(playerTankForTest(playerIndex)) { "player $playerIndex has no tank" }
     repeat(WEAPON_COUNT) {
         if (tank.currentWeapon == weapon) return
-        tick(mapOf(playerIndex to PlayerIntentFrame(cycleWeaponRight = true)))
-        repeat(16) { tick() }
+        stepForTest(mapOf(playerIndex to PlayerIntentFrame(cycleWeaponRight = true)))
+        // The weapon key waits 15 ticks (5 steps) before it switches again.
+        repeat(6) { stepForTest() }
     }
     check(tank.currentWeapon == weapon) { "tank never reached weapon $weapon (has ${tank.ammoCounts})" }
 }

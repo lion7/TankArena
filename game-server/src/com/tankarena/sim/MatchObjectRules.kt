@@ -13,7 +13,7 @@ internal fun Match.stepWarps() {
     val tanks = objects.all.filterIsInstance<Tank>()
     for (warp in objects.all.filterIsInstance<Warp>()) {
         if (warp.cooldownTicks > 0) {
-            warp.cooldownTicks--
+            warp.cooldownTicks = warp.cooldownTicks.afterStep()
             continue
         }
         val size = warp.body.size
@@ -226,7 +226,7 @@ internal fun Match.fireDestroyer(destroyer: Destroyer) {
  */
 internal fun Match.stepEnforcers() {
     for (enforcer in objects.all.filterIsInstance<Enforcer>()) {
-        if (enforcer.cooldownTicks > 0) enforcer.cooldownTicks -= 1
+        enforcer.cooldownTicks = enforcer.cooldownTicks.afterStep()
         val (ex, ey) = centreOf(enforcer) ?: continue
         for (tank in allTanks) {
             if (!tank.computer || tank.armor <= 0) continue

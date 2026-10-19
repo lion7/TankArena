@@ -32,7 +32,8 @@ class MapObjectsTest {
         val match = start(objects = train(engineTileX = 5, wagons = 2))
         val (engine, first, second) = match.trainsForTest()
         val startX = engine.positionX
-        repeat(1000) { match.tick() }
+        // +5 px/s every tinit(100), which lasts 102 ticks on legacy steps: ten speed-ups by tick 1020.
+        repeat(1100) { match.tick() }
         assertEquals(50, engine.speed, "legacy max_speed")
         assertTrue(engine.positionX - startX > 150, "the engine runs east along the rails (${engine.positionX - startX} px)")
         assertEquals(rails * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2, engine.positionY, "it stays on the rails")
@@ -82,7 +83,7 @@ class MapObjectsTest {
             objects = enemy(tileX = 8, tileY = 3) + destroyer(tileX = 8, radius = 70, immediate = true),
         )
         val enemy = match.tanksForTest().single { it.team == 1 }
-        repeat(2) { match.tick() }
+        repeat(2 * STEP_TICKS) { match.tick() }
         assertFalse(match.structures.isStanding(7, rails))
         assertFalse(match.structures.isStanding(9, rails))
         assertTrue(match.structures.isStanding(10, rails), "indestructible structures survive")
@@ -123,7 +124,7 @@ class MapObjectsTest {
         val match = start(objects = enemy(tileX = 8, tileY = 3) + enforcer(tileX = 8, tileY = 3, weapon = WEAPON_ABOMB, delay = 500))
         val enemy = match.tanksForTest().single { it.team == 1 }
         val ownWeapon = enemy.currentWeapon
-        repeat(2) { match.tick() }
+        repeat(2 * STEP_TICKS) { match.tick() }
         assertTrue(match.snapshot().actors.any { it is AbombState }, "the enforced A-bomb was dropped")
         assertEquals(ownWeapon, enemy.currentWeapon, "without `change` the tank goes back to its own weapon")
         repeat(100) { match.tick() }

@@ -147,7 +147,7 @@ class Match private constructor(
             )
             tank.surroundings = tankSurroundings
             // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
-            if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_TICKS)
+            if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_HOLD_TICKS)
         }
         // Legacy prepare_player() / prepare_flag(): pads, races and flags only play in player vs
         // player; elsewhere the flags are removed.
@@ -179,8 +179,20 @@ class Match private constructor(
 
     fun tick(): WorldSnapshot = tick(intents = emptyMap())
 
+    /**
+     * One tick of the 100 Hz timer. The game only moves on every third one ([STEP_TICKS]), like the
+     * original's game_control(); in between the world stands still and [intents] are not looked at,
+     * as the original reads the controls only on a step (legacy `read_controls()`).
+     */
     fun tick(intents: Map<Int, PlayerIntentFrame>): WorldSnapshot {
         if (isDisposed) return buildSnapshot(drainEvents = false)
+        if (currentTick % STEP_TICKS == 0L) step(intents)
+        currentTick += 1
+        return buildSnapshot(drainEvents = true)
+    }
+
+    /** Legacy game_control(): one step of the game. */
+    private fun step(intents: Map<Int, PlayerIntentFrame>) {
         if (intents.isNotEmpty()) {
             for ((playerIndex, intent) in intents) {
                 if (intent.selectTankId > 0) switchToTank(playerIndex, intent.selectTankId)
@@ -233,11 +245,20 @@ class Match private constructor(
         collectProducts()
         collectGoals()
         evaluateMission()
-        currentTick += 1
-        return buildSnapshot(drainEvents = true)
     }
 
     fun snapshot(): WorldSnapshot = buildSnapshot(drainEvents = false)
+
+    /**
+     * One legacy step for tests: [STEP_TICKS] ticks with the same controls, from a step tick on.
+     * Returns the step tick's snapshot, which carries the step's events.
+     */
+    internal fun stepForTest(intents: Map<Int, PlayerIntentFrame> = emptyMap()): WorldSnapshot {
+        check(currentTick % STEP_TICKS == 0L) { "tick $currentTick is not the start of a step" }
+        val stepped = tick(intents)
+        repeat(STEP_TICKS - 1) { tick(intents) }
+        return stepped
+    }
 
     internal fun playerTankForTest(playerIndex: Int): Tank? = tanksByPlayerIndex[playerIndex]
 

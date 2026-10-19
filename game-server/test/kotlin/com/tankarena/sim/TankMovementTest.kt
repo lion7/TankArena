@@ -50,7 +50,7 @@ class TankMovementTest {
     }
 
     @Test
-    fun `turnRight advances bodyDirection once every TURN_COOLDOWN_TICKS`() {
+    fun `turnRight turns once per rotation delay, rounded up to whole steps`() {
         val prototype = Match.fromCanonicalMap(openFieldWithPlayerFacing(direction = 0))
         prototype.initialize()
         val start = prototype.snapshot().playerTank()
@@ -60,13 +60,15 @@ class TankMovementTest {
         val afterFirst = prototype.snapshot().playerTank()
         assertEquals(1, afterFirst.bodyDirection, "first tick with turnRight should step body direction by 1")
 
-        repeat(6) { prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true))) }
+        // The standard tank's rotation is 7 ticks; tdone() is only looked at every third tick, so
+        // the next turn comes on tick 9.
+        repeat(8) { prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true))) }
         val afterCooldown = prototype.snapshot().playerTank()
-        assertEquals(1, afterCooldown.bodyDirection, "cooldown should keep direction stable for 7 ticks total")
+        assertEquals(1, afterCooldown.bodyDirection, "no turn before tick 9")
 
         prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true)))
-        val afterEighth = prototype.snapshot().playerTank()
-        assertEquals(2, afterEighth.bodyDirection, "eighth tick should step direction again after cooldown")
+        val afterNinth = prototype.snapshot().playerTank()
+        assertEquals(2, afterNinth.bodyDirection, "the second turn comes on tick 9")
         prototype.dispose()
     }
 

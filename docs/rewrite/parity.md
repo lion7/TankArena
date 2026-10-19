@@ -77,13 +77,13 @@ flash; fades; grey view for the losing player.
 
 Open:
 
-- **differs** — per-step rules run about 3× too fast. The original does one game step every 3 timer
-  ticks (`src/game/mainloop.c:17-21`), the rewrite one per 10 ms tick. Timers and `dt`-based movement
-  are unaffected, but anything the original changes by a fixed amount per step is not: confirmed for
-  the guided rocket's acceleration (+1 px/s per step, `src/objects/rocket.c:29`; reaches 150 px/s in
-  1.5 s instead of ~4.5 s); to check: rotors with `auto_rotation` 0, effect animations, and every other
-  `++`/`--` in a control function without a `tdone()` guard. See
+- **done** — the game step: one step every 3 timer ticks like `game_control()`
+  (`src/game/mainloop.c:17-21`), timers running out on steps like `tdone()`, per-step rules (rocket
+  acceleration, steering noise, wagon spacing, explosions) once per step, the start and bonus shield as
+  15 blinks of `tinit(5)` after the hold (rules v12, 2026-10-19). See
   [ADR 0002](adrs/0002-fixed-step-100hz.md#the-originals-game-step-is-not-its-timer-tick).
+- **unverified** — a vehicle pushing against another re-collides once per step, as in the original;
+  not compared with footage.
 - **differs** — tick order: the server's pipeline is grouped by concern and does not follow
   `game_control()`'s `transportation → effects → bullets → parts → overlap → objects` order. Only
   visible in edge cases (who moves first); revisit if a recorded playthrough disagrees with footage.

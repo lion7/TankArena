@@ -11,7 +11,7 @@ import com.tankarena.protocol.snapshot.GameEvent
 internal fun Match.stepZeppelins() {
     for (zep in objects.all.filterIsInstance<Zeppelin>()) {
         if (!zep.alive) continue
-        zep.exactX -= ZEPPELIN_SPEED * 0.01f
+        zep.exactX -= ZEPPELIN_SPEED * STEP_SECONDS
         if (zep.exactX - LEGACY_TILE_SIZE / 2 < -4 * LEGACY_TILE_SIZE) {
             zep.exactX = ((mapMetadata.widthTiles + 4) * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2).toFloat()
             zep.positionY = airRandom.nextInt(worldHeightPixels) + LEGACY_TILE_SIZE / 2
@@ -21,7 +21,8 @@ internal fun Match.stepZeppelins() {
             (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat(),
             (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat(),
         )
-        if (--zep.frameCooldownTicks <= 0) {
+        zep.frameCooldownTicks = zep.frameCooldownTicks.afterStep()
+        if (zep.frameCooldownTicks <= 0) {
             zep.frame = zep.frame xor 1
             zep.frameCooldownTicks = 100
         }
@@ -46,22 +47,22 @@ internal fun Match.stepB52s() {
             B52.Phase.CRASHING -> crashB52(b52)
             // Legacy control_b52_wreck(): the wreck burns for 300 ticks.
             B52.Phase.WRECK -> if (b52.explosionCooldownTicks > 0) {
-                b52.explosionCooldownTicks -= 1
+                b52.explosionCooldownTicks = b52.explosionCooldownTicks.afterStep()
                 pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, b52.positionX - 20 + airRandom.nextInt(40), b52.positionY - 20 + airRandom.nextInt(40))
             }
         }
     }
 }
 
-/** Count a legacy `tinit()` timer down; true when it has run out. */
+/** A legacy `tdone()`: true when a count-down timer has run out. */
 internal fun Match.ready(ticks: Int): Boolean = ticks <= 0
 
 /** Legacy lift_b52(): speed up by 1 px/s every 80 ticks to 25, and climb every 60 ticks above 20 px/s. */
 internal fun Match.liftB52(b52: B52) {
     controlB52(b52)
     if (b52.phase != B52.Phase.LIFTING) return
-    b52.speedCooldownTicks -= 1
-    b52.heightCooldownTicks -= 1
+    b52.speedCooldownTicks = b52.speedCooldownTicks.afterStep()
+    b52.heightCooldownTicks = b52.heightCooldownTicks.afterStep()
     if (ready(b52.speedCooldownTicks) && b52.speed < 25) {
         b52.speed += 1
         b52.speedCooldownTicks = 80
@@ -80,14 +81,14 @@ internal fun Match.liftB52(b52: B52) {
 internal fun Match.controlB52(b52: B52) {
     // Legacy control_b52(): on night maps the navigation lights blink, 10 ticks on, 200..300 off.
     if (mapMetadata.night) {
-        b52.lightCooldownTicks -= 1
+        b52.lightCooldownTicks = b52.lightCooldownTicks.afterStep()
         if (ready(b52.lightCooldownTicks)) {
             b52.lightOn = !b52.lightOn
             b52.lightCooldownTicks = if (b52.lightOn) 10 else 200 + airRandom.nextInt(100)
         }
     }
     val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(b52.heading * 4)
-    b52.moveTo(b52.exactX + fx * b52.speed * 0.01f, b52.exactY + fy * b52.speed * 0.01f)
+    b52.moveTo(b52.exactX + fx * b52.speed * STEP_SECONDS, b52.exactY + fy * b52.speed * STEP_SECONDS)
     val x = b52.positionX
     val y = b52.positionY
     val r = B52.RADIUS
@@ -151,7 +152,7 @@ internal fun Match.flyB52(b52: B52) {
         resetB52(b52)
         return
     }
-    b52.bombCooldownTicks -= 1
+    b52.bombCooldownTicks = b52.bombCooldownTicks.afterStep()
     if (!ready(b52.bombCooldownTicks)) return
     b52.bomb = (b52.bomb + 1) % 5
     b52.bombCooldownTicks = if (b52.bomb == 4) 500 else 30
@@ -257,7 +258,7 @@ internal fun Match.hitB52(b52: B52, power: Int) {
  */
 internal fun Match.crashB52(b52: B52) {
     controlB52(b52)
-    b52.heightCooldownTicks -= 1
+    b52.heightCooldownTicks = b52.heightCooldownTicks.afterStep()
     if (ready(b52.heightCooldownTicks)) {
         b52.height -= 1
         b52.heightCooldownTicks = 60
@@ -273,7 +274,7 @@ internal fun Match.crashB52(b52: B52) {
         b52.explosionCooldownTicks = 300
         return
     }
-    b52.explosionCooldownTicks -= 1
+    b52.explosionCooldownTicks = b52.explosionCooldownTicks.afterStep()
     if (ready(b52.explosionCooldownTicks)) {
         val (ex, ey) = rotate(b52.heading * 4, B52_ENGINES[airRandom.nextInt(4)])
         pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, b52.positionX + ex, b52.positionY + ey)

@@ -38,11 +38,12 @@ class Mortar internal constructor(state: State) : Steppable,
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
         // The shell flies in a straight line over walls; the lob arc is only drawn.
-        positionX += velocityX
-        positionY += velocityY
+        // Velocities are per tick; a step covers STEP_TICKS of them.
+        positionX += velocityX * STEP_TICKS
+        positionY += velocityY * STEP_TICKS
         val offset = ScenePoint(positionX.toFloat(), positionY.toFloat())
         body.position = offset
-        travelTicksRemaining -= 1
+        travelTicksRemaining -= STEP_TICKS
         if (travelTicksRemaining <= 0) detonate()
     }
 

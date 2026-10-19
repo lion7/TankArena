@@ -28,5 +28,6 @@ enum class Ruleset {
  * Rules version of the Extended ruleset; see [GAME_RULES_VERSION] for Classic.
  *
  * 1: Extended introduced; it plays exactly like Classic v11.
+ * 2: Classic v12 (legacy steps).
  */
-const val EXTENDED_RULES_VERSION: Int = 1
+const val EXTENDED_RULES_VERSION: Int = 2

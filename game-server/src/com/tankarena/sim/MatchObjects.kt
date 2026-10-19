@@ -69,9 +69,9 @@ internal class Soldier(
         val dy = targetY - exactY
         if (hypot(dx, dy) > SOLDIER_STOP_DISTANCE_PX) {
             val distance = hypot(dx, dy)
-            exactX += dx / distance * SOLDIER_SPEED * TICK
-            exactY += dy / distance * SOLDIER_SPEED * TICK
-            if (frameCooldownTicks > 0) frameCooldownTicks -= 1
+            exactX += dx / distance * SOLDIER_SPEED * STEP_SECONDS
+            exactY += dy / distance * SOLDIER_SPEED * STEP_SECONDS
+            frameCooldownTicks = frameCooldownTicks.afterStep()
             if (frameCooldownTicks == 0) {
                 frame = frame xor 5
                 frameCooldownTicks = 10 + random.nextInt(10)
@@ -82,7 +82,7 @@ internal class Soldier(
 
     /** Legacy control_man(), second half: fire a round every 40..80 ticks. */
     fun fire(): Shot? {
-        if (fireCooldownTicks > 0) fireCooldownTicks -= 1
+        fireCooldownTicks = fireCooldownTicks.afterStep()
         if (fireCooldownTicks > 0 || bullets == 0) return null
         fireCooldownTicks = 40 + random.nextInt(40)
         bullets -= 1
@@ -94,7 +94,6 @@ internal class Soldier(
         const val SOLDIER_ROUNDS = 75
         const val SOLDIER_SPEED = 5f
         const val SOLDIER_STOP_DISTANCE_PX = 20f
-        const val TICK = 0.01f
         val SOLDIER_GUN = 1 to -3
     }
 }
@@ -120,7 +119,7 @@ internal class Abomb(val id: Long, val x: Int, val y: Int, countdown: Int, val o
     /** Legacy control_abomb(). */
     fun step(): Blast? {
         if (removed) return null
-        if (nextTicks > 0) nextTicks -= 1
+        nextTicks = nextTicks.afterStep()
         if (nextTicks > 0) return null
         if (countdown > 0) {
             countdown -= 1

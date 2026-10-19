@@ -101,8 +101,8 @@ class Turret internal constructor(state: State) : SceneObject<Turret>, Placed {
     /** Legacy control_turret(). */
     fun step(tanks: List<Tank>) {
         if (armor <= 0) return
-        cooldownTicks = (cooldownTicks - 1).coerceAtLeast(0)
-        turnCooldownTicks = (turnCooldownTicks - 1).coerceAtLeast(0)
+        cooldownTicks = cooldownTicks.afterStep()
+        turnCooldownTicks = turnCooldownTicks.afterStep()
         val target = closestTarget(tanks) ?: return
         val dx = target.positionX - positionX
         val dy = target.positionY - positionY

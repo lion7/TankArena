@@ -21,16 +21,21 @@ class PilotAndNightTest {
     private val row = 2
 
     @Test
-    fun `switching weapons tells the pilot what is selected, for 290 ticks`() {
+    fun `switching weapons tells the pilot what is selected, for 29 counts of tinit(10)`() {
         val match = start(ammo = listOf(10, 100))
-        match.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
+        match.stepForTest(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
         var hud = match.buildPlayerViews().single().hud
         assertEquals("CHAIN GUN" to "SELECTED!", hud.messageLine1 to hud.messageLine2)
         assertEquals(MESSAGE_STEPS, hud.messageSteps)
         assertEquals(0, hud.vehicleType)
-        repeat(300) { match.tick() }
+        // Legacy msg_control(): the first count comes on the next step, then one every tinit(10),
+        // which lasts 12 ticks (4 steps) on legacy steps.
+        val steps = 1 + (MESSAGE_STEPS - 1) * stepRounded(MESSAGE_STEP_TICKS) / STEP_TICKS
+        repeat(steps - 1) { match.stepForTest() }
+        assertTrue(match.buildPlayerViews().single().hud.messageSteps > 0, "still showing")
+        match.stepForTest()
         hud = match.buildPlayerViews().single().hud
-        assertEquals(0, hud.messageSteps, "the message is gone after 29 steps of 10 ticks")
+        assertEquals(0, hud.messageSteps, "the message is gone")
     }
 
     @Test
@@ -67,7 +72,7 @@ class PilotAndNightTest {
     fun `on night maps vehicles cast headlights that the light switch turns off`() {
         val match = start(night = true)
         val tank = match.playerTankForTest(0)!!
-        match.tick()
+        match.stepForTest()
         val cone = match.snapshot().actors.filterIsInstance<TankState>().single().lights.single()
         // STANDARD: one large light at (-2, 1) on the turret, which sits at (0, -2); facing east.
         assertEquals(0, cone.size)
@@ -75,7 +80,7 @@ class PilotAndNightTest {
         assertEquals(tank.positionX + 2 - 1 to tank.positionY - 2, cone.x to cone.y)
 
         match.selectWeaponForTest(WEAPON_LIGHT)
-        match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         assertTrue(match.snapshot().actors.filterIsInstance<TankState>().single().lights.isEmpty(), "the light is off")
         assertTrue(match.buildPlayerViews().single().hud.currentWeapon == WEAPON_LIGHT)
     }

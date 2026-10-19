@@ -203,19 +203,19 @@ class AircraftAndWeaponsTest {
         val tank = assertNotNull(match.playerTankForTest(0))
         match.selectWeaponForTest(WEAPON_SMOKE)
         var clouds = 0
-        repeat(200) {
-            val frame = match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = it == 0)))
+        repeat(67) {
+            val frame = match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = it == 0)))
             clouds += frame.events.count { it is GameEvent.Effect && it.kind == EffectKind.SMOKE_SCREEN }
         }
         assertTrue(clouds > 5, "a smoke screen puffs clouds ($clouds)")
 
         match.selectWeaponForTest(WEAPON_CLOAK)
-        match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         assertTrue(match.snapshot().actors.filterIsInstance<TankState>().single().cloaked)
 
         val normalTop = topSpeed(match, ticks = 300)
         match.selectWeaponForTest(WEAPON_SPEEDUP)
-        match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         val boostedTop = topSpeed(match, ticks = 300)
         assertTrue(boostedTop > normalTop * 1.3f, "speed-up: $normalTop → $boostedTop px/s")
         assertTrue(tank.armor > 0)
@@ -227,7 +227,7 @@ class AircraftAndWeaponsTest {
         val tank = assertNotNull(match.playerTankForTest(0))
         val enemy = match.tanksForTest().single { it.team == 1 }
         tank.teleportTo(enemy.positionX + 3, enemy.positionY)
-        repeat(2) { match.tick() }
+        repeat(2 * STEP_TICKS) { match.tick() }
         assertEquals(0, tank.armor)
         assertEquals(0, enemy.armor)
     }
@@ -237,18 +237,19 @@ class AircraftAndWeaponsTest {
         val water = picture("WATER")
         val match = start(width = 12, base = mapOf(2 to water), player = Player(ammo = ammo(WEAPON_MAIN to 10, WEAPON_CHAIN to 100)))
         match.selectWeaponForTest(WEAPON_CHAIN)
-        repeat(5) { match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true))) }
+        repeat(5) { match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true))) }
         assertTrue(match.snapshot().actors.none { it is ProjectileState }, "no chain gun from the water")
         match.selectWeaponForTest(WEAPON_MAIN)
-        repeat(5) { match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true))) }
+        repeat(5) { match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true))) }
         assertTrue(match.snapshot().actors.any { it is ProjectileState }, "a turret tank's main gun still fires")
     }
 
     private fun topSpeed(match: Match, ticks: Int): Float {
         val tank = match.playerTankForTest(0)!!
         var top = 0f
-        repeat(ticks) {
-            match.tick(mapOf(0 to PlayerIntentFrame(reverse = it % 200 >= 100, forward = it % 200 < 100)))
+        // About a second forward, then a second in reverse.
+        repeat(ticks / STEP_TICKS) {
+            match.stepForTest(mapOf(0 to PlayerIntentFrame(reverse = it % 66 >= 33, forward = it % 66 < 33)))
             top = maxOf(top, tank.speed)
         }
         return top

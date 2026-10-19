@@ -28,18 +28,19 @@ class TankDamageModelTest {
         val shielded = mapOf(0 to PlayerIntentFrame(shield = true))
 
         // Legacy hit_tank(): `contr.shield && shield.power` stops everything except HT_ROCKET.
-        prototype.tick(shielded)
+        prototype.stepForTest(shielded)
         prototype.queueDamageForTest(playerIndex = 0, amount = 20)
         tank.queueUnshieldableDamage(5)
-        prototype.tick(shielded)
+        prototype.stepForTest(shielded)
         assertEquals(armorBefore - 5, tank.armor, "only the rocket should get through the shield")
 
-        // Legacy shield_effects(): the pool drains 60 per tick while held, recharges 10 per tick.
+        // Legacy shield_effects(): the pool drains 60 per tick that has passed while held and
+        // recharges 10 per tick: 180 and 30 per step.
         val poolWhileHeld = tank.shield
-        repeat(10) { prototype.tick(shielded) }
-        assertEquals(poolWhileHeld - 600, tank.shield)
-        repeat(10) { prototype.tick() }
-        assertEquals(poolWhileHeld - 500, tank.shield)
+        repeat(10) { prototype.stepForTest(shielded) }
+        assertEquals(poolWhileHeld - 1800, tank.shield)
+        repeat(10) { prototype.stepForTest() }
+        assertEquals(poolWhileHeld - 1500, tank.shield)
         prototype.dispose()
     }
 
@@ -49,22 +50,23 @@ class TankDamageModelTest {
         prototype.initialize()
         val tank = prototype.playerTankForTest(0)!!
         val shielded = mapOf(0 to PlayerIntentFrame(shield = true))
-        repeat(SHIELD_START_POWER / 60 + 2) { prototype.tick(shielded) }
+        repeat(SHIELD_START_POWER / 180 + 2) { prototype.stepForTest(shielded) }
         assertEquals(0, tank.shield)
         val armorBefore = tank.armor
 
         prototype.queueDamageForTest(playerIndex = 0, amount = 7)
-        prototype.tick(shielded)
+        prototype.stepForTest(shielded)
         assertEquals(armorBefore - 7, tank.armor)
         prototype.dispose()
     }
 
     @Test
-    fun `invulnerability blocks all damage and ticks down each tick`() {
+    fun `invulnerability blocks all damage and counts down by steps`() {
         val prototype = Match.fromCanonicalMap(soloTankMap())
         prototype.initialize()
         val tank = prototype.playerTankForTest(0)!!
-        tank.grantInvulnerability(ticks = 10)
+        tank.grantInvulnerability(holdTicks = 10)
+        val before = tank.invulnerableTicks
         val armorBefore = tank.armor
 
         prototype.queueDamageForTest(playerIndex = 0, amount = 50)
@@ -72,17 +74,22 @@ class TankDamageModelTest {
         prototype.tick()
 
         assertEquals(armorBefore, tank.armor, "armor must not change while invulnerable")
-        assertTrue(tank.invulnerableTicks in 0..9, "invuln should have ticked down — was ${tank.invulnerableTicks}")
+        assertEquals(before - STEP_TICKS, tank.invulnerableTicks, "one step has passed")
         prototype.dispose()
     }
 
     @Test
-    fun `invulnerability expiry restores damage taking`() {
+    fun `invulnerability ends after the hold and 15 blinks of 5 ticks, rounded to steps`() {
         val prototype = Match.fromCanonicalMap(soloTankMap())
         prototype.initialize()
         val tank = prototype.playerTankForTest(0)!!
-        tank.grantInvulnerability(ticks = 3)
-        repeat(5) { prototype.tick() }
+        tank.grantInvulnerability(holdTicks = 3)
+        // The hold runs out on the first step (blink 15 → 14); each further blink is a tinit(5),
+        // which lasts two steps: the last one ends on step 28.
+        repeat(28) { prototype.stepForTest() }
+        assertTrue(tank.invulnerableTicks > 0, "still blinking")
+        prototype.stepForTest()
+        assertEquals(0, tank.invulnerableTicks)
         val armorBefore = tank.armor
 
         prototype.queueDamageForTest(playerIndex = 0, amount = 25)
@@ -114,7 +121,7 @@ class TankDamageModelTest {
         prototype.initialize()
         val tank = prototype.playerTankForTest(0)!!
         tank.grantShield(50)
-        tank.grantInvulnerability(ticks = 0)
+        tank.grantInvulnerability(holdTicks = 0)
 
         // Punch a hole through invuln=0 to kill the tank.
         prototype.queueDamageForTest(playerIndex = 0, amount = 999)

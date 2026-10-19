@@ -12,7 +12,6 @@ internal const val ROCKET_MAX_SPEED_PX_PER_SECOND: Int = 150
 internal const val ROCKET_ARRIVAL_PX: Int = 7
 /** Legacy `check_obj_hit_radius(..., 10, HT_ROCKET, ...)`. */
 internal const val ROCKET_BLAST_RADIUS_PX: Int = 10
-private const val TICKS_PER_SECOND: Float = 100f
 
 /** Something a rocket homes on: its current centre, or null once it is destroyed. */
 internal fun interface RocketTarget {
@@ -67,7 +66,7 @@ class Rocket internal constructor(state: State) : Steppable,
         val dy = targetY - positionY
         val distance = hypot(dx, dy)
         val arrived = distance < ROCKET_ARRIVAL_PX
-        val step = speed / TICKS_PER_SECOND
+        val step = speed * STEP_SECONDS
         if (distance > 0f) {
             velocityX = dx / distance * step
             velocityY = dy / distance * step

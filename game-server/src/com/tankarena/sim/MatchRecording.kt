@@ -32,8 +32,11 @@ import kotlinx.serialization.json.Json
  *     out their own weapons.
  * 11: turrets fire what their kind fires (rocket turrets), aim in 16 directions from their gun
  *     barrels, and only at the side they were set to shoot at.
+ * 12: the game moves in legacy steps of 3 ticks: timers run out on the first step at or after their
+ *     length (turning, refire, lava, shields ...), per-step rules run once per step, the start
+ *     shield is 15 blinks after 200 ticks.
  */
-const val GAME_RULES_VERSION: Int = 11
+const val GAME_RULES_VERSION: Int = 12
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

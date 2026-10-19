@@ -16,6 +16,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 /** Seconds per server tick; the legacy physics (src/tanks/control.c) works in px/s with `dt = 1/sec`. */
+/** Shot speeds are kept in pixels per tick (a step moves them [STEP_TICKS] times as far). */
 private const val TICK_SECONDS: Float = 0.01f
 /** Legacy `weapon_left()/right()`: `tinit(15)` between two weapon changes. */
 private const val WEAPON_CYCLE_COOLDOWN_TICKS: Int = 15
@@ -53,16 +54,20 @@ internal const val RESPAWN_DELAY_TICKS: Int = 300
 /** Legacy `shield.power`: starts at 3000, drains 60 per tick while held, recharges 10 per tick up to 6000. */
 internal const val SHIELD_START_POWER: Int = 3000
 private const val SHIELD_MAX_POWER: Int = 6000
+/** Legacy shield_effects(): the pool changes by 60 (drain) or 10 (recharge) per tick that has passed. */
 private const val SHIELD_DRAIN_PER_TICK: Int = 60
 private const val SHIELD_RECHARGE_PER_TICK: Int = 10
 /**
- * Legacy make_tank(): `shield.invun = tinit(200)` with `shield.icount = 15` blinks of `tinit(5)`
- * after it, so a fresh human tank cannot be hurt for 275 ticks (shield_effects()).
+ * Legacy make_tank()/prepare_tank(): `shield.invun = tinit(200)` with `shield.icount = 15`; once
+ * the timer runs out, shield_effects() counts `icount` down every `tinit(5)`. The tank cannot be hurt
+ * while `icount` is not 0: on legacy steps 201 + 14 × 6 = 285 ticks.
  */
-internal const val SHIELD_BLINK_TICKS: Int = 15 * 5
-internal const val START_SHIELD_TICKS: Int = 200 + SHIELD_BLINK_TICKS
-/** Legacy pickup_bonus() case 12: `shield.invun = tinit(2000)`, then the 15 blinks. */
-internal const val INVULNERABILITY_BONUS_TICKS: Int = 2000 + SHIELD_BLINK_TICKS
+internal const val SHIELD_BLINKS: Int = 15
+internal const val SHIELD_BLINK_TICKS: Int = 5
+internal const val START_SHIELD_HOLD_TICKS: Int = 200
+internal val START_SHIELD_TICKS: Int = stepRounded(START_SHIELD_HOLD_TICKS) + (SHIELD_BLINKS - 1) * stepRounded(SHIELD_BLINK_TICKS)
+/** Legacy pickup_bonus() case 12: `shield.invun = tinit(2000)`, `shield.icount = 15`. */
+internal const val INVULNERABILITY_BONUS_HOLD_TICKS: Int = 2000
 /** Legacy new_position()/check_obj_collide(): crash damage at most every 10 ticks; a heavy rammer hits for 2. */
 private const val CRASH_INTERVAL_TICKS: Int = 10
 private const val RAM_DAMAGE: Int = 2
@@ -109,7 +114,7 @@ private const val ARMOR_BONUS: Int = 10
 
 /** Legacy create_message(): a message stays 29 steps of 10 ticks (msg_control()). */
 internal const val MESSAGE_STEPS: Int = 29
-private const val MESSAGE_STEP_TICKS: Int = 10
+internal const val MESSAGE_STEP_TICKS: Int = 10
 /** Legacy tank_fire(): switching the light blocks the trigger for 50 ticks. */
 private const val LIGHT_SWITCH_TICKS: Int = 50
 /** Legacy `desc[]` in src/tanks/fire.c: what weapon_left()/right() announce. */
@@ -208,9 +213,18 @@ class Tank(state: State) :
     /** Legacy `shield.power`: the pool the shield key draws from. */
     var shield: Int = state.shield
         private set
-    /** Ticks of the legacy start shield (`shield.icount`) left; the tank cannot be hurt meanwhile. */
-    var invulnerableTicks: Int = state.invulnerableTicks
-        private set
+    /** Legacy `shield.icount`: blinks left of the start or bonus shield; the tank cannot be hurt while not 0. */
+    private var shieldBlinks: Int = 0
+    /** Legacy `shield.invun`: ticks until the next blink. */
+    private var shieldBlinkTicks: Int = 0
+
+    /** Ticks the start or bonus shield still lasts (0: none). */
+    val invulnerableTicks: Int
+        get() = if (shieldBlinks == 0) 0 else shieldBlinkTicks + (shieldBlinks - 1) * stepRounded(SHIELD_BLINK_TICKS)
+
+    init {
+        if (state.invulnerableTicks > 0) grantInvulnerability(state.invulnerableTicks)
+    }
     /** True while the shield key is held and the pool is not empty (legacy `contr.shield && shield.power`). */
     var shieldActive: Boolean = false
         private set
@@ -352,7 +366,7 @@ class Tank(state: State) :
     /** Legacy msg_control(). */
     private fun stepMessage() {
         if (messageSteps == 0) return
-        if (messageStepTicks > 0) messageStepTicks -= 1
+        messageStepTicks = messageStepTicks.afterStep()
         if (messageStepTicks == 0) {
             messageSteps -= 1
             messageStepTicks = MESSAGE_STEP_TICKS
@@ -393,7 +407,7 @@ class Tank(state: State) :
     private var hullTurnCooldownTicks: Int = 0
 
     /** Legacy `tdone(motion.ndir)`: a turn pressed now happens this tick. */
-    internal val steeringReady: Boolean get() = hullTurnCooldownTicks <= 1
+    internal val steeringReady: Boolean get() = hullTurnCooldownTicks <= STEP_TICKS
 
     /** Legacy `motion.v`: speed along the hull, negative when reversing (px/s). */
     internal val forwardSpeed: Float
@@ -509,9 +523,11 @@ class Tank(state: State) :
         shield = (shield + amount).coerceAtMost(SHIELD_MAX_POWER)
     }
 
-    fun grantInvulnerability(ticks: Int) {
-        if (ticks <= 0) return
-        invulnerableTicks = invulnerableTicks.coerceAtLeast(ticks)
+    /** Legacy `shield.invun = tinit(holdTicks)`, `shield.icount = 15`: steady for [holdTicks], then 15 blinks. */
+    fun grantInvulnerability(holdTicks: Int) {
+        if (holdTicks <= 0) return
+        shieldBlinkTicks = holdTicks
+        shieldBlinks = SHIELD_BLINKS
     }
 
     /**
@@ -519,8 +535,7 @@ class Tank(state: State) :
      * `shield.icount` is odd — steadily until the last 15 blinks of 5 ticks, then blinking.
      */
     val shieldRingVisible: Boolean
-        get() = shieldActive || invulnerableTicks > SHIELD_BLINK_TICKS ||
-            (invulnerableTicks > 0 && ((invulnerableTicks + 4) / 5) % 2 == 1)
+        get() = shieldActive || shieldBlinks and 1 == 1
 
     /** Legacy pickup_bonus(): only ground vehicles pick bonuses up. */
     val picksUpBonuses: Boolean get() = kind == VehicleKind.TANK || kind == VehicleKind.CAR
@@ -548,7 +563,7 @@ class Tank(state: State) :
         9 -> { ammo[WEAPON_SMOKE] += 1; "SMOKE SCREEN" }
         10 -> { ammo[WEAPON_CLOAK] += 1; "A CLOAKING DEVICE" }
         11 -> { ammo[WEAPON_SPEEDUP] += 1; "SPEEDUP" }
-        12 -> { invulnerableTicks = INVULNERABILITY_BONUS_TICKS; "INVUNERABILITY" }
+        12 -> { grantInvulnerability(INVULNERABILITY_BONUS_HOLD_TICKS); "INVUNERABILITY" }
         13 -> { armor = (armor + ARMOR_BONUS).coerceAtMost(spec.armor); "ARMOR!" }
         else -> "JUNK!"
     }
@@ -572,7 +587,7 @@ class Tank(state: State) :
 
     /** Legacy lava contact: [LAVA_DAMAGE] on entering and then every [LAVA_INTERVAL_TICKS] while inside. */
     internal fun stepLava(inLava: Boolean) {
-        if (lavaCooldownTicks > 0) lavaCooldownTicks -= 1
+        lavaCooldownTicks = lavaCooldownTicks.afterStep()
         if (!inLava || lavaCooldownTicks > 0) return
         queueDamage(LAVA_DAMAGE)
         lavaCooldownTicks = LAVA_INTERVAL_TICKS
@@ -644,14 +659,14 @@ class Tank(state: State) :
                 stepVelocity(thrust = false)
                 advancePosition()
                 stepAltitude()
-                dyingTicks = dyingTicks.coerceAtLeast(1)
+                dyingTicks = dyingTicks.coerceAtLeast(STEP_TICKS + 1)
             } else {
                 velocityX = 0f
                 velocityY = 0f
             }
             stepWreck()
             if (respawnInTicks > 0) {
-                respawnInTicks -= 1
+                respawnInTicks = respawnInTicks.afterStep()
                 if (respawnInTicks == 0) respawn()
             }
             lockActive = false
@@ -665,8 +680,8 @@ class Tank(state: State) :
         stepSmoke()
         stepSmokeScreen()
         stepBaseRefill()
-        if (boostTicks > 0) boostTicks -= 1
-        if (lockCameraTicks > 0) lockCameraTicks -= 1
+        boostTicks = boostTicks.afterStep()
+        lockCameraTicks = lockCameraTicks.afterStep()
         if (lockActive) {
             // Legacy control_tank(): while the marker is out the drive keys steer it, so the tank
             // neither turns nor accelerates and cannot switch weapons.
@@ -699,7 +714,7 @@ class Tank(state: State) :
         armor = maxArmor
         fuel = maxFuel
         shield = SHIELD_START_POWER
-        invulnerableTicks = if (computer) 0 else START_SHIELD_TICKS
+        if (computer) shieldBlinks = 0 else grantInvulnerability(START_SHIELD_HOLD_TICKS)
         velocityX = 0f
         velocityY = 0f
         primaryCooldownTicks = 0
@@ -864,7 +879,7 @@ class Tank(state: State) :
 
     /** Legacy left_right(): one 1/16 turn every `motion.rotation` ticks. */
     private fun stepHullTurn() {
-        hullTurnCooldownTicks = (hullTurnCooldownTicks - 1).coerceAtLeast(0)
+        hullTurnCooldownTicks = hullTurnCooldownTicks.afterStep()
         if (hullTurnCooldownTicks > 0) return
         when {
             pendingIntent.turnLeft && !pendingIntent.turnRight -> {
@@ -895,7 +910,7 @@ class Tank(state: State) :
             }
             TurretMode.TURRET -> Unit
         }
-        turretTurnCooldownTicks = (turretTurnCooldownTicks - 1).coerceAtLeast(0)
+        turretTurnCooldownTicks = turretTurnCooldownTicks.afterStep()
         if (turretTurnCooldownTicks > 0) return
         when {
             pendingIntent.aimLeft && !pendingIntent.aimRight -> {
@@ -923,7 +938,7 @@ class Tank(state: State) :
         val onGround = height == 1
         val flies = kind == VehicleKind.CHOPPER || kind == VehicleKind.PLANE
         if (thrust && driving && fuel > 0 && (flies || onGround)) {
-            var dv = TICK_SECONDS * motion.acc / motion.mass
+            var dv = STEP_SECONDS * motion.acc / motion.mass
             if (boostTicks > 0) dv *= BOOST_FACTOR
             // Legacy: the ground only slows what touches it.
             if (height <= 1) dv *= terrainSpeedMultiplier
@@ -931,15 +946,15 @@ class Tank(state: State) :
             along += if (pendingIntent.forward || kind == VehicleKind.PLANE) dv else -dv
         } else if (kind == VehicleKind.PLANE && height > 1 && verticalSpeed < 0f && along > 0f) {
             // A gliding plane trades height for speed.
-            along = (along - GLIDE_FACTOR * verticalSpeed * TICK_SECONDS).coerceAtLeast(0f)
+            along = (along - GLIDE_FACTOR * verticalSpeed * STEP_SECONDS).coerceAtLeast(0f)
         }
         // Rolling resistance (`ff_0`) only on the ground and for helicopters; sideways grip only
         // for aircraft and on the ground, while a vehicle in the air just drifts.
         val alongFriction = (motion.ffV * abs(along) + if (kind == VehicleKind.CHOPPER || onGround) motion.ff0 else 0f) *
-            TICK_SECONDS / motion.mass
+            STEP_SECONDS / motion.mass
         along = decay(along, alongFriction)
         val acrossForce = if (flies || onGround) motion.fsV * abs(across) + motion.fs0 else motion.ffV * abs(across)
-        across = decay(across, acrossForce * TICK_SECONDS / motion.mass)
+        across = decay(across, acrossForce * STEP_SECONDS / motion.mass)
         velocityX = along * fx + across * -fy
         velocityY = along * fy + across * fx
     }
@@ -952,8 +967,8 @@ class Tank(state: State) :
      * vehicles' radii of another vehicle ([collideWithVehicle]).
      */
     private fun advancePosition() {
-        val dx = velocityX * TICK_SECONDS
-        val dy = velocityY * TICK_SECONDS
+        val dx = velocityX * STEP_SECONDS
+        val dy = velocityY * STEP_SECONDS
         val nextX = exactX + dx
         val nextY = exactY + dy
         val surroundings = surroundings
@@ -1164,8 +1179,8 @@ class Tank(state: State) :
     private fun inRadius(dx: Int, dy: Int, radius: Int): Boolean = dx * dx + dy * dy < radius * radius
 
     private fun stepCooldowns() {
-        primaryCooldownTicks = (primaryCooldownTicks - 1).coerceAtLeast(0)
-        crashCooldownTicks = (crashCooldownTicks - 1).coerceAtLeast(0)
+        primaryCooldownTicks = primaryCooldownTicks.afterStep()
+        crashCooldownTicks = crashCooldownTicks.afterStep()
     }
 
     /**
@@ -1363,10 +1378,8 @@ class Tank(state: State) :
             fireLocked(lockX, lockY)
             return
         }
-        if (lockStepCooldownTicks > 0) {
-            lockStepCooldownTicks -= 1
-            return
-        }
+        lockStepCooldownTicks = lockStepCooldownTicks.afterStep()
+        if (lockStepCooldownTicks > 0) return
         lockVelocityY = markerVelocity(lockVelocityY, negative = pendingIntent.forward, positive = pendingIntent.reverse)
         lockVelocityX = markerVelocity(lockVelocityX, negative = pendingIntent.turnLeft, positive = pendingIntent.turnRight)
         val nextX = (lockX + lockVelocityX).coerceIn(0, lockMaxX)
@@ -1380,7 +1393,7 @@ class Tank(state: State) :
             lockVelocityX = 0
             lockVelocityY = 0
         }
-        lockStepCooldownTicks = LOCK_STEP_TICKS - 1
+        lockStepCooldownTicks = LOCK_STEP_TICKS
     }
 
     /** One axis of the legacy marker: jump to 5 px per step in the pressed direction, then speed up to 20. */
@@ -1472,12 +1485,18 @@ class Tank(state: State) :
 
     /** Legacy shield_effects(): the start shield blinks away and the shield key draws on its pool. */
     private fun stepShields() {
-        if (invulnerableTicks > 0) invulnerableTicks -= 1
+        if (shieldBlinks != 0) {
+            shieldBlinkTicks = shieldBlinkTicks.afterStep()
+            if (shieldBlinkTicks == 0) {
+                shieldBlinks -= 1
+                shieldBlinkTicks = SHIELD_BLINK_TICKS
+            }
+        }
         shieldActive = pendingIntent.shield && shield > 0
         shield = if (pendingIntent.shield) {
-            (shield - SHIELD_DRAIN_PER_TICK).coerceAtLeast(0)
+            (shield - SHIELD_DRAIN_PER_TICK * STEP_TICKS).coerceAtLeast(0)
         } else {
-            (shield + SHIELD_RECHARGE_PER_TICK).coerceAtMost(SHIELD_MAX_POWER)
+            (shield + SHIELD_RECHARGE_PER_TICK * STEP_TICKS).coerceAtMost(SHIELD_MAX_POWER)
         }
     }
 
@@ -1488,8 +1507,8 @@ class Tank(state: State) :
     private fun stepFall() {
         velocityX = 0f
         velocityY = 0f
-        verticalSpeed -= PIT_GRAVITY * TICK_SECONDS
-        exactHeight = (exactHeight + verticalSpeed * TICK_SECONDS).coerceAtLeast(PIT_BOTTOM_HEIGHT)
+        verticalSpeed -= PIT_GRAVITY * STEP_SECONDS
+        exactHeight = (exactHeight + verticalSpeed * STEP_SECONDS).coerceAtLeast(PIT_BOTTOM_HEIGHT)
         if (exactHeight <= PIT_BOTTOM_HEIGHT) queueDestroy()
     }
 
@@ -1503,7 +1522,7 @@ class Tank(state: State) :
         val flies = kind == VehicleKind.CHOPPER || kind == VehicleKind.PLANE
         if (!flies && exactHeight == 1f && verticalSpeed == 0f) return
         val highest = if (spec.height > 1) spec.height.toFloat() else MAX_FLIGHT_HEIGHT
-        exactHeight += verticalSpeed * TICK_SECONDS
+        exactHeight += verticalSpeed * STEP_SECONDS
         if (exactHeight < 1f) {
             exactHeight = 1f
             verticalSpeed = 0f
@@ -1512,12 +1531,12 @@ class Tank(state: State) :
             exactHeight = highest
             verticalSpeed = 0f
         }
-        if (height > 1) verticalSpeed -= TICK_SECONDS * if (kind == VehicleKind.PLANE) PLANE_GRAVITY else PIT_GRAVITY
+        if (height > 1) verticalSpeed -= STEP_SECONDS * if (kind == VehicleKind.PLANE) PLANE_GRAVITY else PIT_GRAVITY
         if (armor > 0 && fuel > 0) {
             when (kind) {
                 VehicleKind.PLANE -> if (speed > 5f) {
                     val (fx, fy) = LegacyDirections.unitVector(bodyDirection)
-                    verticalSpeed += spec.motion.lift * (velocityX * fx + velocityY * fy) * TICK_SECONDS
+                    verticalSpeed += spec.motion.lift * (velocityX * fx + velocityY * fy) * STEP_SECONDS
                     if (height <= 1 && !onRunway) queueDestroy()
                 }
                 VehicleKind.CHOPPER -> verticalSpeed = 0f
@@ -1539,12 +1558,12 @@ class Tank(state: State) :
             cloakFlash = true
             return
         }
-        if (cloakCountdownTicks > 0) cloakCountdownTicks -= 1
+        cloakCountdownTicks = cloakCountdownTicks.afterStep()
         if (cloakCountdownTicks == 0) {
             cloakCount -= 1
             cloakCountdownTicks = CLOAK_LAST_TICKS
         }
-        if (cloakFlashCooldownTicks > 0) cloakFlashCooldownTicks -= 1
+        cloakFlashCooldownTicks = cloakFlashCooldownTicks.afterStep()
         if (cloakFlashCooldownTicks == 0) {
             cloakFlash = !cloakFlash
             cloakFlashCooldownTicks = when {
@@ -1557,7 +1576,7 @@ class Tank(state: State) :
 
     /** Legacy tank_effects(): a smoke screen puffs clouds behind the hull, one every 10..20 ticks. */
     private fun stepSmokeScreen() {
-        if (smokeScreenCooldownTicks > 0) smokeScreenCooldownTicks -= 1
+        smokeScreenCooldownTicks = smokeScreenCooldownTicks.afterStep()
         if (smokeScreenLeft <= 0 || smokeScreenCooldownTicks > 0) return
         val (x, y) = onHull(SMOKE_SCREEN_POINTS[random.nextInt(SMOKE_SCREEN_POINTS.size)])
         pendingEffects += GameEvent.Effect(EffectKind.SMOKE_SCREEN, x, y)
@@ -1567,10 +1586,8 @@ class Tank(state: State) :
 
     /** Legacy tank_effects(): moving vehicles that smoke puff more often once badly damaged. */
     private fun stepSmoke() {
-        if (smokeCooldownTicks > 0) {
-            smokeCooldownTicks -= 1
-            return
-        }
+        smokeCooldownTicks = smokeCooldownTicks.afterStep()
+        if (smokeCooldownTicks > 0) return
         if (!spec.smokes || speed < 1f || spec.smokePoints.isEmpty()) return
         val (sx, sy) = onHull(spec.smokePoints[random.nextInt(spec.smokePoints.size)])
         pendingEffects += GameEvent.Effect(EffectKind.SMOKE, sx, sy)
@@ -1582,7 +1599,8 @@ class Tank(state: State) :
         // A tank that fell into a pit lies at the bottom without burning.
         if (height < 1) return
         if (dyingTicks > 0) {
-            dyingTicks -= 1
+            // Legacy control_tank(): an explosion on every step until `contr.disable` runs out.
+            dyingTicks = dyingTicks.afterStep()
             pendingEffects += GameEvent.Effect(
                 EffectKind.EXPLOSION,
                 positionX - 8 + random.nextInt(16),
@@ -1590,10 +1608,8 @@ class Tank(state: State) :
             )
             return
         }
-        if (smokeCooldownTicks > 0) {
-            smokeCooldownTicks -= 1
-            return
-        }
+        smokeCooldownTicks = smokeCooldownTicks.afterStep()
+        if (smokeCooldownTicks > 0) return
         pendingEffects += GameEvent.Effect(EffectKind.ROOK, positionX - 4 + random.nextInt(8), positionY - 4 + random.nextInt(8))
         smokeCooldownTicks = WRECK_SMOKE_MIN_TICKS + random.nextInt(WRECK_SMOKE_SPREAD_TICKS)
     }
@@ -1603,7 +1619,7 @@ class Tank(state: State) :
      * counting as available when the vehicle has one.
      */
     private fun stepWeaponCycle() {
-        weaponCycleCooldownTicks = (weaponCycleCooldownTicks - 1).coerceAtLeast(0)
+        weaponCycleCooldownTicks = weaponCycleCooldownTicks.afterStep()
         if (weaponCycleCooldownTicks > 0) return
         val step = when {
             pendingIntent.cycleWeaponRight && !pendingIntent.cycleWeaponLeft -> 1

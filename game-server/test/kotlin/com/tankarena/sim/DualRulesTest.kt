@@ -137,6 +137,8 @@ class DualRulesTest {
         var won: Int? = null
         var ticks = 0
         while (car.positionX < 9 * T && ticks++ < 2000) match.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
+        // Stop first, so the turn does not carry the car off the one-tile track.
+        while (car.speed > 1f && ticks++ < 3000) match.tick(mapOf(0 to PlayerIntentFrame()))
         while (car.bodyDirection != 12 && ticks++ < 3000) match.tick(mapOf(0 to PlayerIntentFrame(turnLeft = true)))
         while (won == null && ticks++ < 6000) {
             val frame = match.tick(mapOf(0 to PlayerIntentFrame(forward = true)))

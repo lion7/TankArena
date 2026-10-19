@@ -25,8 +25,9 @@ several tracks can run side by side.
 Goal: any behaviour change shows up in a test before it reaches a playtest.
 
 - [x] Commit recorded playthroughs: BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1 lost (`9f816d5`).
-- [ ] Re-record BEGIN4 under rules v11; add more single-player missions, a two-vs-computer mission and
-      player-vs-player matches (deathmatch, flag hunt, race).
+- [ ] Play the recordings again under rules v12 (the legacy step made the v11 ones obsolete): BEGIN1–4,
+      more single-player missions, a two-vs-computer mission and player-vs-player matches (deathmatch,
+      flag hunt, race).
 - [x] CI on GitHub Actions (`.github/workflows/ci.yml`): build and all tests on every push and pull
       request; nightly idle scan and tick benchmark. `.gitignore` lets `.github/` through. Green on
       GitHub since 2026-10-19.
@@ -57,7 +58,7 @@ Carried over:
 
 - `MatchHost` in common code and drivers per platform: with the module layout of phase 7.
 - Splitting `Tank` (1,760 lines) like `Match`: when vehicle rules are next reworked.
-- The legacy step every 3rd tick: with its first rule, in phase 3.
+- The legacy step every 3rd tick: done in phase 3 (rules v12).
 - `Wall` and the wall entries in scene files: with the native map format, phase 2.
 
 ## Phase 2 — Native map format ([ADR 0022](adrs/0022-native-map-format.md), [ADR 0003](adrs/0003-legacy-map-import.md))
@@ -80,8 +81,8 @@ Goal: one readable file per map, and permanent `.MAP` import and export.
 Goal: Classic matches the original everywhere listed in [parity.md](parity.md). Each item cites the C
 source, gets a test, bumps the Classic rules version when it changes play, and refreshes recordings.
 
-1. **Legacy step:** move every per-step rule into it (rocket acceleration confirmed; audit rotors,
-   effects and every `++`/`--` in control functions).
+1. ~~**Legacy step:**~~ done 2026-10-19 (rules v12): the game runs one step every third tick, timers
+   run out on steps, per-step rules run once per step ([ADR 0002](adrs/0002-fixed-step-100hz.md)).
 2. **Rule differences:** heavy mines, mine trigger and visibility, mortar blast steps, rocket targets,
    warps (all object kinds, no cooldown, sparks and sound), respawn leaving the wreck, map wrap, AI
    `fire_delay` (import it), radar hiding cloaked tanks, F-key mapping in two-vs-computer.

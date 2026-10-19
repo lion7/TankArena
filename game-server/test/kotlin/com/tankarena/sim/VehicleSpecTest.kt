@@ -101,7 +101,7 @@ class VehicleSpecTest {
 
         // Legacy hit_tank() sets `weap.reload` on the other side's tanks; tank_refill() then tops up on the pad.
         match.tanksForTest().first { it.playerIndex == 1 }.queueDestroy()
-        repeat(3) { match.tick() }
+        repeat(2 * STEP_TICKS) { match.tick() }
         assertEquals(full, tank.ammoFor(WEAPON_MAIN))
         match.dispose()
     }

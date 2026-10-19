@@ -32,7 +32,7 @@ class Mine internal constructor(state: State) : Steppable,
     val isActive: Boolean get() = activationTicksRemaining <= 0 && !isDead
 
     override fun update(deltaTimeInMilliseconds: Int) {
-        if (activationTicksRemaining > 0) activationTicksRemaining -= 1
+        activationTicksRemaining = activationTicksRemaining.afterStep()
     }
 
     internal fun detonateOn(victim: Tank?) {

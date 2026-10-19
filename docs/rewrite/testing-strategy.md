@@ -71,9 +71,11 @@ the identical result; a second test records and replays a scripted BEGIN2 match.
 normal play (the client saves every mission) and are tied to `GAME_RULES_VERSION`
 ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
 
-Committed on 2026-10-19: BEGIN1 ×2, BEGIN2 won and lost, BEGIN3 and COMBAT1 lost. Five of them were
-played under rules v10 and replay identically under v11, so they were relabelled. BEGIN4's v10
-recording no longer replays (v11 changed its rocket turrets) and must be played again.
+**No recordings at the moment.** Rules v12 (the legacy step, 2026-10-19) changed how every match
+plays out; the six v11 recordings (BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1 lost) replay to
+different results and were moved to `recordings/v11/`, where only the reference renders use them as
+input. Until new ones are played, the scripted BEGIN2 recording and the replay-client test are the
+only replay checks.
 
 When the rules version is bumped, first replay the existing recordings with the new version: re-record
 only those that change, and relabel the rest. Recordings were the main safety net for removing Kubriko

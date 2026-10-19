@@ -29,11 +29,10 @@ never built and is withdrawn here (replays store inputs instead; see ADR 0014).
 ## Consequences
 
 - C timings port one-to-one (refire `weap.speed`, respawn 300, shield and cloak durations, AI
-  re-targeting every 100 + rnd(100), and so on).
-- The client does not interpolate between ticks; at 100 ticks per second the steps are smaller than a
-  display frame, so none is needed.
-- Where the original derived motion from the elapsed timer (`dt`) rather than per tick, the port uses
-  the fixed 10 ms step; physics constants are expressed per second and multiplied by 0.01 s.
+  re-targeting every 100 + rnd(100), and so on), counted in ticks; they run out on steps (below).
+- The client does not interpolate; like the original, the world changes about 33 times a second.
+- Where the original derives motion from the elapsed timer (`dt`), the port uses the 0.03 s of a
+  step (`STEP_SECONDS`); physics constants are per second.
 
 ## The original's game step is not its timer tick
 
@@ -43,13 +42,22 @@ next step 2 ticks later, so steps are at least **3 timer ticks apart (about 33 s
 fewer when drawing is slow. Movement uses the elapsed time (`dt`) and every delay uses `tinit()`
 timers, so both are independent of the step rate — those port correctly to 100 Hz.
 
-Rules that change something by a fixed amount **per step** do not: for example the guided rocket gains
-1 px/s per step (`src/objects/rocket.c:29`) and a rotor with `auto_rotation` 0 turns one direction per
-step. Ported one-to-one onto the 100 Hz tick they run about three times faster (the rewrite's rocket
-reaches 150 px/s in 1.5 s instead of about 4.5 s).
+Two things depend on the step rate:
 
-**Decision (2026-10-19):** the simulation keeps the 100 Hz tick as its time base and adds a **legacy
-step** that runs every 3rd tick. Rules the original advances per game step run in the legacy step;
-everything driven by `tinit()` timers or elapsed time stays on the tick. This reproduces the
-original's ~33 steps per second without changing any timer. Finding every per-step rule is open
-parity work ([parity.md](../parity.md#engine-and-game-loop)); each fix bumps `GAME_RULES_VERSION`.
+- Rules that change something by a fixed amount **per step**: the guided rocket gains 1 px/s per step
+  (`src/objects/rocket.c:29`), computer tanks roll their steering noise per step
+  (`src/tanks/computer.c:715`), wagons close up per step (`src/objects/train.c:267`), wrecks explode
+  per step. On a 100 Hz tick they run three times as often.
+- **Timers** (`tdone(t)` is `timer >= t`) are only looked at on a step, so a `tinit(n)` set on a step
+  runs out on the first step at or after `n` ticks: 7 lasts 9, 10 lasts 12, 200 lasts 201. Counted
+  per tick, tanks turned about 29% and the chain gun fired about 20% faster than in the original.
+
+**Decision (first version, 2026-10-19):** keep timers and movement on the 100 Hz tick and run only the
+per-step rules in a legacy step. **Revised the same day** when the audit found the timer rounding, and
+built: the whole game runs in **legacy steps**. `Match.tick()` counts 100 Hz ticks and runs a game
+step on every third one (`STEP_TICKS`); the two ticks between leave the world as it is and ignore the
+controls, as the original reads them only on a step. In a step every rule runs once, movement covers
+`STEP_SECONDS` (0.03 s, the original's `dt`), and count-down timers lose 3 ticks but stop at 0
+(`afterStep()`), which gives `tdone()`'s rounding. Both rulesets use it (decided by the user,
+2026-10-19: "so it stays true to the original"). Classic rules v12 and Extended v2; every recording
+had to be played again.

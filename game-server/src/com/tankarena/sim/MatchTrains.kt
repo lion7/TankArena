@@ -109,7 +109,7 @@ internal fun Match.controlTrain(car: Train) {
         changeSpeed(car, v)
     }
     if (car.smokes) {
-        if (car.smokeCooldownTicks > 0) car.smokeCooldownTicks -= 1
+        car.smokeCooldownTicks = car.smokeCooldownTicks.afterStep()
         if (car.smokeCooldownTicks == 0) {
             car.smokeCooldownTicks = 20 + trainRandom.nextInt(20)
             val (sx, sy) = rotate(turnDirection, TRAIN_SMOKE_OFFSET)
@@ -124,7 +124,7 @@ internal fun Match.controlTrain(car: Train) {
     if (front != null) {
         changeSpeed(car, front.speed)
     } else {
-        if (car.speedChangeCooldownTicks > 0) car.speedChangeCooldownTicks -= 1
+        car.speedChangeCooldownTicks = car.speedChangeCooldownTicks.afterStep()
         if (car.speedChangeCooldownTicks == 0) {
             v = if (car.isEngine) minOf(v + 5, TRAIN_MAX_SPEED) else if (v > 5) v - 5 else 0
             changeSpeed(car, v)

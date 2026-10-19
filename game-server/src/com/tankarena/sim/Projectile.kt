@@ -100,22 +100,23 @@ class Projectile internal constructor(state: State) : Steppable,
     override fun update(deltaTimeInMilliseconds: Int) {
         if (isDead) return
         previousPosition = positionX to positionY
-        exactX += velocityX
-        exactY += velocityY
+        // Velocities are per tick; a step covers STEP_TICKS of them (legacy add_angle()).
+        exactX += velocityX * STEP_TICKS
+        exactY += velocityY * STEP_TICKS
         positionX = exactX.toInt()
         positionY = exactY.toInt()
         syncBody()
         if (safetyLeft > 0f) {
-            safetyLeft -= DetMath.hypot(velocityX, velocityY)
+            safetyLeft -= DetMath.hypot(velocityX, velocityY) * STEP_TICKS
         } else if (weaponKind == SHOT_SMALL_ROCKET) {
             // Legacy control_bullets(): a small rocket trails exhaust every 5..10 ticks.
-            if (trailCooldownTicks > 0) trailCooldownTicks -= 1
+            trailCooldownTicks = trailCooldownTicks.afterStep()
             if (trailCooldownTicks == 0) {
                 pendingTrail = previousPosition
                 trailCooldownTicks = 5 + trailRandom.nextInt(5)
             }
         }
-        ttlTicks -= 1
+        ttlTicks -= STEP_TICKS
         if (ttlTicks <= 0) {
             markDead(positionX, positionY)
             expired = true

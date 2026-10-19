@@ -52,9 +52,9 @@ class MineTest {
                 break
             }
         }
-        // Damage queued in the same tick the mine detonates is applied on the next
-        // tick's resolution pass — drive one more tick so the armor drop is visible.
-        prototype.tick()
+        // Damage queued in the step the mine detonates is applied on the next step's
+        // resolution pass — drive one more step so the armor drop is visible.
+        repeat(STEP_TICKS) { prototype.tick() }
 
         val victimAfter = prototype.snapshot().tankByPlayerIndex(0).armor
         val victimX = prototype.snapshot().tankByPlayerIndex(0).x

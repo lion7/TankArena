@@ -35,9 +35,9 @@ class RocketTest {
         val startX = shooter.positionX
         val startY = shooter.positionY
 
-        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         assertTrue(shooter.lockActive, "fire should bring out the marker")
-        repeat(30) { prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true, reverse = true))) }
+        repeat(30) { prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true, reverse = true))) }
 
         assertEquals(startX, shooter.positionX, "the tank must not drive while the marker is out")
         assertEquals(startY, shooter.positionY, "the tank must not drive while the marker is out")
@@ -61,16 +61,16 @@ class RocketTest {
         // The victim drives around, so keep chasing its current position.
         steerMarkerTo(prototype, { victim.positionX }, { victim.positionY })
         assertEquals(LockMarkerState.ON_TARGET, prototype.buildPlayerViews().single().lockMarker?.state)
-        prototype.tick(mapOf(0 to PlayerIntentFrame()))
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame()))
         assertEquals(1, prototype.snapshotRockets().size, "releasing fire launches the rocket")
 
         var exploded = false
         repeat(1000) {
             if (exploded) return@repeat
-            val frame = prototype.tick()
+            val frame = prototype.stepForTest()
             exploded = frame.events.any { it is GameEvent.Explosion && it.kind == ExplosionKind.ROCKET }
         }
-        prototype.tick()
+        prototype.stepForTest()
         assertTrue(exploded, "rocket should reach its target")
         val victimAfter = prototype.snapshot().enemyTank().armor
         assertTrue(victimAfter < victimBefore, "victim armor should drop — was $victimBefore, now $victimAfter")
@@ -83,8 +83,8 @@ class RocketTest {
         prototype.initialize()
         prototype.selectWeaponForTest(WEAPON_ROCKET)
         val shooter = prototype.playerTankForTest(0)!!
-        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
-        repeat(400) { prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true, turnRight = true))) }
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        repeat(400) { prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true, turnRight = true))) }
         val distance = shooter.lockX - shooter.positionX
         assertTrue(distance in 400 until LOCK_MAX_RANGE_PX, "marker should stop just short of 450 px, got $distance")
         prototype.dispose()
@@ -100,12 +100,12 @@ class RocketTest {
         val goalY = shooter.positionY
         steerMarkerTo(prototype, { goalX }, { goalY })
         val targetX = shooter.lockX
-        prototype.tick(mapOf(0 to PlayerIntentFrame()))
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame()))
 
         var explosion: GameEvent.Explosion? = null
         repeat(1000) {
             if (explosion != null) return@repeat
-            explosion = prototype.tick().events.filterIsInstance<GameEvent.Explosion>().firstOrNull()
+            explosion = prototype.stepForTest().events.filterIsInstance<GameEvent.Explosion>().firstOrNull()
         }
         val blast = assertNotNull(explosion, "rocket should arrive")
         assertTrue(abs(blast.x - targetX) <= ROCKET_ARRIVAL_PX, "blast at ${blast.x}, marker at $targetX")
@@ -116,12 +116,12 @@ class RocketTest {
     /** Hold fire and steer the marker until it is within a few pixels of ([x], [y]), which may move. */
     private fun steerMarkerTo(prototype: Match, x: () -> Int, y: () -> Int) {
         val shooter = prototype.playerTankForTest(0)!!
-        prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         repeat(600) {
             val dx = x() - shooter.lockX
             val dy = y() - shooter.lockY
             if (abs(dx) <= 4 && abs(dy) <= 4) return
-            prototype.tick(
+            prototype.stepForTest(
                 mapOf(
                     0 to PlayerIntentFrame(
                         firePrimary = true,

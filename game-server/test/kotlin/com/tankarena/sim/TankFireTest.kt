@@ -178,11 +178,11 @@ class TankFireTest {
             mapWithTwoTanksFacing(shooterDirection = 4, victimDirection = 12),
         )
         chain.initialize()
-        chain.tick(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
-        repeat(15) { chain.tick() }
+        chain.stepForTest(mapOf(0 to PlayerIntentFrame(cycleWeaponRight = true)))
+        repeat(6) { chain.stepForTest() }
         val chainBefore = chain.snapshot().tankByPlayerIndex(1).armor
-        chain.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
-        repeat(200) { chain.tick() }
+        chain.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        repeat(70) { chain.stepForTest() }
         val chainAfter = chain.snapshot().tankByPlayerIndex(1).armor
         val chainDamage = chainBefore - chainAfter
         chain.dispose()

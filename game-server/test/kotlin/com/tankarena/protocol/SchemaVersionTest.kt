@@ -6,7 +6,7 @@ import com.tankarena.content.SCENE_SCHEMA_VERSION
 import com.tankarena.protocol.snapshot.PROTOCOL_VERSION
 import com.tankarena.protocol.snapshot.WorldSnapshot
 import com.tankarena.protocol.snapshot.decodeWorldSnapshot
-import com.tankarena.sim.kubriko.server.LegacyToSceneJson
+import com.tankarena.sim.LegacyToSceneJson
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals

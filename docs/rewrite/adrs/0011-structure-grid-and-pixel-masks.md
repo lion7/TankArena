@@ -1,7 +1,7 @@
 # ADR 0011: Structures as a Tile Grid with Pixel Masks
 
 - **Status:** Accepted (2026-10-06, commit `f73a9aa`).
-- **Supersedes:** "each solid tile is a `ServerWallActor`" with Kubriko box collisions and
+- **Supersedes:** "each solid tile is a `Wall`" with Kubriko box collisions and
   `TerrainSlideManager` sliding (2026-04).
 
 ## Context
@@ -20,7 +20,7 @@ the actor count was the main performance cost.
 
 ## Decision
 
-- **`StructureGrid`** (`game-server/.../server/StructureGrid.kt`) holds the solid and top layers with
+- **`StructureGrid`** (`game-server/.../sim/StructureGrid.kt`) holds the solid and top layers with
   their strengths, links, ruins, goal shares and changed tiles, initialised from the sidecar's tile
   layers exactly as `load_map()` does.
 - **Pixel masks** of every picture are generated at build time (`tools-mapconv extract-masks` →
@@ -36,6 +36,7 @@ the actor count was the main performance cost.
 - Destructible buildings, ruins, bridges, fuel dumps, shelters and locks that protect structures all
   work as in the original.
 - No wall actors are simulated. The scene files still carry `tankArenaWall` entries for the editor
-  only ([ADR 0008](0008-kubriko-and-scene-json.md)); `ServerWallActor`, `WallState` and the
+  only ([ADR 0008](0008-kubriko-and-scene-json.md)); `Wall`, `WallState` and the
   client's wall rendering branch are dead at runtime and should go when the scene format changes.
-- `TerrainSlideManager` lost its sliding role ([ADR 0007](0007-authoritative-headless-kubriko-server.md)).
+- `TerrainSlideManager` lost its sliding role ([ADR 0007](0007-authoritative-headless-kubriko-server.md))
+  and was removed with Kubriko in 2026-10 ([ADR 0019](0019-plain-kotlin-no-kubriko.md)).

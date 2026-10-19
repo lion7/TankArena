@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (2026-10-19); in progress. Done: the simulation and the importer no longer use
   Kubriko (a game-owned object list and scene reader/writer; the scene files and every recording are
-  unchanged), and `:game-editor` is deleted. Left: the client renderer and the rest of the roadmap's
+  unchanged), `:game-editor` is deleted, and the simulation lives in `com.tankarena.sim` with plain
+  names (`Match`, `Tank`, `Turret`, …). Left: the client renderer and the rest of the roadmap's
   phase 1.
 - **Supersedes:** the Kubriko parts of [ADR 0001](0001-desktop-first-compose-kubriko.md),
   [ADR 0007](0007-authoritative-headless-kubriko-server.md) and
@@ -13,7 +14,7 @@
 Since the port of the original's rules ([ADR 0010](0010-port-the-original-rules.md)) Kubriko does
 little for the game:
 
-- **Server:** `ServerMatchPrototype.tick()` is a hand-written pipeline; Kubriko's tick is one of its
+- **Server:** `Match.tick()` is a hand-written pipeline; Kubriko's tick is one of its
   ~45 steps and only calls `update()` on five actor types. `CollisionManager` has no effect,
   `TerrainSlideManager` only applies queued damage and pushes, replication is a hand-written
   projection, and actors are added asynchronously, so the server polls until they appear
@@ -57,10 +58,10 @@ pass before and after, proving that nothing about gameplay moved.
 
 - `game-sim` depends only on Kotlin and kotlinx.serialization; it can run in a dedicated server, on
   Android and in a browser.
-- Deleted: `TerrainSlideManager`, `Resolvable`, the `Collidable`/`Editable` interfaces on game
-  classes, `ServerWallActor`/`WallState`, `TankArenaSerializableMetadata`, `awaitActorCount`,
+- Deleted (most of it in step 1a): `TerrainSlideManager`, Kubriko's `Collidable`/`Editable` interfaces on game
+  classes, `Wall`/`WallState`, `TankArenaSerializableMetadata`, `awaitActorCount`,
   `ScenePreloadManager`, the Kubriko render actors and `:game-editor`.
-- `ServerMatchPrototype` (3,149 lines) and `ServerTankActor` (1,760 lines) are split by system as part
+- `Match` (3,149 lines) and `Tank` (1,760 lines) are split by system as part
   of the move.
 - The renderer is new code; its output is checked against the current client with offscreen renders
   of the same snapshots before the old one is removed.

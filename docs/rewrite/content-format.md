@@ -21,22 +21,22 @@ one per map of the original release, including `select`, the tank selection aren
 ### Scene file
 
 A JSON list of `{typeId, state}` entries. Each `state` is the `State` data class of a server map
-object (`Server*Actor.State`). Type ids and their counts over the 69 shipped maps on 2026-10-19:
+object (`map object.State`). Type ids and their counts over the 69 shipped maps on 2026-10-19:
 
 | `typeId` | Server class | Count | Notes |
 |---|---|---|---|
-| `tankArenaTank` | `ServerTankActor` | 718 | Map tanks and start pads (`startPadType`, `padAmmo`) |
-| `tankArenaTurret` | `ServerTurretActor` | 672 | |
-| `tankArenaMine` | `ServerMineActor` | 1252 | Authored mines |
-| `tankArenaTrain` | `ServerTrainActor` | 244 | Engines and wagons with their rail state |
-| `tankArenaLock` | `ServerLockActor` | 148 | |
-| `tankArenaProduct` | `ServerProductActor` | 84 | |
-| `tankArenaWarp` | `ServerWarpActor` | 70 | |
-| `tankArenaFlag` | `ServerFlagActor` | 42 | |
-| `tankArenaGoal` | `ServerGoalActor` | 36 | |
-| `tankArenaB52` | `ServerB52Actor` | 6 | |
-| `tankArenaDestroyer` | `ServerDestroyerActor` | 2 | |
-| `tankArenaWall` | `ServerWallActor` | 40,263 | Editor only; dropped when a match starts |
+| `tankArenaTank` | `Tank` | 718 | Map tanks and start pads (`startPadType`, `padAmmo`) |
+| `tankArenaTurret` | `Turret` | 672 | |
+| `tankArenaMine` | `Mine` | 1252 | Authored mines |
+| `tankArenaTrain` | `Train` | 244 | Engines and wagons with their rail state |
+| `tankArenaLock` | `Lock` | 148 | |
+| `tankArenaProduct` | `Product` | 84 | |
+| `tankArenaWarp` | `Warp` | 70 | |
+| `tankArenaFlag` | `Flag` | 42 | |
+| `tankArenaGoal` | `Goal` | 36 | |
+| `tankArenaB52` | `B52` | 6 | |
+| `tankArenaDestroyer` | `Destroyer` | 2 | |
+| `tankArenaWall` | `Wall` | 40,263 | Editor only; dropped when a match starts |
 
 Enforcer and zeppelin types exist but no shipped map uses them. Placed men and bonuses are parsed
 by the importer but not written (none of the 69 maps has them as objects; men and bonuses come from
@@ -69,7 +69,7 @@ Layers are row-major lists of `widthTiles × heightTiles` integers.
 ## Loading
 
 1. The client asks `ShippedScenes.load(name)` for the pair (class path, cached).
-2. `ServerMatchPrototype.fromSceneJson` deserializes the scene's map objects, drops the wall entries,
+2. `Match.fromSceneJson` deserializes the scene's map objects, drops the wall entries,
    builds the terrain grid (`TerrainGridBuilder`, material and speed per tile from the generated
    picture terrain table) and the `StructureGrid` from the tile layers.
 3. The client draws the terrain from the same sidecar layers; destroyed tiles arrive as `TileState`s.

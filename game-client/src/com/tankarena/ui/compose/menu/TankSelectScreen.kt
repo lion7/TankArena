@@ -39,10 +39,10 @@ import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.render.kubriko.TankArenaViewport
-import com.tankarena.sim.kubriko.server.LegacyVehicles
-import com.tankarena.sim.kubriko.server.LocalMatchClient
-import com.tankarena.sim.kubriko.server.MatchMode
-import com.tankarena.sim.kubriko.server.VehicleKind
+import com.tankarena.sim.LegacyVehicles
+import com.tankarena.sim.LocalMatchClient
+import com.tankarena.sim.MatchMode
+import com.tankarena.sim.VehicleKind
 import com.tankarena.ui.compose.DualMatch
 import com.tankarena.ui.compose.GAME_FADE_MILLIS
 import com.tankarena.ui.compose.LegacyScreenScope

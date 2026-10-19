@@ -2,9 +2,9 @@ package com.tankarena.ui.compose.menu
 
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.snapshot.TankState
-import com.tankarena.sim.kubriko.server.DualSetup
-import com.tankarena.sim.kubriko.server.LocalMatchClient
-import com.tankarena.sim.kubriko.server.MatchMode
+import com.tankarena.sim.DualSetup
+import com.tankarena.sim.LocalMatchClient
+import com.tankarena.sim.MatchMode
 import com.tankarena.ui.compose.GameMode
 import kotlin.test.Test
 import kotlin.test.fail

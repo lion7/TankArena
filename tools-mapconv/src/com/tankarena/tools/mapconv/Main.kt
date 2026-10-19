@@ -2,8 +2,8 @@ package com.tankarena.tools.mapconv
 
 import com.tankarena.content.SCENE_INDEX_FILE_NAME
 import com.tankarena.legacy.LegacyMapParser
-import com.tankarena.sim.kubriko.server.LegacyToSceneJson
-import com.tankarena.sim.kubriko.server.legacy.LegacyCanonicalConverter
+import com.tankarena.sim.LegacyToSceneJson
+import com.tankarena.sim.legacy.LegacyCanonicalConverter
 import java.io.File
 import kotlinx.serialization.json.Json
 

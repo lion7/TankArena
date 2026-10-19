@@ -7,9 +7,9 @@ import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.use
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.kubriko.ViewportEventQueue
-import com.tankarena.sim.kubriko.server.MatchMode
-import com.tankarena.sim.kubriko.server.MatchRecording
-import com.tankarena.sim.kubriko.server.MatchReplay
+import com.tankarena.sim.MatchMode
+import com.tankarena.sim.MatchRecording
+import com.tankarena.sim.MatchReplay
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
 import com.tankarena.ui.compose.menu.MissionCatalog

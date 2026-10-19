@@ -1,31 +1,31 @@
 # Legacy System Map
 
 Where each part of the original C source (`src/`, about 23,800 lines of C and assembly) lives in the
-rewrite. Kotlin paths are abbreviated: `server/` is `game-server/src/com/tankarena/sim/kubriko/server/`,
+rewrite. Kotlin paths are abbreviated: `server/` is `game-server/src/com/tankarena/sim/`,
 `client/` is `game-client/src/com/tankarena/`, `content/` is `game-content/src/com/tankarena/`.
 
 ## Gameplay (`src/tanks`, `src/check`, `src/objects`, `src/world`)
 
 | Original | Rewrite |
 |---|---|
-| `tanks/control.c` (movement, heights, terrain effects) | `server/ServerTankActor.kt`; terrain effects in `ServerMatchPrototype.applyTerrainEffects` |
-| `tanks/fire.c` (weapons) | `server/ServerTankActor.kt` (`stepFire`, `fire*`) |
-| `tanks/tank.c` (damage, death, start shield) | `server/ServerTankActor.kt` (`applyPendingResolutions`, `respawn`) |
+| `tanks/control.c` (movement, heights, terrain effects) | `server/Tank.kt`; terrain effects in `Match.applyTerrainEffects` |
+| `tanks/fire.c` (weapons) | `server/Tank.kt` (`stepFire`, `fire*`) |
+| `tanks/tank.c` (damage, death, start shield) | `server/Tank.kt` (`applyPendingResolutions`, `respawn`) |
 | `tanks/computer.c` (AI) | `server/ComputerTankAi.kt` |
-| `check/hitwall.c`, `check/overlap.c` | `server/StructureGrid.kt`, `ServerTankActor.overlapWithMask` |
-| `check/hitobj.c` (shot hits) | `ServerMatchPrototype.checkProjectileVehicleHits`, flame contacts |
-| `check/collide.c` (vehicle collisions, mines) | `ServerTankActor.collideWithVehicle`, `ServerMatchPrototype.triggerMineContacts` |
-| `check/pit.c` | `ServerMatchPrototype.inPit`, `ServerTankActor.stepFall` |
+| `check/hitwall.c`, `check/overlap.c` | `server/StructureGrid.kt`, `Tank.overlapWithMask` |
+| `check/hitobj.c` (shot hits) | `Match.checkProjectileVehicleHits`, flame contacts |
+| `check/collide.c` (vehicle collisions, mines) | `Tank.collideWithVehicle`, `Match.triggerMineContacts` |
+| `check/pit.c` | `Match.inPit`, `Tank.stepFall` |
 | `check/math.c`, `check/raw_over.s` | Kotlin math; `content/PictureMasks.kt` |
-| `objects/turret.c` | `server/ServerTurretActor.kt` |
-| `objects/rocket.c`, `mortar.c`, `mine.c`, `abomb.c` | `ServerRocketActor`, `ServerMortarActor`, `ServerMineActor`, `MatchObjects.Abomb` |
+| `objects/turret.c` | `server/Turret.kt` |
+| `objects/rocket.c`, `mortar.c`, `mine.c`, `abomb.c` | `Rocket`, `Mortar`, `Mine`, `MatchObjects.Abomb` |
 | `objects/man.c`, `bonus.c` | `server/MatchObjects.kt` (`Soldier`, `Bonus`) |
-| `objects/train.c` | `ServerMatchPrototype.controlTrain`, `ServerTrainActor` |
-| `objects/b52.c`, `zeppelin.c` | `ServerMatchPrototype` (B52 and zeppelin steps), `ServerB52Actor`, `ServerZeppelinActor` |
-| `objects/goal.c`, `flag.c`, `product.c`, `lock.c`, `warp.c`, `destroy.c`, `enforce.c` | `ServerMatchPrototype` steps plus the matching `Server*Actor` |
-| `objects/player.c` (start pads) | `server/DualRules.kt`, `ServerTankActor` (pads, refill) |
-| `objects/objects.c` (object list, goal counter) | `ServerMatchPrototype` (`modifyGoalCounter`, mission rules) |
-| `world/bullet.c` | `server/ServerProjectileActor.kt` |
+| `objects/train.c` | `Match.controlTrain`, `Train` |
+| `objects/b52.c`, `zeppelin.c` | `Match` (B52 and zeppelin steps), `B52`, `Zeppelin` |
+| `objects/goal.c`, `flag.c`, `product.c`, `lock.c`, `warp.c`, `destroy.c`, `enforce.c` | `Match` steps plus the matching `map object` |
+| `objects/player.c` (start pads) | `server/DualRules.kt`, `Tank` (pads, refill) |
+| `objects/objects.c` (object list, goal counter) | `Match` (`modifyGoalCounter`, mission rules) |
+| `world/bullet.c` | `server/Projectile.kt` |
 | `world/effects.c` | `GameEvent` effects; drawn by `client/render/kubriko/ClientScene.kt` |
 | `world/status.c` (status display, pilot messages) | `client/ui/compose/hud/HudOverlay.kt`; messages from the server |
 | `world/under.c`, `world/rawunder.s` (terrain drawing) | `client/render/kubriko/TerrainActor.kt` |
@@ -45,7 +45,7 @@ rewrite. Kotlin paths are abbreviated: `server/` is `game-server/src/com/tankare
 | `mapfiles.c` (load/save maps, map-type rules) | importer (`content/legacy/LegacyMapParser.kt`, `server/legacy/`), `MissionCatalog` filters |
 | `init.c` (pictures, night pictures) | `tools-mapconv` extractors; `NightLighting`, `NightHud` |
 | `night.c` | `client/render/kubriko/NightLighting.kt` |
-| `radar.c` | `HudOverlay` radar; contacts from `ServerMatchPrototype.buildRadar` |
+| `radar.c` | `HudOverlay` radar; contacts from `Match.buildRadar` |
 | `settings.c` (`TANK.CFG`) | `GameOptionsStore` (`settings.json`) |
 
 ## Graphics, sound, hardware (`src/graph`, `src/hardware`)

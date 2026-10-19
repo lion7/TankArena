@@ -24,7 +24,7 @@ favour of extending the Kubriko-based editor until it can do everything the orig
   `game-content/resources/scenes/` by default.
 - It reuses the server's map object classes and their `State` through Kubriko's `Editable` interface,
   so editor and game read the same files with no translation.
-- **Boundary rule:** the editor never runs the simulation. It must not reference `ServerMatchPrototype`,
+- **Boundary rule:** the editor never runs the simulation. It must not reference `Match`,
   `CollisionManager` or `TerrainSlideManager`; `EditorBoundaryGuardTest` (in
   `game-server/test/kotlin/com/tankarena/app/editor/`) fails the build if it does.
 - To reach parity the editor has to be extended with (tracked in [parity.md](../parity.md#map-editor)):

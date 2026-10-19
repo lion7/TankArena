@@ -12,7 +12,7 @@ drifted apart.
 
 ## Decision
 
-- **One authoritative simulation per match**, in `:game-server` (`ServerMatchPrototype`). Single
+- **One authoritative simulation per match**, in `:game-server` (`Match`). Single
   player, two players on one machine and (later) networked play all run the same code.
 - **The client only renders.** It submits `InputFrame`s and draws `ServerFrame`s through `MatchClient`
   ([ADR 0005](0005-network-ready-input-protocol-boundary.md)); it never decides gameplay.
@@ -29,12 +29,12 @@ Removed on 2026-10-19 (phase 1, [ADR 0019](0019-plain-kotlin-no-kubriko.md)); ke
 The 2026-04 version of this ADR said the match is a headless Kubriko instance whose managers do the
 work. That is no longer true:
 
-- `ServerMatchPrototype.tick()` is a hand-written pipeline of about 45 steps in the original's order
+- `Match.tick()` is a hand-written pipeline of about 45 steps in the original's order
   of concerns. Kubriko's `tickSource.tick(10)` is one step in it, which runs the `update()` of the
   tank, projectile, mine, rocket and mortar actors.
 - Kubriko's `ActorManager` holds the map objects, and its `SerializationManager` reads the scene file.
 - `CollisionManager` is registered but does nothing useful; collisions are the original's pixel-mask
-  and circle tests (`StructureGrid`, `ServerTankActor`; see [ADR 0011](0011-structure-grid-and-pixel-masks.md)).
+  and circle tests (`StructureGrid`, `Tank`; see [ADR 0011](0011-structure-grid-and-pixel-masks.md)).
 - `TerrainSlideManager` no longer slides tanks along walls; it only applies each tank's queued damage
   and vehicle pushes after the actor update.
 - `PhysicsManager` (Box2D) was never used.
@@ -43,7 +43,7 @@ work. That is no longer true:
 
 - One simulation code path, deterministic and testable without a window
   ([ADR 0014](0014-simulation-thread-and-recordings.md)).
-- Scene-file state (`Server*Actor.State`) and wire state (`ActorState`) are separate types; adding a
+- Scene-file state (`map object.State`) and wire state (`ActorState`) are separate types; adding a
   field to a map object may mean touching both.
 - The server's Kubriko dependency costs more than it gives (asynchronous actor adds that need
   `awaitActorCount`, no-op managers, Compose on the server classpath). ADR 0019 removes it.

@@ -26,7 +26,7 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
                  +-------------------------------------------------------------------+
                                     |  LocalMatchClient (in-process)
                  +--------------------- game-server (library) ----------------------+
-                 | ServerMatchPrototype: map objects, StructureGrid, ComputerTankAi, |
+                 | Match: map objects, StructureGrid, ComputerTankAi, |
                  | DualRules, mission rules  -->  WorldSnapshot + PlayerViews        |
                  +-------------------------------------------------------------------+
                                     |  ShippedScenes (class path)
@@ -81,12 +81,12 @@ Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-edi
 
 ### `:game-server`
 
-All under `com.tankarena.sim.kubriko.server`.
+All under `com.tankarena.sim`.
 
 | File | Role |
 |---|---|
-| `ServerMatchPrototype` | The match: setup, the tick pipeline, hits, structures, objects, mission rules, snapshot and views |
-| `ServerTankActor` | Vehicles: movement physics, heights, weapons, damage, shield, cloak, lights |
+| `Match` | The match: setup, the tick pipeline, hits, structures, objects, mission rules, snapshot and views |
+| `Tank` | Vehicles: movement physics, heights, weapons, damage, shield, cloak, lights |
 | `ComputerTankAi` | Port of `control_computer_tank()` ([ADR 0012](adrs/0012-port-the-computer-ai.md)) |
 | `StructureGrid` | Buildings: strengths, links, ruins, goal shares, masks ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)) |
 | `DualRules` | Player vs player: start pads and lives, flag hunt, races |
@@ -94,7 +94,7 @@ All under `com.tankarena.sim.kubriko.server`.
 | `LegacyVehicles`, `GeneratedLegacyVehicles` | The 23-vehicle table from `src/data/tanks.c` |
 | `MatchObjects` | Runtime-only objects: bonuses, soldiers, A-bombs |
 | `AreaDamageResolver` | Blast damage for mines, mortars, rockets, A-bombs |
-| `Server*Actor` (17 files) | Map objects: turret, projectile, mine, rocket, mortar, goal, flag, product, lock, warp, destroyer, enforcer, train, zeppelin, B52, wall |
+| `Tank`, `Turret`, `Projectile`, … (17 files) | Map objects: tank, turret, projectile, mine, rocket, mortar, goal, flag, product, lock, warp, destroyer, enforcer, train, zeppelin, B52, wall |
 | `MatchClient` | `MatchClient` interface and `LocalMatchClient` |
 | `MatchRecording` | Recorder, replay, `GAME_RULES_VERSION` |
 | `SceneObjects` | `SceneObject`/`Steppable`/`Resolvable`, bodies, `SceneFile` (scene reader and writer), `MatchObjectList` |
@@ -132,14 +132,14 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
    for which maps exist) or, in player vs player, a map and each player's vehicle on the tank selection
    screen (which itself runs `scene_select` as a live match).
 2. **Create.** `LocalMatchClient.fromSceneJson(scene, sidecar, mode, dual, recordAs)` calls
-   `ServerMatchPrototype.fromSceneJson`: `SceneFile` reads the scene's map objects, wall
+   `Match.fromSceneJson`: `SceneFile` reads the scene's map objects, wall
    objects are dropped, `MatchSetup.assignControl` gives tanks to players per mode, and the terrain
    grid and `StructureGrid` are built from the sidecar. `initialize()` assigns `actorId`s, start
    shields, `DualRules`, trains, B52s, locks, fallen turrets and bonuses.
 3. **Run.** `SimulationLoop` calls the gameplay step 100 times per second
    ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)): submit each player's `InputFrame`, then
    `tick()`.
-4. **Tick.** `ServerMatchPrototype.tick()` runs a fixed pipeline: player intents to every tank in the
+4. **Tick.** `Match.tick()` runs a fixed pipeline: player intents to every tank in the
    player's group; AI tanks; turrets; terrain effects; the map objects' own updates and queued tank
    damage (`MatchObjectList.step`, in the order objects were added);
    projectile hits on structures and vehicles; flames; small objects; vehicle overlaps; mines,
@@ -198,10 +198,10 @@ are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 
 ## Known structural debt
 
-- `ServerMatchPrototype.kt` is 3,149 lines and `ServerTankActor.kt` 1,760; most new rules land there.
+- `Match.kt` is 3,149 lines and `Tank.kt` 1,760; most new rules land there.
   Splitting by subsystem (objects, hits, mission rules, view building) would help, ideally as part of
   [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md).
-- Dead code listed above (protocol leftovers, `ServerWallActor`/`WallState`, kept only because the scene
+- Dead code listed above (protocol leftovers, `Wall`/`WallState`, kept only because the scene
   files still contain wall entries until the native map format replaces them).
 - `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests
   depend on the importer; with the native format they build map documents instead

@@ -31,9 +31,9 @@ import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.kubriko.ViewportEventQueue
-import com.tankarena.sim.kubriko.server.DualSetup
-import com.tankarena.sim.kubriko.server.LocalMatchClient
-import com.tankarena.sim.kubriko.server.MatchMode
+import com.tankarena.sim.DualSetup
+import com.tankarena.sim.LocalMatchClient
+import com.tankarena.sim.MatchMode
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GAME_FADE_MILLIS
 import com.tankarena.ui.compose.GameMode

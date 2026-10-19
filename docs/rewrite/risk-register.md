@@ -7,7 +7,7 @@ are about detection), or *Closed* (kept briefly for the record).
 
 - **Status:** Active.
 - **Risk:** porting one rule from the C source silently changes another (tick order, shared state in
-  `ServerMatchPrototype`), and the difference is only noticed in play.
+  `Match`), and the difference is only noticed in play.
 - **Mitigations:**
   - Rule tests with expected values from the C source ([testing strategy](testing-strategy.md)).
   - Recorded playthroughs as regression tests (six committed: BEGIN1–3, COMBAT1); replay them after
@@ -30,7 +30,7 @@ are about detection), or *Closed* (kept briefly for the record).
 ## Server size and coupling
 
 - **Status:** Active.
-- **Risk:** `ServerMatchPrototype` (3,149 lines) and `ServerTankActor` (1,760 lines) hold most rules;
+- **Risk:** `Match` (3,149 lines) and `Tank` (1,760 lines) hold most rules;
   changes are hard to review and easy to entangle.
 - **Mitigations:** split by subsystem as part of [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md),
   with `GAME_RULES_VERSION` unchanged and recordings plus rule tests proving no behaviour changed.

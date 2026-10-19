@@ -1,6 +1,6 @@
 package com.tankarena.app.desktop
 
-import com.tankarena.sim.kubriko.server.MatchRecording
+import com.tankarena.sim.MatchRecording
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter

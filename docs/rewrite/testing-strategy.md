@@ -9,7 +9,7 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
    headless at 100 ticks per second and is driven only by inputs. Every rule can be checked by
    stepping ticks and reading the `WorldSnapshot`, `PlayerView`s and `GameEvent`s.
 2. **One seam.** Tests, recordings, bots and agents drive a match through `MatchClient`
-   (`submitInput`, `tick`) or `ServerMatchPrototype` directly; never by synthesising clicks.
+   (`submitInput`, `tick`) or `Match` directly; never by synthesising clicks.
 3. **The original is the oracle.** Expected values come from the C source (`src/data/tanks.c`,
    `src/include/define.h`, …), not from what the Kotlin code currently does. Each parity test cites its
    source line in a comment ([ADR 0010](adrs/0010-port-the-original-rules.md)).
@@ -39,17 +39,17 @@ dot-folders except `.github/` and `.dockerignore`.
 
 ### Rule tests (`:game-server`)
 
-Small fixture maps (`CanonicalMapDefinition` through `ServerMatchPrototype.fromCanonicalMap`) or
+Small fixture maps (`CanonicalMapDefinition` through `Match.fromCanonicalMap`) or
 shipped scenes, one rule per test:
 
 | Topic | Test classes |
 |---|---|
-| Vehicles | `ServerTankMovementTest`, `ServerTankCollisionTest`, `VehicleSpecTest`, `VehicleHitTest`, `ServerTankLifecycleTest` |
-| Weapons and damage | `ServerTankFireTest`, `ServerTankDamageModelTest`, `ServerRocketTest`, `ServerMortarTest`, `ServerMineTest`, `ServerTurretFireTest`, `AircraftAndWeaponsTest` |
+| Vehicles | `TankMovementTest`, `TankCollisionTest`, `VehicleSpecTest`, `VehicleHitTest`, `TankLifecycleTest` |
+| Weapons and damage | `TankFireTest`, `TankDamageModelTest`, `RocketTest`, `MortarTest`, `MineTest`, `TurretFireTest`, `AircraftAndWeaponsTest` |
 | Terrain and structures | `TerrainMaterialTest`, `TerrainGridBuilderTest`, `StructureGridTest`, `StructureGameplayTest`, `BombersFieldsRampsTest` |
-| Objects | `MapObjectsTest`, `ServerProductActorTest`, `ServerGoalCaptureTest` |
-| Missions, control, modes, AI | `MissionEvaluationTest`, `ControlAndObjectivesTest`, `DualRulesTest`, `PilotAndNightTest`, `ComputerTankAiTest`, `ServerAiTankTest` |
-| Infrastructure | `ActorRoundTripTest` (5 actor types), `SchemaVersionTest`, `FixedStepClockTest`, `MatchObjectListTest`, `ServerMatchPrototypeTest`, `LocalMatchClientTest`, `ServerPlayerViewTest`, `legacy/LegacyObjectParserTest` |
+| Objects | `MapObjectsTest`, `ProductTest`, `GoalCaptureTest` |
+| Missions, control, modes, AI | `MissionEvaluationTest`, `ControlAndObjectivesTest`, `DualRulesTest`, `PilotAndNightTest`, `ComputerTankAiTest`, `AiTankTest` |
+| Infrastructure | `ActorRoundTripTest` (5 actor types), `SchemaVersionTest`, `FixedStepClockTest`, `MatchObjectListTest`, `MatchTest`, `LocalMatchClientTest`, `PlayerViewTest`, `legacy/LegacyObjectParserTest` |
 
 Conventions: name tests after the behaviour; cite the C source; avoid the `queueDamage*ForTest`
 shortcuts where real projectiles reach the same state within about 1,000 ticks.

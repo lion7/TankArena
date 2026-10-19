@@ -86,7 +86,8 @@ All under `com.tankarena.sim`.
 
 | File | Role |
 |---|---|
-| `Match` | The match: setup, the tick pipeline, hits, structures, objects, mission rules, snapshot and views |
+| `Match` | The match's state, setup, the tick pipeline and test hooks (600 lines) |
+| `MatchWeapons`, `MatchStructures`, `MatchSmallObjects`, `MatchTrains`, `MatchAircraft`, `MatchObjectRules`, `MatchTerrain`, `MatchAi`, `MatchMission`, `MatchViews` | The match's rules per subsystem, as extension functions of `Match`: shots; buildings; bonuses, soldiers and A-bombs; trains; B52s and zeppelin; warps, locks, destroyers and enforcers; ground effects; computer tanks; goals and mission end; snapshot and radar |
 | `Tank` | Vehicles: movement physics, heights, weapons, damage, shield, cloak, lights |
 | `ComputerTankAi` | Port of `control_computer_tank()` ([ADR 0012](adrs/0012-port-the-computer-ai.md)) |
 | `StructureGrid` | Buildings: strengths, links, ruins, goal shares, masks ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)) |
@@ -200,9 +201,8 @@ are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 
 ## Known structural debt
 
-- `Match.kt` is 3,149 lines and `Tank.kt` 1,760; most new rules land there.
-  Splitting by subsystem (objects, hits, mission rules, view building) would help, ideally as part of
-  [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md).
+- `Tank.kt` is 1,760 lines; vehicle movement, weapons and damage could be split like `Match` was.
+  The subsystems in the `Match*.kt` files still share `Match`'s state (made `internal` for them).
 - Dead code listed above (protocol leftovers, `Wall`/`WallState`, kept only because the scene
   files still contain wall entries until the native map format replaces them).
 - `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests

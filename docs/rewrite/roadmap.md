@@ -44,7 +44,8 @@ Goal: the same game, with no Kubriko anywhere and a simulation that can run on a
    updates objects in the order Kubriko did, `SceneFile` reads and writes the same scene JSON (all 69
    scenes regenerate byte for byte), every recording replays unchanged; `:game-editor` deleted.
 1. **Simulation:** extract `World` and `step()` from `Match`; map objects become plain
-   classes; split the tick into systems in the original's order. Done: package `com.tankarena.sim`
+   classes; split the tick into systems in the original's order. Done: `Match`'s rules split into ten
+   `Match*.kt` files by subsystem (`Tank` still to do); package `com.tankarena.sim`
    with plain names (`Match`, `Tank`, …); all trigonometry through `DetMath` (`StrictMath`, recordings
    unchanged). The legacy step ([ADR 0002](adrs/0002-fixed-step-100hz.md)) is added together with its
    first rule in phase 3 rather than as an empty hook.

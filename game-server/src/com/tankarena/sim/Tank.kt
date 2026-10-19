@@ -1658,8 +1658,8 @@ class Tank(state: State) :
 
     private fun syncBodyFromPosition() {
         val topLeft = ScenePoint(
-            (positionX - SERVER_TANK_HALF).toFloat().toFloat(),
-            (positionY - SERVER_TANK_HALF).toFloat().toFloat(),
+            (positionX - SERVER_TANK_HALF).toFloat(),
+            (positionY - SERVER_TANK_HALF).toFloat(),
         )
         body.position = topLeft
     }

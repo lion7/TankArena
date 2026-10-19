@@ -4,7 +4,6 @@ import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.sim.legacy.CanonicalMapDefinition
 import com.tankarena.sim.legacy.ObjectKinds
 
-private const val TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 private const val TURRET_FOOTPRINT: Int = LEGACY_TILE_SIZE
 private const val GOAL_FOOTPRINT: Int = 16
 /** Fallback armor for authored objects without one (the STANDARD tank's legacy `props.armor`). */
@@ -235,7 +234,7 @@ object CanonicalSceneBuilder {
                     val heavy = props.int("mineType") == 1
                     sink += Mine(
                         Mine.State(
-                            body = PointBody(position = ScenePoint(obj.x.toFloat().toFloat(), obj.y.toFloat().toFloat())),
+                            body = PointBody(position = ScenePoint(obj.x.toFloat(), obj.y.toFloat())),
                             ownerActorId = 0L,
                             damage = if (heavy) HEAVY_MINE_DAMAGE else LIGHT_MINE_DAMAGE,
                             radius = LIGHT_MINE_RADIUS_PX,
@@ -277,8 +276,8 @@ object CanonicalSceneBuilder {
         Wall(
             Wall.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - width / 2).toFloat().toFloat(), (cy - height / 2).toFloat().toFloat()),
-                    size = SceneExtent(width.toFloat().toFloat(), height.toFloat().toFloat()),
+                    position = ScenePoint((cx - width / 2).toFloat(), (cy - height / 2).toFloat()),
+                    size = SceneExtent(width.toFloat(), height.toFloat()),
                 ),
             ),
         )
@@ -316,8 +315,8 @@ object CanonicalSceneBuilder {
     ): Tank = Tank(
         Tank.State(
             body = BoxBody(
-                position = ScenePoint((cx - TANK_FOOTPRINT / 2).toFloat().toFloat(), (cy - TANK_FOOTPRINT / 2).toFloat().toFloat()),
-                size = SceneExtent(TANK_FOOTPRINT.toFloat().toFloat(), TANK_FOOTPRINT.toFloat().toFloat()),
+                position = ScenePoint((cx - TANK_FOOTPRINT / 2).toFloat(), (cy - TANK_FOOTPRINT / 2).toFloat()),
+                size = SceneExtent(TANK_FOOTPRINT.toFloat(), TANK_FOOTPRINT.toFloat()),
             ),
             bodyDirection = bodyDirection,
             turretDirection = turretDirection,
@@ -369,8 +368,8 @@ object CanonicalSceneBuilder {
         Turret(
             Turret.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - TURRET_FOOTPRINT / 2).toFloat().toFloat(), (cy - TURRET_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(TURRET_FOOTPRINT.toFloat().toFloat(), TURRET_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - TURRET_FOOTPRINT / 2).toFloat(), (cy - TURRET_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(TURRET_FOOTPRINT.toFloat(), TURRET_FOOTPRINT.toFloat()),
                 ),
                 turretDirection = turretDirection,
                 team = team,
@@ -391,8 +390,8 @@ object CanonicalSceneBuilder {
         Goal(
             Goal.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - GOAL_FOOTPRINT / 2).toFloat().toFloat(), (cy - GOAL_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(GOAL_FOOTPRINT.toFloat().toFloat(), GOAL_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - GOAL_FOOTPRINT / 2).toFloat(), (cy - GOAL_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(GOAL_FOOTPRINT.toFloat(), GOAL_FOOTPRINT.toFloat()),
                 ),
                 who = who,
                 contribution = contribution,
@@ -415,8 +414,8 @@ object CanonicalSceneBuilder {
         Flag(
             Flag.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - FLAG_FOOTPRINT / 2).toFloat().toFloat(), (cy - FLAG_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(FLAG_FOOTPRINT.toFloat().toFloat(), FLAG_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - FLAG_FOOTPRINT / 2).toFloat(), (cy - FLAG_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(FLAG_FOOTPRINT.toFloat(), FLAG_FOOTPRINT.toFloat()),
                 ),
                 flagType = flagType,
                 number = number,
@@ -431,8 +430,8 @@ object CanonicalSceneBuilder {
         Product(
             Product.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - PRODUCT_FOOTPRINT / 2).toFloat().toFloat(), (cy - PRODUCT_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(PRODUCT_FOOTPRINT.toFloat().toFloat(), PRODUCT_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - PRODUCT_FOOTPRINT / 2).toFloat(), (cy - PRODUCT_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(PRODUCT_FOOTPRINT.toFloat(), PRODUCT_FOOTPRINT.toFloat()),
                 ),
                 productType = productType,
                 price = price,
@@ -444,8 +443,8 @@ object CanonicalSceneBuilder {
         Lock(
             Lock.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - LOCK_FOOTPRINT / 2).toFloat().toFloat(), (cy - LOCK_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(LOCK_FOOTPRINT.toFloat().toFloat(), LOCK_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - LOCK_FOOTPRINT / 2).toFloat(), (cy - LOCK_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(LOCK_FOOTPRINT.toFloat(), LOCK_FOOTPRINT.toFloat()),
                 ),
                 activation = activation,
                 target = target,
@@ -460,8 +459,8 @@ object CanonicalSceneBuilder {
         Warp(
             Warp.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - WARP_FOOTPRINT / 2).toFloat().toFloat(), (cy - WARP_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(WARP_FOOTPRINT.toFloat().toFloat(), WARP_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - WARP_FOOTPRINT / 2).toFloat(), (cy - WARP_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(WARP_FOOTPRINT.toFloat(), WARP_FOOTPRINT.toFloat()),
                 ),
                 targetX = targetX,
                 targetY = targetY,
@@ -473,8 +472,8 @@ object CanonicalSceneBuilder {
         Destroyer(
             Destroyer.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - DESTROYER_FOOTPRINT / 2).toFloat().toFloat(), (cy - DESTROYER_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(DESTROYER_FOOTPRINT.toFloat().toFloat(), DESTROYER_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - DESTROYER_FOOTPRINT / 2).toFloat(), (cy - DESTROYER_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(DESTROYER_FOOTPRINT.toFloat(), DESTROYER_FOOTPRINT.toFloat()),
                 ),
                 radius = radius,
                 what = what,
@@ -498,8 +497,8 @@ object CanonicalSceneBuilder {
         Enforcer(
             Enforcer.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - ENFORCER_FOOTPRINT / 2).toFloat().toFloat(), (cy - ENFORCER_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(ENFORCER_FOOTPRINT.toFloat().toFloat(), ENFORCER_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - ENFORCER_FOOTPRINT / 2).toFloat(), (cy - ENFORCER_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(ENFORCER_FOOTPRINT.toFloat(), ENFORCER_FOOTPRINT.toFloat()),
                 ),
                 radius = radius,
                 weapon = weapon,
@@ -516,8 +515,8 @@ object CanonicalSceneBuilder {
         Train(
             Train.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - TRAIN_FOOTPRINT / 2).toFloat().toFloat(), (cy - TRAIN_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(TRAIN_FOOTPRINT.toFloat().toFloat(), TRAIN_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - TRAIN_FOOTPRINT / 2).toFloat(), (cy - TRAIN_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(TRAIN_FOOTPRINT.toFloat(), TRAIN_FOOTPRINT.toFloat()),
                 ),
                 isEngine = isEngine,
                 armor = props.int("armor") ?: if (isEngine) 60 else 40,
@@ -549,8 +548,8 @@ object CanonicalSceneBuilder {
         Zeppelin(
             Zeppelin.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - ZEPPELIN_FOOTPRINT / 2).toFloat().toFloat(), (cy - ZEPPELIN_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(ZEPPELIN_FOOTPRINT.toFloat().toFloat(), ZEPPELIN_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - ZEPPELIN_FOOTPRINT / 2).toFloat(), (cy - ZEPPELIN_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(ZEPPELIN_FOOTPRINT.toFloat(), ZEPPELIN_FOOTPRINT.toFloat()),
                 ),
                 alive = true,
                 x = cx,
@@ -562,8 +561,8 @@ object CanonicalSceneBuilder {
         B52(
             B52.State(
                 body = BoxBody(
-                    position = ScenePoint((cx - B52_FOOTPRINT / 2).toFloat().toFloat(), (cy - B52_FOOTPRINT / 2).toFloat().toFloat()),
-                    size = SceneExtent(B52_FOOTPRINT.toFloat().toFloat(), B52_FOOTPRINT.toFloat().toFloat()),
+                    position = ScenePoint((cx - B52_FOOTPRINT / 2).toFloat(), (cy - B52_FOOTPRINT / 2).toFloat()),
+                    size = SceneExtent(B52_FOOTPRINT.toFloat(), B52_FOOTPRINT.toFloat()),
                 ),
                 armor = armor,
                 alive = true,

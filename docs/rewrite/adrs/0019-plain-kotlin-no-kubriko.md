@@ -61,7 +61,7 @@ pass before and after, proving that nothing about gameplay moved.
 - Deleted (most of it in step 1a): `TerrainSlideManager`, Kubriko's `Collidable`/`Editable` interfaces on game
   classes, `Wall`/`WallState`, `TankArenaSerializableMetadata`, `awaitActorCount`,
   `ScenePreloadManager`, the Kubriko render actors and `:game-editor`.
-- `Match` (3,149 lines) and `Tank` (1,760 lines) are split by system as part
-  of the move.
+- `Match` (3,149 lines) and `Tank` (1,760 lines) are split by system as part of the move. Done for
+  `Match` on 2026-10-19: its rules sit in ten `Match*.kt` files, one per subsystem.
 - The renderer is new code; its output is checked against the current client with offscreen renders
   of the same snapshots before the old one is removed.

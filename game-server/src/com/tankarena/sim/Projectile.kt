@@ -187,7 +187,7 @@ class Projectile internal constructor(state: State) : Steppable,
     }
 
     private fun syncBody() {
-        val offset = ScenePoint(positionX.toFloat().toFloat(), positionY.toFloat().toFloat())
+        val offset = ScenePoint(positionX.toFloat(), positionY.toFloat())
         body.position = offset
     }
 

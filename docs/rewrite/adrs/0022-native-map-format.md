@@ -1,7 +1,8 @@
 # ADR 0022: A Native, Readable Map Format with `.MAP` Converters
 
-- **Status:** Accepted (2026-10-19). The layout below is the design; details may change while it is
-  implemented, and this ADR is updated when they do.
+- **Status:** Accepted (2026-10-19; container and layer encoding confirmed the same day after
+  comparing the options below). Field-level details may still change while it is implemented; this
+  ADR is updated when they do.
 - **Supersedes:** the scene JSON + sidecar format of [ADR 0008](0008-kubriko-and-scene-json.md).
 - **Decides:** [ADR 0003](0003-legacy-map-import.md) — the native format is the source of truth.
 
@@ -27,8 +28,8 @@ can still be played in the original under DOSBox.
               "night": false, "type": "SINGLE", "contents": [], "publicCode": false,
               "randomBonus": true, "size": [12, 12] },
   "texts": { "briefing": "This is your first mission: ...", "success": "...", "failure": "..." },
-  "legend": { "..": null, "a1": "BACK1", "w1": "WAT1", "h1": "HUIS1H", "h2": "HUIS1V" },
-  "floor":  [ "a1a1a1w1w1a1 ...", "..." ],
+  "legend": { "..": null, "g1": "BACK1", "w1": "WAT1", "r1": "ROAD1", "h1": "HUIS1H", "h2": "HUIS1V" },
+  "floor":  [ "g1g1r1r1w1w1 ...", "..." ],
   "solid":  [ "....h1h2.... ...", "..." ],
   "top":    [ "...", "..." ],
   "goals":  [ { "at": [4, 7], "share": -15 } ],
@@ -41,9 +42,15 @@ can still be played in the original under DOSBox.
 
 - **Picture layers as text grids.** A per-map `legend` maps two-character codes to picture *names*
   from the original catalog (`src/data/pictures.c`); each layer is a list of rows, each row the codes
-  of its cells, `..` for none. A 200 × 200 layer is 200 lines of 400 characters. The shape of the map
-  is visible in a text editor, diffs show which tiles changed, and maps survive any renumbering of
-  pictures.
+  of its cells, `..` for none. Every cell is exactly two characters, so columns line up, the shape of
+  the map is visible in a text editor, and a changed tile is a small diff. Names rather than picture
+  numbers make the legend readable; the numbering itself never changes (the catalog is the original's).
+- **Readable codes.** The writer derives each code from the picture's terrain type, so grids read like
+  ASCII art: for example `w` water, `r` road and rails, `h` buildings, `t` trees and bushes, `#` walls,
+  `p` pits, `l` lava, `g` plain ground, followed by a digit or letter to tell pictures of that type
+  apart (`h1`, `h2`, …). When a type runs out of symbols the writer falls back to any free code. Up
+  to 3,844 codes are possible; the busiest original map uses 415 pictures (the median 116). The exact
+  letter per type is fixed when the writer is built and listed in the format's documentation.
 - **Sparse layers as lists.** The goal, bonus and men layers are mostly empty, so they are lists of
   the cells that have a value.
 - **Objects as typed records** with named fields, positions in pixels (centres), enums by name, and
@@ -52,8 +59,33 @@ can still be played in the original under DOSBox.
 - **Ruleset data** that the original does not have (Extended-only settings, team pads for four
   players) goes in an optional `extended` section that `.MAP` export drops
   ([ADR 0023](0023-classic-and-extended-rulesets.md), [ADR 0027](0027-four-players-two-teams.md)).
-- **Size:** typically smaller than today's scene + sidecar pair; files compress well (maps are
-  bundled compressed in packages if needed).
+- **Size:** about 6 bytes per tile for the three picture layers. RACE3 (300 × 52, the largest map)
+  comes to roughly 100 KB against 165 KB as `.MAP` and 2 MB in today's scene + sidecar; the 69 maps
+  together should be around or below the 3.8 MB of the `.MAP` files instead of today's 29 MB. No
+  compression is needed.
+
+**Options considered** (2026-10-19), for the container:
+
+| Option | For | Against |
+|---|---|---|
+| **One JSON file (chosen)** | kotlinx.serialization on every platform, no new library; one file per map; standard tools | No comments; quotes and commas everywhere |
+| Own text format | Most readable, comments | Own reader, writer and error messages to maintain; no tools |
+| YAML or TOML | Readable, comments | Third-party library with uneven Android/WASM support |
+| A folder per map | Each layer a plain text file | Many files per map; awkward to share and import |
+| Binary (CBOR, protobuf) | Smallest, fastest | Not readable |
+
+and for the picture layers (sizes for RACE3's three layers):
+
+| Option | Size | For | Against |
+|---|---|---|---|
+| **Legend grid, 2-character codes (chosen)** | ~95 KB | Shape visible, columns aligned, small diffs | Needs the legend to decode a cell |
+| Number grid | ~235 KB | No legend | Very long lines; numbers mean nothing |
+| Name grid | ~330 KB | Self-describing | Very wide, columns do not align |
+| Run-length rows | ~30–60 KB | Small for empty maps | Shape not visible; one tile rewrites a row |
+| Base64 numbers | ~125 KB | Simple, fast | Unreadable, huge diffs |
+| Sparse `{x, y, picture}` list | Small if sparse | Fine for sparse layers | Bad for the floor (every cell filled) |
+
+Sparse lists are used where they fit: the goal, bonus and men layers.
 
 **Converters** (`tools-mapconv` and the in-game editor):
 

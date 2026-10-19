@@ -1,6 +1,7 @@
 # ADR 0020: Player Data as JSON in the User's Folders
 
-- **Status:** Accepted (2026-10-06 known codes; 2026-10-18 options; confirmed 2026-10-19).
+- **Status:** Accepted (2026-10-06 known codes; 2026-10-18 options; confirmed 2026-10-19; known-codes
+  behaviour per ruleset decided 2026-10-19).
 - **Related:** on Android the same files live in app-private storage
   ([ADR 0025](0025-multiplatform-modules-and-android.md)); key and gamepad bindings join them
   ([ADR 0026](0026-input-and-gamepads.md)), and so does the chosen ruleset.
@@ -34,5 +35,14 @@ layouts serve no purpose for the rewrite.
 - Settings that the original keeps in `TANK.CFG` but the rewrite does not have yet (key bindings,
   control modes, joysticks, last codes and map, radar toggle, window size) belong in `settings.json`
   when they are built; they are part of parity.
-- The known-codes list currently differs from the original in two details (public and DUALVC codes
-  are not saved; the list is filtered per mode). Whether those stay is noted in parity.md.
+- **Known codes** (decided 2026-10-19), compared with the original's `listcod.c`, `passwd.c` and
+  `settings.c`:
+  - *Public and two-vs-computer codes:* the original writes them into `PASSWD.DAT` when the list is
+    opened; the rewrite adds them to the list on the fly and never saves them. Same list, so this stays
+    in both rulesets.
+  - *Which codes the list shows:* **Classic** shows every known code in every mode, like the original
+    (a code for the other mode is accepted and then rejected with "THIS MAP IS NOT SUITABLE");
+    **Extended** shows only codes that work in the current mode.
+  - *Last code and map:* both rulesets remember the last code reached per mode, and the last
+    player-vs-player map, in `settings.json`, and pre-fill the prompt with it after a restart, as the
+    original does with `TANK.CFG`. (Today this is only remembered while the game runs.)

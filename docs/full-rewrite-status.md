@@ -38,10 +38,10 @@ Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 7, `SCENE_SCHEMA_VERSION` 
 
 ## Open decisions
 
-- **Known-codes details** — whether public and two-player codes are saved, the per-mode filter and
-  remembering the last code ([parity.md → Modes](rewrite/parity.md#modes)).
-- **Native map format details** — the layout in [ADR 0022](rewrite/adrs/0022-native-map-format.md) is
-  a design; it is confirmed when phase 2 of the roadmap is built.
+None at the moment. The last ones were decided on 2026-10-19: known-codes behaviour per ruleset
+([ADR 0020](rewrite/adrs/0020-user-data-as-json.md)) and the native map format's container and layer
+encoding ([ADR 0022](rewrite/adrs/0022-native-map-format.md)); field-level details of the format are
+settled while phase 2 of the roadmap is built.
 
 ## Next steps
 

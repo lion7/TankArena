@@ -1,28 +1,37 @@
-# ADR 0006: Module Collapse 11 → 6
+# ADR 0006: Six Modules
 
-- **Status:** Accepted (2026-04, completed 2026-04-25).
-- **Decision:** collapse the original 11-module layout to six modules: `:game-protocol`, `:game-content`, `:game-server`, `:game-client`, `:game-editor`, `:tools-mapconv`.
+- **Status:** Accepted (2026-04-25; revised 2026-10-19).
 
 ## Context
 
-The original plan split the project into 11 modules: `:game-core`, `:game-content`, `:game-input`, `:game-sim`, `:game-protocol`, `:game-legacy`, `:game-render-kubriko`, `:game-ui-compose`, `:app-desktop`, `:app-editor`, `:tools-mapconv`. In practice that split produced more boundary cost than value:
-
-- Many modules held only a handful of files.
-- `:game-sim` and `:game-render-kubriko` each had to re-express the same actor model on either side of the wire.
-- There was no single seam where a future networked server could slot in.
-- The split discouraged sharing the Kubriko serialization machinery between server and editor.
+The first plan split the rewrite into eleven modules (`:game-core`, `:game-content`, `:game-input`,
+`:game-sim`, `:game-protocol`, `:game-legacy`, `:game-render-kubriko`, `:game-ui-compose`,
+`:app-desktop`, `:app-editor`, `:tools-mapconv`). Many held a handful of files, the simulation and
+the renderer each re-expressed the same actor model, and there was no seam where a server could sit.
 
 ## Decision
 
-- `:game-core` and `:game-input` fold into `:game-protocol`.
-- `:game-legacy` and `:tools-mapconv`'s library code fold into `:game-content`. `:tools-mapconv` survives as a one-file CLI module because Amper is one-product-per-module.
-- `:game-sim` is deleted; the authoritative simulation moves to a new `:game-server` running headless Kubriko.
-- `:game-render-kubriko`, `:game-ui-compose`, and `:app-desktop` fold into `:game-client`.
-- `:app-editor` is renamed `:game-editor` and rewired around Kubriko's `SceneEditor`.
+Six modules, with dependencies pointing one way only:
+
+```text
+game-protocol  <-  game-content  <-  game-server  <-  game-client
+                                                  <-  game-editor
+                                                  <-  tools-mapconv
+```
+
+- `:game-core` and `:game-input` folded into `:game-protocol`.
+- `:game-legacy` and the converter library code folded into `:game-content`; `:tools-mapconv` remains
+  as a thin command-line module because the build tool builds one product per module.
+- `:game-sim` was deleted; the simulation lives in `:game-server`.
+- `:game-render-kubriko`, `:game-ui-compose` and `:app-desktop` folded into `:game-client`.
+- `:app-editor` became `:game-editor`.
+
+Responsibilities and rules per module are in [architecture.md](../architecture.md#modules).
 
 ## Consequences
 
-- Six modules, each with a clear responsibility.
-- Server and client share actor *types* via `:game-protocol`, not actor *implementations* — server has `Server*Actor`, client has rendering actors that consume `ActorState` via `sync()`.
-- The editor reuses server actor classes through `Editable<T>` for round-trip authoring, accepting a deliberate dependency from `:game-editor` to `:game-server` (see [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md)).
-- Folding `:tools-mapconv`'s library code into `:game-content` keeps the importer reachable from any module that needs it; the CLI stays as its own Amper product purely for entry-point reasons.
+- Few, clear boundaries; the server/client seam of [ADR 0005](0005-network-ready-input-protocol-boundary.md)
+  is a module boundary.
+- `:game-content` holds both runtime content code and the converter library (extractors under
+  `com.tankarena.tools.mapconv`), so the shipped client carries converter classes it never calls.
+  That is accepted; moving them into `:tools-mapconv` is a possible cleanup.

@@ -1,26 +1,41 @@
-# ADR 0009: Editor Wraps Kubriko's `SceneEditor`
+# ADR 0009: Editor Built on Kubriko's SceneEditor
 
-- **Status:** Accepted (2026-04).
-- **Decision:** `:game-editor` is a thin Compose Desktop wrapper around Kubriko's `SceneEditor` composable, reusing the server's actor classes via `Editable<T>`.
+- **Status:** Accepted (2026-04; reaffirmed 2026-10-19).
+- **Related:** [ADR 0004](0004-separate-editor-app.md) (separate app), [ADR 0003](0003-legacy-map-import.md)
+  (map source of truth).
 
 ## Context
 
-The original plan ([ADR 0004](0004-separate-editor-app.md)) called for a bespoke editor with custom palette/inspector/validation UI. After the move to a Kubriko-native authoritative server (see [ADR 0007](0007-authoritative-headless-kubriko-server.md)), the same Kubriko serialization machinery the server uses can drive scene editing for free — provided the editor reuses the server's actor classes.
+The original's editor (`src/edit/`, ~23 files) edits structures per layer with links, every object
+type through property menus, the goal, men and bonus layers, the map header ("SPECIAL" menu: map
+type, codes, day/night, public/shareware), creates maps from the world templates `DATA/MAP_0..3.DAT`
+and shows a whole-map overview. Rebuilding that from scratch in Compose is a large job. Kubriko ships
+a generic `SceneEditor` (viewport, palette, property inspector, load/save) that works on the same
+serialized objects the game reads.
+
+On 2026-10-19 the choice was revisited: porting the original editor screen by screen was rejected in
+favour of extending the Kubriko-based editor until it can do everything the original can.
 
 ## Decision
 
-- `:game-editor` embeds Kubriko's `SceneEditor` composable from `io.github.pandulapeter.kubriko:tool-scene-editor-desktop`.
-- The editor uses the same `tankArenaSerializableMetadata` registry as the server, so every actor type round-trips between editor → JSON → server with no translation layer.
-- Server actors that are hand-placed (`ServerWallActor`, `ServerTankActor`, `ServerTurretActor`, `ServerGoalActor`) implement `Editable<T>`, exposing their `State` data class as the editor's authoring vocabulary. `ServerProjectileActor` is plain `Serializable<T>` — never hand-placed.
-- `:game-editor` depends on `:game-server` purely for those actor classes and `Editable<T>` state. No server managers (`CollisionManager`, `TerrainSlideManager`, mission evaluator) run inside the editor's Kubriko instance — the editor's Kubriko hosts only authoring state.
-- The editor opens `game-content/resources/scenes/` by default so existing imported scenes can be edited round-trip.
+- `:game-editor` wraps Kubriko's `SceneEditor` (`tool-scene-editor-desktop`) and opens
+  `game-content/resources/scenes/` by default.
+- It reuses the server's map object classes and their `State` through Kubriko's `Editable` interface,
+  so editor and game read the same files with no translation.
+- **Boundary rule:** the editor never runs the simulation. It must not reference `ServerMatchPrototype`,
+  `CollisionManager` or `TerrainSlideManager`; `EditorBoundaryGuardTest` (in
+  `game-server/test/kotlin/com/tankarena/app/editor/`) fails the build if it does.
+- To reach parity the editor has to be extended with (tracked in [parity.md](../parity.md#map-editor)):
+  every object type registered as editable (today only wall, tank, turret and goal), painting of the
+  three structure layers with links, the goal/men/bonus layers, editing the sidecar header and mission
+  texts, new maps from the world templates, validation, play-testing, and launch from the client menu.
 
 ## Consequences
 
-- Editor scope shrinks dramatically: viewport, palette, inspector, save/load come from Kubriko's `SceneEditor`.
-- An intentional dependency from `:game-editor` to `:game-server` exists. The earlier guidance that the editor must not depend on the server is relaxed in favor of sharing `State` definitions; the rule is now narrower — *no server runtime inside the editor*, but server actor *types* are shared.
-- Validation and playtest support remain editor-side concerns, layered on top of `SceneEditor`.
-
-## Boundary rule (enforced)
-
-The editor must not transitively reference `CollisionManager`, `TerrainSlideManager`, or the mission evaluator from `:game-server`. Server *managers* belong to the authoritative simulation; only actor classes and their `Editable<T>` `State` are shared. A build-time guard or test in `:game-editor` should fail the build if these symbols leak in. This is also tracked as the "Editor Scope" mitigation in [`risk-register.md`](../risk-register.md).
+- The viewport, selection, inspector and load/save come from Kubriko; the project writes only Tank
+  Arena specific tools.
+- The editor is tied to Kubriko and to the scene format. [ADR 0019](0019-remove-kubriko-from-the-server.md)
+  moves the map object types out of Kubriko on the server, so the editor will need its own Kubriko
+  wrappers (or editable adapters) around plain map data.
+- Today (73 lines, four object types, no tile layers or sidecar) the editor cannot change most of
+  what a map holds. Until it can, maps can only be fixed through `.MAP` + `scene-all` (ADR 0003).

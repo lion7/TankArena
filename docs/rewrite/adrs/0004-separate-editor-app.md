@@ -1,7 +1,25 @@
 # ADR 0004: Editor as a Separate App
 
-- **Status:** Accepted (revised 2026-04 — superseded in part by [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md)).
-- **Decision:** the editor ships as a dedicated desktop app (`:game-editor`), distinct from the runtime client (`:game-client`).
-- **Consequence:** editor scope is isolated from the shipping runtime; both apps share `:game-content`, `:game-protocol`, and the server's actor classes via `Editable<T>`.
+- **Status:** Accepted (2026-04; revised 2026-10-19). Details of the editor's shape are in
+  [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md).
 
-The original 2026 wording said the editor would share "the same content and simulation modules". After the module collapse there is no `:game-sim`; the simulation lives in `:game-server`. The editor depends on `:game-server` only to reuse server actor classes and their `Editable<T>` state — it does not run any server managers. See [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md) for the scene-editor embedding decision.
+## Context
+
+In the original, the map editor (`src/edit/`) is linked into `TANK.EXE`: the main menu's "Map
+editor" entry calls `edit_map()` (`src/game/menu.c:43`, `src/edit/main.c:620`). It edits `.MAP`
+files directly. The rewrite deliberately departs from that and makes the editor its own program.
+
+## Decision
+
+- The editor is its own desktop application, `:game-editor` (`jvm/app`, main class
+  `com.tankarena.app.editor.MainKt`), separate from the game client `:game-client`.
+- It shares `:game-content`, `:game-protocol` and the map object types of `:game-server`, but never
+  runs the simulation (see the boundary rule in ADR 0009).
+- The client's "Map editor" menu entry is meant to start it, as in the original. Today the entry is
+  disabled; wiring it is part of the editor work in [parity.md](../parity.md#map-editor).
+
+## Consequences
+
+- The shipped game does not carry editor code, and editor work cannot break gameplay.
+- Play-testing a map from the editor needs a way to start a match in the client (or an embedded
+  match); that is open work.

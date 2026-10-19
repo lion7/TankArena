@@ -1,176 +1,84 @@
-# Tank Arena Full Rewrite Status
+# Tank Arena Rewrite Status
 
-As of 2026-05-11. Phase 1 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7 closed — parity tasks T01–T06, T08–T32 landed on `rewrite`. T07 (drop legacy parsing surface) deliberately deferred — `:game-content` `LegacyMap*` and `:game-server` `legacy/*` still ship while downstream tasks lean on `CanonicalMapDefinition` for fixtures and bootstrap.
+As of **2026-10-19**, branch `rewrite` at `bd6a711`. This page states the current status only and
+points to the documents that hold the detail. It is updated whenever a milestone lands.
 
-> **See also:** [`rewrite/status-audit.md`](rewrite/status-audit.md) (2026-09-25), a code-verified audit that corrects several claims below.
+## In one paragraph
 
-This is the single high-level status reference for the Kotlin rewrite of Tank Arena. It states current state only. For background and supporting detail:
+The Kotlin rewrite plays all 69 maps of the original release in every mode, with the original's
+rules ported from the C source, its screen layout, pictures, fonts, night lighting, sounds and music,
+and it ships as self-contained Linux and Windows packages. What is left for full parity: the map
+editor (largely missing), supermarket mayhem, conveyors and rotating platforms, debris, terrain
+effects, the original's in-game keys, controls setup and command-line switches, and a list of smaller
+rule differences. All 295 automated tests pass; there is no CI and no committed playthrough recording
+yet.
 
-- Architecture, module boundaries, replication contract: [`docs/rewrite/architecture.md`](rewrite/architecture.md)
-- Map/content format: [`docs/rewrite/content-format.md`](rewrite/content-format.md)
-- Build commands: [`docs/rewrite/build.md`](rewrite/build.md)
-- Risks: [`docs/rewrite/risk-register.md`](rewrite/risk-register.md)
-- Testing: [`docs/rewrite/testing-strategy.md`](rewrite/testing-strategy.md)
-- Parity fixtures: [`docs/rewrite/parity-fixtures.md`](rewrite/parity-fixtures.md)
-- ADRs: [`docs/rewrite/adrs/`](rewrite/adrs/)
-- Earlier plans, deleted modules, collapse step log: [`docs/rewrite/history.md`](rewrite/history.md)
+## Status by area
 
-The parity target — what "feature complete" means in gameplay terms — is described in [`docs/game/`](game/): `overview.md`, `mechanics.md`, `vehicles.md`, `weapons.md`, `terrain.md`, `objects.md`, `ai.md`, `map-format.md`.
+| Area | Status | Detail |
+|---|---|---|
+| Rules: vehicles, weapons, structures, objects, AI | Done, with listed differences | [parity.md](rewrite/parity.md) |
+| Modes: one player, two vs computer, player vs player (deathmatch, flags, race, rounds) | Done; supermarket mayhem partial | [parity.md → Modes](rewrite/parity.md#modes) |
+| Presentation: screen, HUD, radar, night, effects | Done; some effects missing | [ADR 0013](rewrite/adrs/0013-original-presentation.md) |
+| Audio and music | Done; a few sounds missing | [ADR 0018](rewrite/adrs/0018-audio-and-music.md) |
+| Shell: intro, menus, codes, options, help | Done; in-game keys, controls setup, switches missing | [parity.md → Shell](rewrite/parity.md#shell-and-meta-game) |
+| Map editor | Mostly missing | [parity.md → Map editor](rewrite/parity.md#map-editor) |
+| Assets | All runtime assets converted and bundled | [assets.md](rewrite/assets.md) |
+| Content | 69 maps imported without notes | [content-format.md](rewrite/content-format.md) |
+| Tests | 295 green (server 226, client 60, content 9); no recordings committed | [testing-strategy.md](rewrite/testing-strategy.md) |
+| Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](rewrite/build.md), [ADR 0017](rewrite/adrs/0017-desktop-packaging.md) |
+| CI | None | [testing-strategy.md](rewrite/testing-strategy.md#what-is-not-there-yet) |
 
-## 1. Goals
+Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 7, `SCENE_SCHEMA_VERSION` 1.
 
-The rewrite is a full Kotlin rewrite of the original C/Allegro Tank Arena, not a line-by-line port. The goals:
+## Open decisions
 
-- Preserve gameplay intent, content breadth, and feel of the original.
-- Remove Allegro- and hardware-era architectural baggage.
-- Keep the codebase maintainable, testable, and portable.
-- Keep authoritative gameplay independent of rendering and UI frameworks.
-- Desktop-first, with future WASM and networking unblocked.
-- Rebuild the editor and tooling as first-class parts of the project.
+- **Map source of truth** — keep `MAPS/*.MAP` and the importer, or make the converted files the source
+  and delete the importer ([ADR 0003](rewrite/adrs/0003-legacy-map-import.md)). To be decided together
+  with the new map format of ADR 0019.
+- **Kubriko leaves the server** — direction agreed, design and implementation open
+  ([ADR 0019](rewrite/adrs/0019-remove-kubriko-from-the-server.md)).
+- **Known-codes details** — whether public and two-player codes are saved, the per-mode filter and
+  remembering the last code ([parity.md → Modes](rewrite/parity.md#modes)).
 
-## 2. Stack
+## Remaining work toward parity
 
-- Kotlin, JVM-only at present.
-- Compose Multiplatform for shell, menus, HUD, editor UI.
-- Kubriko `0.7.3` from Maven Central for the gameplay viewport and the headless server tick.
-- Amper for builds.
-- 100 Hz authoritative server tick (`FixedStepClock.TICKS_PER_SECOND = 100`, `MILLIS_PER_TICK = 10`) — landed in T01, every server `*_TICKS` constant is now grounded in the legacy C source (`define.h sec=100`, `tank.weap.speed[]`, `mine.active`). Replay/network snapshots decimate to ~10 Hz. See [ADR 0002](rewrite/adrs/0002-fixed-step-50hz.md).
-- Schema versioning at the protocol/sidecar boundary (T02): `WorldSnapshot.protocolVersion`, `MapSceneSidecar.schemaVersion`. Loaders reject payloads from a future runtime.
+In rough order of value; each item links to its detail.
 
-## 3. Module Layout
+1. Commit recorded playthroughs of BEGIN1–4, then more missions, and add CI
+   ([testing strategy](rewrite/testing-strategy.md#what-is-not-there-yet)).
+2. Rule differences found by the 2026-10-19 audit: rules the original advances per game step (one
+   step per 3 timer ticks) run about 3× too fast, confirmed for rocket acceleration
+   ([ADR 0002](rewrite/adrs/0002-fixed-step-100hz.md#the-originals-game-step-is-not-its-timer-tick));
+   heavy mines, mine trigger and visibility, mortar blast steps, rocket targets, warps, respawn wreck,
+   map wrap, AI fire delay, radar and cloak, F-key mapping in two players vs computer
+   ([parity.md](rewrite/parity.md)).
+3. Supermarket mayhem rules and display; goal `who = 3`.
+4. Conveyors and rotating platforms; debris (fuel dumps); terrain effects and their sounds.
+5. In-game keys (pause, gamma, radar, screenshot, window size); controls setup (remapping,
+   control modes, gamepads); command-line switches and cheats.
+6. The map editor: all object types, tile layers, header and texts, templates, validation, play-test,
+   menu launch ([ADR 0009](rewrite/adrs/0009-editor-wraps-kubriko-scene-editor.md)).
+7. Remove Kubriko from the server and split `ServerMatchPrototype`
+   ([ADR 0019](rewrite/adrs/0019-remove-kubriko-from-the-server.md)); delete the dead code listed in
+   [architecture.md](rewrite/architecture.md#known-structural-debt).
 
-Six modules. See [architecture.md](rewrite/architecture.md) for responsibilities and boundaries.
+Post-parity: networked play and a WASM/web target.
 
-- `:game-protocol`
-- `:game-content`
-- `:game-server`
-- `:game-client`
-- `:game-editor`
-- `:tools-mapconv`
+## Documents
 
-## 4. What Works
-
-### Build & content
-- Amper multi-module build is the only build system; Gradle is gone.
-- All 69 maps of the original release imported into `:game-content/resources/scenes/` as `(scene_*.json, metadata_*.json)` pairs; the 53 maps the release did not ship are kept, unconverted, in `MAPS/extra/`.
-- T05/T06: `LegacyObjectParser` covers every authored type (`TANK`, `B52`, `MAN`, `MINE`, `BONUS`, `TRAIN`, `WAGON`, `ZEPPELIN`, plus the existing turret/player/warp/flag/lock/goal/destroyer/enforcer/product set). Runtime-only types (rocket, abomb, mortar) are silently skipped per the original `load_map` switch. `AllShippedMapsImportCleanTest` pins `MapSceneSidecar.importNotes.isEmpty()` for every shipped map; the regenerated sidecars carry no informational drift notes.
-- Generated legacy picture catalog from `src/data/pictures.c`.
-- Extracted sprite sheets in active use: `floors.png`, `walls.png`, `building.png`, `trees.png`, `tank1.png`–`tank12.png`, `towers.png`, `animations.png`.
-
-### Server (`:game-server`)
-- Headless Kubriko per match; authoritative simulation.
-- `TerrainSlideManager` provides axis-by-axis MTV sliding response.
-- Server actors: `ServerTankActor`, `ServerTurretActor`, `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`, `ServerMineActor`, `ServerRocketActor`, `ServerMortarActor`, `ServerFlagActor`, `ServerProductActor`, `ServerLockActor`, `ServerWarpActor`, `ServerDestroyerActor`, `ServerEnforcerActor`, `ServerTrainActor`, `ServerZeppelinActor`, `ServerB52Actor` — each `Collidable` + `Serializable<T>`; the placed ones are also `Editable<T>`. `ActorRoundTripTest` (T04) pins `save()`/`restore()` for every `Server*Actor` so silent schema drift fails fast.
-- AI subsystem (T26–T28): `TilePathfinder` (A* over solid layer), `LineOfSight` (Bresenham raycast), `WaypointFollower` (path-following between waypoints), `AiModeDispatcher` (mode-specific patrol/aggressive behavior). AI navigates around walls, fires only when target is visible, and patrols waypoints when no enemy is present.
-- Mission evaluation (T29): per-mode win/loss with reason strings (GOALS_CAPTURED, ALL_ENEMIES_ELIMINATED, GOALS_LOST, ALL_LIVES_LOST, PLAYER_ELIMINATED, OPPONENT_ELIMINATED). `GameEvent.MissionResult` emitted once with score, kills, captures, ticks. Kill/capture score tracking.
-- Scoring panel (T30): `HudState` carries score, kills, time; `HudOverlay` displays SCORE, KILLS, TIME (MM:SS).
-- Weapon select (T31): `TankState` carries currentWeapon and ammo counts; `HudOverlay` displays WPN gauge (MAIN/CHAIN/MINE/ROCK/MORT).
-- Debrief polish (T32): debrief screen shows SCORE, KILLS, CAPTURES, TIME stats panel wired from `MissionResult`.
-- Tank: hull/turret directions, acceleration, friction, MTV collision response against walls and other tanks. Tank-vs-tank collision (T08) zeros only the into-contact velocity component, preserving tangential motion — head-on / perpendicular-nudge / three-tank pile-up are exercised in tests.
-- Weapons (T09–T12): `WEAPON_MAIN`, `WEAPON_CHAIN`, `WEAPON_MINE`, `WEAPON_ROCKET`, `WEAPON_MORTAR`, all routed through `firePrimary` with per-weapon cooldowns and ammo. `cycleWeaponLeft/Right` advances through owned weapons, skipping any with empty ammo.
-  - Main cannon: 70-tick refire (legacy `weap.speed[0]=70`), TTL=31.
-  - Chain gun: 10-tick refire (`weap.speed[1]=10`), 165 px range (`5*b_size`, TTL=21), 10 damage/shot, 1500 initial ammo.
-  - Mines: deployable, 100-tick activation grace period (owner-immunity window), proximity trigger via `triggerMineContacts` over (mine.radius + tank-half).
-  - Rockets: nearest-enemy lock at fire-time, accelerate to ROCKET_MAX_SPEED with a per-tick turn-rate clamp, TTL=330 matching the legacy 3300 px range.
-  - Mortars: arc travel (`MORTAR_TRAVEL_TICKS=50`), then linear-falloff area damage to `MORTAR_MAX_RADIUS_PX=60`.
-- Area-of-effect (T13): mines, mortars, and rockets all route their detonation through a shared `AreaDamageResolver` that emits a single `GameEvent.Explosion(x, y, radius, kind)` (`ExplosionKind.MINE/MORTAR/ROCKET/ABOMB`) and applies linear falloff from the tank's hull edge so grazing hits still register. Owner immunity is opt-in per weapon (rockets immune, mortars/mines not).
-- Damage model (T14): tank state carries `shield`, `invulnerableTicks`, and existing `armor`/`fuel`. Damage routes through invulnerability (full block) → shield (absorb) → armor; shield decays over time (`SHIELD_DECAY_TICKS=50`); fuel exhaustion blocks acceleration (already enforced); both fields exposed on `HudState` (`shield`, `invulnerableTicks`) and `TankState.invulnerable`. Respawn refills armor/fuel and clears shield/invuln.
-- Projectile: owner-kind tagging, per-weapon TTL, out-of-bounds flushing, owner immunity.
-- Turret: target acquisition, rotation via 16-step compass, cooldown-gated fire using imported delay/power.
-- Goal capture: once-only claim, contribution accumulation, `MissionWon` at 100%.
-- Flag capture (T19): pickup within 16px radius, flag follows carrier, returns to home on carrier death. `GameEvent.FlagCaptured`, `FlagReturned`, `FlagDelivered`.
-- Product pickup (T20): within 16px radius, marked collected, idempotent. `GameEvent.ProductCollected` with price.
-- Warps (T22): 15px radius teleport, 30-tick cooldown to prevent loops.
-- Destroyers (T23): immediate-mode triggers on first tick with area damage via `AreaDamageResolver`.
-- Enforcers (T24): AI tanks within radius adopt enforced weapon (`applyEnforcedWeapon`).
-- Trains (T25): forward motion with world-wrap. Zeppelins sweep horizontally. B52 flies and drops bombs every 500 ticks (10 max, radius 60, damage 20).
-- Tank lifecycle: damage → `DamageTaken`; destruction → `TankDestroyed` (with lives decrement); 300-tick respawn countdown (`tnk.motion.dead=tinit(300)`) → `TankSpawned`.
-- Mission win when all enemy tanks/turrets are dead; mission loss when all player lives are spent.
-- First-pass AI for mobile enemy tanks: nearest opposing tank, body+turret steering via `PlayerIntentFrame`, fire when aligned and in range.
-- `PlayerView` generation: camera on controlled tank, HUD (armor/fuel/lives/mission progress/code/status), radar of tanks/turrets/goals.
-- Bootstraps from scene JSON via `ServerMatchPrototype.fromSceneJson(scene, metadata)`.
-
-### Client (`:game-client`)
-- Compose Desktop shell: main menu, mode selection, mission selection, debrief.
-- In-process `LocalMatchClient` boot path (`fromSceneJson`).
-- Kubriko-hosted gameplay viewport with `ScenePreloadManager` for sprite preload.
-- `ClientScene.sync(snapshot)` matches client render actors to server `actorId`s, spawning/removing as needed.
-- HUD overlay (ARMOR / FUEL / LIVES / MISSION / TANK + mission code) and radar overlay, both driven by `PlayerView`.
-- Keyboard movement + space-fire input; mouse pointer drives 8-way turret aim (with dead zone).
-- Camera follows the controlled tank.
-- Audio (T15/T16): `AudioBackend` interface with `DesktopAudioBackend` implementation — distance attenuation (Euclidean, 612 px max range), stereo panning, pitch variation (900–1100), ≤32 silenced voices. `AudioManager` routes `GameEvent.Sound` events from the server to the backend. `AudioMathTest` pins the distance/pan/pitch formulas.
-- Terrain (T17/T18): `TerrainMaterial` enum + `TerrainGrid` in `:game-protocol`; `PictureCatalog` in `:game-content` maps (world, picture-index) → (material, speed) from `src/data/pictures.c`; `TerrainGridBuilder` constructs per-map grids from `TileLayers.base` + `.top` with speed multiplication and top-layer material override. `ServerMatchPrototype` builds the grid from `CanonicalMapDefinition` and calls `applyTerrainEffects()` each tick: terrain speed multiplier clamps max forward/reverse speed, lava deals 1 damage/tick, water kills instantly, big/small pits kill when tank center enters the danger zone. `TerrainMaterialTest` (32 tests) + `TerrainGridBuilderTest` (12 tests) pin catalog resolution, layer merging, and grid lookup.
-
-### Editor (`:game-editor`)
-- Thin Compose Desktop app embedding Kubriko's `SceneEditor`.
-- Reuses `tankArenaSerializableMetadata` so placed actors round-trip with the server and client.
-- Opens `:game-content/resources/scenes/` by default for round-trip editing of shipped scenes.
-- T03 boundary guard: `EditorBoundaryGuardTest` scans `:game-editor/src` for forbidden simulation symbols (`CollisionManager`, `TerrainSlideManager`, `ServerMatchPrototype`); accidentally introducing such an import fails the build.
-
-### Replication (`:game-protocol`)
-- `WorldSnapshot`, `ActorState` sealed hierarchy keyed by stable `actorId: Long`, `GameEvent`, `PlayerView`, `HudState`, `RadarContact`, `ServerFrame`.
-- `PlayerIntentFrame` / `InputFrame` for client → server input.
-- Replay protocol scaffolding present.
-
-### Tooling (`:tools-mapconv`)
-- `scene` (single legacy `.MAP` → scene JSON + sidecar) and `scene-all` (regenerate full set).
-- Generated legacy picture catalog extraction.
-
-### Tests
-- Server: bootstrap, tick round-trip, sliding collision (head-on / perpendicular / three-tank pile-up), per-weapon firing/cooldown, chain-gun rate + ammo, mine activation grace + proximity detonation, rocket steering / TTL / impact, mortar travel + falloff, shield/invulnerability/fuel-out damage routing (T14), wall cleanup, turret aim, goal capture, tank lifecycle, AI motion/fire, `PlayerView` HUD/radar wiring, scene-JSON round trips, scene-bootstrap, per-actor `save()`/`restore()` round-trip, schema-version reject, every-shipped-map import-clean, editor boundary guard, terrain material catalog resolution (32 tests), terrain grid builder layer merging (12 tests), flag capture/return (8 tests), product pickup (6 tests), A* pathfinding (9 tests), line-of-sight raycast (8 tests), waypoint follower (5 tests), AI mode dispatcher (9 tests), mission evaluation per mode (9 tests). 170 tests green.
-- Content: legacy parsing, generated asset registry, supported subset of object parsing.
-
-## 5. What Is Still Prototype-Level
-
-- Movement feel: terrain-material speed multipliers are wired (T17) — oil slows, road/race track speeds up, lava/water/pit deal damage. Per-vehicle handling differences (helicopters/planes) are absent.
-- Tank-vs-tank collision slides cleanly, but per-vehicle handling differences (helicopters/planes) are absent.
-- Weapons: main, chain, mines, rockets, mortars are wired (T09–T12) and now share `AreaDamageResolver` + `GameEvent.Explosion` (T13). Flamethrower, A-bomb, smoke screen, invisibility, extra-speed, light, and deployed-men weapons are still missing; client-side explosion sprites/SFX are not yet wired off the new event.
-- Damage model carries shield + invulnerability + fuel-out (T14), but pickups that grant shield/invuln/fuel (Phase 5 objects T20) and shield-pickup HUD affordance are not yet landed.
-- Terrain semantics (T17/T18): per-material speed multipliers, lava damage, water kill, pit kill are wired. Bridge destruction → water reveal, runway takeoff, and fuel dump flame effects are deferred to later phases.
-- World object behavior: flags, products, locks, warps, destroyers, enforcers, trains, zeppelins, B52 all produce scene actors and execute (T19–T25). Men, bonuses, and authored mines are imported but inert. Lock downstream effects (blow structure/destroy object) are deferred.
-- AI: pathing (A* over solid grid, T26), line-of-sight (Bresenham raycast, T27), waypoint patrol (T28), per-mode behavior (SINGLE/DUALVC patrol, DUAL aggressive). AI navigates around walls, fires only when target is visible, and follows waypoints when no enemy is present.
-- HUD/radar parity: scoring panel (T30), weapon select (T31), debrief stats (T32) are wired.
-
-- Split-screen, multiple cameras, gamepad, action-mapping/remapping UI: absent.
-- Replay recording/playback and deterministic checksums: scaffolded, not implemented.
-- Save/config/profile UX: absent.
-- Editor validation/playtest layered on top of `SceneEditor`: not yet wired.
-- T07 (drop legacy parsing surface) deliberately deferred while later phases lean on `CanonicalMapDefinition`, `LegacyMapImporter`, and the `tools-mapconv scene*` subcommands for fixtures.
-
-## 6. Gaps Against Parity
-
-For the legacy gameplay rules that still need to land, the authoritative descriptions live in [`docs/game/`](game/):
-
-- Armor/fuel/shield/invulnerability rules — [`mechanics.md`](game/mechanics.md)
-- Tank/helicopter/plane families — [`vehicles.md`](game/vehicles.md)
-- Weapon families and projectile rules — [`weapons.md`](game/weapons.md)
-- Terrain materials and special tiles — [`terrain.md`](game/terrain.md)
-- Object families (goals, flags, warps, locks, destroyers, enforcers, products, trains, zeppelin, B52) — [`objects.md`](game/objects.md)
-- AI activation, navigation, targeting — [`ai.md`](game/ai.md)
-- Map structure and the legacy `.MAP` format — [`map-format.md`](game/map-format.md)
-- Modes (single, dual, dual-vs-computer, editor) — [`overview.md`](game/overview.md)
-
-## 7. Suggested Delivery Sequence
-
-1. Broaden combat on `:game-server` actors: tank-vs-tank polish, additional weapons (chain gun, mines, rockets, mortars), area damage, explosion/effect sprites.
-2. ~~Audio event plumbing and a basic backend~~ — done (T15/T16).
-3. ~~Terrain/material rules (mud/ice/water/fuel/armor pickups, bridges, runways)~~ — done (T17/T18, 3cba470).
-4. One end-to-end mission mode with objectives, win/loss evaluation, debrief.
-5. AI for mobile units in that mode (navigation, line-of-sight).
-6. ~~Broaden imported object family behavior (flags, warps, locks, destroyers, enforcers, products, etc.)~~ — done (T19–T25, 12223de/fc778db/489444f).
-7. Editor validation + in-editor playtest.
-8. Replay recording/playback, checksum determinism.
-9. Save/config UX, packaging, performance pass.
-10. Future-target work: networked play (drop in `RemoteMatchClient`), WASM enablement.
-
-## 8. "Feature-Complete" Bar
-
-The rewrite is feature-complete when:
-- Representative legacy maps import and play end-to-end.
-- All vehicle, weapon, turret, and common object families behave per `docs/game/`.
-- Single-player missions and core multiplayer modes function.
-- AI is good enough to support the original gameplay loops.
-- Rendering, HUD, and audio are coherent and recognizable as Tank Arena.
-- The editor authors and saves canonical scenes via `SceneEditor`.
-- The desktop game is stable, packaged, and testable.
-- The architecture still preserves a clean path to networking and additional targets.
+- [`rewrite/architecture.md`](rewrite/architecture.md) — modules, a match step by step, replication,
+  threads, switches, debt.
+- [`rewrite/parity.md`](rewrite/parity.md) — what matches the original, what does not, deviations and
+  exclusions.
+- [`rewrite/adrs/`](rewrite/adrs/README.md) — decisions 0001–0020.
+- [`rewrite/content-format.md`](rewrite/content-format.md) — map files and the importer.
+- [`rewrite/assets.md`](rewrite/assets.md) — every original asset and its converted form;
+  `tools-mapconv`.
+- [`rewrite/build.md`](rewrite/build.md) — building, running, packaging.
+- [`rewrite/testing-strategy.md`](rewrite/testing-strategy.md) — tests that exist and the plan.
+- [`rewrite/risk-register.md`](rewrite/risk-register.md) — risks and mitigations.
+- [`rewrite/legacy-system-map.md`](rewrite/legacy-system-map.md) — C source to Kotlin.
+- [`rewrite/history.md`](rewrite/history.md) — how the rewrite got here; deleted documents.
+- [`game/`](game/) — the original game: overview, mechanics, vehicles, weapons, terrain, objects, AI,
+  map format. This is the parity spec, checked against `src/`.

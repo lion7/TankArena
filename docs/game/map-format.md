@@ -1,105 +1,134 @@
 # Tank Arena — Legacy `.MAP` Binary Format
 
-Map version: 6 (`MAP_VERSION`). Max dimensions: 200×200 tiles. Tile size: 33 pixels.
+Map version: 6 (`MAP_VERSION`). Tile size: 33 pixels. All values are little-endian; C booleans are stored as -1
+(`TRUE`) and 0 (`FALSE`). Maps live in `MAPS/<name>.MAP`.
+
+The game reserves memory for 200 × 200 = 40,000 cells; the editor limits `sx × sy` to that, not each side
+(`src/edit/file.c:22`). `RACE3.MAP`, for example, is 300 × 52.
 
 ## Header (84 bytes)
 
-| Offset | Size | Field                    | Description                                 |
-|--------|------|--------------------------|---------------------------------------------|
-| 0      | 4    | `mission_code`           | Mission identifier (uint32)                 |
-| 4      | 4    | `next_mission_code`      | Next mission on victory (uint32)            |
-| 8      | 2    | `width_tiles`            | Map width in tiles (uint16, 1–200)          |
-| 10     | 2    | `height_tiles`           | Map height in tiles (uint16, 1–200)         |
-| 12     | 2    | `mission_text_offset[0]` | Offset to mission briefing text             |
-| 14     | 2    | `mission_text_offset[1]` | Offset to victory text                      |
-| 16     | 2    | `mission_text_offset[2]` | Offset to defeat text                       |
-| 18     | 1    | `random_bonus`           | Enable random bonus spawning (bool)         |
-| 19     | 1    | `background`             | World theme index                           |
-| 20     | 1    | `public_password`        | Shareware password flag                     |
-| 21     | 1    | `night`                  | Night mode (enables light weapon, index 12) |
-| 22     | 2    | `map_type`               | Mode compatibility (`MAPT_*`)               |
-| 24     | 2    | `map_version`            | Format version (0–64, current = 6)          |
-| 26     | 2    | `map_contents`           | Content flags (`MAPC_*`)                    |
-| 28     | 4    | `object_size`            | Size of object blob in bytes (uint32)       |
-| 32     | 1    | `shareware`              | Shareware restriction flag                  |
-| 33     | 1    | `lock`                   | Header XOR protection enabled               |
-| 34     | 2    | _(padding)_              | —                                           |
+`maptype`, packed (`src/include/types.h:12-26`):
 
-Bytes 36–83 contain additional fields used by the editor and game logic.
+| Offset | Size | Field                  | Description                                          |
+|--------|------|------------------------|------------------------------------------------------|
+| 0      | 22   | `this_mission_code`    | Mission code of this map (zero-terminated string)    |
+| 22     | 22   | `next_mission_code`    | Code of the next mission, given on victory           |
+| 44     | 4    | `sx`                   | Width in tiles (`long`)                              |
+| 48     | 4    | `sy`                   | Height in tiles (`long`)                             |
+| 52     | 16   | `mission_text[4]`      | Absolute file offsets (`long`), see below            |
+| 68     | 2    | `random_bonus`         | Random bonuses (`short` boolean)                     |
+| 70     | 1    | `background`           | World 0–3 (`char`)                                   |
+| 71     | 1    | `public_pwd`           | Mission code is public (`char` boolean)              |
+| 72     | 2    | `night`                | Night map (`short` boolean)                          |
+| 74     | 1    | `map_type`             | `MAPT_*` (`char`)                                    |
+| 75     | 1    | `map_version`          | Format version (`unsigned char`), currently 6        |
+| 76     | 2    | `map_contents`         | `MAPC_*` flags (`short`)                             |
+| 78     | 2    | `sizeofobj`            | Size of one object record (`short`)                  |
+| 80     | 1    | `shareware`            | Playable in the shareware version (`char` boolean)   |
+| 81     | 1    | `__extra_char__`       | Padding                                              |
+| 82     | 2    | `lock`                 | Header is XOR-protected (`short` boolean)            |
+
+`public_pwd` makes the mission code known to the code list cheat; `DUALVC` codes are always known
+(`src/game/listcod.c:19`).
 
 ## Header Protection
 
-When `lock` is set, the header is XOR-encrypted: each 4-byte word XORed with `0x34312E33`.
+When the editor saves with map locking on, it sets `lock` and XORs the whole header, as 21 32-bit words, with
+`0x34312E33` (`src/game/mapfiles.c:432-441`, `:464-469`). `read_header()` tests the stored `lock` field, which is
+non-zero both in plain and in protected form, and undoes the XOR (`src/game/mapfiles.c:100-101`).
 
 ```c
-void protect(maptype *m) {
-    for (int i = 0; i < sizeof(maptype) / 4; i++)
-        ((uint32*)m)[i] ^= 0x34312e33;
+void protect(void *ptr, long size)
+{ size/=4;
+
+  for (; size>0; size--, ptr+=4)
+   *(long *)ptr^=0x34312e33;
 }
 ```
 
-**Ref:** `src/game/mapfiles.c`, `game-content/src/com/tankarena/legacy/LegacyMapParser.kt:unlockHeader()`
-
 ## Layer Data (after header)
 
-Layers are stored sequentially after the 84-byte header.
+| Layer           | Type          | Size  | Description                                          |
+|-----------------|---------------|-------|------------------------------------------------------|
+| Picture layer 0 | `short`       | W×H×2 | Ground (water, roads, rails, pits, lava, conveyors)  |
+| Picture layer 1 | `short`       | W×H×2 | Structures                                           |
+| Picture layer 2 | `short`       | W×H×2 | Upper parts of structures                            |
+| Goal layer      | `signed char` | W×H   | Goal value -100..100 of the tile's building          |
+| Bonus layer     | `signed char` | W×H   | Bonus index 0–13, -1 = none                          |
+| Men layer 0     | `char`        | W×H   | Men type: `HT_CHAIN`, `HT_FLAME` or `HT_SROCK`       |
+| Men layer 1     | `char`        | W×H   | Men count, 0–50                                      |
 
-| Layer           | Type    | Size  | Description                               |
-|-----------------|---------|-------|-------------------------------------------|
-| Terrain Layer 0 | `short` | W×H×2 | Bottom terrain (water, rails, pits, lava) |
-| Terrain Layer 1 | `short` | W×H×2 | Middle terrain (structures, bridges)      |
-| Terrain Layer 2 | `short` | W×H×2 | Top terrain (overhangs, shadows)          |
-| Goal Layer      | `byte`  | W×H   | Goal trigger tiles                        |
-| Bonus Layer     | `byte`  | W×H   | Bonus spawn tiles                         |
-| Man Layer 0     | `byte`  | W×H   | Man spawn positions (team 0)              |
-| Man Layer 1     | `byte`  | W×H   | Man spawn positions (team 1)              |
-
-Total layer size: `W × H × (2 + 2 + 2 + 1 + 1 + 1 + 1) = W × H × 10` bytes.
+Cells are stored row by row (`x + sx × y`). Picture values index the world's picture set; -1 is empty. Total layer
+size: `W × H × 10` bytes (`src/game/mapfiles.c:204-212`, `src/edit/men.c`).
 
 ## Mission Text Sections
 
-Three CStrings at offsets specified in `mission_text_offset[0..2]`:
+`mission_text[0..3]` are absolute file offsets (`src/game/mapfiles.c:405-420`). Each text runs from its offset to the
+next one; the texts are not zero-terminated. On save the editor copies `MAPS/<name>.0`, `.1` and `.2` (up to 10,000
+bytes each) into the file.
 
-| Index | Purpose                                     |
-|-------|---------------------------------------------|
-| 0     | Mission briefing (shown before game starts) |
-| 1     | Victory text (shown on goal completion)     |
-| 2     | Defeat text (shown on loss)                 |
+| Index | Purpose                                                       |
+|-------|---------------------------------------------------------------|
+| 0     | Briefing, shown before the mission (`src/game/single.c:63`)   |
+| 1     | Victory text                                                  |
+| 2     | Defeat text                                                   |
+| 3     | Not a text: start of the object blob                          |
 
-Offsets are relative to the start of the text section (after layer data). Null-terminated strings.
+The texts are shown with `view_file()` by the mode code; `load_map()` does not read them.
 
 ## Object Blob
 
-Raw binary blob of size `object_size`. Contains serialized `objectstruct` unions for all placed objects.
+From `mission_text[3]` to the end of the file: records of `sizeofobj` bytes each, the raw `objectstruct` with its type
+union (`src/game/mapfiles.c:237-248`). Every record has the same size, whatever the object type.
 
-- Objects are relocated on load to fix cross-references (warp pairs, train wagons, lock targets).
-- Each object includes type, position, and type-specific data.
-- Object size varies by type (tanks are largest, bonuses are smallest).
+- `id` must be `OBJ_MAGIC` (`0x4A424F54`), or loading stops with an error.
+- `x`, `y` are the top-left corner; add 16 for the centre, for every type. `h`, `r` and `gc` follow.
+- Pointers (`owner`, `target`, train links, wagon turret) hold the memory addresses at save time. `this_structure`
+  holds each object's own old address, and `relocate()` maps the pointers to the loaded objects
+  (`src/game/mapfiles.c:450-462`).
+- Function pointers in the record are meaningless; `prepare_*()` sets them per type. Only the types in the
+  `load_map()` switch may appear (see `objects.md`).
 
 ## Map Type Constants
 
-| Constant            | Value | Description           |
-|---------------------|-------|-----------------------|
-| `MAPT_DONTCARE`     | 0     | Works in any mode     |
-| `MAPT_DUAL`         | 1     | Dual player only      |
-| `MAPT_SINGLE`       | 2     | Single player only    |
-| `MAPT_DUALVC`       | 4     | Dual vs computer only |
-| `MAPT_SINGLEORDUAL` | 8     | Single or dual        |
+| Constant            | Value | Description                  |
+|---------------------|-------|------------------------------|
+| `MAPT_DONTCARE`     | 0     | Works in any mode            |
+| `MAPT_DUAL`         | 1     | Dual player only             |
+| `MAPT_SINGLE`       | 2     | Single player only           |
+| `MAPT_DUALVC`       | 3     | Dual vs computer only        |
+| `MAPT_SINGLEORDUAL` | 4     | Single player or dual vs computer |
+
+Values from `src/include/define.h:258-262`; see `overview.md` for which mode accepts which type.
 
 ## Map Content Flags
 
-`MAPC_*` flags indicate what content the map contains (objects, structures, special terrain, etc.).
+Set by the editor on save from the start pads and flags (`src/game/mapfiles.c:363-376`). `DUAL` tank selection only
+offers vehicle classes the map has pads for.
+
+| Constant     | Value | Set when the map has         |
+|--------------|-------|------------------------------|
+| `MAPC_TANK`  | 1     | Tank start pads (types 0, 1) |
+| `MAPC_CHOP`  | 2     | Chopper pads (types 2, 3)    |
+| `MAPC_PLANE` | 4     | Plane pads (types 4, 5)      |
+| `MAPC_RACE`  | 8     | Race pads (types 6, 7)       |
+| `MAPC_FLAG`  | 16    | Flags                        |
 
 ## Loading Order
 
-1. Read and validate 84-byte header (width/height 1–200, version 0–64).
-2. Unlock header if `lock` is set (XOR with `0x34312E33`).
-3. Read 3 terrain layers (short values).
-4. Read goal, bonus, and man layers (byte values).
-5. Read mission text CStrings from offsets.
-6. Read raw object blob.
-7. Initialize structure strength from picture data.
-8. Relocate object cross-references.
-9. Prepare lock objects (set strength to 1000).
+`load_map()` (`src/game/mapfiles.c:171-342`):
 
-**Ref:** `src/game/mapfiles.c`, `game-content/src/com/tankarena/legacy/LegacyMapParser.kt`
+1. Read the 84-byte header; undo the protection if `lock` is set.
+2. Refuse non-shareware maps in the shareware version, and maps with `map_version > 6` (`:190-200`). Nothing else is
+   checked.
+3. Read the 3 picture layers, the goal and bonus layers and the 2 men layers.
+4. Select the picture set of `background` and load its pictures.
+5. Set structure strengths from the pictures; a strength of 1000 on either structure layer makes both layers of the
+   tile indestructible (`:218-235`).
+6. If objects are wanted: seek to `mission_text[3]`, read records until end of file, relocate the pointers and call the
+   `prepare_*()` function of each type.
+7. Outside the editor: place the bonuses, add the zeppelin (shareware only) and pick the flags for a flag hunt.
+8. Start the music of the world.
+
+**Ref:** `src/game/mapfiles.c`, `src/include/types.h`

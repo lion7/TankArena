@@ -1,27 +1,47 @@
-# ADR 0007: Authoritative Headless Kubriko Server
+# ADR 0007: Authoritative Server, Render-Only Client
 
-- **Status:** Accepted (2026-04).
-- **Decision:** the rewrite runs an authoritative simulation on a headless Kubriko instance inside `:game-server`. Single-player and (future) networked play share the same code path.
+- **Status:** Accepted (2026-04; revised 2026-10-19). The server-side use of Kubriko described here is
+  being removed: see [ADR 0019](0019-remove-kubriko-from-the-server.md).
 
 ## Context
 
-Pre-collapse, the rewrite had a pure-Kotlin `:game-sim` plus a `:game-render-kubriko` projection layer. That meant two parallel actor models — one for sim, one for render — with custom glue between them. It also left no obvious place to host a future networked server, since the client owned the gameplay loop in-process.
+Before 2026-04 the simulation was a pure-Kotlin `:game-sim` with a separate render projection, and the
+client owned the game loop. There was no place for a networked server, and the two actor models
+drifted apart.
 
 ## Decision
 
-- `:game-server` spins up a headless Kubriko via `Kubriko.newInstance` + `tick(Int)` per match.
-- Server actors (`ServerTankActor`, `ServerTurretActor`, `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`) implement `Collidable` plus `Serializable<T>`. Their `save()` produces a `:game-protocol` `ActorState`; the same `ActorState` types are used both for scene loading and for per-tick replication.
-- A `WorldSnapshot` is built each tick by walking `actorManager.allActors`, calling `save()` on every `Serializable`, and tagging entries with the stable `actorId: Long` assigned at spawn.
-- A custom `TerrainSlideManager` runs after Kubriko's `CollisionManager.onUpdate` to provide axis-by-axis MTV sliding response (Kubriko's collision plugin only detects overlap).
-- `MatchClient` is the seam: `LocalMatchClient(ServerMatchPrototype)` runs the server in-process for single-player and local split-screen; a future `RemoteMatchClient` will swap in for networked play without touching the client viewport.
-- The client never holds gameplay truth. It receives `ServerFrame` (snapshot + per-player views) and renders. For split-screen modes the client composes multiple `PlayerView`s side-by-side from the same frame — the server produces one `PlayerView` per active player regardless of display topology.
+- **One authoritative simulation per match**, in `:game-server` (`ServerMatchPrototype`). Single
+  player, two players on one machine and (later) networked play all run the same code.
+- **The client only renders.** It submits `InputFrame`s and draws `ServerFrame`s through `MatchClient`
+  ([ADR 0005](0005-network-ready-input-protocol-boundary.md)); it never decides gameplay.
+- **Split screen is a client concern.** The server builds one `PlayerView` per player; the client
+  decides how the views are laid out (side by side, as in the original's `compute_window_size()`).
+- **Replication is a projection.** Each tick the server builds a `WorldSnapshot` by projecting its
+  objects into the protocol's `ActorState` types (`projectToWireState`), adding the small runtime
+  objects (bonuses, soldiers, A-bombs) and the structure tiles that changed. The client keeps one
+  render actor per stable `actorId` (`ClientScene.sync`).
 
-`PhysicsManager` (Box2D) is deliberately deferred — it fights grid-locked kinematic tanks. Reserved for explosive debris/knockback.
+## How the server uses Kubriko today
+
+The 2026-04 version of this ADR said the match is a headless Kubriko instance whose managers do the
+work. That is no longer true:
+
+- `ServerMatchPrototype.tick()` is a hand-written pipeline of about 45 steps in the original's order
+  of concerns. Kubriko's `tickSource.tick(10)` is one step in it, which runs the `update()` of the
+  tank, projectile, mine, rocket and mortar actors.
+- Kubriko's `ActorManager` holds the map objects, and its `SerializationManager` reads the scene file.
+- `CollisionManager` is registered but does nothing useful; collisions are the original's pixel-mask
+  and circle tests (`StructureGrid`, `ServerTankActor`; see [ADR 0011](0011-structure-grid-and-pixel-masks.md)).
+- `TerrainSlideManager` no longer slides tanks along walls; it only applies each tank's queued damage
+  and vehicle pushes after the actor update.
+- `PhysicsManager` (Box2D) was never used.
 
 ## Consequences
 
-- One simulation code path, exercised by both single-player today and networked play later.
-- `ActorState` is the single replication contract: scene-load and per-tick wire are the same shape.
-- Server and client are decoupled enough that the client can be rewritten without touching gameplay rules.
-- Split-screen is a pure client-side rendering concern: the server emits `List<PlayerView>` inside `ServerFrame` and does not know whether those views land on one screen or many. This means split-screen support requires zero changes to `:game-server` or `:game-protocol` beyond what already exists.
-- The server depends on Kubriko's published headless API; see [ADR 0008](0008-kubriko-and-scene-json.md).
+- One simulation code path, deterministic and testable without a window
+  ([ADR 0014](0014-simulation-thread-and-recordings.md)).
+- Scene-file state (`Server*Actor.State`) and wire state (`ActorState`) are separate types; adding a
+  field to a map object may mean touching both.
+- The server's Kubriko dependency costs more than it gives (asynchronous actor adds that need
+  `awaitActorCount`, no-op managers, Compose on the server classpath). ADR 0019 removes it.

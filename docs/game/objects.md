@@ -1,274 +1,236 @@
 # Tank Arena — World Objects
 
-Objects are stored in a height-sorted linked list (`h` field). Each object has function pointers: `control`, `write`,
-`hit`, `remove`, `light`. Objects are processed each frame in draw order.
+Everything that is not a map tile is an object (`objectstruct`, `src/include/types.h`) in one linked
+list sorted by height `h`. Each object has a type, a position (top-left corner; the centre is 16 px
+further), a height, a hit radius `r` (0 = cannot be hit), a goal-counter share `gc`, owner and target
+pointers, and function pointers `control`, `write`, `mwrite` (editor/overview drawing), `hit`,
+`remove` and `light`. `control_objects()` calls every object's `control` once per game step
+(`src/objects/objects.c:137`). When an object is removed, its `gc` is applied to the goal counter
+(`objects.c:129`).
 
-## Object Type Index
+Weapons that become objects (rockets, mines, mortar blasts, A-bombs) are described in `weapons.md`.
 
-| Constant       | Value | Description                     |
-|----------------|-------|---------------------------------|
-| `TANK_TYPE`    | 0     | Player or AI tank/chopper/plane |
-| `BONUS_TYPE`   | 1     | Pickup bonus item               |
-| `DESTROY_TYPE` | 2     | Area destroyer trigger          |
-| `ENFORCE_TYPE` | 3     | AI weapon enforcer              |
-| `FLAG_TYPE`    | 4     | Capture-the-flag                |
-| `GOAL_TYPE`    | 5     | Win condition goal              |
-| `LOCK_TYPE`    | 6     | Conditional trigger lock        |
-| `WARP_TYPE`    | 7     | Teleport warp point             |
-| `TRAIN_TYPE`   | 8     | Train engine or wagon           |
-| `B52_TYPE`     | 9     | B52 bomber                      |
-| `ZEPP_TYPE`    | 10    | Zeppelin (unregistered)         |
-| `TURRET_TYPE`  | 11    | Stationary turret (9 variants)  |
-| `MAN_TYPE`     | 12    | Walking man with weapon         |
-| `MINE_TYPE`    | 13    | Light or heavy mine             |
-| `ROCK_TYPE`    | 14    | Guided rocket                   |
-| `MORTAR_TYPE`  | 15    | Mortar explosion                |
-| `ABOMB_TYPE`   | 16    | Atomic bomb                     |
-| `PRODUCT_TYPE` | 17    | Supermarket product             |
-| `SMOKE_TYPE`   | 18    | Smoke screen cloud              |
-| `LIGHT_TYPE`   | 19    | Light source (night mode)       |
+## Object types
 
-## Bonus Items
+From `src/include/define.h:226-245`:
 
-Spawned randomly or placed in maps. 14 types (`b.which`):
+| Value | Constant | Value | Constant |
+|---|---|---|---|
+| 0 | `TANK_TYPE` | 10 | `PLAYER_TYPE` (start pad) |
+| 1 | `B52_TYPE` | 11 | `WARP_TYPE` |
+| 2 | `MAN_TYPE` | 12 | `MORTAR_TYPE` |
+| 3 | `TURRET_TYPE` | 13 | `FLAG_TYPE` |
+| 4 | `ROCKET_TYPE` | 14 | `LOCK_TYPE` |
+| 5 | `MINE_TYPE` | 15 | `GOAL_TYPE` |
+| 6 | `ABOMB_TYPE` | 16 | `DESTROYER_TYPE` |
+| 7 | `BONUS_TYPE` | 17 | `ENFORCER_TYPE` |
+| 8 | `TRAIN_TYPE` | 18 | `ZEPPELIN_TYPE` |
+| 9 | `WAGON_TYPE` | 19 | `PRODUCT_TYPE` |
 
-| Index | Item            | Effect                         |
-|-------|-----------------|--------------------------------|
-| 0     | Grenades        | Extra main cannon ammo         |
-| 1     | Extra Gun       | Additional weapon slot         |
-| 2     | Fuel            | Restores fuel to max           |
-| 3     | Mines           | Extra mine ammo                |
-| 4     | Rockets         | Extra rocket ammo              |
-| 5     | Mortar          | Extra mortar ammo              |
-| 6     | Nuke            | A-bomb ammo (ATOMIC TANK only) |
-| 7     | Gunners         | Men w/ Chain Gun ammo          |
-| 8     | Flamers         | Men w/ Flamethrower ammo       |
-| 9     | Smoke           | Smoke Screen ammo              |
-| 10    | Cloak           | Invisibility ammo              |
-| 11    | Speed Up        | Extra Speed ammo               |
-| 12    | Invulnerability | Temporary invulnerability      |
-| 13    | Armor           | Restores armor to max          |
+Rockets, A-bombs and mortar blasts exist only at runtime. Bonuses are created at runtime from the
+map's layers (below).
 
-Random bonus distribution uses weighted probabilities. Pickup restores the corresponding weapon count.
+## Goal counter
 
-**Ref:** `src/objects/bonus.c`
-
-## Destroyer
-
-Destroys a large area when triggered.
-
-| Field         | Description                                 |
-|---------------|---------------------------------------------|
-| `d.r`         | Destruction radius                          |
-| `d.immediate` | If set, activates immediately on map load   |
-| `d.what`      | What to destroy: 1=walls, 2=objects, 3=both |
-
-`remove_destroyer()` calls `hit_wall_big()` and `check_obj_hit_radius()` for area destruction.
-
-**Ref:** `src/objects/destroy.c`
-
-## Enforcer
-
-Forces AI tanks within radius to use a specific weapon.
-
-| Field      | Description                                                      |
-|------------|------------------------------------------------------------------|
-| `e.r`      | Enforcement radius                                               |
-| `e.good`   | Target good AI tanks                                             |
-| `e.bad`    | Target evil AI tanks                                             |
-| `e.weapon` | Weapon index to enforce                                          |
-| `e.delay`  | Auto-fire delay (ticks)                                          |
-| `e.change` | If set, changes weapon slot; otherwise just fires current weapon |
-
-**Ref:** `src/objects/enforce.c`
-
-## Flag
-
-Capture-the-flag object. Two types (`f.which`): 0=Player 1, 1=Player 2.
-
-- Flag follows its carrier tank.
-- Game ends when enemy carries flag into your base zone (`und.in_base`).
-- Sets `game.flag_hunt = TRUE` in DUAL/MAP modes.
-
-**Ref:** `src/objects/flag.c`
+`modify_goal_counter()` (`objects.c:223-245`) adds positive shares to the good counter and negative
+shares to the bad counter. At 100 % good the player wins; at 100 % bad the player loses; the end
+comes 300 ticks later (`game.end_round`). It does nothing in player vs player (`DUAL`) and once a
+winner is set, and `-NOFAIL` suppresses the bad side. Shares come from removed objects (`o->gc`),
+from destroyed buildings (the signed goal layer, see `terrain.md`), and from losing the last human
+tank (−100).
 
 ## Goal
 
-Win condition trigger. Four types (`g.who`):
+Removed, and so applies its share, when something reaches its radius `r` (default 30)
+(`src/objects/goal.c`):
 
-| Value | Trigger                      |
-|-------|------------------------------|
-| 0     | Good tank enters radius      |
-| 1     | Evil tank enters radius      |
-| 2     | Train/wagon enters radius    |
-| 3     | Tracked target enters radius |
+| `who` | Completed when |
+|---|---|
+| 0 | A good tank is within `r` — on supermarket maps only after all products are collected (`goal.c:22`) |
+| 1 | An evil tank is within `r` |
+| 2 | A train engine or wagon is within `r` |
+| 3 | Its linked target object is within `r` |
 
-Goal is removed on completion and modifies the goal counter (`gc_good`/`gc_bad`). 100% = win/loss.
+## Flag
 
-**Ref:** `src/objects/goal.c`
+Player-vs-player flag hunt (`src/objects/flag.c`). `type` 0 is player one's flag, 1 player two's.
+
+- Each flag gets a number per type at load; the game picks one flag per player at random
+  (`game.flag_no`) and removes the others. Outside `DUAL` (and the editor) all flags are removed.
+- A flag is picked up by driving over it, follows its carrier, and drops where the carrier dies.
+- A tank that carries the **other** player's flag into its **own** base (within 7 px of its start
+  pad) wins the round (`flag.c:29-33`).
+- In a flag hunt players have unlimited lives.
+
+## Start pad (`PLAYER_TYPE`)
+
+Player-vs-player spawn point (`src/objects/player.c`). Each pad has a vehicle kind (0 tank or car,
+1 helicopter, 2 plane, 3 race tank), a player and optional weapons (`weap.active`, `weap.nw[12]`)
+that every vehicle from the pad gets.
+
+- 4 lives per pad (`player.c:116`). A new vehicle appears 300 ticks after the last one died
+  (`tnk.motion.dead`).
+- When the building under the pad is destroyed, the pad drops to its last life.
+- A vehicle within 7 px of its own pad is "in base" and is refilled (weapons, fuel, armor).
+
+## Products (supermarket mayhem)
+
+Any one-player or two-players-vs-computer map that contains products is a supermarket mayhem map
+(`prepare_product()` sets `game.supermarket_mayhem`, `src/objects/product.c`). There are 15 product
+kinds (washing powder, chocolate bar, apple, wine, … spaghetti).
+
+| Rule | Value (`src/include/define.h:32-34`) |
+|---|---|
+| Products needed | 20 (`max_mayhem_products`) |
+| Starting cash | $40 (`max_mayhem_cash`); each product costs its `price` (1) |
+| Time limit | 180 s (`max_mayhem_time`) |
+
+- Picking up a product costs its price; if the cash goes below 0 the bad counter gets −100.
+- When the time runs out the bad counter gets −100 (`src/world/status.c:162-174`).
+- `who = 0` goals stay closed until all needed products are collected.
+- The display shows products needed, time left and cash, and a strip with the count of each product;
+  the radar is hidden; human tanks get no start shield (`src/tanks/tank.c:293`).
 
 ## Lock
 
-Conditional trigger. Sets structure strength to 1000 on prepare.
+Makes one thing happen when another thing is destroyed (`src/objects/lock.c`).
 
-| Field        | Description                                                               |
-|--------------|---------------------------------------------------------------------------|
-| `l.activate` | Activation: 0=structure destroyed at location, 1=tracked object destroyed |
-| `l.target`   | Action: 0=blow structure, 1=destroy object, 2=remove object               |
+| `lock_activate` | Fires when |
+|---|---|
+| 0 ("KEY") | The building under the lock is destroyed |
+| 1 ("OBJ") | The nearest object at start (its owner) is gone, or is a tank or B52 with no armor left |
 
-**Ref:** `src/objects/lock.c`
+| `lock_target` | Action at `(l.x, l.y)` |
+|---|---|
+| 0 ("STR LOCK") | The structure there is removed (`HT_REMOVE`); until then it is indestructible (1000) |
+| 1 ("OBJ DEST") | The nearest object there is destroyed (`HT_DESTROY`); this sets off destroyers |
+| 2 ("OBJ REMV") | The nearest object there is removed |
+
+Only target 0 makes anything indestructible (`prepare_lock()`).
+
+## Destroyer
+
+A map-making tool that wipes out an area when it is removed (`src/objects/destroy.c`). Defaults:
+radius 30, immediate, `what` 3.
+
+- `what` bit 1: structures within `r` are hit with `HT_DESTROY` 1000; bit 2: objects within `r` too.
+- `immediate`: it removes itself on its first step, so it fires at the start of the game. Otherwise it
+  fires when it is hit or removed, typically by a lock with target 1.
+
+## Enforcer
+
+Makes computer tanks of a side use a weapon (`src/objects/enforce.c`). Defaults: radius 30, evil
+tanks only, weapon 6 (A-bomb), fire on, change off, delay 500.
+
+- Applies to computer tanks within `r` of the chosen sides (`enf_good`, `enf_evil`).
+- `fire`: every `delay` ticks the tank fires one round of `weapon` (the enforcer gives it the ammo).
+- `change`: the tank keeps the weapon selected; otherwise it switches back after firing.
 
 ## Warp
 
-Teleport point. Pairs input and output locations.
-
-- Radius: 15 pixels.
-- Teleports tanks, men, B52s, and rockets.
-- Creates `TELEPORT_SPARK` effects and sounds at both locations.
-
-**Ref:** `src/objects/warp.c`
-
-## Train / Wagon
-
-Follows rails (`RAILS_H`, `RAILS_V`, `RAILS_CR` variants and curves).
-
-| Property            | Value                        |
-|---------------------|------------------------------|
-| Wagon spacing       | 31 pixels                    |
-| Max speed           | 50                           |
-| Engine armor        | 60                           |
-| Wagon armor         | 40                           |
-| Nuclear picture (7) | Spawns A-bomb on destruction |
-| Turret picture (8)  | Mounted turret               |
-
-Linked wagons maintain distance. Hit walls for damage or removal. Triggers goal type 2.
-
-**Ref:** `src/objects/train.c`
-
-## B52 Bomber
-
-Spawns at map edge, lifts to height 19, then flies across screen.
-
-| Property       | Value                               |
-|----------------|-------------------------------------|
-| Armor          | 30                                  |
-| Bombs per run  | 10                                  |
-| Bomb interval  | 500 ticks                           |
-| Crash behavior | Falls with explosions, leaves wreck |
-| Crater chance  | 1 in 100                            |
-
-Creates wreck objects on destruction.
-
-**Ref:** `src/objects/b52.c`
-
-## Zeppelin
-
-Flies across screen at height 20, speed 10. Wraps around map edges. 2-frame animation. Unregistered version only.
-
-**Ref:** `src/objects/zeppelin.c`
+Teleports tanks, men, B52s and rockets that come within 15 px of its entrance to its exit `(w.x,
+w.y)`, with `TELEPORT_SPARK` effects and `SND_TELEPORT` at both ends; there is no cooldown
+(`src/objects/warp.c`).
 
 ## Turret
 
-9 turret types. Configurable:
+A gun on a building (`src/objects/turret.c`). Turrets have no hit radius: they cannot be shot or
+targeted by rockets. A turret without an owner disappears (with its goal share) as soon as the
+building under it is destroyed — so turrets placed beside buildings vanish at the start.
 
-| Field         | Description                                |
-|---------------|--------------------------------------------|
-| `t.r`         | Detection radius                           |
-| `t.delay`     | Fire delay (ticks)                         |
-| `t.dir`       | Firing direction                           |
-| `t.power`     | Bullet power                               |
-| `t.shoot_at`  | Target filter: good/evil/player 0/player 1 |
-| `t.fixed`     | Fixed vs rotating turret                   |
-| `t.forbidden` | Forbidden firing directions                |
+Per turret: `type` (0..8, picture `TUR<type+1>`), `dir` (16 directions), `delay`, `power`, `radius`,
+`shootat`, `fixed`, `forbid_dir`. Kind defaults (`ti[]`, `turret.c:7-15`):
 
-Fires `HT_MAIN` or `HT_ROCKET` at closest valid target.
+| Kind | Delay | Power | Radius | Shoots at | Gun |
+|---|---|---|---|---|---|
+| 0 | 150 | 5 | 200 | 3 | Bullet, barrel 15 px |
+| 1 | 200 | 5 | 200 | 4 | Guided rocket |
+| 2 | 100 | 5 | 200 | 1 | Bullet |
+| 3 | 10 | 1 | 200 | 1 | Chain gun (power below 2) |
+| 4–7 | 150 | 5 | 200 | 1 | Bullet |
+| 8 | 150 | 5 | 200 | 1 | Bullet, two barrels in turn |
 
-**Ref:** `src/objects/turret.c`
+- **Target:** the closest living, visible (not cloaked) tank allowed by `shootat`, at any range:
+  0 any, 1 good, 2 evil, 3 any except player one, 4 any except player two.
+- **Turning:** unless `fixed`, one direction step every 35 ticks toward the target, only while the
+  target is within `radius`.
+- **Firing:** when the target is within `radius`, the turret points exactly at it, `delay` has passed,
+  and (unless fixed) the direction is not in the `forbid_dir` bit mask. Power below 2 fires the chain
+  gun (`HT_CHAIN`).
 
 ## Men
 
-Walking units with weapons.
+Soldiers with a gun (`src/objects/man.c`), dropped by tanks (weapons 7 and 8, see `weapons.md`) or
+jumping out of destroyed buildings (the men layers: weapon type `HT_CHAIN`, `HT_FLAME` or `HT_SROCK`,
+up to 50 per tile). Paratroopers head for whoever destroyed the building.
 
-| Property     | Value                              |
-|--------------|------------------------------------|
-| Max bullets  | 75                                 |
-| Weapons      | Chain gun or guided rocket (SROCK) |
-| Removal      | Any hit, water, or pits            |
-| Death effect | `BLOOD` + scream sound             |
+- Walk at 5 px/s toward their target point; stop within 20 px.
+- Fire every 40–80 ticks, range 5 tiles, 75 rounds.
+- Die when hit, when out of rounds, in water, in a pit, or when they walk into a building; they leave
+  `BLOOD` and scream.
 
-Walk toward target, fire at enemies.
+## Bonuses
 
-**Ref:** `src/objects/man.c`
+Pickups (`src/objects/bonus.c`). They are never stored in maps:
 
-## Mines
+- On maps without random bonuses, every tile without a standing building gets the bonus of the
+  bonus layer (signed, −1 = none) at the start (`create_all_bonusses()`).
+- A destroyed building drops a bonus: on random-bonus maps by a roll of `rnd(10000)` (12.5 % chance
+  in total, table below), otherwise the bonus layer's.
+- Only tanks and cars pick them up; a shot destroys them.
 
-Two types:
+| `type` | Pickup | Effect | Random chance |
+|---|---|---|---|
+| 0 | 10 GRENADES | Main gun +10 | 3 % |
+| 1 | EXTRA GUN | Extra chain gun; if already present, 500 ROUNDS | 3 % |
+| 2 | FUEL | Fuel to maximum | 1 % |
+| 3 | 5 MINES | Mines +5 | 1 % |
+| 4 | 3 ROCKETS | Rockets +3 | 0.5 % |
+| 5 | A MORTAR SHELL | Mortar +1 | 0.5 % |
+| 6 | NUCLEAR BOMB | A-bomb +1 | 0.5 % |
+| 7 | 5 GUNNERS | Gunners +5 | 0.5 % |
+| 8 | 5 FLAMERS | Flamers +5 | 0.5 % |
+| 9 | SMOKE SCREEN | Smoke +1 | 0.5 % |
+| 10 | A CLOAKING DEVICE | Cloak +1 | 0.5 % |
+| 11 | SPEEDUP | Speed-up +1 | 0.5 % |
+| 12 | INVULNERABILITY | 2000 ticks + 15 blinks | 0.25 % |
+| 13 | ARMOR! | Armor +10, up to the vehicle's maximum | 0.25 % |
 
-| Type         | Behavior                       |
-|--------------|--------------------------------|
-| `LIGHT_MINE` | Radius 30, `HT_MINE` damage    |
-| `HEAVY_MINE` | 16 directional `SROCK` bullets |
+## Train and wagons
 
-Hidden underwater. Activate after 100 ticks (immediate in prepared maps).
+Trains run on rail tiles (`src/objects/train.c`): straight rails, curves of radius 49 px, crossings
+and the fixed switch pictures (`RAILS_S_*`, `RAILS_W_*`; nothing ever changes a switch). There are no
+stations. Each car stores its rail segment and the next tile.
 
-**Ref:** `src/objects/mine.c`
+| Property | Value |
+|---|---|
+| Engine armor / wagon armor | 60 / 40 |
+| Engine speed | +5 px/s every 100 ticks up to 50; a wagon at the front slows by 5 |
+| Wagon distance | Wagons close up to 31 px |
 
-## Guided Rocket
+- A train ploughs through buildings, losing 20 px/s (down to 5) per hit; an indestructible building
+  wrecks it. It crushes vehicles and wrecks other trains it runs into.
+- Wagon picture 7 carries an A-bomb that goes off when the wagon is destroyed; picture 8 carries a
+  turret (kind 5) owned by the wagon.
+- A wagon without an engine never moves (as in `BASE1`).
 
-Homing projectile.
+## B52 bomber
 
-| Property  | Value                                  |
-|-----------|----------------------------------------|
-| Max speed | 150                                    |
-| Range     | 3300 pixels                            |
-| Trail     | `EXHAUST` effect                       |
-| Explosion | `LEXPLOSION` on target or range expiry |
-| Message   | "INCOMING MISSILE!"                    |
+(`src/objects/b52.c`)
 
-Homes toward target with acceleration. Inherits owner velocity on spawn.
+- Placed on the map with a heading; waits 500–1000 ticks, then takes off: speed +1 every 80 ticks up
+  to 25, and above 20 px/s height +1 every 60 ticks up to 19.
+- Flies straight in one of 4 directions; after leaving the map by 3 tiles it re-enters over a random
+  edge.
+- Bombs: a salvo of 10 bombs every 4 × 30 + 500 = 620 ticks. Each bomb that hits nothing explodes on
+  the ground and, with a chance of 1 in 10, leaves a crater on empty floor or a road
+  (`b52.c:118-145`).
+- Armor 30. Shot down, it sinks one height step per 60 ticks with explosions, and burns as a wreck on
+  the ground. Below height 4 it crashes into buildings.
+- On night maps its lights blink.
 
-**Ref:** `src/objects/rocket.c`
+## Zeppelin
 
-## Mortar Explosion
-
-Expanding radius detonation.
-
-| Property     | Value              |
-|--------------|--------------------|
-| Start radius | 5                  |
-| Max radius   | 60                 |
-| Hit type     | `HT_MORTAR`        |
-| Parts        | `PT_MORTAR` debris |
-
-Hits objects and walls within radius.
-
-**Ref:** `src/objects/mortar.c`
-
-## A-Bomb
-
-Atomic bomb with countdown.
-
-| Property      | Value                          |
-|---------------|--------------------------------|
-| Countdown     | 30 ticks                       |
-| Radius growth | 0 to 210                       |
-| Power         | 4                              |
-| Hit type      | `HT_ABOMB`                     |
-| Visual        | 3-frame countdown              |
-| Tracking      | Nuke total for palette effects |
-
-Spawned by ATOMIC TANK (idx 21) on death, by nuclear train (picture 7), or from ABOX terrain.
-
-**Ref:** `src/objects/abomb.c`
-
-## Products
-
-15 products for Supermarket Mayhem mode.
-
-| Property          | Value                     |
-|-------------------|---------------------------|
-| Max cash          | 40                        |
-| Max product count | 20                        |
-| Pickup            | Deducts cash from carrier |
-
-**Ref:** `src/objects/product.c`
+Only in the shareware build: the game itself creates one when a map is loaded (`mapfiles.c:324`); maps
+do not place it. It flies west at height 20 and 10 px/s, wraps to the east edge at a random height,
+and switches between 2 pictures every 100 ticks (`src/objects/zeppelin.c`).

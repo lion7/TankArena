@@ -1,72 +1,204 @@
 # Tank Arena Rewrite Architecture
 
-## Goals
-- Desktop-first Kotlin rewrite with a small, defensible module boundary.
-- Server-authoritative gameplay so single-player, local split-screen, and (future) networked play share a single code path.
-- Compose Multiplatform for shell/menu/HUD/editor UI; Kubriko for the gameplay viewport and the headless server tick.
-- The legacy `.MAP` files are import-only inputs; runtime content is Kubriko scene JSON plus a metadata sidecar.
+This document describes how the Kotlin rewrite is built **today** (2026-10-19). Decisions and their
+reasons are in the [ADRs](adrs/); the original game it reproduces is described in
+[`docs/game/`](../game/) and the C source in `src/`.
 
-The parity target — what "feature complete" means in gameplay terms — is captured in [`docs/game/`](../game/). Those documents (`overview.md`, `mechanics.md`, `vehicles.md`, `weapons.md`, `terrain.md`, `objects.md`, `ai.md`, `map-format.md`) describe the original game and act as the reference the rewrite is matched against.
+## Overview
+
+```text
+                 +-------------------- game-client (desktop app) -------------------+
+ keyboard  -->   | Compose shell: intro, menus, prompts, text pages, options         |
+                 | GameplayScreen                                                    |
+                 |   SimulationLoop thread (100 ticks/s)                             |
+                 |     InputFrame per player --> MatchClient.tick() --> ServerFrame  |
+                 |   UI thread, every display frame:                                 |
+                 |     per player window: Kubriko viewport (ClientScene.sync)        |
+                 |                        + HUD/radar (Compose Canvas)               |
+                 |   AudioManager --> DesktopAudioBackend (mixer), MusicPlayer       |
+                 +-------------------------------------------------------------------+
+                                    |  LocalMatchClient (in-process)
+                 +--------------------- game-server (library) ----------------------+
+                 | ServerMatchPrototype: map objects, StructureGrid, ComputerTankAi, |
+                 | DualRules, mission rules  -->  WorldSnapshot + PlayerViews        |
+                 +-------------------------------------------------------------------+
+                                    |  ShippedScenes (class path)
+                 +--------------------- game-content (library) ---------------------+
+                 | scene_*.json + metadata_*.json, pictures catalog, terrain table,  |
+                 | pixel masks, sounds, music                                        |
+                 +-------------------------------------------------------------------+
+```
 
 ## Modules
 
-The project ships six modules. All are JVM-only at present.
+Six modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md)). Dependencies point one way:
+`game-protocol` ← `game-content` ← `game-server` ← `game-client`, `game-editor`, `tools-mapconv`.
 
-- **`:game-protocol`** — pure Kotlin wire/contract types. Math, IDs, fixed-step timing, `PlayerIntentFrame` / `InputFrame`, `WorldSnapshot`, the `ActorState` sealed hierarchy keyed by stable `actorId: Long`, `GameEvent`, `PlayerView`, `HudState`, `RadarContact`, `ServerFrame`. No Compose, no Kubriko.
-- **`:game-content`** — extracted assets (sprite sheets, sounds), the generated legacy picture catalog, scene JSON files (`resources/scenes/scene_*.json`), per-map metadata sidecars (`metadata_*.json`), and the legacy `.MAP` raw byte parser (`LegacyMapParser`/`LegacyMapData`/`LegacyMapHeader`). Owns the `MapSceneSidecar` schema (tile layers, mission text, mode compatibility, import notes). No Compose, no Kubriko.
-- **`:game-server`** — authoritative simulation. Runs a headless Kubriko instance per match with `ActorManager`, `CollisionManager`, `SerializationManager`, a custom `TerrainSlideManager` for axis-by-axis sliding response, and a mission evaluator. Server actors (`ServerTankActor`, `ServerTurretActor`, `ServerProjectileActor`, `ServerWallActor`, `ServerGoalActor`) implement Kubriko `Serializable<T>` so each `save()` produces the matching `:game-protocol` `ActorState`. Hosts the legacy `.MAP` → scene JSON importer (`LegacyMapImporter`, server-internal). Depends on `:game-content` and `:game-protocol`.
-- **`:game-client`** — Compose Desktop app. Menus, mode/map selection, HUD/radar overlays, and the Kubriko-hosted gameplay viewport. Client actors render only; each tick `ClientScene.sync(snapshot)` matches actors by stable `actorId`. Input capture converts to `InputFrame` and submits via `MatchClient`. Single-player boots `LocalMatchClient(ServerMatchPrototype)` in-process; networked play will substitute a `RemoteMatchClient` at the same seam. For split-screen modes the viewport composes multiple `PlayerView`s side-by-side from the same `ServerFrame`, each with its own camera, HUD, and radar overlay.
-- **`:game-editor`** — Compose Desktop app embedding Kubriko's `SceneEditor` composable. Reuses the same `tankArenaSerializableMetadata` registry as the server, so placed actors round-trip through the server and client. Server actors implement `Editable<T>` to expose their `State` for the editor; the editor depends on `:game-server` for those actor classes only — no server managers run inside the editor's Kubriko instance.
-- **`:tools-mapconv`** — thin `jvm/app` module containing a CLI (`Main.kt`) that calls into `:game-content`'s import library and `:game-server`'s `LegacyToSceneJson`. Subcommands convert single legacy `.MAP` files or batch-regenerate the full scene set into `:game-content/resources/scenes/`.
+| Module | Kind | Holds |
+|---|---|---|
+| `:game-protocol` | library | Wire and timing types; no Compose, no Kubriko |
+| `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, map importer |
+| `:game-server` | library | The authoritative simulation and the server half of the importer |
+| `:game-client` | desktop app | Shell, playfield rendering, HUD, audio, settings, recordings |
+| `:game-editor` | desktop app | Map editor on Kubriko's `SceneEditor` |
+| `:tools-mapconv` | command line | Map conversion and asset extraction |
+
+### `:game-protocol`
+
+- `core/FixedStepClock` (100 ticks/s), `core/LegacyDirections` (16-step compass).
+- `protocol/Frames.kt`: `InputFrame` (one per player per tick), `Team`.
+- `input/PlayerIntent.kt`: `PlayerIntentFrame`, the server's internal intent, also produced by the AI
+  and stored in recordings.
+- `protocol/snapshot/`: `WorldSnapshot`, the `ActorState` hierarchy (about 19 states keyed by
+  `actorId`), `GameEvent` (sounds, effects, explosions, messages, mission result, …), `PlayerView`,
+  `HudState`, `RadarContact`, `LockMarker`, `TileState`, `ServerFrame`, and the terrain types
+  `TerrainMaterial`, `TerrainTile`, `TerrainGrid`.
+- Unused leftovers to delete: `ReplayProtocol.kt`, `snapshot/PlayerInput.kt`, `EntityId`, `Tick`,
+  `wrapCoordinate`, `toroidalDelta`, and the never-emitted events `Fired`, `FlagCaptured`,
+  `FlagReturned`, `FlagDelivered`.
+
+### `:game-content`
+
+- `ShippedScenes`: loads `scenes/index.txt` and the `scene_<name>.json` / `metadata_<name>.json`
+  pairs from the class path; rejects sidecars newer than `SCENE_SCHEMA_VERSION`.
+- `MapSceneSidecar`: header fields, mission texts and tile layers of a map
+  ([content-format.md](content-format.md)).
+- Generated from the C source: `GeneratedLegacyPictureCatalog` and `GeneratedLegacyPictureTerrain`
+  (`src/data/pictures.c`); `PictureCatalog` and `TerrainGridBuilder` build each map's terrain grid
+  (material and speed per tile).
+- `PictureMasks`: opaque-pixel masks of every picture (`resources/masks/pictures.mask`).
+- `legacy/LegacyMapParser`: the raw `.MAP` reader (importer only).
+- `tools/mapconv/*`: the extractor library behind `:tools-mapconv` (pictures, fonts, night tables,
+  masks, vehicle and terrain tables).
+- Resources: `scenes/`, `masks/`, `sounds/` (29 WAVs), `music/` (two MIDI files).
+
+### `:game-server`
+
+All under `com.tankarena.sim.kubriko.server`.
+
+| File | Role |
+|---|---|
+| `ServerMatchPrototype` | The match: setup, the tick pipeline, hits, structures, objects, mission rules, snapshot and views |
+| `ServerTankActor` | Vehicles: movement physics, heights, weapons, damage, shield, cloak, lights |
+| `ComputerTankAi` | Port of `control_computer_tank()` ([ADR 0012](adrs/0012-port-the-computer-ai.md)) |
+| `StructureGrid` | Buildings: strengths, links, ruins, goal shares, masks ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)) |
+| `DualRules` | Player vs player: start pads and lives, flag hunt, races |
+| `MatchSetup` | Mode (`SINGLE`, `DUAL`, `DUAL_VS_COMPUTER`) and who controls which tanks |
+| `LegacyVehicles`, `GeneratedLegacyVehicles` | The 23-vehicle table from `src/data/tanks.c` |
+| `MatchObjects` | Runtime-only objects: bonuses, soldiers, A-bombs |
+| `AreaDamageResolver` | Blast damage for mines, mortars, rockets, A-bombs |
+| `Server*Actor` (17 files) | Map objects: turret, projectile, mine, rocket, mortar, goal, flag, product, lock, warp, destroyer, enforcer, train, zeppelin, B52, wall |
+| `MatchClient` | `MatchClient` interface and `LocalMatchClient` |
+| `MatchRecording` | Recorder, replay, `GAME_RULES_VERSION` |
+| `TankArenaSerializableMetadata` | Scene type ids for Kubriko serialization |
+| `CanonicalSceneBuilder`, `LegacyToSceneJson`, `legacy/*` | The importer (tools and tests only) |
+
+### `:game-client`
+
+| Package | Contents |
+|---|---|
+| `app/desktop` | `Main.kt` (window, screen state machine, key bindings, gameplay screen), `SimulationLoop`, `RecordingStore`, `PerfLog` |
+| `ui/compose/menu` | Main and mode menus, mission-code prompt and list, `PasswordStore`, game options, tank selection, intro, text pages, briefing and end banners |
+| `ui/compose/legacy` | Mode 13h screen and fonts (generated), `FliAnimation` |
+| `ui/compose` | `LegacyScreen` (640×480 and 320×200 screens, fades), `GammaCorrection`, shell state |
+| `ui/compose/hud` | `HudOverlay` (status display, radar, pilot face and messages, banners, arrow), `NightHud` |
+| `render/kubriko` | `TankArenaViewport`, `ClientScene`, terrain and top-layer actors, sprite catalog and preload, `NightLighting`, `PaletteCycling`, map window layout |
+| `audio` | `AudioBackend`, `DesktopAudioBackend` (software mixer), `AudioManager`, `MusicPlayer` |
+
+### `:game-editor` and `:tools-mapconv`
+
+- `:game-editor` is one file that opens Kubriko's `SceneEditor` on `game-content/resources/scenes`
+  with four editable types (wall, tank, turret, goal). See [ADR 0009](adrs/0009-editor-wraps-kubriko-scene-editor.md).
+- `:tools-mapconv` is one file (`Main.kt`) of subcommands over the `:game-content` and `:game-server`
+  converter code; see [assets.md](assets.md#tools-mapconv).
 
 ## Boundaries
 
-- `:game-protocol` and `:game-content` must remain free of Compose and Kubriko. They are the shared substrate for server, client, and editor.
-- `:game-server` is the only module that runs authoritative simulation. The client never holds gameplay truth — it renders snapshots and submits intents.
-- `:game-editor` does not run server managers. It uses server actors purely as scene-authoring vocabulary via `Editable<T>`.
-- `:tools-mapconv` is a CLI shell over library code; the importer itself lives in `:game-server` (legacy parsing intermediate) and `:game-content` (raw byte parsing and the `MapSceneSidecar` schema).
+- `:game-protocol` and `:game-content` contain no Compose or Kubriko code.
+- Only `:game-server` decides gameplay. The client renders snapshots and sends inputs.
+- The editor never runs the simulation (`EditorBoundaryGuardTest`).
+- No runtime code reads repository folders (`MAPS/`, `DATA/`, `unpacked/`); everything shipped comes
+  from the class path. Only the tools and some tests read them.
+- Known exception to the intended layering: `:game-server` depends on Compose and Kubriko because its
+  map objects are Kubriko actors. [ADR 0019](adrs/0019-remove-kubriko-from-the-server.md) removes that.
 
-## Replication contract
+## A match, step by step
 
-Every server tick:
-1. The server walks `actorManager.allActors`.
-2. For each `Serializable` actor it calls `save()`, producing a `:game-protocol` `ActorState`.
-3. The server wraps the results in a `WorldSnapshot` plus per-player `PlayerView`s (camera, HUD, radar) into a `ServerFrame`.
-4. The client keeps `Map<Long, ClientActor>`. It spawns new render actors for unseen `actorId`s, calls `sync(state)` on existing ones, and removes actors whose IDs vanished.
+1. **Choose.** The shell picks a mission (by code, [ADR 0015](adrs/0015-ship-the-original-69-maps.md)
+   for which maps exist) or, in player vs player, a map and each player's vehicle on the tank selection
+   screen (which itself runs `scene_select` as a live match).
+2. **Create.** `LocalMatchClient.fromSceneJson(scene, sidecar, mode, dual, recordAs)` calls
+   `ServerMatchPrototype.fromSceneJson`: Kubriko's serializer reads the scene's map objects, wall
+   objects are dropped, `MatchSetup.assignControl` gives tanks to players per mode, and the terrain
+   grid and `StructureGrid` are built from the sidecar. `initialize()` assigns `actorId`s, start
+   shields, `DualRules`, trains, B52s, locks, fallen turrets and bonuses.
+3. **Run.** `SimulationLoop` calls the gameplay step 100 times per second
+   ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)): submit each player's `InputFrame`, then
+   `tick()`.
+4. **Tick.** `ServerMatchPrototype.tick()` runs a fixed pipeline: player intents to every tank in the
+   player's group; AI tanks; turrets; terrain effects; the actor updates (through Kubriko's tick);
+   projectile hits on structures and vehicles; flames; small objects; vehicle overlaps; mines,
+   rockets, mortars, soldiers, A-bombs, warps, locks, destroyers, enforcers, trains, B52s and
+   zeppelins; goals and the mission rules; then the snapshot.
+5. **Publish.** The tick returns a `WorldSnapshot` (actor states, events, changed tiles, flash);
+   `LocalMatchClient` wraps it with one `PlayerView` per player into a `ServerFrame`. Events go to a
+   queue per player window and to the audio manager; the finished view is published to the UI thread.
+6. **Draw.** Each player window is a Kubriko viewport: `ClientScene.sync` adds, updates and removes
+   render actors by `actorId`, effects play from the queued events, terrain and the top layer are
+   drawn as actors, night and colour cycling are applied as runtime shaders. The HUD and radar are a
+   Compose canvas over the viewport.
+7. **End.** When the mission rules decide (goal counter, last human tank lost, elimination fallback;
+   rounds in player vs player), a `MissionResult` event ends the match after the original's 3-second
+   run-on; the client fades out, saves the recording and shows the success or failure text.
 
-The same `ActorState` types serve both scene loading (initial deserialization from JSON) and per-tick replication. There is no separate snapshot format.
+## Replication
 
-## Split-screen
+- The snapshot is a **projection**, not Kubriko serialization: `projectToWireState` copies each map
+  object's fields into its protocol `ActorState`, then the runtime objects and changed structure tiles
+  are added. Scene files and the wire therefore use different types.
+- `actorId`s are stable for the life of a match; the client keys its render actors by them.
+- Each `PlayerView` carries the camera (following the tank, or the rocket marker while it is out),
+  `HudState`, radar contacts and the lock marker.
 
-The original game supports "Dual" (local 2-player) and "Dual vs Computer" modes. The rewrite handles split-screen entirely on the client side — the server is unaware of how many screens or players share a display.
+## Versions
 
-### Protocol support
+| Constant | Value | Where | Checked |
+|---|---|---|---|
+| `PROTOCOL_VERSION` | 7 | `game-protocol/.../snapshot/WorldSnapshot.kt` | `decodeWorldSnapshot` (tests only today) |
+| `SCENE_SCHEMA_VERSION` | 1 | `game-content/.../MapSceneSidecar.kt` | `ShippedScenes` rejects newer sidecars |
+| `GAME_RULES_VERSION` | 11 | `game-server/.../MatchRecording.kt` | `RecordedPlaythroughTest` requires equality |
 
-`ServerFrame.playerViews` is already a `List<PlayerView>`, where each entry carries an independent `playerId`, camera bounds (`cameraCenterX/Y`, `cameraWidth/Height`), `HudState`, and `RadarContact` list. The server produces one `PlayerView` per active player regardless of whether they sit on the same machine or connect remotely.
+## Threads
 
-### Client implementation approach
+- **UI thread** (Compose): input events, screens, drawing.
+- **`simulation`** thread: the match ticks (`SimulationLoop`), one per running match.
+- **`audio-mixer`** thread: mixes up to 32 voices onto one output line.
+- Java's MIDI sequencer thread for music.
+- Kubriko's own coroutines for actor bookkeeping (server and client instances).
 
-The `:game-client` viewport uses Compose layout to partition the screen:
+## Debug and measurement switches
 
-1. **Layout** — a `Row` splits the available area into N equal panels (N = number of local players). Each panel hosts an independent Kubriko render target viewing the same scene graph but with a different camera transform derived from that player's `PlayerView.cameraCenter*`.
-2. **HUD/Radar overlay** — each panel composites its own `HudState` and `RadarContact` list on top of the Kubriko canvas, positioned relative to the panel bounds (not the full window).
-3. **Input routing** — keyboard input is captured once and dispatched to per-player `InputFrame`s based on key mapping (e.g., WASD for player 1, arrow keys for player 2). Gamepad input is routed by controller index. All intents flow through the same `MatchClient` seam.
-4. **Audio pan** — per-player audio channels are panned toward the corresponding screen half so each player hears their own tank more prominently.
-5. **Mode gate** — the menu layer selects split-screen when the chosen mode is `DUAL` or `DUALVC`; the viewport switches from a single-panel to a two-panel layout without changing the server or protocol.
+| Switch | Effect |
+|---|---|
+| `TANKARENA_PERF=1` | Logs tick time, loop and frame gaps and GC once a second to stdout and `./perf.log` |
+| `TANKARENA_AUTOSTART=<code or name>` | Skips the menus into a one-player mission |
+| `TANKARENA_AUTOSTART_PVP=1` | With `AUTOSTART`, goes to the tank selection for player vs player |
+| `TANKARENA_QUIT_AFTER=<seconds>` | Closes the game after that time |
+| `-Dtankarena.debugOverlay=true` | Draws viewport and camera geometry |
+| `-Dtankarena.assets.background=<path>` | Overrides the panel background picture |
+| `TICK_BENCH=1`, `IDLE_SCAN=<ticks>`, `DUMP_DIR` | Test-only; see [testing-strategy.md](testing-strategy.md) |
 
-This is parity task [T33](parity-tasks.md#t33---split-screen--multiple-cameras).
+The original's command-line switches (`-GOD`, `-NOFAIL`, `-CODES`, …) are not implemented yet; they
+are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 
-## Map format
+## Known structural debt
 
-A Tank Arena map *is* a Kubriko scene JSON, produced by `SerializationManager.serializeActors` and loaded with `deserializeActors(json)`. There is no parallel canonical map schema; the gameplay-relevant metadata that does not live in actors (tile layers, mission text, mode compatibility) is carried by `MapSceneSidecar` alongside the scene JSON. See [`content-format.md`](content-format.md) and [ADR 0008](adrs/0008-kubriko-and-scene-json.md).
-
-## Related ADRs
-- [0001 — Desktop-first Compose + Kubriko](adrs/0001-desktop-first-compose-kubriko.md)
-- [0002 — Fixed-step simulation tick (100 Hz local, decimated for replay/network)](adrs/0002-fixed-step-50hz.md)
-- [0003 — Import legacy maps once](adrs/0003-import-once-canonical-map-format.md)
-- [0004 — Editor app shape](adrs/0004-separate-editor-app.md)
-- [0005 — Network-ready input/protocol boundary](adrs/0005-network-ready-input-protocol-boundary.md)
-- [0006 — Module collapse 11 → 6](adrs/0006-module-collapse.md)
-- [0007 — Authoritative headless Kubriko server](adrs/0007-authoritative-headless-kubriko-server.md)
-- [0008 — Kubriko dependency and scene JSON map format](adrs/0008-kubriko-and-scene-json.md)
-- [0009 — Editor wraps Kubriko `SceneEditor`](adrs/0009-editor-wraps-kubriko-scene-editor.md)
+- `ServerMatchPrototype.kt` is 3,149 lines and `ServerTankActor.kt` 1,760; most new rules land there.
+  Splitting by subsystem (objects, hits, mission rules, view building) would help, ideally as part of
+  [ADR 0019](adrs/0019-remove-kubriko-from-the-server.md).
+- Dead code listed above (protocol leftovers, `ServerWallActor`/`WallState`, `TerrainSlideManager`'s
+  old role, the no-op `CollisionManager`) and a stale KDoc on `fromSceneJson` that still mentions A*.
+- `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests
+  depend on the importer (relevant to [ADR 0003](adrs/0003-legacy-map-import.md)).
+- `game-client/module.yaml` declares Kubriko's keyboard-input, collision and serialization plugins,
+  which the client does not use.

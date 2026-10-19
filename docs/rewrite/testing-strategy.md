@@ -76,8 +76,8 @@ played under rules v10 and replay identically under v11, so they were relabelled
 recording no longer replays (v11 changed its rocket turrets) and must be played again.
 
 When the rules version is bumped, first replay the existing recordings with the new version: re-record
-only those that change, and relabel the rest. Recordings are the main safety net for the Kubriko
-removal ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)), which must leave all of them passing.
+only those that change, and relabel the rest. Recordings were the main safety net for removing Kubriko
+([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)), which left all of them passing.
 
 ### On-demand tools (pass trivially unless switched on)
 
@@ -114,8 +114,8 @@ helicopter); ZULU at night; AIR with two players against the computer; FLAGISLE 
   actual image is written to `game-client/build/reference-renders/`.
 - `UPDATE_REFERENCE_RENDERS=1 ./kotlin test -m game-client` rewrites the references; look at them
   before committing.
-- They pin what the current renderer draws, as the baseline for the renderer that replaces Kubriko
-  ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
+- They pinned what Kubriko drew; the game's own renderer that replaced it on 2026-10-19 reproduces
+  them byte for byte ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 
 ### Client tests (`:game-client`)
 

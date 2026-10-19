@@ -22,8 +22,8 @@ Products: `:game-protocol`, `:game-content` and `:game-server` are `kmp/lib` wit
 
 Kotlin, Compose Multiplatform, kotlinx.serialization and the JDK are not pinned in the module files;
 they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, kotlinx.serialization
-1.11.0, JDK 25. Explicit versions: Kubriko 0.7.3 (client only, until phase 1 removes it) and `org.jetbrains.compose.material3:material3`
-1.12.0-alpha03 (there is no 1.12.1 release of it).
+1.11.0, JDK 25. Explicit version: `org.jetbrains.compose.material3:material3`
+1.12.0-alpha03 (there is no 1.12.1 release of it). There is no game engine dependency.
 
 ```bash
 ./kotlin show settings --all-modules     # resolved versions

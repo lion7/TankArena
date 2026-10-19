@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (2026-10-06 to 2026-10-18; commits `509c667`, `9b9c9d3`, `05c11ab`,
   `ee705c3`, `f6ae356`).
-- **Scope since 2026-10-19:** Classic presentation. The renderer becomes the game's own Compose
+- **Scope since 2026-10-19:** Classic presentation. The renderer is the game's own Compose
   Canvas renderer ([ADR 0019](0019-plain-kotlin-no-kubriko.md)); Extended may scale and widen the view
   ([ADR 0023](0023-classic-and-extended-rulesets.md)).
 
@@ -41,7 +41,5 @@ Arena when compared side by side with the original.
 - Resolution independence is limited to integer scaling of the 640×480 screen; a different layout
   would be a new decision.
 - The night look depends on Skia runtime effects; a web target must support them.
-- Until Kubriko is removed: its sprite manager cannot be used before the viewport exists, so night
-  tables and early images are loaded directly (see `NightLighting`).
 - On Android the shaders become AGSL runtime shaders (Android 13 and later)
   ([ADR 0025](0025-multiplatform-modules-and-android.md)).

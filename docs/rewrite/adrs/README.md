@@ -13,7 +13,7 @@ implemented is in the [roadmap](../roadmap.md).
 | [0004](0004-separate-editor-app.md) | Editor as a separate app | Superseded by 0021 |
 | [0005](0005-network-ready-input-protocol-boundary.md) | Input frames and server frames as the only seam | Accepted |
 | [0006](0006-module-collapse.md) | Six modules | Accepted, to be replaced by 0025 |
-| [0007](0007-authoritative-headless-kubriko-server.md) | Authoritative server, render-only client | Accepted (Kubriko part removed by 0019) |
+| [0007](0007-authoritative-headless-kubriko-server.md) | Authoritative server, render-only client | Accepted (its Kubriko part is history) |
 | [0008](0008-kubriko-and-scene-json.md) | Kubriko scene JSON plus sidecar as map format | Superseded by 0019 and 0022 |
 | [0009](0009-editor-wraps-kubriko-scene-editor.md) | Editor built on Kubriko's `SceneEditor` | Superseded by 0021 |
 | [0010](0010-port-the-original-rules.md) | Port the original's rules from the C source (Classic) | Accepted |
@@ -25,7 +25,7 @@ implemented is in the [roadmap](../roadmap.md).
 | [0016](0016-kotlin-toolchain-build.md) | Build with the Kotlin toolchain | Accepted |
 | [0017](0017-desktop-packaging.md) | Self-contained desktop packages built in containers | Accepted |
 | [0018](0018-audio-and-music.md) | Original samples through a software mixer; MIDI music | Accepted |
-| [0019](0019-plain-kotlin-no-kubriko.md) | Plain Kotlin everywhere, no Kubriko | Accepted, not built |
+| [0019](0019-plain-kotlin-no-kubriko.md) | Plain Kotlin everywhere, no Kubriko | Done (2026-10-19) |
 | [0020](0020-user-data-as-json.md) | Player data as JSON in the user's folders | Accepted |
 | [0021](0021-editor-in-the-game.md) | Map editor inside the game | Accepted, not built |
 | [0022](0022-native-map-format.md) | Native readable map format with `.MAP` converters | Accepted, not built |

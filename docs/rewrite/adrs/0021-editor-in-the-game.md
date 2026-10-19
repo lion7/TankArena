@@ -11,7 +11,7 @@ rewrite's `:game-editor` is a separate 73-line wrapper around Kubriko's `SceneEd
 object types and none of the tile layers or the header. Most of what an editor for Tank Arena needs —
 painting three structure layers with the structure library and links, the goal, bonus and men layers,
 the header, texts, world templates — is specific to this game; a generic object inspector covers only
-a small part. Kubriko is being removed ([ADR 0019](0019-plain-kotlin-no-kubriko.md)).
+a small part. Kubriko is removed ([ADR 0019](0019-plain-kotlin-no-kubriko.md)), and `:game-editor` with it.
 
 ## Decision
 

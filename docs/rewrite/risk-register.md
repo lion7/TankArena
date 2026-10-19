@@ -37,18 +37,6 @@ are about detection), or *Closed* (kept briefly for the record).
   moving each subsystem's state out of `Match` into its own class can follow when a subsystem is
   reworked.
 
-## Kubriko removal (phase 1)
-
-- **Status:** Active.
-- **Risk:** replacing Kubriko in the simulation and the client ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md))
-  touches almost every file; a subtle behaviour change or rendering difference could slip in.
-- **Mitigations:**
-  - `GAME_RULES_VERSION` must stay unchanged: all rule tests and recordings must pass before and after.
-  - Reference renders of the current client compared with the new renderer.
-  - Do it before any new gameplay work, in small commits, with the old renderer kept until the new one
-    matches.
-  - Until it is done, Kubriko stays pinned at 0.7.3 and is not upgraded.
-
 ## Native map format and converters
 
 - **Status:** Active.
@@ -91,6 +79,8 @@ are about detection), or *Closed* (kept briefly for the record).
 
 ## Closed
 
+- **Kubriko dependency and its removal:** closed 2026-10-19. No module uses Kubriko; recordings and
+  reference renders were unchanged by the removal ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 - **Tick-rate drift** (three different rates in code): closed 2026-05 by T01, 100 Hz everywhere
   ([ADR 0002](adrs/0002-fixed-step-100hz.md)).
 - **Simulation running at ~30 ticks/s on the UI thread:** closed 2026-10-18 by the simulation thread

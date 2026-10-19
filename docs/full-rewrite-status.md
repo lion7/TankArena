@@ -11,7 +11,8 @@ rules ported from the C source, its screen layout, pictures, fonts, night lighti
 and it ships as self-contained Linux and Windows packages. What is left for full parity: the map
 editor (largely missing), supermarket mayhem, conveyors and rotating platforms, debris, terrain
 effects, the original's in-game keys, controls setup and command-line switches, and a list of smaller
-rule differences. All 293 automated tests pass, including six recorded playthroughs, a boot test of
+rule differences. Since 2026-10-19 it is plain Kotlin and Compose, with no game engine. All 293
+automated tests pass, including six recorded playthroughs, a boot test of
 every map in every mode and eight reference renders; CI is set up on GitHub Actions.
 
 The direction beyond parity was decided on 2026-10-19: plain Kotlin with no Kubriko, a readable
@@ -33,7 +34,7 @@ The [roadmap](rewrite/roadmap.md) orders that work.
 | Content | 69 maps imported without notes | [content-format.md](rewrite/content-format.md) |
 | Tests | 293 green (server 222, client 62, content 9); 6 recordings; every map boots; 8 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
 | Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](rewrite/build.md), [ADR 0017](rewrite/adrs/0017-desktop-packaging.md) |
-| CI | GitHub Actions workflow on every push, nightly scans; not yet run on GitHub | [testing-strategy.md](rewrite/testing-strategy.md#continuous-integration) |
+| CI | GitHub Actions on every push (green), nightly idle scan and tick benchmark | [testing-strategy.md](rewrite/testing-strategy.md#continuous-integration) |
 
 Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 7, `SCENE_SCHEMA_VERSION` 1.
 
@@ -48,11 +49,11 @@ settled while phase 2 of the roadmap is built.
 
 The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
 
-1. **Phase 0, safety net:** almost done. Left: re-record BEGIN4 under rules v11, record more missions
-   and player-vs-player matches, and the first green CI run on GitHub.
-2. **Phase 1, plain-Kotlin core (in progress):** the server and tools no longer use Kubriko and the
-   old editor is gone. Next: `World`/`step()`/`MatchHost`, the game's own Compose renderer, dead code
-   removed — with the rules version unchanged ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)).
+1. **Phase 0, safety net:** done except for recordings: re-record BEGIN4 under rules v11 and record
+   more missions and player-vs-player matches.
+2. **Phase 1, plain-Kotlin core:** done on 2026-10-19 — no module uses Kubriko any more, the game
+   draws itself, and every recording and reference render is unchanged
+   ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)).
 3. **Phase 2, native map format** with `.MAP` import and export
    ([ADR 0022](rewrite/adrs/0022-native-map-format.md)).
 4. Then, side by side: Classic parity (starting with rules that run per legacy step, about 3× too

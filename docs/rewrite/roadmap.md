@@ -28,8 +28,8 @@ Goal: any behaviour change shows up in a test before it reaches a playtest.
 - [ ] Re-record BEGIN4 under rules v11; add more single-player missions, a two-vs-computer mission and
       player-vs-player matches (deathmatch, flag hunt, race).
 - [x] CI on GitHub Actions (`.github/workflows/ci.yml`): build and all tests on every push and pull
-      request; nightly idle scan and tick benchmark. `.gitignore` lets `.github/` through. Not yet run
-      on GitHub: needs a push.
+      request; nightly idle scan and tick benchmark. `.gitignore` lets `.github/` through. Green on
+      GitHub since 2026-10-19.
 - [x] "Every shipped map boots in every allowed mode" test (`ShippedMapsBootTest`, 143 combinations).
 - [x] Reference renders (`ReferenceRenderTest`): eight moments of recorded and idle matches drawn
       through the real game screen, kept as the baseline for the new renderer.
@@ -39,27 +39,26 @@ Done when: CI is green with at least eight recordings and the reference renders 
 ## Phase 1 — Plain-Kotlin core, no Kubriko ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md))
 
 Goal: the same game, with no Kubriko anywhere and a simulation that can run on any platform.
+**Done on 2026-10-19**, with every test, recording and reference render unchanged:
 
-0. **Done 2026-10-19:** Kubriko removed from `:game-server` and `:tools-mapconv` — `MatchObjectList`
-   updates objects in the order Kubriko did, `SceneFile` reads and writes the same scene JSON (all 69
-   scenes regenerate byte for byte), every recording replays unchanged; `:game-editor` deleted.
-1. **Simulation:** extract `World` and `step()` from `Match`; map objects become plain
-   classes; split the tick into systems in the original's order. Done: `Match`'s rules split into ten
-   `Match*.kt` files by subsystem (`Tank` still to do); package `com.tankarena.sim`
-   with plain names (`Match`, `Tank`, …); all trigonometry through `DetMath` (`StrictMath`, recordings
-   unchanged). The legacy step ([ADR 0002](adrs/0002-fixed-step-100hz.md)) is added together with its
-   first rule in phase 3 rather than as an empty hook.
-2. **Match host:** `MatchHost` in common code drives ticks; the desktop thread becomes a driver;
-   `LocalMatchClient` sits on top. Done: `SimulationLoop` moved from the client into the simulation
-   module.
-3. **Renderer:** the game's own Compose Canvas renderer (terrain, objects by height, top layer,
-   effects, night and colour-cycling shaders, HUD), drawing N views from one snapshot; picture atlas.
-4. **Remove** Kubriko and the dead code: `TerrainSlideManager`, `Resolvable`, wall actors and
-   `WallState`, the serialization registry, `ScenePreloadManager`, render actors, `:game-editor`,
-   `ReplayProtocol`, `PlayerInput.kt`, unused events and ids.
+- [x] Simulation and importer without Kubriko: `MatchObjectList` (objects updated in Kubriko's
+      order), `SceneFile` (the same scene JSON; all 69 scenes regenerate byte for byte).
+- [x] Package `com.tankarena.sim` with plain names (`Match`, `Tank`, …); `Match`'s rules split into
+      ten `Match*.kt` files by subsystem.
+- [x] All trigonometry through `DetMath` (`StrictMath`, identical on every JVM).
+- [x] `SimulationLoop` moved into the simulation module.
+- [x] The game's own renderer: `RenderScene` on a Compose `Canvas` and `PictureCache`; the reference
+      renders are byte-identical.
+- [x] Removed: Kubriko from every module, `:game-editor`, `TerrainSlideManager`, the serialization
+      registry, `ScenePreloadManager`, the protocol leftovers (`ReplayProtocol`, `PlayerInput.kt`,
+      unused ids, events and `WallState`).
 
-Depends on: phase 0. Done when: all tests and recordings pass with `GAME_RULES_VERSION` unchanged, the
-reference renders match, and no module depends on Kubriko.
+Carried over:
+
+- `MatchHost` in common code and drivers per platform: with the module layout of phase 7.
+- Splitting `Tank` (1,760 lines) like `Match`: when vehicle rules are next reworked.
+- The legacy step every 3rd tick: with its first rule, in phase 3.
+- `Wall` and the wall entries in scene files: with the native map format, phase 2.
 
 ## Phase 2 — Native map format ([ADR 0022](adrs/0022-native-map-format.md), [ADR 0003](adrs/0003-legacy-map-import.md))
 
@@ -73,7 +72,7 @@ Goal: one readable file per map, and permanent `.MAP` import and export.
 - Round-trip tests for every shipped map (`.MAP` → native → `.MAP` → native identical; exported maps
   play the same in the rewrite); spot-check exported maps in the original under DOSBox.
 
-Depends on: phase 1 (no Kubriko serialization). Done when: the game loads only `.tamap` files and the
+Depends on: phase 1 (done). Done when: the game loads only `.tamap` files and the
 round-trip tests pass for all 69 maps.
 
 ## Phase 3 — Classic parity (ongoing track)

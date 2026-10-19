@@ -1,10 +1,15 @@
 # ADR 0019: Plain Kotlin Everywhere — No Kubriko
 
-- **Status:** Accepted (2026-10-19); in progress. Done: the simulation and the importer no longer use
-  Kubriko (a game-owned object list and scene reader/writer; the scene files and every recording are
-  unchanged), `:game-editor` is deleted, and the simulation lives in `com.tankarena.sim` with plain
-  names (`Match`, `Tank`, `Turret`, …). Left: the client renderer and the rest of the roadmap's
-  phase 1.
+- **Status:** Accepted and done (2026-10-19). No module depends on Kubriko:
+  - simulation and importer: `MatchObjectList` updates objects in Kubriko's order and `SceneFile`
+    reads and writes the same scene JSON (all 69 scenes regenerate byte for byte, every recording
+    replays unchanged); package `com.tankarena.sim` with plain names (`Match`, `Tank`, …), `Match`'s
+    rules split into `Match*.kt` files, maths through `DetMath`;
+  - client: `RenderScene` draws each window on a Compose `Canvas` the way Kubriko's viewport did and
+    `PictureCache` replaces the sprite manager; the reference renders came out byte-identical;
+  - `:game-editor` deleted.
+  Still open from the plan below: `MatchHost` in common code (with the module layout of
+  [ADR 0025](0025-multiplatform-modules-and-android.md)), splitting `Tank`, a picture atlas.
 - **Supersedes:** the Kubriko parts of [ADR 0001](0001-desktop-first-compose-kubriko.md),
   [ADR 0007](0007-authoritative-headless-kubriko-server.md) and
   [ADR 0008](0008-kubriko-and-scene-json.md); [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md).

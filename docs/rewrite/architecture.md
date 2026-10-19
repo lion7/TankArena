@@ -4,8 +4,7 @@ This document describes how the Kotlin rewrite is built **today** (2026-10-19). 
 reasons are in the [ADRs](adrs/); the original game it reproduces is described in
 [`docs/game/`](../game/) and the C source in `src/`.
 
-> **Planned changes.** Kubriko is being removed everywhere (done for the server on 2026-10-19; the
-> client still draws with it) ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)),
+> **Planned changes.** Kubriko is gone since 2026-10-19 ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md));
 > maps move to a native format ([ADR 0022](adrs/0022-native-map-format.md)), the editor moves into the
 > game ([ADR 0021](adrs/0021-editor-in-the-game.md)) and the modules are reorganised for Android and a
 > dedicated server ([ADR 0025](adrs/0025-multiplatform-modules-and-android.md)). The target shape is
@@ -20,7 +19,7 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
                  |   SimulationLoop thread (100 ticks/s)                             |
                  |     InputFrame per player --> MatchClient.tick() --> ServerFrame  |
                  |   UI thread, every display frame:                                 |
-                 |     per player window: Kubriko viewport (ClientScene.sync)        |
+                 |     per player window: RenderScene on a Canvas (ClientScene.sync) |
                  |                        + HUD/radar (Compose Canvas)               |
                  |   AudioManager --> DesktopAudioBackend (mixer), MusicPlayer       |
                  +-------------------------------------------------------------------+
@@ -44,7 +43,7 @@ Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-edi
 
 | Module | Kind | Holds |
 |---|---|---|
-| `:game-protocol` | library | Wire and timing types; no Compose, no Kubriko |
+| `:game-protocol` | library | Wire and timing types, deterministic maths; no Compose |
 | `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, map importer |
 | `:game-server` | library | The authoritative simulation and the server half of the importer |
 | `:game-client` | desktop app | Shell, playfield rendering, HUD, audio, settings, recordings |
@@ -61,9 +60,6 @@ Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-edi
   `actorId`), `GameEvent` (sounds, effects, explosions, messages, mission result, …), `PlayerView`,
   `HudState`, `RadarContact`, `LockMarker`, `TileState`, `ServerFrame`, and the terrain types
   `TerrainMaterial`, `TerrainTile`, `TerrainGrid`.
-- Unused leftovers to delete: `ReplayProtocol.kt`, `snapshot/PlayerInput.kt`, `EntityId`, `Tick`,
-  `wrapCoordinate`, `toroidalDelta`, and the never-emitted events `Fired`, `FlagCaptured`,
-  `FlagReturned`, `FlagDelivered`.
 
 ### `:game-content`
 
@@ -112,7 +108,7 @@ All under `com.tankarena.sim`.
 | `ui/compose/legacy` | Mode 13h screen and fonts (generated), `FliAnimation` |
 | `ui/compose` | `LegacyScreen` (640×480 and 320×200 screens, fades), `GammaCorrection`, shell state |
 | `ui/compose/hud` | `HudOverlay` (status display, radar, pilot face and messages, banners, arrow), `NightHud` |
-| `render/kubriko` | `TankArenaViewport`, `ClientScene`, terrain and top-layer actors, sprite catalog and preload, `NightLighting`, `PaletteCycling`, map window layout |
+| `render` | `TankArenaViewport` (one player window), `RenderScene` (draws a window's scene; `RenderBody`, `SceneDrawable`), `PictureCache` (decoded pictures), `ClientScene` (render actors kept in step with snapshots), terrain and top-layer drawing, sprite catalog, `NightLighting`, `PaletteCycling`, map window layout |
 | `audio` | `AudioBackend`, `DesktopAudioBackend` (software mixer), `AudioManager`, `MusicPlayer` |
 
 ### `:tools-mapconv`
@@ -122,12 +118,12 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
 
 ## Boundaries
 
-- `:game-protocol` and `:game-content` contain no Compose or Kubriko code.
+- `:game-protocol` and `:game-content` contain no Compose code.
 - Only `:game-server` decides gameplay. The client renders snapshots and sends inputs.
 - No runtime code reads repository folders (`MAPS/`, `DATA/`, `unpacked/`); everything shipped comes
   from the class path. Only the tools and some tests read them.
-- `:game-server` depends only on `:game-content`, `:game-protocol` and kotlinx.serialization (since
-  2026-10-19); only `:game-client` still uses Kubriko, for drawing.
+- `:game-server` depends only on `:game-content`, `:game-protocol` and kotlinx.serialization. No module
+  uses Kubriko (removed 2026-10-19, [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 
 ## A match, step by step
 
@@ -151,9 +147,10 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
 5. **Publish.** The tick returns a `WorldSnapshot` (actor states, events, changed tiles, flash);
    `LocalMatchClient` wraps it with one `PlayerView` per player into a `ServerFrame`. Events go to a
    queue per player window and to the audio manager; the finished view is published to the UI thread.
-6. **Draw.** Each player window is a Kubriko viewport: `ClientScene.sync` adds, updates and removes
-   render actors by `actorId`, effects play from the queued events, terrain and the top layer are
-   drawn as actors, night and colour cycling are applied as runtime shaders. The HUD and radar are a
+6. **Draw.** Each player window is a `TankArenaViewport`: `ClientScene.sync` adds, updates and removes
+   render actors by `actorId` in its `RenderScene`, effects play from the queued events, and the scene
+   is drawn on a Compose `Canvas` through the camera (terrain, then objects by layer, then the top
+   layer); night and colour cycling are applied as runtime shaders. The HUD and radar are a
    Compose canvas over the viewport.
 7. **End.** When the mission rules decide (goal counter, last human tank lost, elimination fallback;
    rounds in player vs player), a `MissionResult` event ends the match after the original's 3-second
@@ -182,7 +179,6 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
 - **`simulation`** thread: the match ticks (`SimulationLoop`), one per running match.
 - **`audio-mixer`** thread: mixes up to 32 voices onto one output line.
 - Java's MIDI sequencer thread for music.
-- Kubriko's own coroutines for render-actor bookkeeping (client only).
 
 ## Debug and measurement switches
 
@@ -203,13 +199,11 @@ are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 
 - `Tank.kt` is 1,760 lines; vehicle movement, weapons and damage could be split like `Match` was.
   The subsystems in the `Match*.kt` files still share `Match`'s state (made `internal` for them).
-- Dead code listed above (protocol leftovers, `Wall`/`WallState`, kept only because the scene
-  files still contain wall entries until the native map format replaces them).
+- `Wall` and `CanonicalSceneBuilder`'s wall entries exist only because the scene files still contain
+  wall entries; both go with the native map format ([ADR 0022](adrs/0022-native-map-format.md)).
 - `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests
   depend on the importer; with the native format they build map documents instead
   ([ADR 0022](adrs/0022-native-map-format.md)).
-- `game-client/module.yaml` declares Kubriko's keyboard-input, collision and serialization plugins,
-  which the client does not use.
 
 ## Target architecture
 

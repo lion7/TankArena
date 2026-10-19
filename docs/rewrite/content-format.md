@@ -12,7 +12,7 @@ one per map of the original release, including `select`, the tank selection aren
 
 | File | Contents | Read by |
 |---|---|---|
-| `scene_<name>.json` | Kubriko scene JSON: the map's objects | Kubriko `SerializationManager` on the server; the editor |
+| `scene_<name>.json` | Scene JSON: the map's objects | `SceneFile` (game-server) |
 | `metadata_<name>.json` | `MapSceneSidecar`: header, mission texts, tile layers | `ShippedScenes` (kotlinx.serialization) |
 
 `<name>` is the `.MAP` file name in lower case, with characters other than `a-z0-9_-` replaced by `_`
@@ -102,8 +102,8 @@ and commit the regenerated files together with the change.
 ## Versioning
 
 - Bump `SCENE_SCHEMA_VERSION` when the sidecar layout changes incompatibly.
-- The scene file follows Kubriko's serialization format; a Kubriko upgrade may require `scene-all`
-  ([ADR 0008](adrs/0008-kubriko-and-scene-json.md)).
+- The scene file keeps the format Kubriko used to write ([ADR 0008](adrs/0008-kubriko-and-scene-json.md));
+  since 2026-10-19 `SceneFile` reads and writes it without Kubriko.
 - Both formats are replaced by the native format ([ADR 0022](adrs/0022-native-map-format.md)) when
   Kubriko is removed ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 

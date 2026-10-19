@@ -26,9 +26,9 @@ rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-server/src
 | `objects/player.c` (start pads) | `server/DualRules.kt`, `Tank` (pads, refill) |
 | `objects/objects.c` (object list, goal counter) | `Match` (`modifyGoalCounter`, mission rules) |
 | `world/bullet.c` | `server/Projectile.kt` |
-| `world/effects.c` | `GameEvent` effects; drawn by `client/render/kubriko/ClientScene.kt` |
+| `world/effects.c` | `GameEvent` effects; drawn by `client/render/ClientScene.kt` |
 | `world/status.c` (status display, pilot messages) | `client/ui/compose/hud/HudOverlay.kt`; messages from the server |
-| `world/under.c`, `world/rawunder.s` (terrain drawing) | `client/render/kubriko/TerrainActor.kt` |
+| `world/under.c`, `world/rawunder.s` (terrain drawing) | `client/render/TerrainActor.kt` |
 | `world/parts.c` (debris) | **not ported** |
 | `world/transp.c` (conveyors, rotating platforms) | **not ported** |
 
@@ -44,7 +44,7 @@ rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-server/src
 | `dual.c`, `seltank.c`, `sellist.c` | `DualMatch`, `TankSelectScreen`, map prompt; `server/DualRules.kt` |
 | `mapfiles.c` (load/save maps, map-type rules) | importer (`content/legacy/LegacyMapParser.kt`, `server/legacy/`), `MissionCatalog` filters |
 | `init.c` (pictures, night pictures) | `tools-mapconv` extractors; `NightLighting`, `NightHud` |
-| `night.c` | `client/render/kubriko/NightLighting.kt` |
+| `night.c` | `client/render/NightLighting.kt` |
 | `radar.c` | `HudOverlay` radar; contacts from `Match.buildRadar` |
 | `settings.c` (`TANK.CFG`) | `GameOptionsStore` (`settings.json`) |
 
@@ -52,10 +52,10 @@ rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-server/src
 
 | Original | Rewrite |
 |---|---|
-| `graph/palette.c` (fades, gamma, colour cycling, flash) | `client/ui/compose/LegacyScreen.kt`, `GammaCorrection.kt`, `render/kubriko/PaletteCycling.kt` |
+| `graph/palette.c` (fades, gamma, colour cycling, flash) | `client/ui/compose/LegacyScreen.kt`, `GammaCorrection.kt`, `render/PaletteCycling.kt` |
 | `graph/mode13.c`, `5x5text.c`, `5x5font.s` | `client/ui/compose/legacy/Mode13Screen.kt`, `GeneratedLegacyFonts.kt` |
 | `graph/fli.c` | `client/ui/compose/legacy/FliAnimation.kt` |
-| `graph/sprites.s`, `buffer.c`, `graph.c` | Kubriko sprites and Compose drawing |
+| `graph/sprites.s`, `buffer.c`, `graph.c` | `client/render/RenderScene.kt`, `PictureCache`, Compose drawing |
 | `graph/grab.c` (screenshots) | **not ported** |
 | `hardware/sound.c` | `client/audio/` (`AudioManager`, `DesktopAudioBackend`, `MusicPlayer`) |
 | `hardware/timer.c` | `game-protocol/.../core/FixedStepClock.kt`, `SimulationLoop` |

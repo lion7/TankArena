@@ -1,7 +1,7 @@
 # ADR 0001: Kotlin and Compose Multiplatform; Desktop First, Android Next
 
 - **Status:** Accepted (2026-04; revised 2026-10-19). The original decision used Kubriko for the
-  playfield; [ADR 0019](0019-plain-kotlin-no-kubriko.md) removes it.
+  playfield; [ADR 0019](0019-plain-kotlin-no-kubriko.md) removed it.
 
 ## Context
 
@@ -12,7 +12,7 @@ game at the original's resolution, host menus and a status display, and reach mo
 An engine survey in 2026-04 (deleted since; see [history](../history.md)) recommended KorGE. The
 project chose Compose Multiplatform with the Kubriko engine on top, so that menus, the status display
 and the playfield share one UI toolkit and one renderer (Skia). By 2026-10 the game drew almost
-everything itself and used Kubriko only for bookkeeping, so Kubriko is being removed.
+everything itself and used Kubriko only for bookkeeping, so Kubriko was removed (2026-10-19).
 
 ## Decision
 

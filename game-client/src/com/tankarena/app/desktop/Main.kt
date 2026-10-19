@@ -95,10 +95,13 @@ import com.tankarena.ui.compose.menu.PromptBarScreen
 import com.tankarena.ui.compose.menu.TankSelectScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
 import com.tankarena.ui.compose.menu.SelectionKey
+import game_client.generated.resources.Res
+import game_client.generated.resources.pic_tankico
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.painterResource
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
 private val showDebugOverlay: Boolean = System.getProperty("tankarena.debugOverlay") == "true"
@@ -153,6 +156,8 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "Tank Arena Rewrite",
+        // The original's TANKICO picture.
+        icon = painterResource(Res.drawable.pic_tankico),
         state = rememberWindowState(placement = WindowPlacement.Maximized),
         onPreviewKeyEvent = { event ->
             handleGlobalKeys(event, screen, controls)

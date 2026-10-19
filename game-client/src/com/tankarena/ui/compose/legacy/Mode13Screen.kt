@@ -2,7 +2,6 @@ package com.tankarena.ui.compose.legacy
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeImageBitmap
-import java.io.File
 import java.util.Base64
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
@@ -64,16 +63,10 @@ class IndexedBitmap(val width: Int, val height: Int, val pixels: ByteArray, val 
             return IndexedBitmap(width, height, pixels, palette)
         }
 
-        /** A picture from `unpacked/backgrounds/` (the panel tile, the `BLACK*.BMP` backdrops). */
+        /** A picture extracted from `DATA/BITMAPS.DAT` (the panel tile, the `BLACK*.BMP` backdrops), bundled as `backgrounds/`. */
         fun loadBackground(fileName: String): IndexedBitmap? {
-            val candidates = listOf(
-                File("unpacked/backgrounds/$fileName"),
-                File(System.getProperty("user.dir") ?: ".", "unpacked/backgrounds/$fileName"),
-                // Run from a module directory (the tests).
-                File("../unpacked/backgrounds/$fileName"),
-            )
-            val file = candidates.firstOrNull { it.isFile } ?: return null
-            return runCatching { readBmp(file.readBytes()) }.getOrNull()
+            val bytes = readBackground(fileName) ?: return null
+            return runCatching { readBmp(bytes) }.getOrNull()
         }
 
         val panel: IndexedBitmap? by lazy { loadBackground("panel.bmp") }
@@ -193,3 +186,7 @@ class Mode13Screen {
         fun bigLength(text: String): Int = text.length * LegacyFonts.BIG_WIDTH
     }
 }
+
+/** The bytes of a picture bundled under `backgrounds/` (see [IndexedBitmap.loadBackground]), or null. */
+internal fun readBackground(fileName: String): ByteArray? =
+    IndexedBitmap::class.java.classLoader.getResourceAsStream("backgrounds/$fileName")?.use { it.readBytes() }

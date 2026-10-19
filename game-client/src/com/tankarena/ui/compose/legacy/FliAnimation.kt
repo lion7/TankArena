@@ -1,6 +1,5 @@
 package com.tankarena.ui.compose.legacy
 
-import java.io.File
 
 /**
  * An Autodesk Animator FLI file as Allegro's play_fli() reads it (the intro's LOGO.FLI and
@@ -199,16 +198,11 @@ class FliAnimation(private val bytes: ByteArray) {
         private const val BYTE_RUN = 15
         private const val COPY = 16
 
-        /** An animation from the game's `FLI/` directory, or null when the file is not there. */
+        /** An animation from the game's `FLI/` directory (bundled as `fli/`), or null when it is not there. */
         fun load(fileName: String): FliAnimation? {
-            val candidates = listOf(
-                File("FLI/$fileName"),
-                File(System.getProperty("user.dir") ?: ".", "FLI/$fileName"),
-                // Run from a module directory (the tests).
-                File("../FLI/$fileName"),
-            )
-            val file = candidates.firstOrNull { it.isFile } ?: return null
-            return runCatching { FliAnimation(file.readBytes()) }.getOrNull()
+            val bytes = FliAnimation::class.java.classLoader.getResourceAsStream("fli/$fileName")?.use { it.readBytes() }
+                ?: return null
+            return runCatching { FliAnimation(bytes) }.getOrNull()
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.tankarena.ui.compose.LegacyScreenScope
+import com.tankarena.ui.compose.legacy.readBackground
 import java.io.File
 import kotlin.math.roundToInt
 import org.jetbrains.skia.Image
@@ -53,17 +54,14 @@ private fun loadPanelTile(): ImageBitmap? =
     loadUnpackedBackground("panel.bmp", System.getProperty("tankarena.assets.background"))
 
 /**
- * Loads a picture extracted from `DATA/BITMAPS.DAT` into `unpacked/backgrounds/`. Returns
- * `null` when the file is missing.
+ * Loads a picture extracted from `DATA/BITMAPS.DAT` (bundled as `backgrounds/`), or [override]
+ * when that file exists. Returns `null` when the picture is missing.
  */
 internal fun loadUnpackedBackground(fileName: String, override: String? = null): ImageBitmap? {
-    val candidates = buildList {
-        if (!override.isNullOrBlank()) add(File(override))
-        add(File("unpacked/backgrounds/$fileName"))
-        add(File(System.getProperty("user.dir") ?: ".", "unpacked/backgrounds/$fileName"))
-    }
-    val file = candidates.firstOrNull { it.isFile } ?: return null
+    val bytes = override?.takeIf { it.isNotBlank() }?.let(::File)?.takeIf { it.isFile }?.readBytes()
+        ?: readBackground(fileName)
+        ?: return null
     return runCatching {
-        Image.makeFromEncoded(file.readBytes()).toComposeImageBitmap()
+        Image.makeFromEncoded(bytes).toComposeImageBitmap()
     }.getOrNull()
 }

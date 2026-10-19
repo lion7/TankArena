@@ -1,0 +1,13 @@
+# The packaging containers only need the build files and the game modules.
+*
+!kotlin
+!kotlin.bat
+!project.yaml
+!game-client
+!game-content
+!game-editor
+!game-protocol
+!game-server
+!tools-mapconv
+!packaging
+**/build

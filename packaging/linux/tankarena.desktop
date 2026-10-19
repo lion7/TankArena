@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TankArena
+Comment=Tank Arena, rewritten in Kotlin
+Exec=TankArena
+Icon=tankarena
+Categories=Game;ActionGame;
+Terminal=false

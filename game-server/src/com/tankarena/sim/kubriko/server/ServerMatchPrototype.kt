@@ -118,7 +118,7 @@ class ServerMatchPrototype private constructor(
     val dual: DualSetup = DualSetup(),
 ) {
 
-    private val tickSource: ManualTickSource = TickSource.manual() as ManualTickSource
+    private val tickSource: ManualTickSource = TickSource.manual()
     private val serializationManager = SerializableMetadata.newSerializationManagerInstance(
         *tankArenaSerializableMetadata,
     )

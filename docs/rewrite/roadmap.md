@@ -111,11 +111,18 @@ Depends on: phases 1 and 2.
 
 Goal: choose Classic or Extended; Extended has its own clearer menu.
 
-- `Ruleset` object with named flags; rules version per ruleset; ruleset stored in recordings and
-  settings; first-run choice and `--classic` / `--extended`.
-- Extended menu: campaign (codes and list of reached missions), local multiplayer, network game
-  (placeholder until phase 8), **replays** (browse, watch with pause, speed and free camera, rename,
-  delete), map editor, settings (controls per device, video, audio), help.
+- [x] `Ruleset` (`com.tankarena.sim`): Classic and Extended, a rules version each
+      (`GAME_RULES_VERSION`, `EXTENDED_RULES_VERSION`); stored in recordings (old ones read as Classic)
+      and in `settings.json`; first-start choice, `--classic` / `--extended`, and "Switch to Classic"
+      in Extended's settings. Named flags come with the first Extended rule change.
+- [x] Extended menu, first version: campaign, two players vs computer, player vs player (each straight
+      to its code prompt and list), network game and map editor (shown, not yet available), replays,
+      settings (the original game options, switch to Classic), help. Same look as the original menus
+      for now.
+- [x] Replays: the saved recordings newest first; watching one through the game screen
+      (`ReplayMatchClient`) with pause and 1/4×–8× speed.
+- [ ] Still to do: a list of reached missions in the campaign, multiplayer setup screen, replay free
+      camera, rename and delete; settings for controls, video and audio; a new visual style.
 - Extended presentation: scalable view, wider field of view on widescreen, optional smooth camera.
 - First Extended flags, each documented (for example: stacked computer tanks do not destroy each
   other).

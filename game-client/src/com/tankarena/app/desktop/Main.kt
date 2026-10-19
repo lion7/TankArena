@@ -34,7 +34,13 @@ import com.tankarena.render.ViewportEventQueue
 import com.tankarena.sim.DualSetup
 import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode
+import com.tankarena.sim.MatchRecording
+import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
+import com.tankarena.ui.compose.menu.ExtendedHelpScreen
+import com.tankarena.ui.compose.menu.ExtendedMenuScreen
+import com.tankarena.ui.compose.menu.ExtendedSettingsScreen
+import com.tankarena.ui.compose.menu.RulesetChoiceScreen
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GAME_FADE_MILLIS
 import com.tankarena.ui.compose.GameMode
@@ -75,7 +81,7 @@ import org.jetbrains.compose.resources.painterResource
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
 
-fun main() = application {
+fun main(args: Array<String>) = application {
     val controls = remember { DesktopControls() }
     var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.Intro(IntroStep.LOGO)) }
     // Legacy menu(): the game mode menu opens on its first entry, and keeps the chosen one
@@ -85,8 +91,19 @@ fun main() = application {
     var playerTanks by remember { mutableStateOf(listOf(0, 0)) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
     // Legacy TANK.CFG: the game options, saved whenever they change.
-    val settings = remember { GameSettings(GameOptionsStore()) }
+    val settings = remember {
+        GameSettings(GameOptionsStore()).also { settings ->
+            // --classic / --extended choose the ruleset and keep the choice (ADR 0023).
+            val forced = when {
+                "--classic" in args -> Ruleset.CLASSIC
+                "--extended" in args -> Ruleset.EXTENDED
+                else -> null
+            }
+            forced?.let { settings.update(settings.options.copy(ruleset = it)) }
+        }
+    }
     val options = settings.options
+    val extended = options.ruleset == Ruleset.EXTENDED
     val missionGate = remember { MissionGate(PasswordStore(), settings) }
 
     // Legacy init_player(): TUNE.MID from the start, BELVED.MID while a night map is played; in
@@ -134,7 +151,13 @@ fun main() = application {
     ) {
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize().gammaCorrection(options.gamma), color = Color.Black) {
-                when (val current = screen) {
+                val atMenu = screen == DesktopShellScreen.MainMenu || screen == DesktopShellScreen.GameModeSelect
+                val shown = when {
+                    atMenu && options.ruleset == null -> DesktopShellScreen.RulesetChoice
+                    atMenu && extended -> DesktopShellScreen.ExtendedMenu
+                    else -> screen
+                }
+                when (val current = shown) {
                     // Legacy write_title(): a key during LOGO.FLI skips the rest of the intro.
                     is DesktopShellScreen.Intro -> when (current.step) {
                         IntroStep.LOGO -> FliScreen("LOGO.FLI", onDone = { stopped ->
@@ -154,8 +177,87 @@ fun main() = application {
                     DesktopShellScreen.Options -> GameOptionsScreen(
                         options = options,
                         onChange = settings::update,
-                        onLeave = { screen = DesktopShellScreen.MainMenu },
+                        onLeave = { screen = if (extended) DesktopShellScreen.ExtendedSettings else DesktopShellScreen.MainMenu },
                     )
+
+                    DesktopShellScreen.RulesetChoice -> RulesetChoiceScreen(
+                        onChoose = { ruleset ->
+                            settings.update(options.copy(ruleset = ruleset))
+                            screen = DesktopShellScreen.MainMenu
+                        },
+                        onExit = ::exitApplication,
+                    )
+
+                    DesktopShellScreen.ExtendedMenu -> {
+                        LaunchedEffect(Unit) {
+                            if (missions == null) missions = MissionCatalog.load()
+                        }
+                        val play: (GameMode) -> Unit = { mode ->
+                            lastMode = mode
+                            screen = DesktopShellScreen.CodePrompt(mode)
+                        }
+                        ExtendedMenuScreen(
+                            onCampaign = { play(GameMode.SINGLE_PLAYER_VS_COMPUTER) },
+                            onTwoVsComputer = { play(GameMode.DUAL_PLAYER_VS_COMPUTER) },
+                            onPlayerVsPlayer = { play(GameMode.PLAYER_VS_PLAYER) },
+                            onReplays = { screen = DesktopShellScreen.Replays },
+                            onSettings = { screen = DesktopShellScreen.ExtendedSettings },
+                            onHelp = { screen = DesktopShellScreen.ExtendedHelp },
+                            onQuit = ::exitApplication,
+                        )
+                    }
+
+                    DesktopShellScreen.ExtendedSettings -> ExtendedSettingsScreen(
+                        onGameOptions = { screen = DesktopShellScreen.Options },
+                        onClassic = {
+                            settings.update(options.copy(ruleset = Ruleset.CLASSIC))
+                            screen = DesktopShellScreen.MainMenu
+                        },
+                        onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    DesktopShellScreen.ExtendedHelp -> ExtendedHelpScreen(
+                        onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
+                        onKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
+                        onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    DesktopShellScreen.Replays -> ReplayListScreen(
+                        onWatch = { entry -> screen = DesktopShellScreen.Replay(entry.file) },
+                        onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    is DesktopShellScreen.Replay -> {
+                        LaunchedEffect(Unit) {
+                            if (missions == null) missions = MissionCatalog.load()
+                        }
+                        val loaded = remember(current.file, missions) {
+                            missions?.let { all ->
+                                runCatching {
+                                    val recording = MatchRecording.fromJson(current.file.readText())
+                                    val mission = all.firstOrNull { it.baseName == recording.mission }
+                                        ?: error("its map ${recording.mission} is not in the game")
+                                    recording to mission
+                                }
+                            }
+                        }
+                        loaded?.fold(
+                            onSuccess = { (recording, mission) ->
+                                ReplayScreen(
+                                    recording = recording,
+                                    mission = mission,
+                                    soundVolume = options.soundVolume,
+                                    onClose = { screen = DesktopShellScreen.Replays },
+                                )
+                            },
+                            onFailure = { e ->
+                                MessageBarScreen(
+                                    message = "Cannot play this replay: ${e.message}",
+                                    onDismiss = { screen = DesktopShellScreen.Replays },
+                                )
+                            },
+                        )
+                    }
 
                     DesktopShellScreen.MainMenu -> MainMenuScreen(
                         onStartNewGame = {
@@ -170,7 +272,7 @@ fun main() = application {
 
                     is DesktopShellScreen.Help -> TextViewerScreen(
                         text = remember(current.file) { current.file.load() },
-                        onClose = { screen = DesktopShellScreen.MainMenu },
+                        onClose = { screen = if (extended) DesktopShellScreen.ExtendedHelp else DesktopShellScreen.MainMenu },
                     )
 
                     DesktopShellScreen.GameModeSelect -> {
@@ -253,6 +355,7 @@ fun main() = application {
                         mode = current.mode,
                         controls = controls,
                         soundVolume = options.soundVolume,
+                        ruleset = options.ruleset ?: Ruleset.CLASSIC,
                         dual = current.dual?.let { match ->
                             DualSetup(tankTypes = current.tankTypes, raceLaps = match.options.raceLaps, round = match.round, wins = match.wins)
                         },
@@ -295,6 +398,7 @@ private fun GameplayScreen(
     controls: DesktopControls,
     /** The game options' sound volume (legacy `sound_volume`). */
     soundVolume: Int,
+    ruleset: Ruleset,
     /** Player vs player: the round's vehicles and score. */
     dual: DualSetup? = null,
     /**
@@ -306,7 +410,7 @@ private fun GameplayScreen(
     val host = remember(mission.baseName, mode, dual) {
         controls.mode = mode
         controls.exitRequested = false
-        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup())
+        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup(), ruleset = ruleset)
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }

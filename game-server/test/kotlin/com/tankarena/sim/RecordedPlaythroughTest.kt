@@ -2,6 +2,7 @@ package com.tankarena.sim
 
 import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.protocol.InputFrame
+import com.tankarena.protocol.snapshot.GameEvent
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,10 +24,11 @@ class RecordedPlaythroughTest {
         for (file in recordings) {
             val recording = MatchRecording.fromJson(file.readText())
             assertEquals(
-                GAME_RULES_VERSION,
+                recording.ruleset.rulesVersion,
                 recording.rulesVersion,
-                "${file.name} was played under game rules v${recording.rulesVersion}; the rules are now v$GAME_RULES_VERSION. " +
-                    "Play the mission again and replace the recording.",
+                "${file.name} was played under ${recording.ruleset} rules v${recording.rulesVersion}; they are now " +
+                    "v${recording.ruleset.rulesVersion}. Replay it to check whether it still ends the same; relabel it if so, " +
+                    "otherwise play the mission again and replace the recording.",
             )
             val expected = assertNotNull(recording.result, "${file.name} has no recorded result")
             val scene = assertNotNull(ShippedMaps.load(recording.mission), "${file.name}: unknown mission ${recording.mission}")
@@ -52,5 +54,28 @@ class RecordedPlaythroughTest {
         assertTrue(recording.inputs.size < 10, "inputs are stored as changes only, got ${recording.inputs.size}")
         val roundTripped = MatchRecording.fromJson(recording.toJson())
         assertEquals(played, MatchReplay.play(roundTripped, scene.document))
+    }
+
+    @Test
+    fun `the replay client shows a recording to the end it was played to`() {
+        val scene = assertNotNull(ShippedMaps.load("begin2"))
+        val client = LocalMatchClient.fromMap(scene.document, MatchMode.SINGLE, recordAs = "begin2", ruleset = Ruleset.EXTENDED)
+        for (tick in 0 until 600) {
+            client.submitInput(InputFrame(playerId = 0, inputSequence = tick.toLong(), turnRight = tick in 100 until 110, forward = tick >= 120))
+            client.tick()
+        }
+        val recording = MatchRecording.fromJson(assertNotNull(client.recorder).recording().toJson())
+        client.dispose()
+        assertEquals(Ruleset.EXTENDED, recording.ruleset)
+        assertEquals(EXTENDED_RULES_VERSION, recording.rulesVersion)
+
+        val replay = ReplayMatchClient(recording, scene.document)
+        var won: Boolean? = null
+        while (!replay.finished) {
+            replay.tick().world.events.filterIsInstance<GameEvent.MissionResult>().firstOrNull()?.let { won = it.won }
+        }
+        replay.dispose()
+        assertEquals(recording.ticks, replay.ticksPlayed)
+        assertEquals(assertNotNull(recording.result).won, won)
     }
 }

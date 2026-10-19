@@ -45,8 +45,10 @@ const val GAME_RULES_VERSION: Int = 11
 @Serializable
 data class MatchRecording(
     val protocolVersion: Int = PROTOCOL_VERSION,
-    /** [GAME_RULES_VERSION] the match was played under; recordings without one predate versioning. */
+    /** The ruleset's rules version the match was played under; recordings without one predate versioning. */
     val rulesVersion: Int = 1,
+    /** The ruleset the match was played with; recordings without one are Classic. */
+    val ruleset: Ruleset = Ruleset.CLASSIC,
     /** Shipped scene base name, e.g. `begin1`. */
     val mission: String,
     val mode: MatchMode,
@@ -84,7 +86,12 @@ data class RecordedResult(
 )
 
 /** Collects a [MatchRecording] while a [LocalMatchClient] plays. */
-class MatchRecorder(private val mission: String, private val mode: MatchMode, private val dual: DualSetup? = null) {
+class MatchRecorder(
+    private val mission: String,
+    private val mode: MatchMode,
+    private val dual: DualSetup? = null,
+    private val ruleset: Ruleset = Ruleset.CLASSIC,
+) {
     private val inputs = mutableListOf<RecordedInput>()
     private val lastIntent = mutableMapOf<Int, PlayerIntentFrame>()
     private var result: RecordedResult? = null
@@ -113,7 +120,8 @@ class MatchRecorder(private val mission: String, private val mode: MatchMode, pr
     }
 
     fun recording(): MatchRecording = MatchRecording(
-        rulesVersion = GAME_RULES_VERSION,
+        rulesVersion = ruleset.rulesVersion,
+        ruleset = ruleset,
         mission = mission,
         mode = mode,
         dual = dual,
@@ -130,7 +138,7 @@ object MatchReplay {
      * (null if it did not end within the recorded ticks).
      */
     fun play(recording: MatchRecording, map: MapDocument): RecordedResult? {
-        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual)
+        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual, recording.ruleset)
         drive(recording, map) { match, tick, world ->
             recorder.recordEvents(match, tick, world.events)
             true
@@ -155,7 +163,7 @@ object MatchReplay {
         map: MapDocument,
         step: (Match, Long, WorldSnapshot) -> Boolean,
     ) {
-        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup())
+        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset)
         match.initialize()
         try {
             val byTick = recording.inputs.groupBy { it.tick }

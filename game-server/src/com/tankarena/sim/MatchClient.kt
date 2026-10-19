@@ -59,10 +59,11 @@ class LocalMatchClient private constructor(
             mode: MatchMode = MatchMode.SINGLE,
             recordAs: String? = null,
             dual: DualSetup = DualSetup(),
+            ruleset: Ruleset = Ruleset.CLASSIC,
         ): LocalMatchClient {
-            val prototype = Match.fromMap(map, mode, dual)
+            val prototype = Match.fromMap(map, mode, dual, ruleset)
             prototype.initialize()
-            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode, dual.takeIf { mode == MatchMode.DUAL }) })
+            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode, dual.takeIf { mode == MatchMode.DUAL }, ruleset) })
         }
 
         internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {
@@ -87,3 +88,41 @@ private fun InputFrame.toIntent(): PlayerIntentFrame = PlayerIntentFrame(
     cycleWeaponRight = cycleWeaponRight,
     selectTankId = selectTankId,
 )
+
+/**
+ * Plays a [MatchRecording] back as a match the client can show: every [tick] applies the inputs
+ * recorded for it; [submitInput] is ignored. The match runs as long as the recording, then [finished].
+ */
+class ReplayMatchClient(private val recording: MatchRecording, map: MapDocument) : MatchClient {
+    private val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset)
+    private val byTick = recording.inputs.groupBy { it.tick }
+    private val current = mutableMapOf<Int, PlayerIntentFrame>()
+    private var tickIndex: Long = 0
+
+    init {
+        match.initialize()
+    }
+
+    /** Ticks played so far. */
+    val ticksPlayed: Long get() = tickIndex
+
+    /** The recording has no more ticks. */
+    val finished: Boolean get() = tickIndex >= recording.ticks
+
+    override fun submitInput(input: InputFrame) = Unit
+
+    override fun tick(): ServerFrame {
+        byTick[tickIndex]?.forEach { current[it.playerId] = it.intent }
+        val world = match.tick(current.toMap())
+        tickIndex++
+        return ServerFrame(tick = world.tick, world = world, playerViews = match.buildPlayerViews())
+    }
+
+    override fun currentServerFrame(): ServerFrame {
+        val world = match.snapshot()
+        return ServerFrame(tick = world.tick, world = world, playerViews = match.buildPlayerViews())
+    }
+
+    override fun dispose() = match.dispose()
+}
+

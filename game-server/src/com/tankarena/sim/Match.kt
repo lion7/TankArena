@@ -81,6 +81,8 @@ class Match private constructor(
     internal val layers: TileLayers? = null,
     /** Player vs player: the players' vehicles, the race length and the round. */
     val dual: DualSetup = DualSetup(),
+    /** Classic or Extended rules (ADR 0023). */
+    val ruleset: Ruleset = Ruleset.CLASSIC,
 ) {
 
     internal val worldWidthPixels: Int = mapMetadata.widthTiles * LEGACY_TILE_SIZE
@@ -506,9 +508,10 @@ class Match private constructor(
             map: MapDocument,
             mode: MatchMode = MatchMode.SINGLE,
             dual: DualSetup = DualSetup(),
+            ruleset: Ruleset = Ruleset.CLASSIC,
         ): Match {
             val sidecar = MapConversion.sidecarOf(map)
-            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual)
+            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual, ruleset = ruleset)
         }
 
         private fun create(
@@ -518,6 +521,7 @@ class Match private constructor(
             mode: MatchMode,
             startShields: Boolean,
             dual: DualSetup = DualSetup(),
+            ruleset: Ruleset = Ruleset.CLASSIC,
         ): Match {
             val instance = Match(
                 mapMetadata = metadata,
@@ -528,6 +532,7 @@ class Match private constructor(
                 startShields = startShields,
                 layers = layers,
                 dual = dual,
+                ruleset = ruleset,
             )
             return instance
         }

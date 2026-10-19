@@ -3,6 +3,7 @@ package com.tankarena.ui.compose.menu
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.MissionText
+import com.tankarena.sim.Ruleset
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.DualMatch
 import com.tankarena.ui.compose.GameMode
@@ -69,6 +70,15 @@ class GameOptionsTest {
         val file = Files.createTempDirectory("tankarena-settings").resolve("settings.json")
         GameSettings(GameOptionsStore(file)).update(GameOptions(raceLaps = 5, rounds = GameOptions.ENDLESS, losersTank = 2))
         assertEquals(GameOptions(raceLaps = 5, rounds = GameOptions.ENDLESS, losersTank = 2), GameSettings(GameOptionsStore(file)).options)
+    }
+
+    @Test
+    fun `the ruleset is unchosen in old settings and kept once chosen`() {
+        val file = Files.createTempDirectory("settings").resolve("settings.json")
+        Files.writeString(file, """{"raceLaps":4}""")
+        assertNull(GameSettings(GameOptionsStore(file)).options.ruleset)
+        GameSettings(GameOptionsStore(file)).let { it.update(it.options.copy(ruleset = Ruleset.EXTENDED)) }
+        assertEquals(GameOptions(raceLaps = 4, ruleset = Ruleset.EXTENDED), GameSettings(GameOptionsStore(file)).options)
     }
 
     @Test

@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
+import com.tankarena.sim.Ruleset
 import com.tankarena.ui.compose.legacy.Mode13View
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,6 +37,8 @@ data class GameOptions(
     val soundVolume: Int = 255,
     /** Legacy `victory_count`: missions won since THUNDER.FLI last played. */
     val victoryCount: Int = 0,
+    /** Classic or Extended (ADR 0023); null until the player has chosen. Not in TANK.CFG. */
+    val ruleset: Ruleset? = null,
 ) {
     /** Legacy select_laps(). */
     fun nextLaps(): GameOptions = copy(raceLaps = if (raceLaps >= 6) 1 else raceLaps + 1)

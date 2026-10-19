@@ -83,4 +83,18 @@ sealed interface DesktopShellScreen {
      */
     data class AfterMission(val text: String) : DesktopShellScreen
     data object Editor : DesktopShellScreen
+
+    /** First start: Classic or Extended (ADR 0023). */
+    data object RulesetChoice : DesktopShellScreen
+
+    /** Extended: the main menu, shown wherever Classic shows its main or game mode menu. */
+    data object ExtendedMenu : DesktopShellScreen
+
+    /** Extended: settings and help submenus. */
+    data object ExtendedSettings : DesktopShellScreen
+    data object ExtendedHelp : DesktopShellScreen
+
+    /** Extended: the saved recordings, and one of them being watched. */
+    data object Replays : DesktopShellScreen
+    data class Replay(val file: java.io.File) : DesktopShellScreen
 }

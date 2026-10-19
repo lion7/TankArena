@@ -1,6 +1,8 @@
 # ADR 0023: Two Rulesets — Classic and Extended
 
-- **Status:** Accepted (2026-10-19).
+- **Status:** Accepted (2026-10-19). Built the same day: `Ruleset`, a rules version per ruleset,
+  the first-start choice, the command-line options and a first Extended menu with replays (roadmap
+  phase 5). Extended still plays exactly like Classic: no flags yet.
 
 ## Context
 
@@ -26,8 +28,9 @@ One game core with a **ruleset** chosen at start: **Classic** or **Extended**.
 | Menus | The original menus, unchanged | A new, clearer menu (below) |
 | Controls | The original keys and control modes | Remappable keys, gamepads, touch on Android |
 
-- **Choosing:** a first screen (and a `--classic` / `--extended` command-line option, remembered in
-  `settings.json`) picks the ruleset. The map editor is a menu entry in both
+- **Choosing:** a screen on the first start (and a `--classic` / `--extended` command-line option),
+  remembered in `settings.json`, picks the ruleset. Extended's settings can switch back to Classic;
+  Classic's menu stays the original's, so from Classic only `--extended` switches. The map editor is a menu entry in both
   ([ADR 0021](0021-editor-in-the-game.md)), not a separate choice.
 - **Classic menu:** stays exactly the original's (main menu, game modes, codes, options, help).
 - **Extended menu:** single player campaign (codes and a list of reached missions), local multiplayer

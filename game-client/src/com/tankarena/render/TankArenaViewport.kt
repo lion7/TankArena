@@ -1,25 +1,19 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
-import com.pandulapeter.kubriko.manager.ActorManager
-import com.pandulapeter.kubriko.Kubriko
-import com.pandulapeter.kubriko.KubrikoViewport
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.manager.Manager
-import com.pandulapeter.kubriko.manager.MetadataManager
-import com.pandulapeter.kubriko.manager.StateManager
-import com.pandulapeter.kubriko.manager.ViewportManager
-import com.pandulapeter.kubriko.sprites.SpriteManager
-import com.pandulapeter.kubriko.types.TargetFrameRate
-import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PlayerView
@@ -45,7 +39,7 @@ fun TankArenaViewport(
         ?: return
 
     val runtime = remember(sidecar?.metadata?.name, playerView.playerId, playfieldWidth, playfieldHeight) {
-        TankArenaKubrikoRuntime(
+        ViewportRuntime(
             playfieldWidth = playfieldWidth,
             playfieldHeight = playfieldHeight,
             sidecar = sidecar,
@@ -65,26 +59,41 @@ fun TankArenaViewport(
         onGeometryChanged(runtime.geometry)
     }
 
-    KubrikoViewport(
-        // Legacy night missions: the view goes through the night palette, lit where lights fall.
-        modifier = if (sidecar?.metadata?.night == true) {
-            modifier.graphicsLayer {
-                runtime.nightVersion.value
-                renderEffect = runtime.nightFilter(size.width, size.height)?.asComposeRenderEffect()
+    // The window: the map scaled to fill the width at the playfield's aspect ratio, centred.
+    Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
+        Box(
+            modifier = viewportEffects(modifier, sidecar, runtime)
+                .align(Alignment.Center)
+                .aspectRatio(playfieldWidth.toFloat() / playfieldHeight)
+                .clipToBounds(),
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                runtime.sceneVersion.intValue
+                runtime.draw(this)
             }
-        } else {
-            // Legacy palette_effects(): water, conveyor belts, teleporters, glow and lava cycle.
-            modifier.graphicsLayer {
-                runtime.cyclingVersion.value
-                renderEffect = runtime.cyclingFilter().asComposeRenderEffect()
-            }
-        },
-        kubriko = runtime.kubriko,
-        WindowInsets(0, 0, 0, 0),
-    )
+        }
+    }
 }
 
-private class TankArenaKubrikoRuntime(
+/**
+ * Legacy night missions: the view goes through the night palette, lit where lights fall. By day,
+ * legacy palette_effects(): water, conveyor belts, teleporters, glow and lava cycle.
+ */
+private fun viewportEffects(modifier: Modifier, sidecar: MapSceneSidecar?, runtime: ViewportRuntime): Modifier =
+    if (sidecar?.metadata?.night == true) {
+        modifier.graphicsLayer {
+            runtime.nightVersion.value
+            renderEffect = runtime.nightFilter(size.width, size.height)?.asComposeRenderEffect()
+        }
+    } else {
+        modifier.graphicsLayer {
+            runtime.cyclingVersion.value
+            renderEffect = runtime.cyclingFilter().asComposeRenderEffect()
+        }
+    }
+
+/** One player window's scene, kept in step with the server frames it is given. */
+private class ViewportRuntime(
     private val playfieldWidth: Int,
     private val playfieldHeight: Int,
     sidecar: MapSceneSidecar?,
@@ -102,60 +111,16 @@ private class TankArenaKubrikoRuntime(
         it.viewWidth = playfieldWidth
         it.viewHeight = playfieldHeight
     }
-    private val spriteManager = SpriteManager.newInstance(
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-sprites",
-    )
-    private val terrainActor = TerrainActor(snapshot, spriteManager, sprites)
-    private val topLayerActor = TopLayerActor(snapshot, spriteManager, sprites)
-    private val actorManager = ActorManager.newInstance(
-        initialActors = listOf(terrainActor, topLayerActor),
-        shouldUpdateActorsWhileNotRunning = false,
-        shouldPutFarAwayActorsToSleep = false,
-        invisibleActorMinimumRefreshTimeInMillis = 16,
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-actors",
-    )
-    private val viewportManager = ViewportManager.newInstance(
-        aspectRatioMode = ViewportManager.AspectRatioMode.Fixed(
-            ratio = playfieldWidth.toFloat() / playfieldHeight,
-            width = playfieldWidth.toFloat().sceneUnit,
-        ),
-        initialScaleFactor = 1f,
-        minimumScaleFactor = 0.25f,
-        maximumScaleFactor = 6f,
-        viewportEdgeBuffer = 0f.sceneUnit,
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-viewport",
-        initialTargetFrameRate = TargetFrameRate.DisplayDefault,
-    )
-    private val stateManager = StateManager.newInstance(
-        shouldAutoStart = true,
-        focusDebounce = 0,
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-state",
-    )
-    private val metadataManager = MetadataManager.newInstance(
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-metadata",
-    )
-    private val scenePreloadManager = ScenePreloadManager(
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-preload",
-    )
+    private val pictures = PictureCache.shared
+    private val terrainActor = TerrainActor(snapshot, pictures, sprites)
+    private val topLayerActor = TopLayerActor(snapshot, pictures, sprites)
+    private val scene = RenderScene().apply {
+        add(terrainActor)
+        add(topLayerActor)
+    }
 
-    val kubriko: Kubriko = Kubriko.newInstance(
-        manager = arrayOf<Manager>(
-            metadataManager,
-            stateManager,
-            viewportManager,
-            spriteManager,
-            actorManager,
-            scenePreloadManager,
-        ),
-        isLoggingEnabled = false,
-        instanceNameForLogging = "tank-arena-runtime",
-    )
+    /** Bumped on every sync, so the window redraws. */
+    val sceneVersion = mutableIntStateOf(0)
 
     private val nightLighting = NightLighting(sprites)
     /** Bumped whenever the night light mask is redrawn, so the layer picks up the new filter. */
@@ -172,8 +137,8 @@ private class TankArenaKubrikoRuntime(
 
     private val clientScene = ClientScene(
         snapshot = snapshot,
-        actorManager = actorManager,
-        spriteManager = spriteManager,
+        scene = scene,
+        pictures = pictures,
         sprites = sprites,
     )
 
@@ -209,20 +174,18 @@ private class TankArenaKubrikoRuntime(
         if (sidecar?.metadata?.night == true) {
             val extra = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
             nightLighting.update(world, snapshot, playfieldWidth, playfieldHeight, extra)
-            scenePreloadManager.requestPreload(extra)
+            pictures.preload(extra)
             nightVersion.intValue += 1
         }
-        viewportManager.setCameraPosition(
-            SceneOffset(
-                snapshot.geometry.cameraCenterX.sceneUnit,
-                snapshot.geometry.cameraCenterY.sceneUnit,
-            ),
-        )
+        sceneVersion.intValue += 1
     }
 
-    fun dispose() {
-        kubriko.dispose()
+    fun draw(scope: androidx.compose.ui.graphics.drawscope.DrawScope) {
+        val geometry = snapshot.geometry
+        scene.draw(scope, geometry.cameraCenterX.toFloat(), geometry.cameraCenterY.toFloat(), playfieldWidth.toFloat())
     }
+
+    fun dispose() = Unit
 
     private var preloadedTilesFor: MapSceneSidecar? = null
 
@@ -246,7 +209,7 @@ private class TankArenaKubrikoRuntime(
         }
         clientScene.collectSpriteResources(resources)
         if (resources.isNotEmpty()) {
-            scenePreloadManager.requestPreload(resources)
+            pictures.preload(resources)
         }
     }
 }

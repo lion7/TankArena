@@ -1,5 +1,6 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
+import com.tankarena.render.PictureCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
@@ -10,10 +11,9 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
-import com.tankarena.render.kubriko.LegacySpriteCatalog
-import com.tankarena.render.kubriko.RuntimeSnapshot
+import com.tankarena.render.LegacySpriteCatalog
+import com.tankarena.render.RuntimeSnapshot
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
@@ -24,7 +24,7 @@ import org.jetbrains.compose.resources.DrawableResource
 internal open class SpriteActor(
     id: Long,
     snapshot: RuntimeSnapshot,
-    private val spriteManager: SpriteManager,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
     private val fallbackColor: Color = Color(0xFFFFD54F),
     override val layerIndex: Int = 2,
@@ -66,7 +66,7 @@ internal open class SpriteActor(
 
     override fun DrawScope.draw() {
         val name = spriteName ?: return
-        val image = sprites.findResource(name)?.let(spriteManager::get)
+        val image = sprites.findResource(name)?.let(pictures::get)
         val centre = LEGACY_TILE_SIZE / 2f
         if (image == null) {
             drawCircle(fallbackColor, radius = 3f, center = Offset(centre, centre))

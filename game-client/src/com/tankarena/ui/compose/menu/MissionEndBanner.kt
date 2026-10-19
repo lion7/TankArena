@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import com.tankarena.render.kubriko.LegacySpriteCatalog
+import com.tankarena.render.LegacySpriteCatalog
 import com.tankarena.ui.compose.MissionOutcome
 import com.tankarena.ui.compose.hud.rememberNightHudEffect
 import org.jetbrains.compose.resources.imageResource

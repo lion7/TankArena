@@ -1,8 +1,5 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
-import com.pandulapeter.kubriko.actor.Actor
-import com.pandulapeter.kubriko.manager.ActorManager
-import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.protocol.snapshot.AbombState
 import com.tankarena.protocol.snapshot.B52State
 import com.tankarena.protocol.snapshot.BonusState
@@ -28,13 +25,13 @@ import com.tankarena.protocol.snapshot.WallState
 import com.tankarena.protocol.snapshot.WarpState
 import com.tankarena.protocol.snapshot.WorldSnapshot
 import com.tankarena.protocol.snapshot.ZeppelinState
-import com.tankarena.render.kubriko.actor.GoalActor
-import com.tankarena.render.kubriko.actor.ProjectileActor
-import com.tankarena.render.kubriko.actor.SpriteActor
-import com.tankarena.render.kubriko.actor.TankActor
-import com.tankarena.render.kubriko.actor.TiledSpriteActor
+import com.tankarena.render.actor.GoalActor
+import com.tankarena.render.actor.ProjectileActor
+import com.tankarena.render.actor.SpriteActor
+import com.tankarena.render.actor.TankActor
+import com.tankarena.render.actor.TiledSpriteActor
 import com.tankarena.content.LEGACY_TILE_SIZE
-import com.tankarena.render.kubriko.actor.TurretActor
+import com.tankarena.render.actor.TurretActor
 import org.jetbrains.compose.resources.DrawableResource
 
 /** Above vehicles (2) and the top structure layer (3). */
@@ -74,8 +71,8 @@ private const val LOCK_MARKER_ID = Long.MIN_VALUE
 
 internal class ClientScene(
     private val snapshot: RuntimeSnapshot,
-    private val actorManager: ActorManager,
-    private val spriteManager: SpriteManager,
+    private val scene: RenderScene,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
 ) {
     private val tanks = LinkedHashMap<Long, TankActor>()
@@ -113,17 +110,17 @@ internal class ClientScene(
                     // Legacy write_objects(): from height 4 up a vehicle is drawn above the top layer.
                     val layer = if (state.height >= HIGH_FLIGHT_HEIGHT) EFFECT_LAYER else VEHICLE_LAYER
                     tanks[state.actorId]?.takeIf { it.layerIndex != layer }?.let {
-                        actorManager.remove(it)
+                        scene.remove(it)
                         tanks.remove(state.actorId)
                     }
                     tanks.getOrPut(state.actorId) {
                         TankActor(
                             id = state.actorId,
                             snapshot = snapshot,
-                            spriteManager = spriteManager,
+                            pictures = pictures,
                             sprites = sprites,
                             layerIndex = layer,
-                        ).also { actorManager.add(it) }
+                        ).also { scene.add(it) }
                     }.sync(state, ownVehicle = state.actorId == viewerActorId)
                 }
                 is TurretState -> {
@@ -132,9 +129,9 @@ internal class ClientScene(
                         TurretActor(
                             id = state.actorId,
                             snapshot = snapshot,
-                            spriteManager = spriteManager,
+                            pictures = pictures,
                             sprites = sprites,
-                        ).also { actorManager.add(it) }
+                        ).also { scene.add(it) }
                     }.sync(state)
                 }
                 is GoalState -> {
@@ -144,7 +141,7 @@ internal class ClientScene(
                         GoalActor(
                             id = state.actorId,
                             snapshot = snapshot,
-                        ).also { actorManager.add(it) }
+                        ).also { scene.add(it) }
                     }.sync(state)
                 }
                 is ProjectileState -> when (state.kind) {
@@ -155,7 +152,7 @@ internal class ClientScene(
                             ProjectileActor(
                                 id = state.actorId,
                                 snapshot = snapshot,
-                            ).also { actorManager.add(it) }
+                            ).also { scene.add(it) }
                         }.sync(state)
                     }
                     ProjectileKind.ROCKET -> syncObject(objectIds, state.actorId, state.x, state.y, null)
@@ -235,13 +232,13 @@ internal class ClientScene(
     /** The rocket lock-on marker of this viewport's player (legacy `MARKER + l`). */
     private fun syncLockMarker(marker: LockMarker?) {
         if (marker == null) {
-            lockMarkerActor?.let(actorManager::remove)
+            lockMarkerActor?.let(scene::remove)
             lockMarkerActor = null
             return
         }
         val actor = lockMarkerActor
-            ?: SpriteActor(LOCK_MARKER_ID, snapshot, spriteManager, sprites, layerIndex = EFFECT_LAYER)
-                .also { actorManager.add(it); lockMarkerActor = it }
+            ?: SpriteActor(LOCK_MARKER_ID, snapshot, pictures, sprites, layerIndex = EFFECT_LAYER)
+                .also { scene.add(it); lockMarkerActor = it }
         actor.spriteName = when (marker.state) {
             LockMarkerState.SEARCHING -> "MARKER"
             LockMarkerState.ON_TARGET -> "MARKER2"
@@ -272,7 +269,7 @@ internal class ClientScene(
     private fun syncObject(ids: MutableSet<Long>, actorId: Long, x: Int, y: Int, sprite: String?): SpriteActor {
         ids += actorId
         return objects.getOrPut(actorId) {
-            SpriteActor(actorId, snapshot, spriteManager, sprites).also { actorManager.add(it) }
+            SpriteActor(actorId, snapshot, pictures, sprites).also { scene.add(it) }
         }.apply {
             spriteName = sprite
             flipHorizontal = false
@@ -294,11 +291,11 @@ internal class ClientScene(
     ) {
         ids += actorId
         tiled[actorId]?.takeIf { it.layerIndex != layer }?.let {
-            actorManager.remove(it)
+            scene.remove(it)
             tiled.remove(actorId)
         }
         tiled.getOrPut(actorId) {
-            TiledSpriteActor(actorId, snapshot, spriteManager, sprites, layer, extent).also { actorManager.add(it) }
+            TiledSpriteActor(actorId, snapshot, pictures, sprites, layer, extent).also { scene.add(it) }
         }.apply {
             this.tiles = tiles()
             shadowOffset = shadow
@@ -384,7 +381,7 @@ internal class ClientScene(
                 effect.nextFrameTick += delay + effectRandom.nextInt(delay / 2 + 1)
             }
             if (effect.frame >= effect.frames.size) {
-                actorManager.remove(effect.actor)
+                scene.remove(effect.actor)
                 iterator.remove()
             } else {
                 effect.actor.spriteName = effect.frames[effect.frame].first
@@ -396,19 +393,19 @@ internal class ClientScene(
 
     private fun spawnEffect(kind: EffectKind, x: Int, y: Int, tick: Long) {
         val frames = EFFECT_FRAMES[kind] ?: return
-        val actor = SpriteActor(nextEffectId--, snapshot, spriteManager, sprites, layerIndex = EFFECT_LAYER).apply {
+        val actor = SpriteActor(nextEffectId--, snapshot, pictures, sprites, layerIndex = EFFECT_LAYER).apply {
             spriteName = frames.first().first
             moveTo(x, y)
         }
-        actorManager.add(actor)
+        scene.add(actor)
         effects += Effect(actor, frames, frame = 0, nextFrameTick = tick + frames.first().second)
     }
 
-    private fun <T : Actor> prune(actorsById: MutableMap<Long, T>, keepIds: Set<Long>) {
+    private fun <T : SceneDrawable> prune(actorsById: MutableMap<Long, T>, keepIds: Set<Long>) {
         if (actorsById.isEmpty()) return
         val staleIds = actorsById.keys.filterNot(keepIds::contains)
         if (staleIds.isEmpty()) return
         val staleActors = staleIds.mapNotNull(actorsById::remove)
-        actorManager.remove(staleActors)
+        scene.remove(staleActors)
     }
 }

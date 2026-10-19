@@ -1,21 +1,21 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
+import com.tankarena.render.PictureCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacySpriteResources
 import com.tankarena.protocol.snapshot.TurretState
-import com.tankarena.render.kubriko.LegacySpriteCatalog
-import com.tankarena.render.kubriko.RuntimeSnapshot
+import com.tankarena.render.LegacySpriteCatalog
+import com.tankarena.render.RuntimeSnapshot
 import org.jetbrains.compose.resources.DrawableResource
 
 internal class TurretActor(
     id: Long,
     snapshot: RuntimeSnapshot,
-    private val spriteManager: SpriteManager,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
 ) : RenderActor(
     id = id,
@@ -48,7 +48,7 @@ internal class TurretActor(
         // Legacy write_turret(): b_add_layer_d() with `ti[type].pic`, five pictures mirrored for 16 directions.
         val frame = directionalFrame(turretDirection)
         val image = sprites.findResource(LegacySpriteResources.nameForTurret(turretType, frame.index))
-            ?.let(spriteManager::get)
+            ?.let(pictures::get)
         if (image == null) {
             drawRect(
                 color = Color(0xFFFFB454),

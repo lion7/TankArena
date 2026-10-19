@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

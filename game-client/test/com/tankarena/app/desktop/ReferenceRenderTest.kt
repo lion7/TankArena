@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.use
 import com.tankarena.protocol.snapshot.ServerFrame
-import com.tankarena.render.kubriko.ViewportEventQueue
+import com.tankarena.render.ViewportEventQueue
 import com.tankarena.sim.MatchMode
 import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.MatchReplay

@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.GoalState
-import com.tankarena.render.kubriko.RuntimeSnapshot
+import com.tankarena.render.RuntimeSnapshot
 
 internal class GoalActor(
     id: Long,
@@ -34,7 +34,7 @@ internal class GoalActor(
                 Team.ENEMY -> Color(0xFFFFB454)
                 Team.NEUTRAL -> Color(0xFFB8C1CC)
             },
-            radius = body.size.width.raw / 2f - 2f,
+            radius = body.size.width / 2f - 2f,
             style = Stroke(width = 2f),
         )
     }

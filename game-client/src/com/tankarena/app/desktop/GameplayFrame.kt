@@ -29,10 +29,10 @@ import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.protocol.snapshot.TankState
-import com.tankarena.render.kubriko.TankArenaViewport
-import com.tankarena.render.kubriko.ViewportEventQueue
-import com.tankarena.render.kubriko.ViewportGeometry
-import com.tankarena.render.kubriko.legacyMapWindows
+import com.tankarena.render.TankArenaViewport
+import com.tankarena.render.ViewportEventQueue
+import com.tankarena.render.ViewportGeometry
+import com.tankarena.render.legacyMapWindows
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.LegacyScreen
 import com.tankarena.ui.compose.LegacyVideoMode

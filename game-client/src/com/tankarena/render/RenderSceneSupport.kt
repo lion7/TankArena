@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -7,10 +7,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.types.SceneOffset
-import com.pandulapeter.kubriko.types.SceneSize
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacyPictureVariant
 import com.tankarena.content.LegacySpriteResources
@@ -121,10 +117,10 @@ internal fun resolveViewportGeometry(
     )
 }
 
-internal fun createWorldBody(worldWidth: Int, worldHeight: Int): BoxBody = BoxBody(
-    initialPosition = SceneOffset(0f.sceneUnit, 0f.sceneUnit),
-    initialSize = SceneSize(worldWidth.toFloat().sceneUnit, worldHeight.toFloat().sceneUnit),
-    initialPivot = SceneOffset(0f.sceneUnit, 0f.sceneUnit),
+internal fun createWorldBody(worldWidth: Int, worldHeight: Int): RenderBody = RenderBody(
+    position = Offset(0f, 0f),
+    size = Size(worldWidth.toFloat(), worldHeight.toFloat()),
+    pivot = Offset(0f, 0f),
 )
 
 /**

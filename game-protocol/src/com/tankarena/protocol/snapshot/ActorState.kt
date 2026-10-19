@@ -4,8 +4,8 @@ import com.tankarena.protocol.Team
 import kotlinx.serialization.Serializable
 
 /**
- * Per-actor wire state. Each concrete subtype doubles as the Kubriko `State` produced by
- * the matching server actor's `save()` and consumed by the client actor's `sync()`.
+ * What clients see of one map object: the match projects each object into its subtype every tick
+ * (`projectToWireState`), and the client's render actors draw from it.
  */
 @Serializable
 sealed interface ActorState {

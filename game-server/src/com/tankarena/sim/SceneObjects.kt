@@ -171,7 +171,7 @@ class MatchObjectList(initial: List<SceneObject<*>>) {
 
     /**
      * One tick of the objects themselves: every [Steppable] updates, then every [Resolvable] applies
-     * what was queued for it (the order the Kubriko engine used to run them in).
+     * what was queued for it.
      */
     fun step(worldWidthPixels: Int, worldHeightPixels: Int) {
         val objects = all

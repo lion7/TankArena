@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
 import com.tankarena.protocol.snapshot.GameEvent
 

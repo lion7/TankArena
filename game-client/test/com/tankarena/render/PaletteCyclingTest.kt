@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
 import com.tankarena.ui.compose.legacy.LegacyFonts
 import kotlin.test.Test

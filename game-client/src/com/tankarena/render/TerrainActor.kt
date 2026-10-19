@@ -1,14 +1,11 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
-import com.tankarena.render.kubriko.actor.drawLegacyShadow
+import com.tankarena.render.actor.drawLegacyShadow
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.actor.traits.Visible
-import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LegacyPictureVariant
 import com.tankarena.content.PictureCatalog
 import com.tankarena.content.LegacySpriteResources
@@ -16,10 +13,10 @@ import com.tankarena.content.TankArenaWorld
 
 internal class TerrainActor(
     private val snapshot: RuntimeSnapshot,
-    private val spriteManager: SpriteManager,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
-) : Visible {
-    override var body: BoxBody = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
+) : SceneDrawable {
+    override var body: RenderBody = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
     override val layerIndex: Int = 0
 
     fun syncBounds() {
@@ -52,7 +49,7 @@ internal class TerrainActor(
     }
 
     private fun DrawScope.drawBackground(world: TankArenaWorld, tileX: Int, tileY: Int, x: Float, y: Float) {
-        val image = sprites.findResource(backgroundTileName(world, tileX, tileY))?.let(spriteManager::get) ?: return
+        val image = sprites.findResource(backgroundTileName(world, tileX, tileY))?.let(pictures::get) ?: return
         drawSprite(image, x, y, TILE_SIZE.toInt(), TILE_SIZE.toInt())
     }
 
@@ -66,7 +63,7 @@ internal class TerrainActor(
         if (tileId < 0) return
         val name = LegacySpriteResources.nameForTile(world, tileId, variant) ?: return
         val resource = sprites.findResource(name)
-        val image = resource?.let(spriteManager::get)
+        val image = resource?.let(pictures::get)
         if (image == null) {
             val seed = tileId.coerceAtLeast(0)
             drawRect(
@@ -97,10 +94,10 @@ internal fun initiallyStanding(world: TankArenaWorld, solid: Int, top: Int): Boo
  */
 internal class TopLayerActor(
     private val snapshot: RuntimeSnapshot,
-    private val spriteManager: SpriteManager,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
-) : Visible {
-    override var body: BoxBody = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
+) : SceneDrawable {
+    override var body: RenderBody = createWorldBody(snapshot.sceneWidth, snapshot.sceneHeight)
     override val layerIndex: Int = 3
 
     fun syncBounds() {
@@ -130,7 +127,7 @@ internal class TopLayerActor(
                 val intact = changed?.topIntact ?: true
                 val variant = if (intact) LegacyPictureVariant.INTACT else LegacyPictureVariant.DAMAGED
                 val name = LegacySpriteResources.nameForTile(world, top, variant) ?: continue
-                val image = sprites.findResource(name)?.let(spriteManager::get) ?: continue
+                val image = sprites.findResource(name)?.let(pictures::get) ?: continue
                 roofs += Triple(image, (snapshot.renderOffsetX + x * TILE_SIZE).toInt(), (snapshot.renderOffsetY + y * TILE_SIZE).toInt())
             }
         }

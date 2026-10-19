@@ -20,7 +20,7 @@ import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.RadarContactKind
-import com.tankarena.render.kubriko.LegacySpriteCatalog
+import com.tankarena.render.LegacySpriteCatalog
 import com.tankarena.ui.compose.legacy.LegacyColors
 import com.tankarena.ui.compose.legacy.LegacyFonts
 import kotlin.math.floor

@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko
+package com.tankarena.render
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode

@@ -1,19 +1,19 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
+import com.tankarena.render.PictureCache
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacySpriteResources
 import com.tankarena.protocol.snapshot.TankState
-import com.tankarena.render.kubriko.LegacySpriteCatalog
-import com.tankarena.render.kubriko.RuntimeSnapshot
-import com.tankarena.render.kubriko.drawSprite
+import com.tankarena.render.LegacySpriteCatalog
+import com.tankarena.render.RuntimeSnapshot
+import com.tankarena.render.drawSprite
 import org.jetbrains.compose.resources.DrawableResource
 
 internal class TankActor(
     id: Long,
     snapshot: RuntimeSnapshot,
-    private val spriteManager: SpriteManager,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
     /** Legacy write_objects(): vehicles from height 4 up are drawn above the top structure layer. */
     override val layerIndex: Int = 2,
@@ -87,7 +87,7 @@ internal class TankActor(
 
     override fun DrawScope.draw() {
         if (alive && height >= 1 && !visible) return
-        val images = spriteNames().map { name -> sprites.findResource(name)?.let(spriteManager::get) }
+        val images = spriteNames().map { name -> sprites.findResource(name)?.let(pictures::get) }
         // Sprites load asynchronously at mission start; draw nothing until the body frame is ready.
         if (images.firstOrNull() == null) return
         // Legacy write_tank(): above the ground a vehicle casts its shadow `h` right and `2h` down,
@@ -106,7 +106,7 @@ internal class TankActor(
         }
         // Legacy write_tank(): the ARMOR ring while the shield key works or the start shield blinks on.
         if (shielded && alive && height >= 1) {
-            sprites.findResource(SHIELD_SPRITE)?.let(spriteManager::get)?.let { ring ->
+            sprites.findResource(SHIELD_SPRITE)?.let(pictures::get)?.let { ring ->
                 drawSprite(ring, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
             }
         }

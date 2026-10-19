@@ -1,4 +1,4 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas

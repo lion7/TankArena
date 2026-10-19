@@ -30,7 +30,7 @@ import com.tankarena.core.FixedStepClock
 import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.ServerFrame
-import com.tankarena.render.kubriko.ViewportEventQueue
+import com.tankarena.render.ViewportEventQueue
 import com.tankarena.sim.DualSetup
 import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode

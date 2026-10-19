@@ -1,10 +1,10 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
+import com.tankarena.render.PictureCache
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.pandulapeter.kubriko.sprites.SpriteManager
 import com.tankarena.content.LEGACY_TILE_SIZE
-import com.tankarena.render.kubriko.LegacySpriteCatalog
-import com.tankarena.render.kubriko.RuntimeSnapshot
+import com.tankarena.render.LegacySpriteCatalog
+import com.tankarena.render.RuntimeSnapshot
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
@@ -14,7 +14,7 @@ import org.jetbrains.compose.resources.DrawableResource
 internal class TiledSpriteActor(
     id: Long,
     snapshot: RuntimeSnapshot,
-    private val spriteManager: SpriteManager,
+    private val pictures: PictureCache,
     private val sprites: LegacySpriteCatalog,
     override val layerIndex: Int,
     private val extentTiles: Int,
@@ -40,7 +40,7 @@ internal class TiledSpriteActor(
 
     override fun DrawScope.draw() {
         val half = extentTiles * LEGACY_TILE_SIZE / 2
-        val images = tiles.map { it to sprites.findResource(it.name)?.let(spriteManager::get) }
+        val images = tiles.map { it to sprites.findResource(it.name)?.let(pictures::get) }
         if (shadowOffset != 0) {
             for ((tile, image) in images) {
                 if (image == null || !tile.castsShadow) continue

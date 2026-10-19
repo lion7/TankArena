@@ -1,8 +1,8 @@
-package com.tankarena.render.kubriko.actor
+package com.tankarena.render.actor
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.tankarena.render.kubriko.RuntimeSnapshot
+import com.tankarena.render.RuntimeSnapshot
 
 internal class WallActor(
     val centerX: Int,

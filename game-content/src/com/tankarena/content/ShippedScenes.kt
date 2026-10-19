@@ -8,7 +8,7 @@ const val SCENES_RESOURCE_DIR: String = "scenes"
 /** One base name per line; written by `tools-mapconv scene-all` because classpath resources cannot be listed. */
 const val SCENE_INDEX_FILE_NAME: String = "index.txt"
 
-/** A shipped mission: the Kubriko scene JSON plus its parsed sidecar. */
+/** A shipped mission: the scene JSON plus its parsed sidecar. */
 data class ShippedScene(
     val baseName: String,
     val sceneJson: String,

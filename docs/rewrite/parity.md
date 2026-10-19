@@ -201,10 +201,10 @@ Open:
 - **differs** — F1–F10 in two players vs computer: the rewrite selects for player one without Alt and
   player two with Alt; the original selects for `id_select = 1` without Alt and 0 with Alt
   (`src/game/controls.c:38,163-168`).
-- **differs** — known codes (decided in [ADR 0020](adrs/0020-user-data-as-json.md)): the list is
-  filtered per mode, but Classic must show every known code like the original; and the last code per
-  mode and the last player-vs-player map are not remembered across restarts (the original keeps them
-  in `TANK.CFG`), which both rulesets must do. Not saving public codes stays.
+- **done** — known codes ([ADR 0020](adrs/0020-user-data-as-json.md)): Classic lists every known
+  code like the original, Extended only the mode's; the last code per mode and the last
+  player-vs-player map are kept in `settings.json` like `TANK.CFG`. Public codes are added on the fly,
+  not saved (intentional).
 - **unverified** — the static-noise view when a player has no tank (`src/game/mainloop.c`).
 
 ## Shell and meta-game

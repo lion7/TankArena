@@ -1,5 +1,6 @@
 package com.tankarena.ui.compose.menu
 
+import com.tankarena.sim.Ruleset
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.DualMatch
 import com.tankarena.ui.compose.GameMode
@@ -7,19 +8,24 @@ import com.tankarena.ui.compose.MissionOutcome
 
 /**
  * The shell state around the mission-code prompt of legacy `single_game`,
- * `dual_v_computer_game` and `dual_game`: the last code per mode (the legacy statics
- * `single_code`, `dual_v_computer_code`, `dual_map_name`) and the reached codes in
- * [PasswordStore].
+ * `dual_v_computer_game` and `dual_game`: the last code per mode (legacy `single_code`,
+ * `dual_v_computer_code`, `dual_map_name`, kept in `settings.json` as the original keeps them in
+ * TANK.CFG) and the reached codes in [PasswordStore].
  */
 class MissionGate(private val passwords: PasswordStore, private val settings: GameSettings = GameSettings()) {
-    private val currentCodes = mutableMapOf<GameMode, String>()
+    /** The text the prompt starts with: the last entered or reached code of [mode], kept across restarts. */
+    fun currentCode(mode: GameMode): String = settings.options.lastCodes[mode.name] ?: MissionCodes.defaultCode(mode)
 
-    /** The text the prompt starts with: the last entered or reached code of [mode]. */
-    fun currentCode(mode: GameMode): String = currentCodes[mode] ?: MissionCodes.defaultCode(mode)
+    private fun remember(mode: GameMode, code: String) {
+        settings.update(settings.options.copy(lastCodes = settings.options.lastCodes + (mode.name to code)))
+    }
 
-    /** The entries behind the prompt's ESC: known passwords, or the dual maps. */
+    /**
+     * The entries behind the prompt's ESC: known passwords, or the dual maps. Extended lists only the
+     * codes that work in [mode]; Classic lists them all, like the original.
+     */
     fun listEntries(missions: List<MissionEntry>, mode: GameMode): List<String> =
-        MissionCodes.listEntries(missions, passwords.load(), mode)
+        MissionCodes.listEntries(missions, passwords.load(), mode, onlyForMode = settings.options.ruleset == Ruleset.EXTENDED)
 
     /**
      * Enter on the prompt or on the list. Like the legacy code, the text is kept for the next
@@ -28,7 +34,7 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
      * the map has none), or a message that leads back to the game mode menu.
      */
     fun submit(missions: List<MissionEntry>, input: String, mode: GameMode): DesktopShellScreen {
-        currentCodes[mode] = input
+        remember(mode, input)
         return when (val resolution = MissionCodes.resolve(missions, input, mode)) {
             is CodeResolution.Rejected ->
                 DesktopShellScreen.Message(resolution.message, next = DesktopShellScreen.GameModeSelect)
@@ -64,7 +70,7 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
         var thunder = false
         if (outcome == MissionOutcome.WON) {
             val next = mission.sidecar.metadata.nextMissionCode.orEmpty().trim()
-            currentCodes[mode] = next
+            remember(mode, next)
             passwords.add(next)
             val (counted, play) = settings.options.afterVictory()
             settings.update(counted)

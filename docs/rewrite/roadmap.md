@@ -87,8 +87,9 @@ source, gets a test, bumps the Classic rules version when it changes play, and r
    `fire_delay` (import it), radar hiding cloaked tanks, F-key mapping in two-vs-computer.
 3. **Missing rules:** supermarket mayhem; goal `who = 3`; conveyors and turntables; debris and
    fuel-dump flames; terrain effects and their sounds.
-4. **Shell:** remember the last code per mode and the last map across restarts; Classic's known-codes
-   list shows every known code ([ADR 0020](adrs/0020-user-data-as-json.md)); in-game keys (pause, F11
+4. **Shell:** ~~remember the last code per mode and the last map across restarts; Classic's
+   known-codes list shows every known code~~ (done 2026-10-19, [ADR 0020](adrs/0020-user-data-as-json.md));
+   in-game keys (pause, F11
    gamma, F12 radar, screenshot, window size); the original key
    setup, control modes and joysticks ([ADR 0026](adrs/0026-input-and-gamepads.md)); command-line
    switches and cheats; Exit confirmation.

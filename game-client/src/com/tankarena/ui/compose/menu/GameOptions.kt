@@ -39,6 +39,11 @@ data class GameOptions(
     val victoryCount: Int = 0,
     /** Classic or Extended (ADR 0023); null until the player has chosen. Not in TANK.CFG. */
     val ruleset: Ruleset? = null,
+    /**
+     * Legacy `single_code`, `dual_v_computer_code` and `dual_map_name` in TANK.CFG: the text the code
+     * prompt of each game mode starts with, by [GameMode] name.
+     */
+    val lastCodes: Map<String, String> = emptyMap(),
 ) {
     /** Legacy select_laps(). */
     fun nextLaps(): GameOptions = copy(raceLaps = if (raceLaps >= 6) 1 else raceLaps + 1)

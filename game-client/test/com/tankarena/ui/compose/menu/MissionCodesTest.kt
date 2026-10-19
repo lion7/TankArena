@@ -1,11 +1,11 @@
 package com.tankarena.ui.compose.menu
 
-
 import androidx.compose.ui.input.key.Key
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.MissionText
+import com.tankarena.sim.Ruleset
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
@@ -13,6 +13,7 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 internal fun mission(
     baseName: String,
@@ -103,16 +104,25 @@ class MissionCodesTest {
     }
 
     @Test
-    fun `known passwords list reached codes first, then public and dual-vs-computer codes of the mode`() {
+    fun `Extended lists reached codes first, then public and dual-vs-computer codes, of the mode only`() {
         val reached = listOf("BEGIN2", "BOGUS", "ASSUALT1")
         assertEquals(
             listOf("BEGIN2", "ASSUALT1"),
-            MissionCodes.knownPasswords(all, reached, GameMode.SINGLE_PLAYER_VS_COMPUTER),
+            MissionCodes.knownPasswords(all, reached, GameMode.SINGLE_PLAYER_VS_COMPUTER, onlyForMode = true),
         )
         assertEquals(
             listOf("FOOTBALL"),
-            MissionCodes.knownPasswords(all, reached, GameMode.DUAL_PLAYER_VS_COMPUTER),
+            MissionCodes.knownPasswords(all, reached, GameMode.DUAL_PLAYER_VS_COMPUTER, onlyForMode = true),
         )
+    }
+
+    @Test
+    fun `Classic lists every known code in every mode, like the original`() {
+        val reached = listOf("BEGIN2", "BOGUS", "ASSUALT1")
+        val single = MissionCodes.knownPasswords(all, reached, GameMode.SINGLE_PLAYER_VS_COMPUTER)
+        assertEquals(single, MissionCodes.knownPasswords(all, reached, GameMode.DUAL_PLAYER_VS_COMPUTER))
+        assertEquals(listOf("BEGIN2", "BOGUS", "ASSUALT1"), single.take(3))
+        assertTrue("FOOTBALL" in single)
     }
 
     @Test
@@ -137,7 +147,7 @@ class MissionCodesTest {
     fun `the gate remembers typed codes and moves on to the next code after a win`() {
         val dir = Files.createTempDirectory("tankarena-gate")
         val store = PasswordStore(dir.resolve("passwd.json"))
-        val gate = MissionGate(store)
+        val gate = MissionGate(store, GameSettings().apply { update(options.copy(ruleset = Ruleset.EXTENDED)) })
         val mode = GameMode.SINGLE_PLAYER_VS_COMPUTER
         assertEquals("BEGIN1", gate.currentCode(mode))
 
@@ -157,6 +167,23 @@ class MissionCodesTest {
         assertEquals(listOf("BEGIN1", "BEGIN2"), store.load())
         assertEquals(listOf("BEGIN1", "BEGIN2", "ASSUALT1"), gate.listEntries(all, mode))
         assertEquals("AIR STRIKE", gate.currentCode(GameMode.DUAL_PLAYER_VS_COMPUTER))
+    }
+
+    @Test
+    fun `the last code of each mode survives a restart`() {
+        val dir = Files.createTempDirectory("tankarena-gate")
+        val passwords = PasswordStore(dir.resolve("passwd.json"))
+        val settingsFile = dir.resolve("settings.json")
+        val mode = GameMode.SINGLE_PLAYER_VS_COMPUTER
+        val gate = MissionGate(passwords, GameSettings(GameOptionsStore(settingsFile)))
+        gate.submit(all, "BEGIN1", mode)
+        gate.missionEnded(begin1, mode, MissionOutcome.WON)
+        gate.submit(all, "CHILL2", GameMode.PLAYER_VS_PLAYER)
+
+        val restarted = MissionGate(passwords, GameSettings(GameOptionsStore(settingsFile)))
+        assertEquals("BEGIN2", restarted.currentCode(mode))
+        assertEquals("CHILL2", restarted.currentCode(GameMode.PLAYER_VS_PLAYER))
+        assertEquals("AIR STRIKE", restarted.currentCode(GameMode.DUAL_PLAYER_VS_COMPUTER))
     }
 
     @Test

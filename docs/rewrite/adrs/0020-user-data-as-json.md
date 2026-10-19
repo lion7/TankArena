@@ -45,4 +45,5 @@ layouts serve no purpose for the rewrite.
     **Extended** shows only codes that work in the current mode.
   - *Last code and map:* both rulesets remember the last code reached per mode, and the last
     player-vs-player map, in `settings.json`, and pre-fill the prompt with it after a restart, as the
-    original does with `TANK.CFG`. (Today this is only remembered while the game runs.)
+    original does with `TANK.CFG` (`lastCodes` in `settings.json`). Built 2026-10-19, together with
+    the per-ruleset list.

@@ -91,10 +91,16 @@ object MissionCodes {
      * codes the player reached, followed by every map with a public password and every
      * dual-vs-computer map.
      *
-     * Unlike the original, which listed every entry of `PASSWD.DAT` for every mode, only codes
-     * that start a mission in [mode] are offered.
+     * Like the original, every code is listed in every mode (a code for another mode is then refused
+     * with "THIS MAP IS NOT SUITABLE"); with [onlyForMode] (Extended, ADR 0020) only codes that start
+     * a mission in [mode] are offered.
      */
-    fun knownPasswords(missions: List<MissionEntry>, reached: List<String>, mode: GameMode): List<String> {
+    fun knownPasswords(
+        missions: List<MissionEntry>,
+        reached: List<String>,
+        mode: GameMode,
+        onlyForMode: Boolean = false,
+    ): List<String> {
         val public = missions
             .filter {
                 it.sidecar.metadata.publicPassword ||
@@ -104,7 +110,7 @@ object MissionCodes {
         return (reached.map { it.trim() } + public)
             .filter { it.isNotEmpty() }
             .distinct()
-            .filter { resolve(missions, it, mode) is CodeResolution.Accepted }
+            .filter { !onlyForMode || resolve(missions, it, mode) is CodeResolution.Accepted }
     }
 
     /** Legacy `select_from_list` in DUAL mode: "don't care" and dual maps, sorted by file name. */
@@ -115,8 +121,8 @@ object MissionCodes {
         .sortedWith(String.CASE_INSENSITIVE_ORDER)
 
     /** The list behind the prompt's ESC: known passwords, or map names for player vs player. */
-    fun listEntries(missions: List<MissionEntry>, reached: List<String>, mode: GameMode): List<String> =
-        if (mode == GameMode.PLAYER_VS_PLAYER) selectableMaps(missions) else knownPasswords(missions, reached, mode)
+    fun listEntries(missions: List<MissionEntry>, reached: List<String>, mode: GameMode, onlyForMode: Boolean = false): List<String> =
+        if (mode == GameMode.PLAYER_VS_PLAYER) selectableMaps(missions) else knownPasswords(missions, reached, mode, onlyForMode)
 
     fun listTitle(mode: GameMode): String =
         if (mode == GameMode.PLAYER_VS_PLAYER) SELECT_MAP_TITLE else KNOWN_PASSWORDS_TITLE

@@ -1,6 +1,7 @@
 # ADR 0021: Map Editor Inside the Game
 
 - **Status:** Accepted (2026-10-19).
+  First version built 2026-10-19: open, paint the picture layers, undo, save (roadmap phase 4).
 - **Supersedes:** [ADR 0004](0004-separate-editor-app.md) (separate editor app) and
   [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md) (editor on Kubriko's `SceneEditor`).
 

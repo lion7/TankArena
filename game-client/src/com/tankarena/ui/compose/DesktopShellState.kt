@@ -82,7 +82,9 @@ sealed interface DesktopShellScreen {
      * one its failure text, in the text viewer; then back to the game mode menu.
      */
     data class AfterMission(val text: String) : DesktopShellScreen
-    data object Editor : DesktopShellScreen
+    /** The map editor (ADR 0021): choosing a map, then editing it. */
+    data object EditorOpen : DesktopShellScreen
+    data class Editor(val map: com.tankarena.app.desktop.EditorMapChoice) : DesktopShellScreen
 
     /** First start: Classic or Extended (ADR 0023). */
     data object RulesetChoice : DesktopShellScreen

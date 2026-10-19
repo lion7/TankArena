@@ -201,6 +201,7 @@ fun main(args: Array<String>) = application {
                             onTwoVsComputer = { play(GameMode.DUAL_PLAYER_VS_COMPUTER) },
                             onPlayerVsPlayer = { play(GameMode.PLAYER_VS_PLAYER) },
                             onReplays = { screen = DesktopShellScreen.Replays },
+                            onMapEditor = { screen = DesktopShellScreen.EditorOpen },
                             onSettings = { screen = DesktopShellScreen.ExtendedSettings },
                             onHelp = { screen = DesktopShellScreen.ExtendedHelp },
                             onQuit = ::exitApplication,
@@ -266,6 +267,7 @@ fun main(args: Array<String>) = application {
                         },
                         onExit = ::exitApplication,
                         onGameOptions = { screen = DesktopShellScreen.Options },
+                        onMapEditor = { screen = DesktopShellScreen.EditorOpen },
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
                     )
@@ -375,9 +377,18 @@ fun main(args: Array<String>) = application {
                         onClose = { screen = DesktopShellScreen.GameModeSelect },
                     )
 
-                    DesktopShellScreen.Editor -> MainMenuScreen(
-                        onStartNewGame = { screen = DesktopShellScreen.GameModeSelect },
-                        onExit = ::exitApplication,
+                    DesktopShellScreen.EditorOpen -> EditorOpenScreen(
+                        onOpen = { choice -> screen = DesktopShellScreen.Editor(choice) },
+                        onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    is DesktopShellScreen.Editor -> EditorScreen(
+                        choice = current.map,
+                        onClose = {
+                            // A saved map may be one the game lists; read the maps again.
+                            missions = null
+                            screen = DesktopShellScreen.EditorOpen
+                        },
                     )
                 }
             }

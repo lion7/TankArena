@@ -29,9 +29,12 @@ object MapConversion {
     private const val TYPE_PREFIX = "tankArena"
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun toDocument(map: LoadedMap): MapDocument {
-        val metadata = map.sidecar.metadata
-        val layers = requireNotNull(map.sidecar.tileLayers) { "${metadata.name} has no tile layers" }
+    fun toDocument(map: LoadedMap): MapDocument = documentOf(map.sidecar, map.objects.mapNotNull(::objectRecord))
+
+    /** The document for a map's header, texts and layers ([sidecar]) and its object [records]. */
+    fun documentOf(sidecar: MapSceneSidecar, records: List<JsonObject>): MapDocument {
+        val metadata = sidecar.metadata
+        val layers = requireNotNull(sidecar.tileLayers) { "${metadata.name} has no tile layers" }
         val width = metadata.widthTiles
         val legend = Legend(metadata.world)
         val floor = legend.encode(layers.base, width)
@@ -52,7 +55,7 @@ object MapConversion {
                 randomBonus = metadata.randomBonus,
                 legacyVersion = metadata.legacyMapVersion,
             ),
-            texts = map.sidecar.missionText,
+            texts = sidecar.missionText,
             legend = legend.entries,
             floor = floor,
             solid = solid,
@@ -62,7 +65,7 @@ object MapConversion {
             men = layers.manTypeLayer.indices
                 .filter { layers.manTypeLayer[it] != 0 || layers.manAmountLayer[it] != 0 }
                 .map { MenCell(at(it), layers.manTypeLayer[it], layers.manAmountLayer[it]) },
-            objects = map.objects.mapNotNull(::objectRecord),
+            objects = records,
         )
     }
 

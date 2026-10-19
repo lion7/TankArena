@@ -34,6 +34,9 @@ object PictureCatalog {
         return rowsFor(world).getOrNull(pictureIndex)
     }
 
+    /** Number of pictures in [world]'s table: valid indices are `0 until pictureCount(world)`. */
+    fun pictureCount(world: TankArenaWorld): Int = rowsFor(world).size
+
     /**
      * Resolve terrain info for a picture index in the given world.
      * Returns default NORMAL / 1.0 for unknown indices.

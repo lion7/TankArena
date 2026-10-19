@@ -99,11 +99,17 @@ Depends on: phase 1 for item 1 (cleaner with the new core); the rest can start a
 
 Goal: everything the original editor can do, inside the game, plus validation, undo and play-test.
 
-- Editor screen from the main menu (both rulesets); map view with the game renderer, zoom and overview.
-- New map from world templates (convert `DATA/MAP_0..3.DAT`) and size; picture layers with the
-  structure library and links; goal, bonus and men layers.
-- Every object type with its properties; links; computer-tank settings and waypoints; pad weapons.
-- Header and mission texts; import and export `.MAP`; validation; undo; play-test and return.
+- [x] Editor from the main menu in both rulesets ("Map editor"): open a shipped or saved map; the map
+      drawn with the game's pictures, scrolling and zoom; the three picture layers painted with a
+      searchable palette of the world's pictures (right button picks one up); undo and redo per stroke;
+      saving to the player's maps (`~/.local/share/tankarena/maps`); object boxes shown.
+      `MapEditor` (`sim.map`) holds the editing rules and is tested without a screen; `EditorRenderTest`
+      draws the editor offscreen.
+- [ ] Saved maps in the game's map lists and a play-test from the editor.
+- [ ] New map from world templates (convert `DATA/MAP_0..3.DAT`) and size; the structure library
+      and links; goal, bonus and men layers.
+- [ ] Every object type with its properties; links; computer-tank settings and waypoints; pad weapons.
+- [ ] Header and mission texts; export `.MAP` (ADR 0022, option C); validation; overview.
 
 Depends on: phases 1 and 2.
 

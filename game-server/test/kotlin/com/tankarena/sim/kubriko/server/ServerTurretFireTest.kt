@@ -7,6 +7,7 @@ import com.tankarena.content.MapMetadata
 import com.tankarena.content.MissionText
 import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
 import com.tankarena.content.TileLayers
+import com.tankarena.protocol.snapshot.ProjectileKind
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
 import com.tankarena.protocol.snapshot.ProjectileState
 import com.tankarena.protocol.snapshot.TankState
@@ -60,6 +61,87 @@ class ServerTurretFireTest {
         )
         prototype.dispose()
     }
+
+    @Test
+    fun `a rocket turret launches rockets at the player`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(turretMap(turret = mapOf("turretType" to "1", "direction" to "12")))
+        prototype.initialize()
+        var kinds = emptySet<ProjectileKind>()
+        repeat(400) {
+            kinds = kinds + prototype.tick().actors.filterIsInstance<ProjectileState>().map { it.kind }
+        }
+        assertEquals(setOf(ProjectileKind.ROCKET), kinds, "type 1 (legacy ti[1], HT_ROCKET) fires only rockets")
+        assertEquals(1, prototype.snapshot().turret().turretType)
+        prototype.dispose()
+    }
+
+    @Test
+    fun `a bullet leaves from the end of the barrel`() {
+        // Legacy ti[0]: the gun is 15 px north of the centre; aimed west it fires from 15 px west.
+        val prototype = ServerMatchPrototype.fromCanonicalMap(turretMap(turret = mapOf("direction" to "12")))
+        prototype.initialize()
+        val turret = prototype.snapshot().turret()
+        var first: ProjectileState? = null
+        repeat(200) {
+            if (first == null) first = prototype.tick().actors.filterIsInstance<ProjectileState>().firstOrNull()
+        }
+        val shot = first ?: error("the turret never fired")
+        assertEquals(turret.y, shot.y)
+        assertTrue(shot.x in turret.x - 17..turret.x - 13, "fired from x=${shot.x}, turret at ${turret.x}")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `the gun turns to any of the 16 directions`() {
+        // The player sits two tiles left and one tile up: radtoa16 gives west-north-west (13).
+        val prototype = ServerMatchPrototype.fromCanonicalMap(turretMap(turret = mapOf("direction" to "12"), turretTileY = 3))
+        prototype.initialize()
+        repeat(100) { prototype.tick() }
+        assertEquals(13, prototype.snapshot().turret().turretDirection)
+        prototype.dispose()
+    }
+
+    @Test
+    fun `a turret set to shoot evil vehicles leaves the player alone`() {
+        val prototype = ServerMatchPrototype.fromCanonicalMap(turretMap(turret = mapOf("direction" to "12", "shootAt" to "2")))
+        prototype.initialize()
+        repeat(400) { prototype.tick() }
+        assertTrue(prototype.snapshot().actors.filterIsInstance<ProjectileState>().isEmpty())
+        assertEquals(12, prototype.snapshot().turret().turretDirection, "it does not even turn")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `gun offsets turn clockwise like legacy loc_x and loc_y`() {
+        assertEquals(0 to -6, rotateLegacyOffset(0, 0, -6))
+        assertEquals(6 to 0, rotateLegacyOffset(4, 0, -6))
+        assertEquals(0 to 6, rotateLegacyOffset(8, 0, -6))
+        assertEquals(-6 to 0, rotateLegacyOffset(12, 0, -6))
+        assertEquals(6 to -2, rotateLegacyOffset(4, -2, -6))
+    }
+
+    /** The player two tiles west of a turret on a 10×6 map, both on row 2 unless [turretTileY] says otherwise. */
+    private fun turretMap(turret: Map<String, String>, turretTileY: Int = 2): CanonicalMapDefinition =
+        canonicalMap(
+            10,
+            6,
+            players = listOf(
+                AuthoredObject(
+                    id = "p1",
+                    kind = ObjectKinds.PLAYER_START,
+                    x = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "0", "lives" to "3"),
+                ),
+                AuthoredObject(
+                    id = "t1",
+                    kind = ObjectKinds.TURRET,
+                    x = 4 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    y = turretTileY * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = turret,
+                ),
+            ),
+        )
 
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.turret(): TurretState =
         actors.filterIsInstance<TurretState>().single()

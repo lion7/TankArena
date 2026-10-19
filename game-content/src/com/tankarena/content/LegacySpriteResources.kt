@@ -49,8 +49,8 @@ object LegacySpriteResources {
 
     /**
      * Turret sprite. Mirrors `sprintf("TUR%ld-%ld", i+1, j+1)`: 9 turret
-     * variants, each with 5 directional frames covering the legacy 16-step
-     * turret rotation (north, NE, east, SE, south).
+     * variants, each with 5 directional frames (north to east, in quarter
+     * steps) that are mirrored for the other directions like a vehicle's.
      */
     fun nameForTurret(turretIndex: Int, frameIndex: Int): String {
         val variant = (turretIndex.coerceAtLeast(0) % MAX_TURRET_VARIANTS) + 1
@@ -66,22 +66,6 @@ object LegacySpriteResources {
      */
     fun tankBodyFrameForFacing(direction16: Int): Int {
         return ((direction16 % 16) + 16) % 16
-    }
-
-    /**
-     * Maps the legacy 16-direction angle to one of the 5 turret frames
-     * (north, NE, east, SE, south). The legacy renderer mirrors the same
-     * 5 frames horizontally to cover the western half of the rotation.
-     */
-    fun turretFrameForDirection(direction16: Int): Int {
-        val normalized = ((direction16 % 16) + 16) % 16
-        return when (normalized) {
-            in 0..1, 15 -> 0       // north
-            in 2..5 -> 1           // north-east / east
-            in 6..9 -> 2           // south-east / south
-            in 10..13 -> 3         // south-west / west
-            else -> 4              // north-west
-        }
     }
 
     /**

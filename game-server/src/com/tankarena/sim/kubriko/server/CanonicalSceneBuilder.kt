@@ -147,11 +147,17 @@ object CanonicalSceneBuilder {
                 }
 
                 ObjectKinds.TURRET -> {
+                    // Legacy `tur.shootat` 2: a turret that only shoots evil vehicles is on the good side.
+                    val shootAt = props.int("shootAt") ?: 1
                     sink += turretActor(
                         cx = obj.x,
                         cy = obj.y,
                         turretDirection = props.int("direction") ?: 0,
-                        team = 1,
+                        team = if (shootAt == 2) 0 else 1,
+                        turretType = props.int("turretType") ?: 0,
+                        shootAt = shootAt,
+                        fixed = props["fixed"] == "true",
+                        forbidDirections = props.int("forbidDirections") ?: 0,
                         armor = props.int("armor") ?: ServerTurretActor.DEFAULT_TURRET_ARMOR,
                         goalContribution = goalContribution,
                         power = props.int("power"),
@@ -366,6 +372,10 @@ object CanonicalSceneBuilder {
         delay: Int? = null,
         radius: Int? = null,
         ownerRef: Int = 0,
+        turretType: Int = 0,
+        shootAt: Int = 1,
+        fixed: Boolean = false,
+        forbidDirections: Int = 0,
     ): ServerTurretActor =
         ServerTurretActor(
             ServerTurretActor.State(
@@ -381,6 +391,10 @@ object CanonicalSceneBuilder {
                 delay = delay?.takeIf { it > 0 } ?: ServerTurretActor.State().delay,
                 radius = radius?.takeIf { it > 0 } ?: ServerTurretActor.State().radius,
                 ownerRef = ownerRef,
+                turretType = turretType,
+                shootAt = shootAt,
+                fixed = fixed,
+                forbidDirections = forbidDirections,
             ),
         )
 

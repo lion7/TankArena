@@ -2392,7 +2392,7 @@ class ServerMatchPrototype private constructor(
      * Legacy nearest_target(): the closest live tank within 15 px of ([x], [y]), other than
      * [owner]. Turrets have no hit radius in the original, so a rocket cannot lock onto one.
      */
-    private fun rocketTargetAt(x: Int, y: Int, owner: ServerTankActor): RocketTarget? {
+    private fun rocketTargetAt(x: Int, y: Int, owner: ServerTankActor?): RocketTarget? {
         var best: RocketTarget? = null
         var bestDistSq = ROCKET_TARGET_RADIUS_PX.toLong() * ROCKET_TARGET_RADIUS_PX
         for (actor in actorManager.allActors.value) {
@@ -2458,12 +2458,24 @@ class ServerMatchPrototype private constructor(
         for (rocket in doomed) actorIds.remove(rocket)
     }
 
+    /** Rockets that rocket turrets (legacy `ti[1]`, HT_ROCKET) fired this tick. */
+    private val pendingTurretRockets = mutableListOf<Pair<ServerTurretActor, ServerTurretActor.FireRequest>>()
+
     private fun drainRocketRequests() {
         val spawns = mutableListOf<ServerRocketActor>()
         for (tank in allTanks) {
             val request = tank.drainRocketRequest() ?: continue
             spawns += rocketFromRequest(tank, request)
         }
+        for ((turret, request) in pendingTurretRockets) {
+            val (targetX, targetY) = request.rocketTarget ?: continue
+            spawns += rocketFromRequest(
+                null,
+                ServerTankActor.RocketRequest(request.originX, request.originY, targetX, targetY, request.damage),
+                ownerActorId = actorIds[turret] ?: 0L,
+            )
+        }
+        pendingTurretRockets.clear()
         if (spawns.isEmpty()) return
         val expected = actorManager.allActors.value.size + spawns.size
         actorManager.add(spawns)
@@ -2472,10 +2484,10 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun rocketFromRequest(
-        owner: ServerTankActor,
+        owner: ServerTankActor?,
         request: ServerTankActor.RocketRequest,
+        ownerActorId: Long = owner?.let { actorIds[it] } ?: 0L,
     ): ServerRocketActor {
-        val ownerActorId = actorIds[owner] ?: 0L
         val rocket = ServerRocketActor(
             ServerRocketActor.State(
                 body = PointBody(
@@ -2675,7 +2687,8 @@ class ServerMatchPrototype private constructor(
         for (actor in actorManager.allActors.value) {
             if (actor is ServerTurretActor) {
                 val request = actor.drainFireRequest() ?: continue
-                spawns += projectileFromTurretRequest(actor, request)
+                if (request.rocketTarget != null) pendingTurretRockets += actor to request
+                else spawns += projectileFromTurretRequest(actor, request)
             }
         }
         for ((soldier, shot) in pendingSoldierShots) spawns += projectileFromSoldier(soldier, shot)
@@ -2776,7 +2789,7 @@ class ServerMatchPrototype private constructor(
 
         // Emit sound event for turret firing
         pendingEvents += GameEvent.Sound(
-            kind = com.tankarena.protocol.snapshot.SoundKind.MAIN,
+            kind = soundKindForWeapon(if (request.chain) WEAPON_CHAIN else WEAPON_MAIN),
             x = request.originX,
             y = request.originY,
         )
@@ -2879,6 +2892,7 @@ class ServerMatchPrototype private constructor(
                 TurretState(
                     actorId = id,
                     team = actor.team.toProtocolTeam(),
+                    turretType = actor.turretType,
                     x = (position.x.raw + size.width.raw / 2f).toInt(),
                     y = (position.y.raw + size.height.raw / 2f).toInt(),
                     turretDirection = actor.turretDirection,

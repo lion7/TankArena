@@ -229,7 +229,11 @@ class ShippedSceneMatchTest {
         repeat(3000) { match.tick() }
         assertEquals(ServerMatchPrototype.MissionStatus.IN_PROGRESS, match.mission)
         assertEquals(0, match.goalProgressGood)
-        assertTrue(match.goalProgressBad > 0, "losing the base fills the bad counter")
+        // The turrets by the base shoot only evil vehicles (`tur.shootat` 2), so they are on the
+        // player's side and do not fire across it.
+        val friendly = match.snapshot().actors.filterIsInstance<com.tankarena.protocol.snapshot.TurretState>()
+            .count { it.team == com.tankarena.protocol.Team.PLAYER }
+        assertEquals(6, friendly)
     }
 
     @Test

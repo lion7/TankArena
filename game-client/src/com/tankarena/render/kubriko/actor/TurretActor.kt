@@ -10,7 +10,6 @@ import com.tankarena.content.LegacySpriteResources
 import com.tankarena.protocol.snapshot.TurretState
 import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.render.kubriko.RuntimeSnapshot
-import com.tankarena.render.kubriko.drawSprite
 import org.jetbrains.compose.resources.DrawableResource
 
 internal class TurretActor(
@@ -39,15 +38,16 @@ internal class TurretActor(
     }
 
     fun collectSpriteResources(target: MutableSet<DrawableResource>) {
-        val frame = LegacySpriteResources.turretFrameForDirection(turretDirection)
-        sprites.findResource(LegacySpriteResources.nameForTurret(turretType, frame))
+        val frame = directionalFrame(turretDirection)
+        sprites.findResource(LegacySpriteResources.nameForTurret(turretType, frame.index))
             ?.let(target::add)
     }
 
     override fun DrawScope.draw() {
         if (!alive) return // destroyed turrets leave only the ruined tile underneath
-        val frame = LegacySpriteResources.turretFrameForDirection(turretDirection)
-        val image = sprites.findResource(LegacySpriteResources.nameForTurret(turretType, frame))
+        // Legacy write_turret(): b_add_layer_d() with `ti[type].pic`, five pictures mirrored for 16 directions.
+        val frame = directionalFrame(turretDirection)
+        val image = sprites.findResource(LegacySpriteResources.nameForTurret(turretType, frame.index))
             ?.let(spriteManager::get)
         if (image == null) {
             drawRect(
@@ -57,6 +57,6 @@ internal class TurretActor(
             )
             return
         }
-        drawSprite(image, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
+        drawLegacyPicture(image, 0, 0, frame.flipHorizontal, frame.flipVertical)
     }
 }

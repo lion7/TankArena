@@ -61,21 +61,6 @@ class LegacySpriteResourcesTest {
     }
 
     @Test
-    fun turret_frame_collapses_legacy_16_directions_into_5_sprites() {
-        // North-facing collapses frames 15,0,1.
-        assertEquals(0, LegacySpriteResources.turretFrameForDirection(0))
-        assertEquals(0, LegacySpriteResources.turretFrameForDirection(15))
-        // East-facing block (2..5).
-        assertEquals(1, LegacySpriteResources.turretFrameForDirection(4))
-        // South-facing block (6..9).
-        assertEquals(2, LegacySpriteResources.turretFrameForDirection(8))
-        // West-facing block (10..13).
-        assertEquals(3, LegacySpriteResources.turretFrameForDirection(12))
-        // Final NW frame.
-        assertEquals(4, LegacySpriteResources.turretFrameForDirection(14))
-    }
-
-    @Test
     fun explosion_frames_cycle_exp1_to_exp5() {
         assertEquals("EXP1", LegacySpriteResources.nameForExplosion(0))
         assertEquals("EXP3", LegacySpriteResources.nameForExplosion(2))

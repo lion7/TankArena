@@ -224,6 +224,10 @@ internal object LegacyObjectParser {
                     "delay" to reader.readInt(OFFSET_UNION + 12).toString(),
                     "power" to reader.readInt(OFFSET_UNION + 16).toString(),
                     "radius" to reader.readInt(OFFSET_UNION + 20).toString(),
+                    "shootAt" to reader.readInt(OFFSET_UNION + 24).toString(),
+                    "fixed" to (reader.readInt(OFFSET_UNION + 28) != 0).toString(),
+                    // Legacy `tur.forbid_dir`, a ushort: bit d set means the turret holds fire facing d.
+                    "forbidDirections" to (reader.readInt(OFFSET_UNION + 40) and 0xFFFF).toString(),
                     "goalContribution" to goalContribution.toString(),
                     // A turret riding a wagon (make_turret(..., owner)) follows it instead of a building.
                     "ownerRef" to reader.readInt(OFFSET_OWNER).toString(),

@@ -28,8 +28,10 @@ import kotlinx.serialization.json.Json
  *    with pads, lives, flags and races.
  * 10: building goals are signed (the player's own buildings count against them); start pads hand
  *     out their own weapons.
+ * 11: turrets fire what their kind fires (rocket turrets), aim in 16 directions from their gun
+ *     barrels, and only at the side they were set to shoot at.
  */
-const val GAME_RULES_VERSION: Int = 10
+const val GAME_RULES_VERSION: Int = 11
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

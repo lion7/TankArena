@@ -57,9 +57,13 @@ the identical result; a second test records and replays a scripted BEGIN2 match.
 normal play (the client saves every mission) and are tied to `GAME_RULES_VERSION`
 ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
 
-**No recordings are committed yet**, so the first test currently checks nothing. Playing BEGIN1–4
-(and later every mission) under the current rules version and committing the recordings is the most
-valuable next step.
+Committed on 2026-10-19: BEGIN1 ×2, BEGIN2 won and lost, BEGIN3 and COMBAT1 lost. Five of them were
+played under rules v10 and replay identically under v11, so they were relabelled. BEGIN4's v10
+recording no longer replays (v11 changed its rocket turrets) and must be played again.
+
+When the rules version is bumped, first replay the existing recordings with the new version: re-record
+only those that change, and relabel the rest. Recordings are the main safety net for the Kubriko
+removal ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)), which must leave all of them passing.
 
 ### On-demand tools (pass trivially unless switched on)
 
@@ -86,8 +90,9 @@ Pure logic and offscreen rendering, no UI automation: `AudioMathTest`, `MissionC
 
 In order of value:
 
-1. **Committed recordings** of the original missions (see above), re-recorded deliberately whenever
-   `GAME_RULES_VERSION` changes.
+1. **More recordings:** BEGIN4, more single-player missions, a two-vs-computer mission and
+   player-vs-player matches (deathmatch, flag hunt, race); once rulesets exist, Classic and Extended
+   recordings separately.
 2. **Continuous integration.** Fix `.gitignore` first (its `.*` rule ignores `.github/` and
    `.forgejo/`). Stages:
 
@@ -112,8 +117,9 @@ In order of value:
 6. **Golden images.** Offscreen renders (the `ImageComposeScene` path already used by the dump tests)
    of fixed snapshots compared with PNGs: BEGIN1 start, an explosion, a wreck, split screen, night,
    each object family. DOSBox captures of the original are the reference for presentation.
-7. **Scene freshness** (only while [ADR 0003](adrs/0003-legacy-map-import.md) keeps `.MAP` as the
-   source): regenerate the scenes into a temporary folder and compare with the committed ones.
+7. **Map round trips** ([ADR 0022](adrs/0022-native-map-format.md)): `.MAP` → native → `.MAP` → native
+   identical for every shipped map. Until the native format lands, a scene-freshness test (regenerate
+   into a temporary folder and compare) catches importer changes without regeneration.
 8. **Divergence reporting for recordings:** store a hash of the snapshot every N ticks in the recording
    so a failing replay names the first tick that differs, instead of only "different result".
 9. **Match control for agents** (debug builds only): a small MCP server over stdio wrapping

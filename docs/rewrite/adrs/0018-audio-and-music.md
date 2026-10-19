@@ -2,6 +2,8 @@
 
 - **Status:** Accepted (2026-09-25 sound, commit `76c20a6`; 2026-10-18 mixer and music, commits
   `e969636` and `ee705c3`).
+- **Related:** on Android the mixer feeds `AudioTrack` and MIDI plays through `MediaPlayer`
+  ([ADR 0025](0025-multiplatform-modules-and-android.md)).
 
 ## Context
 

@@ -1,6 +1,8 @@
 # ADR 0010: Port the Original's Rules from the C Source
 
 - **Status:** Accepted (2026-10-04; first commit `c57dcbb`, then `509c667` onwards).
+- **Scope since 2026-10-19:** this is the definition of the **Classic** ruleset. Extended may deviate,
+  but only through named ruleset flags ([ADR 0023](0023-classic-and-extended-rulesets.md)).
 - **Supersedes:** the "parity task" approach of 2026-05 (tasks T01–T43, deleted; see
   [history](../history.md)).
 

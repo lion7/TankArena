@@ -15,7 +15,7 @@ How the rewrite got where it is. Nothing here describes the current state; for t
 | 2026-10-04 to 06 | Direction change: port the original's rules from the C source ([ADR 0010](adrs/0010-port-the-original-rules.md)): vehicle table, structures and pixel collisions ([0011](adrs/0011-structure-grid-and-pixel-masks.md)), aircraft, all weapons, bonuses, soldiers, trains, locks, destroyers, enforcers, presentation, match recordings. |
 | 2026-10-07 | B52 and zeppelin, force fields, ramps, pilot faces, night maps; Amper replaced by the Kotlin toolchain ([0016](adrs/0016-kotlin-toolchain-build.md)). |
 | 2026-10-18 | Original screen layout and fonts ([0013](adrs/0013-original-presentation.md)); simulation thread ([0014](adrs/0014-simulation-thread-and-recordings.md)); computer AI ported ([0012](adrs/0012-port-the-computer-ai.md)); player-vs-player rounds, flags, races; signed goal layer; only the 69 original maps ([0015](adrs/0015-ship-the-original-69-maps.md)); intro, options, music. |
-| 2026-10-19 | Turret kinds; packaging ([0017](adrs/0017-desktop-packaging.md)); documentation rebuilt, ADRs 0010–0020 written, Kubriko to leave the server ([0019](adrs/0019-remove-kubriko-from-the-server.md)). |
+| 2026-10-19 | Turret kinds; packaging ([0017](adrs/0017-desktop-packaging.md)); documentation rebuilt, ADRs 0010–0020 written; first recordings committed. Direction decided: no Kubriko ([0019](adrs/0019-plain-kotlin-no-kubriko.md)), editor in the game ([0021](adrs/0021-editor-in-the-game.md)), native map format ([0022](adrs/0022-native-map-format.md)), Classic and Extended rulesets ([0023](adrs/0023-classic-and-extended-rulesets.md)), networking, Android, gamepads, four players in two teams (0024–0027); [roadmap](roadmap.md) written. |
 
 ## The eleven-module plan (2026-04)
 
@@ -67,9 +67,11 @@ are in [parity.md](parity.md) and the [testing strategy](testing-strategy.md).
 |---|---|
 | 50 Hz tick | 100 Hz ([ADR 0002](adrs/0002-fixed-step-100hz.md)) |
 | 10 Hz snapshot keyframes for replays, `ReplayProtocol` | Input recordings ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)) |
-| Import maps once, then delete the importer | Open question ([ADR 0003](adrs/0003-legacy-map-import.md)) |
+| Import maps once, then delete the importer | Native format as source, `.MAP` import/export kept ([ADR 0003](adrs/0003-legacy-map-import.md)) |
 | One wall actor per tile, sliding collisions | Structure grid with pixel masks ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)) |
 | A*, line of sight, waypoint follower | Port of `computer.c` ([ADR 0012](adrs/0012-port-the-computer-ai.md)) |
-| Kubriko managers run the server | Plain-Kotlin server planned ([ADR 0019](adrs/0019-remove-kubriko-from-the-server.md)) |
+| Kubriko managers run the server; Kubriko draws the playfield | Plain Kotlin everywhere ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)) |
+| Separate editor app on Kubriko's `SceneEditor` (0004, 0009) | Editor inside the game ([ADR 0021](adrs/0021-editor-in-the-game.md)) |
+| Kubriko scene JSON plus sidecar (0008) | Native `.tamap` format ([ADR 0022](adrs/0022-native-map-format.md)) |
 | Gradle, then Amper | Kotlin toolchain ([ADR 0016](adrs/0016-kotlin-toolchain-build.md)) |
 | All 121/122 maps in `MAPS/` | The 69 of the original release ([ADR 0015](adrs/0015-ship-the-original-69-maps.md)) |

@@ -1,7 +1,8 @@
 # ADR 0007: Authoritative Server, Render-Only Client
 
-- **Status:** Accepted (2026-04; revised 2026-10-19). The server-side use of Kubriko described here is
-  being removed: see [ADR 0019](0019-remove-kubriko-from-the-server.md).
+- **Status:** Accepted (2026-04; revised 2026-10-19). The authoritative-server decision stands; the
+  use of Kubriko described under "How the server uses Kubriko today" is removed by
+  [ADR 0019](0019-plain-kotlin-no-kubriko.md), and networking follows [ADR 0024](0024-networking.md).
 
 ## Context
 

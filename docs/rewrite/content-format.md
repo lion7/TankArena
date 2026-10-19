@@ -1,6 +1,7 @@
 # Content Format
 
-How a map is stored and loaded in the rewrite. Where the files come from and every other asset are
+How a map is stored and loaded in the rewrite **today**; the planned native format is
+[ADR 0022](adrs/0022-native-map-format.md). Where the files come from and every other asset are
 in [assets.md](assets.md). The original `.MAP` format is in
 [`docs/game/map-format.md`](../game/map-format.md).
 
@@ -93,17 +94,18 @@ The client never reads `.MAP` files.
 ./kotlin run -m tools-mapconv -- scene-all "$PWD/MAPS" "$PWD/game-content/resources/scenes"
 ```
 
-Whether `MAPS/*.MAP` or the converted files are the long-term source is undecided
-([ADR 0003](adrs/0003-legacy-map-import.md)). Until it is decided: after any importer change, run
-`scene-all` and commit the regenerated files together with the change.
+This format is being replaced by a native, readable `.tamap` file per map with `.MAP` import and
+export ([ADR 0022](adrs/0022-native-map-format.md)); the native files then become the source
+([ADR 0003](adrs/0003-legacy-map-import.md)). Until then: after any importer change, run `scene-all`
+and commit the regenerated files together with the change.
 
 ## Versioning
 
 - Bump `SCENE_SCHEMA_VERSION` when the sidecar layout changes incompatibly.
 - The scene file follows Kubriko's serialization format; a Kubriko upgrade may require `scene-all`
   ([ADR 0008](adrs/0008-kubriko-and-scene-json.md)).
-- Both formats are expected to change when Kubriko leaves the server
-  ([ADR 0019](adrs/0019-remove-kubriko-from-the-server.md)).
+- Both formats are replaced by the native format ([ADR 0022](adrs/0022-native-map-format.md)) when
+  Kubriko is removed ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 
 ## Known import gaps
 

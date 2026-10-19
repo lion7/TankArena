@@ -1,8 +1,8 @@
 # ADR 0008: Kubriko Dependency and Scene JSON Map Format
 
-- **Status:** Accepted (2026-04; revised 2026-10-19). The scene format is up for replacement together
-  with [ADR 0019](0019-remove-kubriko-from-the-server.md); the source-of-truth question is
-  [ADR 0003](0003-legacy-map-import.md).
+- **Status:** Superseded on 2026-10-19: Kubriko is removed ([ADR 0019](0019-plain-kotlin-no-kubriko.md))
+  and maps move to a native format ([ADR 0022](0022-native-map-format.md)). This describes the format
+  in use until that migration lands.
 
 ## Context
 

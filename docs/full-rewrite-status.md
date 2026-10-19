@@ -1,6 +1,7 @@
 # Tank Arena Rewrite Status
 
-As of **2026-10-19**, branch `rewrite` at `bd6a711`. This page states the current status only and
+As of **2026-10-19**, branch `rewrite` at `bd6a711` (code) plus the documentation and recordings of
+branch `docs/rewrite-docs`. This page states the current status only and
 points to the documents that hold the detail. It is updated whenever a milestone lands.
 
 ## In one paragraph
@@ -10,8 +11,12 @@ rules ported from the C source, its screen layout, pictures, fonts, night lighti
 and it ships as self-contained Linux and Windows packages. What is left for full parity: the map
 editor (largely missing), supermarket mayhem, conveyors and rotating platforms, debris, terrain
 effects, the original's in-game keys, controls setup and command-line switches, and a list of smaller
-rule differences. All 295 automated tests pass; there is no CI and no committed playthrough recording
-yet.
+rule differences. All 295 automated tests pass and six recorded playthroughs replay; there is no CI.
+
+The direction beyond parity was decided on 2026-10-19: plain Kotlin with no Kubriko, a readable
+native map format, the editor inside the game, and two rulesets — **Classic** (the original) and
+**Extended** (new menu, replays, up to four players in two teams, gamepads, networked play, Android).
+The [roadmap](rewrite/roadmap.md) orders that work.
 
 ## Status by area
 
@@ -25,7 +30,7 @@ yet.
 | Map editor | Mostly missing | [parity.md → Map editor](rewrite/parity.md#map-editor) |
 | Assets | All runtime assets converted and bundled | [assets.md](rewrite/assets.md) |
 | Content | 69 maps imported without notes | [content-format.md](rewrite/content-format.md) |
-| Tests | 295 green (server 226, client 60, content 9); no recordings committed | [testing-strategy.md](rewrite/testing-strategy.md) |
+| Tests | 295 green (server 226, client 60, content 9); 6 recordings (BEGIN1–3, COMBAT1) | [testing-strategy.md](rewrite/testing-strategy.md) |
 | Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](rewrite/build.md), [ADR 0017](rewrite/adrs/0017-desktop-packaging.md) |
 | CI | None | [testing-strategy.md](rewrite/testing-strategy.md#what-is-not-there-yet) |
 
@@ -33,37 +38,24 @@ Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 7, `SCENE_SCHEMA_VERSION` 
 
 ## Open decisions
 
-- **Map source of truth** — keep `MAPS/*.MAP` and the importer, or make the converted files the source
-  and delete the importer ([ADR 0003](rewrite/adrs/0003-legacy-map-import.md)). To be decided together
-  with the new map format of ADR 0019.
-- **Kubriko leaves the server** — direction agreed, design and implementation open
-  ([ADR 0019](rewrite/adrs/0019-remove-kubriko-from-the-server.md)).
 - **Known-codes details** — whether public and two-player codes are saved, the per-mode filter and
   remembering the last code ([parity.md → Modes](rewrite/parity.md#modes)).
+- **Native map format details** — the layout in [ADR 0022](rewrite/adrs/0022-native-map-format.md) is
+  a design; it is confirmed when phase 2 of the roadmap is built.
 
-## Remaining work toward parity
+## Next steps
 
-In rough order of value; each item links to its detail.
+The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
 
-1. Commit recorded playthroughs of BEGIN1–4, then more missions, and add CI
-   ([testing strategy](rewrite/testing-strategy.md#what-is-not-there-yet)).
-2. Rule differences found by the 2026-10-19 audit: rules the original advances per game step (one
-   step per 3 timer ticks) run about 3× too fast, confirmed for rocket acceleration
-   ([ADR 0002](rewrite/adrs/0002-fixed-step-100hz.md#the-originals-game-step-is-not-its-timer-tick));
-   heavy mines, mine trigger and visibility, mortar blast steps, rocket targets, warps, respawn wreck,
-   map wrap, AI fire delay, radar and cloak, F-key mapping in two players vs computer
-   ([parity.md](rewrite/parity.md)).
-3. Supermarket mayhem rules and display; goal `who = 3`.
-4. Conveyors and rotating platforms; debris (fuel dumps); terrain effects and their sounds.
-5. In-game keys (pause, gamma, radar, screenshot, window size); controls setup (remapping,
-   control modes, gamepads); command-line switches and cheats.
-6. The map editor: all object types, tile layers, header and texts, templates, validation, play-test,
-   menu launch ([ADR 0009](rewrite/adrs/0009-editor-wraps-kubriko-scene-editor.md)).
-7. Remove Kubriko from the server and split `ServerMatchPrototype`
-   ([ADR 0019](rewrite/adrs/0019-remove-kubriko-from-the-server.md)); delete the dead code listed in
-   [architecture.md](rewrite/architecture.md#known-structural-debt).
-
-Post-parity: networked play and a WASM/web target.
+1. **Phase 0, safety net:** re-record BEGIN4 under rules v11 and record more missions and
+   player-vs-player matches; CI; reference renders of the current client.
+2. **Phase 1, plain-Kotlin core:** `World`/`step()`/`MatchHost` without Kubriko, the game's own
+   Compose renderer, dead code removed — with the rules version unchanged
+   ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)).
+3. **Phase 2, native map format** with `.MAP` import and export
+   ([ADR 0022](rewrite/adrs/0022-native-map-format.md)).
+4. Then, side by side: Classic parity (starting with rules that run per legacy step, about 3× too
+   fast today), the in-game editor, and the Classic/Extended rulesets.
 
 ## Documents
 
@@ -71,7 +63,8 @@ Post-parity: networked play and a WASM/web target.
   threads, switches, debt.
 - [`rewrite/parity.md`](rewrite/parity.md) — what matches the original, what does not, deviations and
   exclusions.
-- [`rewrite/adrs/`](rewrite/adrs/README.md) — decisions 0001–0020.
+- [`rewrite/roadmap.md`](rewrite/roadmap.md) — phases from today to the Classic and Extended goals.
+- [`rewrite/adrs/`](rewrite/adrs/README.md) — decisions 0001–0027.
 - [`rewrite/content-format.md`](rewrite/content-format.md) — map files and the importer.
 - [`rewrite/assets.md`](rewrite/assets.md) — every original asset and its converted form;
   `tools-mapconv`.

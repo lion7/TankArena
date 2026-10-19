@@ -1,6 +1,7 @@
 # ADR 0017: Self-Contained Desktop Packages Built in Containers
 
 - **Status:** Accepted (2026-10-19, commit `bd6a711`).
+- **Related:** Android packages (APK/AAB) are added with [ADR 0025](0025-multiplatform-modules-and-android.md).
 
 ## Context
 

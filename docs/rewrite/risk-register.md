@@ -10,8 +10,9 @@ are about detection), or *Closed* (kept briefly for the record).
   `ServerMatchPrototype`), and the difference is only noticed in play.
 - **Mitigations:**
   - Rule tests with expected values from the C source ([testing strategy](testing-strategy.md)).
-  - Recorded playthroughs as regression tests, re-recorded on every `GAME_RULES_VERSION` bump. **Gap:**
-    none are committed yet.
+  - Recorded playthroughs as regression tests (six committed: BEGIN1–3, COMBAT1); replay them after
+    every `GAME_RULES_VERSION` bump and re-record the ones that changed. **Gap:** BEGIN4, more
+    missions and player-vs-player matches.
   - `IdleScanTest` after rule or import changes, to catch maps that win or lose by themselves (as
     happened with the unsigned goal layer).
   - Compare with DOSBox footage of the original before calling behaviour a bug or a fix.
@@ -28,38 +29,44 @@ are about detection), or *Closed* (kept briefly for the record).
 - **Status:** Active.
 - **Risk:** `ServerMatchPrototype` (3,149 lines) and `ServerTankActor` (1,760 lines) hold most rules;
   changes are hard to review and easy to entangle.
-- **Mitigations:** split by subsystem as part of [ADR 0019](adrs/0019-remove-kubriko-from-the-server.md),
+- **Mitigations:** split by subsystem as part of [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md),
   with `GAME_RULES_VERSION` unchanged and recordings plus rule tests proving no behaviour changed.
 
-## Kubriko dependency
-
-- **Status:** Accepted (client and editor), being reduced (server).
-- **Risk:** Kubriko is young and maintained by one person. A release can change its serialization
-  format (and so the shipped scenes), its threading (the server already polls for asynchronously added
-  actors) or its rendering API.
-- **Mitigations:**
-  - Pin the version in every `module.yaml`; bumps are deliberate and followed by `scene-all` and the
-    full test suite.
-  - Remove Kubriko from the server ([ADR 0019](adrs/0019-remove-kubriko-from-the-server.md)), which
-    also takes the map format out of Kubriko's hands.
-  - Kubriko's sprite manager fails if used before the viewport exists; load early images directly.
-
-## Map source of truth undecided
+## Kubriko removal (phase 1)
 
 - **Status:** Active.
-- **Risk:** with both `MAPS/*.MAP` and the committed scenes in play
-  ([ADR 0003](adrs/0003-legacy-map-import.md)), a hand edit of a scene is lost at the next
-  `scene-all`, and an importer change without regeneration leaves stale scenes.
-- **Mitigations:** never hand-edit generated scenes; regenerate and commit with every importer change;
-  add the scene-freshness test; decide ADR 0003 together with the new map format.
+- **Risk:** replacing Kubriko in the simulation and the client ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md))
+  touches almost every file; a subtle behaviour change or rendering difference could slip in.
+- **Mitigations:**
+  - `GAME_RULES_VERSION` must stay unchanged: all rule tests and recordings must pass before and after.
+  - Reference renders of the current client compared with the new renderer.
+  - Do it before any new gameplay work, in small commits, with the old renderer kept until the new one
+    matches.
+  - Until it is done, Kubriko stays pinned at 0.7.3 and is not upgraded.
+
+## Native map format and converters
+
+- **Status:** Active.
+- **Risk:** converting the 69 maps to the new format ([ADR 0022](adrs/0022-native-map-format.md)) could
+  lose data the importer does not model, and `.MAP` export could write files the original rejects.
+- **Mitigations:** keep unknown object bytes in a `legacy` field; round-trip tests for every map;
+  exported maps spot-checked in DOSBox; `MAPS/*.MAP` stays in the repository as the reference.
 
 ## Editor far behind
 
 - **Status:** Active.
-- **Risk:** the editor edits four object types and no tile layers, so parity for the editor is the
-  largest open block, and maps can only be changed through `.MAP` files.
-- **Mitigations:** extend it per [ADR 0009](adrs/0009-editor-wraps-kubriko-scene-editor.md); keep the
-  boundary guard so it never runs the simulation.
+- **Risk:** the in-game editor ([ADR 0021](adrs/0021-editor-in-the-game.md)) is the largest open
+  parity block; until it exists, maps can only be fixed through `.MAP` files and the importer.
+- **Mitigations:** build it on the native format and the game renderer (phase 4), starting with the
+  layers and objects the original editor covers; play-test from the editor to shorten the loop.
+
+## Scope growth (Extended, networking, Android)
+
+- **Status:** Active.
+- **Risk:** Extended features (four players, gamepads, networking, Android) pull effort away from
+  Classic parity, or leak changes into Classic.
+- **Mitigations:** Extended changes only through named ruleset flags; Classic recordings must keep
+  passing; the roadmap keeps the core and map work first.
 
 ## Toolchain and Compose packaging
 
@@ -87,5 +94,6 @@ are about detection), or *Closed* (kept briefly for the record).
   ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)).
 - **Missing version fields:** closed by `PROTOCOL_VERSION`, `SCENE_SCHEMA_VERSION` and
   `GAME_RULES_VERSION`.
-- **Legacy import coverage:** closed; every shipped map imports with no notes (but see the map source
-  question above).
+- **Legacy import coverage:** closed; every shipped map imports with no notes.
+- **Map source of truth undecided:** closed 2026-10-19 by [ADR 0003](adrs/0003-legacy-map-import.md)
+  (native format; until it lands, regenerate and commit scenes with every importer change).

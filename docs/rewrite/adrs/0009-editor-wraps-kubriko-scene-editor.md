@@ -1,6 +1,8 @@
 # ADR 0009: Editor Built on Kubriko's SceneEditor
 
-- **Status:** Accepted (2026-04; reaffirmed 2026-10-19).
+- **Status:** Superseded on 2026-10-19 by [ADR 0021](0021-editor-in-the-game.md) (editor inside the
+  game, on the native map format). It was briefly reaffirmed earlier that day, then reversed when
+  Kubriko was dropped altogether. Kept for the record.
 - **Related:** [ADR 0004](0004-separate-editor-app.md) (separate app), [ADR 0003](0003-legacy-map-import.md)
   (map source of truth).
 
@@ -34,7 +36,7 @@ favour of extending the Kubriko-based editor until it can do everything the orig
 
 - The viewport, selection, inspector and load/save come from Kubriko; the project writes only Tank
   Arena specific tools.
-- The editor is tied to Kubriko and to the scene format. [ADR 0019](0019-remove-kubriko-from-the-server.md)
+- The editor is tied to Kubriko and to the scene format. [ADR 0019](0019-plain-kotlin-no-kubriko.md)
   moves the map object types out of Kubriko on the server, so the editor will need its own Kubriko
   wrappers (or editable adapters) around plain map data.
 - Today (73 lines, four object types, no tile layers or sidecar) the editor cannot change most of

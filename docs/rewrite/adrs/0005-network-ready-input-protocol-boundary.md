@@ -1,6 +1,7 @@
 # ADR 0005: Network-Ready Input and Protocol Boundary
 
 - **Status:** Accepted (2026-04; revised 2026-10-19).
+- **Related:** [ADR 0024](0024-networking.md) (networking), [ADR 0026](0026-input-and-gamepads.md) (input layer).
 
 ## Context
 
@@ -19,8 +20,9 @@ player asks for" and "what the game decides".
 - Output crosses the seam as a `ServerFrame`: the `WorldSnapshot` plus one `PlayerView` per player
   (camera, status display, radar, lock marker) and the tick's `GameEvent`s.
 - `MatchClient` (`submitInput`, `tick`, `currentServerFrame`, `dispose`) is the only way the client
-  talks to a match. `LocalMatchClient` runs the server in-process; a `RemoteMatchClient` would
-  implement the same interface for networked play (post-parity).
+  talks to a match. `LocalMatchClient` runs the match in-process; `RemoteMatchClient` implements the
+  same interface for networked play ([ADR 0024](0024-networking.md)), where each `InputFrame` also
+  carries the tick it is meant for and a player and team id ([ADR 0027](0027-four-players-two-teams.md)).
 - All of these types are plain `@Serializable` Kotlin with no Compose or Kubriko dependency.
 
 ## Consequences

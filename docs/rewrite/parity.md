@@ -6,7 +6,9 @@ text and `src/` disagree, `src/` wins ([ADR 0010](adrs/0010-port-the-original-ru
 
 **Parity** means: the 69 original maps play as in the original, in every mode, with the original's
 rules, presentation, sound, controls and editor capabilities, except for the deviations and
-exclusions listed below.
+exclusions listed below. Parity is the goal of the **Classic** ruleset; the Extended ruleset builds on
+it with named, documented changes ([ADR 0023](adrs/0023-classic-and-extended-rulesets.md)). The order
+of the open work is in the [roadmap](roadmap.md) (phase 3 for rules, phase 4 for the editor).
 
 Legend for the open items: **missing** (not built), **partial** (built, something missing),
 **differs** (built, behaves differently from the original and must be fixed).
@@ -36,8 +38,6 @@ Decided differences from the original. They are not parity bugs.
   ([ADR 0007](adrs/0007-authoritative-headless-kubriko-server.md),
   [ADR 0014](adrs/0014-simulation-thread-and-recordings.md),
   [ADR 0008](adrs/0008-kubriko-and-scene-json.md)).
-- **Separate editor program** instead of a menu entry inside the game executable
-  ([ADR 0004](adrs/0004-separate-editor-app.md)); the menu entry should still launch it.
 - **Player data as JSON** in the user's folders instead of `TANK.CFG` / `PASSWD.DAT`
   ([ADR 0020](adrs/0020-user-data-as-json.md)).
 - **Elimination fallback win** (`ALL_ENEMIES_ELIMINATED`): when a map's object contributions cannot
@@ -223,7 +223,7 @@ Open (in scope by decision of 2026-10-19):
   `-NOFAIL`, `-CODES`, `-UNLOCK`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT`, `-AUTOLOCK`, `-MISSING`,
   `-UNUSED`, `-KEYTEST`, `-DEBUG`, `-INFO` (`-SETUP`/`-SETSOUND` belong to the out-of-scope setup).
 - **missing** — "EXIT TO DOS? (Y/N)" style confirmation on Exit.
-- **missing** — the main menu's "Map editor" entry is disabled; it should start `:game-editor`.
+- **missing** — the main menu's "Map editor" entry is disabled; it should open the in-game editor.
 
 ## Status display, radar and presentation
 
@@ -253,9 +253,10 @@ Open:
 
 ## Map editor
 
-Target: the Kubriko-based editor extended to everything the original editor does
-([ADR 0009](adrs/0009-editor-wraps-kubriko-scene-editor.md)). Today it opens scenes and edits walls,
-tanks, turrets and goals only.
+Target: an editor screen inside the game, started from the main menu as in the original, that does
+everything the original editor does plus validation, undo and play-test
+([ADR 0021](adrs/0021-editor-in-the-game.md)). Today there is only the separate `:game-editor`
+(Kubriko's `SceneEditor` on four object types), which will be deleted.
 
 Missing:
 
@@ -267,8 +268,9 @@ Missing:
 - Editing the header ("SPECIAL" menu): map type and contents, mission codes, public flag, world,
   day/night, random bonuses; and the mission texts.
 - New map from a world template (`DATA/MAP_0..3.DAT`); whole-map overview.
-- Validation, play-testing, and launch from the game's menu.
-- Writing whatever is the map source of truth ([ADR 0003](adrs/0003-legacy-map-import.md)).
+- Validation, undo, play-testing, and launch from the game's menu.
+- Reading and writing the native map format, with `.MAP` import and export
+  ([ADR 0022](adrs/0022-native-map-format.md)).
 
 ## Content and import
 
@@ -288,10 +290,10 @@ Open:
 Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
 295 automated tests; recorded-playthrough replays; idle scan of every map; tick benchmark.
 
-Open: continuous integration, committed recordings of the original missions, and the other items in
-the [testing strategy](testing-strategy.md#what-is-not-there-yet).
+Open: continuous integration, more recordings (BEGIN4, more missions, player vs player), and the
+other items in the [testing strategy](testing-strategy.md#what-is-not-there-yet).
 
-## Post-parity
+## Beyond parity
 
-- Networked play through a `RemoteMatchClient` ([ADR 0005](adrs/0005-network-ready-input-protocol-boundary.md)).
-- A WASM/web target ([ADR 0001](adrs/0001-desktop-first-compose-kubriko.md)).
+Networked play, up to four players in two teams, gamepads, the Extended menu with replays, Android and
+later WASM belong to the Extended ruleset; see the [roadmap](roadmap.md) and ADRs 0023–0027.

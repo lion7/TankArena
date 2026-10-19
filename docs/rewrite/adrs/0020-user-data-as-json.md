@@ -1,6 +1,9 @@
 # ADR 0020: Player Data as JSON in the User's Folders
 
 - **Status:** Accepted (2026-10-06 known codes; 2026-10-18 options; confirmed 2026-10-19).
+- **Related:** on Android the same files live in app-private storage
+  ([ADR 0025](0025-multiplatform-modules-and-android.md)); key and gamepad bindings join them
+  ([ADR 0026](0026-input-and-gamepads.md)), and so does the chosen ruleset.
 
 ## Context
 

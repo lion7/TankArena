@@ -46,5 +46,10 @@ timers, so both are independent of the step rate — those port correctly to 100
 Rules that change something by a fixed amount **per step** do not: for example the guided rocket gains
 1 px/s per step (`src/objects/rocket.c:29`) and a rotor with `auto_rotation` 0 turns one direction per
 step. Ported one-to-one onto the 100 Hz tick they run about three times faster (the rewrite's rocket
-reaches 150 px/s in 1.5 s instead of about 4.5 s). Such rules must be paced at one step per 3 ticks.
-Finding and fixing them is open parity work ([parity.md](../parity.md#engine-and-game-loop)).
+reaches 150 px/s in 1.5 s instead of about 4.5 s).
+
+**Decision (2026-10-19):** the simulation keeps the 100 Hz tick as its time base and adds a **legacy
+step** that runs every 3rd tick. Rules the original advances per game step run in the legacy step;
+everything driven by `tinit()` timers or elapsed time stays on the tick. This reproduces the
+original's ~33 steps per second without changing any timer. Finding every per-step rule is open
+parity work ([parity.md](../parity.md#engine-and-game-loop)); each fix bumps `GAME_RULES_VERSION`.

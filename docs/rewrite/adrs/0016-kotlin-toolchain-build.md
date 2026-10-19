@@ -16,7 +16,8 @@ command-line tool was renamed the Kotlin toolchain (`kotlin-cli`) and continued 
 - Module files (`project.yaml`, `<module>/module.yaml`) do not pin Kotlin, Compose,
   kotlinx.serialization or the JDK; they follow the toolchain defaults (for 0.13.0: Kotlin 2.4.20,
   Compose 1.12.1, kotlinx.serialization 1.11.0, JDK 25). Library versions that the toolchain does not
-  manage (Kubriko 0.7.3, material3 1.12.0-alpha03) are pinned explicitly.
+  manage (Kubriko 0.7.3 until [ADR 0019](0019-plain-kotlin-no-kubriko.md) removes it, material3
+  1.12.0-alpha03) are pinned explicitly.
 
 Commands and layout: [build.md](../build.md).
 

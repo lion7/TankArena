@@ -4,6 +4,12 @@ This document describes how the Kotlin rewrite is built **today** (2026-10-19). 
 reasons are in the [ADRs](adrs/); the original game it reproduces is described in
 [`docs/game/`](../game/) and the C source in `src/`.
 
+> **Planned changes.** Kubriko is being removed everywhere ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)),
+> maps move to a native format ([ADR 0022](adrs/0022-native-map-format.md)), the editor moves into the
+> game ([ADR 0021](adrs/0021-editor-in-the-game.md)) and the modules are reorganised for Android and a
+> dedicated server ([ADR 0025](adrs/0025-multiplatform-modules-and-android.md)). The target shape is
+> summarised at the end of this document; the order is in the [roadmap](roadmap.md).
+
 ## Overview
 
 ```text
@@ -40,7 +46,7 @@ Six modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md)). Dependenci
 | `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, map importer |
 | `:game-server` | library | The authoritative simulation and the server half of the importer |
 | `:game-client` | desktop app | Shell, playfield rendering, HUD, audio, settings, recordings |
-| `:game-editor` | desktop app | Map editor on Kubriko's `SceneEditor` |
+| `:game-editor` | desktop app | Map editor on Kubriko's `SceneEditor` (to be deleted, ADR 0021) |
 | `:tools-mapconv` | command line | Map conversion and asset extraction |
 
 ### `:game-protocol`
@@ -108,7 +114,8 @@ All under `com.tankarena.sim.kubriko.server`.
 ### `:game-editor` and `:tools-mapconv`
 
 - `:game-editor` is one file that opens Kubriko's `SceneEditor` on `game-content/resources/scenes`
-  with four editable types (wall, tank, turret, goal). See [ADR 0009](adrs/0009-editor-wraps-kubriko-scene-editor.md).
+  with four editable types (wall, tank, turret, goal). It is superseded by the in-game editor
+  ([ADR 0021](adrs/0021-editor-in-the-game.md)) and will be deleted.
 - `:tools-mapconv` is one file (`Main.kt`) of subcommands over the `:game-content` and `:game-server`
   converter code; see [assets.md](assets.md#tools-mapconv).
 
@@ -120,7 +127,7 @@ All under `com.tankarena.sim.kubriko.server`.
 - No runtime code reads repository folders (`MAPS/`, `DATA/`, `unpacked/`); everything shipped comes
   from the class path. Only the tools and some tests read them.
 - Known exception to the intended layering: `:game-server` depends on Compose and Kubriko because its
-  map objects are Kubriko actors. [ADR 0019](adrs/0019-remove-kubriko-from-the-server.md) removes that.
+  map objects are Kubriko actors. [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md) removes that.
 
 ## A match, step by step
 
@@ -195,10 +202,33 @@ are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 
 - `ServerMatchPrototype.kt` is 3,149 lines and `ServerTankActor.kt` 1,760; most new rules land there.
   Splitting by subsystem (objects, hits, mission rules, view building) would help, ideally as part of
-  [ADR 0019](adrs/0019-remove-kubriko-from-the-server.md).
+  [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md).
 - Dead code listed above (protocol leftovers, `ServerWallActor`/`WallState`, `TerrainSlideManager`'s
   old role, the no-op `CollisionManager`) and a stale KDoc on `fromSceneJson` that still mentions A*.
 - `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests
-  depend on the importer (relevant to [ADR 0003](adrs/0003-legacy-map-import.md)).
+  depend on the importer; with the native format they build map documents instead
+  ([ADR 0022](adrs/0022-native-map-format.md)).
 - `game-client/module.yaml` declares Kubriko's keyboard-input, collision and serialization plugins,
   which the client does not use.
+
+## Target architecture
+
+Where ADRs 0019–0027 lead; the [roadmap](roadmap.md) says in which order.
+
+```text
+app-desktop / app-android / app-server        platform drivers: window or activity, audio,
+        |                                     MIDI, storage, gamepads, loop driver
+game-ui (Compose)   renderer (Canvas, N views), HUD, Classic menus, Extended menus,
+        |           replays, in-game editor, input layer
+game-net            Ktor WebSockets: RemoteMatchClient, server around MatchHost
+        |
+game-sim            World, step() in the original's order, legacy step every 3rd tick,
+        |           Ruleset (Classic / Extended flags), deterministic maths, MatchHost
+game-content        native .tamap maps, picture catalog, terrain tables, masks, .MAP import/export
+game-protocol       InputFrame (tick, player, team), snapshots, events, versions
+```
+
+- No Kubriko; `game-sim`, `game-content` and `game-protocol` are common Kotlin with no platform APIs.
+- One renderer draws any number of views from one snapshot (1–2 in Classic, up to 4 in Extended).
+- Local and networked matches both go through `MatchClient`; networked play is server-authoritative
+  with snapshots ([ADR 0024](adrs/0024-networking.md)).

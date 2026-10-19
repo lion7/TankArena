@@ -1,35 +1,33 @@
-# ADR 0001: Desktop-First with Compose Multiplatform and Kubriko
+# ADR 0001: Kotlin and Compose Multiplatform; Desktop First, Android Next
 
-- **Status:** Accepted (2026-04; revised 2026-10-19).
-- **Related:** [ADR 0019](0019-remove-kubriko-from-the-server.md) narrows where Kubriko is used.
+- **Status:** Accepted (2026-04; revised 2026-10-19). The original decision used Kubriko for the
+  playfield; [ADR 0019](0019-plain-kotlin-no-kubriko.md) removes it.
 
 ## Context
 
 The original Tank Arena is a DOS program written in C on Allegro 3, with hand-written assembly
 blitters and direct hardware access. The rewrite needed a Kotlin stack that can draw a tile-and-sprite
-game at the original's resolution, host menus and a status display, and later reach more targets.
+game at the original's resolution, host menus and a status display, and reach more platforms later.
 
 An engine survey in 2026-04 (deleted since; see [history](../history.md)) recommended KorGE. The
-project chose Kubriko instead: it is built on Compose Multiplatform, so menus, the in-game status
-display and the playfield share one UI toolkit and one rendering backend (Skia).
+project chose Compose Multiplatform with the Kubriko engine on top, so that menus, the status display
+and the playfield share one UI toolkit and one renderer (Skia). By 2026-10 the game drew almost
+everything itself and used Kubriko only for bookkeeping, so Kubriko is being removed.
 
 ## Decision
 
-- **Desktop (JVM) is the only target until parity.** All modules build for the JVM only.
-- **Compose Multiplatform** draws the shell: intro, menus, prompts, text pages, the status display
-  (HUD), fades and screen-wide colour effects.
-- **Kubriko** draws the playfield: one Kubriko instance per player window, with render actors synced
-  from server snapshots and Kubriko's sprite manager loading the extracted pictures.
-- Networked play and a WASM/web target remain **post-parity goals**. Module boundaries must keep them
-  possible: no desktop-only APIs in `:game-protocol` or `:game-content`, and gameplay stays out of the
-  client.
+- **Kotlin with Compose Multiplatform** for everything the player sees: menus, HUD, the playfield
+  (drawn on a Compose Canvas by the game's own renderer), the editor.
+- **Platforms, in order:** desktop (JVM; Linux and Windows packages today), then Android
+  ([ADR 0025](0025-multiplatform-modules-and-android.md)), then possibly the web (WASM). Gameplay and
+  protocol code is common Kotlin with no platform APIs.
+- **Networked play** is a goal of the Extended ruleset ([ADR 0024](0024-networking.md)).
 
 ## Consequences
 
-- One UI toolkit for everything the player sees; Skia runtime shaders are available for the palette
-  effects the original did with VGA palette tricks (night, colour cycling, gamma; see
-  [ADR 0013](0013-original-presentation.md)).
-- Kubriko is a young, single-maintainer engine. Its version is pinned and bumps are deliberate (see
-  the [risk register](../risk-register.md)).
-- Audio and MIDI use the JDK (`javax.sound`), which is desktop-only; a web target will need another
-  backend behind the existing `AudioBackend` interface.
+- One UI toolkit everywhere; Skia (desktop) and Android runtime shaders carry the palette effects the
+  original did with VGA tricks ([ADR 0013](0013-original-presentation.md)).
+- Platform-specific services (audio, MIDI, storage, gamepads, the loop driver) sit behind small
+  interfaces with one implementation per platform.
+- No game-engine dependency: the project owns its renderer, which is a few thousand lines but exactly
+  what the game needs.

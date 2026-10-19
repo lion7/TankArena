@@ -1,7 +1,7 @@
 # ADR 0004: Editor as a Separate App
 
-- **Status:** Accepted (2026-04; revised 2026-10-19). Details of the editor's shape are in
-  [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md).
+- **Status:** Superseded on 2026-10-19 by [ADR 0021](0021-editor-in-the-game.md): the editor becomes a
+  screen of the game, as in the original. Kept for the record.
 
 ## Context
 

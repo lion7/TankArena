@@ -1,6 +1,7 @@
 # ADR 0006: Six Modules
 
-- **Status:** Accepted (2026-04-25; revised 2026-10-19).
+- **Status:** Accepted (2026-04-25; revised 2026-10-19). Describes the current layout; it will be
+  replaced by the multiplatform layout of [ADR 0025](0025-multiplatform-modules-and-android.md).
 
 ## Context
 

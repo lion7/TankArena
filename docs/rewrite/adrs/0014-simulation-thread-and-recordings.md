@@ -2,6 +2,10 @@
 
 - **Status:** Accepted (2026-10-06 recordings, commit `509c667`; 2026-10-18 simulation thread,
   commit `e969636`).
+- **Changes planned 2026-10-19:** the loop moves from the desktop client into the common `MatchHost`
+  with one driver per platform ([ADR 0019](0019-plain-kotlin-no-kubriko.md)); recordings also store the
+  ruleset, and each ruleset has its own rules version ([ADR 0023](0023-classic-and-extended-rulesets.md)).
+  Recordings of BEGIN1–3 and COMBAT1 are committed (`9f816d5`).
 - **Supersedes:** the replay plan of 2026-05 (10 Hz `WorldSnapshot` keyframes, `ReplayProtocol`,
   per-tick checksums; tasks T36–T38).
 
@@ -47,8 +51,10 @@ break another.
 
 - The game runs at the original's speed regardless of the display rate.
 - Whole-mission regression tests come from normal play, with tiny files.
-- A rules change invalidates all recordings. As of 2026-10-19 none are committed (the directory holds
-  only its README), so this safety net is not in use yet; see the [testing strategy](../testing-strategy.md).
+- A rules change can invalidate recordings; replay them first, since many survive a version bump
+  unchanged (five v10 recordings replayed identically under v11 and were relabelled). Committed on
+  2026-10-19: BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1 lost. BEGIN4 must be played again (v11
+  changed its rocket turrets). See the [testing strategy](../testing-strategy.md).
 - There is no mid-match divergence check; a failing replay says only that the result differs.
 - The simulation thread lives in the client module; a dedicated server or network host will need its
   own loop around `MatchClient`.

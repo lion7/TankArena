@@ -1,7 +1,7 @@
 package com.tankarena.sim
 
 import com.tankarena.content.GameModeCompatibility
-import com.tankarena.content.ShippedScenes
+import com.tankarena.sim.map.ShippedMaps
 import kotlin.test.Test
 
 /**
@@ -12,9 +12,9 @@ class IdleScanTest {
     @Test
     fun scan() {
         val ticks = System.getenv("IDLE_SCAN")?.toIntOrNull() ?: return
-        for (scene in ShippedScenes.loadAll()) {
+        for (scene in ShippedMaps.loadAll()) {
             if (scene.sidecar.metadata.modeCompatibility == GameModeCompatibility.DUAL) continue
-            val match = runCatching { Match.fromSceneJson(scene.sceneJson, scene.sidecar, MatchMode.SINGLE).also { it.initialize() } }
+            val match = runCatching { Match.fromMap(scene.document, MatchMode.SINGLE).also { it.initialize() } }
                 .getOrElse { println("IDLE ${scene.baseName} failed: $it"); continue }
             var t = 0
             while (t < ticks && match.mission == Match.MissionStatus.IN_PROGRESS) { match.tick(); t++ }

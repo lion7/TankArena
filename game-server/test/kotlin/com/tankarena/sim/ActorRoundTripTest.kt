@@ -14,19 +14,6 @@ class ActorRoundTripTest {
 
 
     @Test
-    fun `Wall round-trip preserves body geometry`() {
-        val original = Wall(
-            Wall.State(body = box(x = 132f, y = 264f, w = 33f, h = 66f)),
-        )
-        val restored = roundTrip(original).filterIsInstance<Wall>().single()
-
-        assertEquals(132f, restored.body.position.x)
-        assertEquals(264f, restored.body.position.y)
-        assertEquals(33f, restored.body.size.width)
-        assertEquals(66f, restored.body.size.height)
-    }
-
-    @Test
     fun `Tank round-trip preserves all observable state`() {
         val original = Tank(
             Tank.State(

@@ -1,6 +1,6 @@
 package com.tankarena.sim
 
-import com.tankarena.content.ShippedScenes
+import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.protocol.InputFrame
 import java.lang.management.ManagementFactory
 import kotlin.test.Test
@@ -17,15 +17,15 @@ class TickBenchmarkTest {
         System.getenv("TICK_BENCH") ?: return
         val only = System.getenv("TICK_BENCH_MAPS")?.split(',')?.map { it.trim().lowercase() }?.toSet()
         val ticks = System.getenv("TICK_BENCH_TICKS")?.toIntOrNull() ?: 3000
-        val scenes = ShippedScenes.loadAll().filter { only == null || it.baseName.lowercase() in only }
+        val scenes = ShippedMaps.loadAll().filter { only == null || it.baseName.lowercase() in only }
         val gcBeans = ManagementFactory.getGarbageCollectorMXBeans()
         fun gcMillis() = gcBeans.sumOf { it.collectionTime.coerceAtLeast(0) }
         // Warm up the JIT on one map first.
-        scenes.firstOrNull()?.let { run(it.sceneJson, it.sidecar, 1500) }
+        scenes.firstOrNull()?.let { run(it.document, 1500) }
         val rows = scenes.map { scene ->
             val gcBefore = gcMillis()
             val loadStart = System.nanoTime()
-            val client = LocalMatchClient.fromSceneJson(scene.sceneJson, scene.sidecar)
+            val client = LocalMatchClient.fromMap(scene.document)
             val loadMillis = (System.nanoTime() - loadStart) / 1e6
             val times = LongArray(ticks)
             for (i in 0 until ticks) {
@@ -58,8 +58,8 @@ class TickBenchmarkTest {
         }
     }
 
-    private fun run(sceneJson: String, sidecar: com.tankarena.content.MapSceneSidecar, ticks: Int) {
-        val client = LocalMatchClient.fromSceneJson(sceneJson, sidecar)
+    private fun run(map: com.tankarena.sim.map.MapDocument, ticks: Int) {
+        val client = LocalMatchClient.fromMap(map)
         repeat(ticks) {
             client.submitInput(input(it))
             client.tick()

@@ -9,6 +9,8 @@ import com.tankarena.protocol.snapshot.TerrainGrid
 import com.tankarena.protocol.snapshot.TerrainMaterial
 import com.tankarena.protocol.snapshot.TerrainTile
 import com.tankarena.sim.legacy.CanonicalMapDefinition
+import com.tankarena.sim.map.MapConversion
+import com.tankarena.sim.map.MapDocument
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.EffectKind
@@ -499,18 +501,14 @@ class Match private constructor(
             return create(map.metadata, map.layers, SceneFile.read(sceneJson), mode, startShields, dual)
         }
 
-        /**
-         * Production bootstrap: a committed scene plus its sidecar. The sidecar's tile layers drive
-         * terrain effects, pits and the computer AI exactly as on the fixture path.
-         */
-        fun fromSceneJson(
-            sceneJson: String,
-            sidecar: MapSceneSidecar,
+        /** A match on [map] (a shipped or imported map in the native format, ADR 0022), with fresh objects. */
+        fun fromMap(
+            map: MapDocument,
             mode: MatchMode = MatchMode.SINGLE,
             dual: DualSetup = DualSetup(),
         ): Match {
-            val actors = SceneFile.read(sceneJson)
-            return create(sidecar.metadata, sidecar.tileLayers, actors, mode, startShields = true, dual = dual)
+            val sidecar = MapConversion.sidecarOf(map)
+            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual)
         }
 
         private fun create(
@@ -523,9 +521,7 @@ class Match private constructor(
         ): Match {
             val instance = Match(
                 mapMetadata = metadata,
-                // Structures block by their pixels through the StructureGrid; the scene's wall actors
-                // only serve the editor.
-                initialActors = MatchSetup.assignControl(actors.filter { it !is Wall }, mode, dual),
+                initialActors = MatchSetup.assignControl(actors, mode, dual),
                 terrainGrid = TerrainGridBuilder.build(layers, metadata),
                 structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers),
                 mode = mode,

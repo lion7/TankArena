@@ -1,6 +1,6 @@
 package com.tankarena.sim
 
-import com.tankarena.content.ShippedScenes
+import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.content.LEGACY_TILE_SIZE
@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 /**
  * Exercises the production bootstrap: committed scene JSON + sidecar loaded from the
- * classpath through [ShippedScenes], exactly as the desktop client does.
+ * classpath through [ShippedMaps], exactly as the desktop client does.
  */
 class ShippedSceneMatchTest {
 
@@ -27,16 +27,16 @@ class ShippedSceneMatchTest {
     }
 
     private fun start(baseName: String, mode: MatchMode): Match {
-        val scene = assertNotNull(ShippedScenes.load(baseName), "missing shipped scene $baseName")
-        return Match.fromSceneJson(scene.sceneJson, scene.sidecar, mode).also {
+        val scene = assertNotNull(ShippedMaps.load(baseName), "missing shipped scene $baseName")
+        return Match.fromMap(scene.document, mode).also {
             it.initialize()
             prototype = it
         }
     }
 
     @Test
-    fun `every shipped scene is listed in the index`() {
-        val names = ShippedScenes.baseNames()
+    fun `every shipped map is listed in the index`() {
+        val names = ShippedMaps.baseNames()
         assertEquals(69, names.size, "the maps the original game shipped with")
         assertTrue("begin1" in names)
     }

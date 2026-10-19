@@ -30,7 +30,7 @@ class TankSelectTest {
 
     @Test
     fun `a match of three rounds is decided once a player has won two`() {
-        val mission = MissionEntry("FLAGISLE", "flagisle", "", MapSceneSidecar(metadata = MapMetadata("FLAGISLE", 10, 10, "FLAGISLE")), "[]")
+        val mission = MissionEntry("FLAGISLE", "flagisle", "", MapSceneSidecar(metadata = MapMetadata("FLAGISLE", 10, 10, "FLAGISLE")), testMap())
         var match = DualMatch(mission)
         match = match.afterRound(winner = 1)
         assertEquals(2, match.round)

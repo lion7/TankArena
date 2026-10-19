@@ -1,6 +1,6 @@
 package com.tankarena.sim
 
-import com.tankarena.content.ShippedScenes
+import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.protocol.InputFrame
 import java.io.File
 import kotlin.test.Test
@@ -29,16 +29,16 @@ class RecordedPlaythroughTest {
                     "Play the mission again and replace the recording.",
             )
             val expected = assertNotNull(recording.result, "${file.name} has no recorded result")
-            val scene = assertNotNull(ShippedScenes.load(recording.mission), "${file.name}: unknown mission ${recording.mission}")
-            val replayed = MatchReplay.play(recording, scene.sceneJson, scene.sidecar)
+            val scene = assertNotNull(ShippedMaps.load(recording.mission), "${file.name}: unknown mission ${recording.mission}")
+            val replayed = MatchReplay.play(recording, scene.document)
             assertEquals(expected, replayed, "${file.name} replayed to a different outcome")
         }
     }
 
     @Test
     fun `a match recorded through the local client replays identically`() {
-        val scene = assertNotNull(ShippedScenes.load("begin2"))
-        val client = LocalMatchClient.fromSceneJson(scene.sceneJson, scene.sidecar, MatchMode.SINGLE, recordAs = "begin2")
+        val scene = assertNotNull(ShippedMaps.load("begin2"))
+        val client = LocalMatchClient.fromMap(scene.document, MatchMode.SINGLE, recordAs = "begin2")
         // Turn a little, then drive straight into BEGIN2's pit ring.
         for (tick in 0 until 600) {
             client.submitInput(InputFrame(playerId = 0, inputSequence = tick.toLong(), turnRight = tick in 100 until 110, forward = tick >= 120))
@@ -51,6 +51,6 @@ class RecordedPlaythroughTest {
         assertEquals(false, played.won)
         assertTrue(recording.inputs.size < 10, "inputs are stored as changes only, got ${recording.inputs.size}")
         val roundTripped = MatchRecording.fromJson(recording.toJson())
-        assertEquals(played, MatchReplay.play(roundTripped, scene.sceneJson, scene.sidecar))
+        assertEquals(played, MatchReplay.play(roundTripped, scene.document))
     }
 }

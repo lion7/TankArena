@@ -1,6 +1,6 @@
 package com.tankarena.sim
 
-import com.tankarena.content.MapSceneSidecar
+import com.tankarena.sim.map.MapDocument
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PROTOCOL_VERSION
@@ -129,9 +129,9 @@ object MatchReplay {
      * Replays [recording] against the scene it was recorded on and returns how the mission ended
      * (null if it did not end within the recorded ticks).
      */
-    fun play(recording: MatchRecording, sceneJson: String, sidecar: MapSceneSidecar): RecordedResult? {
+    fun play(recording: MatchRecording, map: MapDocument): RecordedResult? {
         val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual)
-        drive(recording, sceneJson, sidecar) { match, tick, world ->
+        drive(recording, map) { match, tick, world ->
             recorder.recordEvents(match, tick, world.events)
             true
         }
@@ -144,20 +144,18 @@ object MatchReplay {
      */
     fun replayFrames(
         recording: MatchRecording,
-        sceneJson: String,
-        sidecar: MapSceneSidecar,
+        map: MapDocument,
         onFrame: (ServerFrame) -> Boolean,
-    ) = drive(recording, sceneJson, sidecar) { match, _, world ->
+    ) = drive(recording, map) { match, _, world ->
         onFrame(ServerFrame(tick = world.tick, world = world, playerViews = match.buildPlayerViews()))
     }
 
     private inline fun drive(
         recording: MatchRecording,
-        sceneJson: String,
-        sidecar: MapSceneSidecar,
+        map: MapDocument,
         step: (Match, Long, WorldSnapshot) -> Boolean,
     ) {
-        val match = Match.fromSceneJson(sceneJson, sidecar, recording.mode, recording.dual ?: DualSetup())
+        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup())
         match.initialize()
         try {
             val byTick = recording.inputs.groupBy { it.tick }

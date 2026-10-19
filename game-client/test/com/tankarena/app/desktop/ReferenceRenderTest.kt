@@ -93,7 +93,7 @@ class ReferenceRenderTest {
      */
     private fun render(scenario: Scenario, mission: com.tankarena.ui.compose.menu.MissionEntry, recording: MatchRecording): BufferedImage {
         val frames = mutableListOf<ServerFrame>()
-        MatchReplay.replayFrames(recording, mission.sceneJson, mission.sidecar) { frame ->
+        MatchReplay.replayFrames(recording, mission.document) { frame ->
             if (frame.tick > scenario.tick - RENDERED_TICKS) frames += frame
             frame.tick < scenario.tick
         }

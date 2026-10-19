@@ -2,7 +2,8 @@ package com.tankarena.ui.compose.menu
 
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.MapSceneSidecar
-import com.tankarena.content.ShippedScenes
+import com.tankarena.sim.map.MapDocument
+import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.ui.compose.GameMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,23 +13,24 @@ data class MissionEntry(
     val baseName: String,
     val briefingPreview: String,
     val sidecar: MapSceneSidecar,
-    val sceneJson: String,
+    /** The map itself; matches are created from it (`LocalMatchClient.fromMap`). */
+    val document: MapDocument,
 )
 
 /**
- * The shipped missions: committed scene JSON + sidecars from `:game-content`, loaded from the
- * classpath. Legacy `.MAP` files are no longer read at runtime (ADR 0003).
+ * The shipped missions: the native `.tamap` maps in `:game-content`, loaded from the classpath
+ * (ADR 0022). Legacy `.MAP` files are not read at runtime.
  */
 object MissionCatalog {
     suspend fun load(): List<MissionEntry> = withContext(Dispatchers.IO) {
-        ShippedScenes.loadAll()
+        ShippedMaps.loadAll()
             .map { scene ->
                 MissionEntry(
                     code = scene.sidecar.metadata.missionCode.ifBlank { scene.baseName },
                     baseName = scene.baseName,
                     briefingPreview = scene.sidecar.missionText.briefing.summarize(),
                     sidecar = scene.sidecar,
-                    sceneJson = scene.sceneJson,
+                    document = scene.document,
                 )
             }
             .sortedBy { it.code.lowercase() }

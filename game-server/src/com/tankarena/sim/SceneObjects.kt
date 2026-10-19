@@ -76,7 +76,6 @@ class PointBody(
 
 /** Every map object type with its id in scene files. */
 object TankArenaTypeIds {
-    const val WALL: String = "tankArenaWall"
     const val TANK: String = "tankArenaTank"
     const val TURRET: String = "tankArenaTurret"
     const val GOAL: String = "tankArenaGoal"
@@ -103,7 +102,6 @@ object SceneFile {
     private data class Entry(val typeId: String, val state: String)
 
     private val readers: Map<String, (String) -> SceneObject.State<*>> = mapOf(
-        TankArenaTypeIds.WALL to { json.decodeFromString<Wall.State>(it) },
         TankArenaTypeIds.TANK to { json.decodeFromString<Tank.State>(it) },
         TankArenaTypeIds.TURRET to { json.decodeFromString<Turret.State>(it) },
         TankArenaTypeIds.GOAL to { json.decodeFromString<Goal.State>(it) },
@@ -122,8 +120,8 @@ object SceneFile {
         TankArenaTypeIds.B52 to { json.decodeFromString<B52.State>(it) },
     )
 
-    private fun typeIdOf(obj: SceneObject<*>): String? = when (obj) {
-        is Wall -> TankArenaTypeIds.WALL
+    /** The scene type id of [obj], or null for objects scene files do not hold. */
+    fun typeIdOf(obj: SceneObject<*>): String? = when (obj) {
         is Tank -> TankArenaTypeIds.TANK
         is Turret -> TankArenaTypeIds.TURRET
         is Goal -> TankArenaTypeIds.GOAL
@@ -142,6 +140,9 @@ object SceneFile {
         is B52 -> TankArenaTypeIds.B52
         else -> null
     }
+
+    /** The object stored as [state] under [typeId], or null for an unknown type. */
+    fun restore(typeId: String, state: String): SceneObject<*>? = readers[typeId]?.invoke(state)?.restore()
 
     /** The objects of a scene file, in file order; entries of unknown types are skipped. */
     fun read(text: String): List<SceneObject<*>> =

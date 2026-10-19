@@ -3,7 +3,7 @@ package com.tankarena.sim
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.MissionText
-import com.tankarena.content.ShippedScenes
+import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.content.TileLayers
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.ProjectileState
@@ -43,8 +43,8 @@ class VehicleSpecTest {
 
     @Test
     fun `the Devastator fires its two main guns in turn`() {
-        val scene = assertNotNull(ShippedScenes.load("begin1"))
-        val match = Match.fromSceneJson(scene.sceneJson, scene.sidecar, MatchMode.SINGLE)
+        val scene = assertNotNull(ShippedMaps.load("begin1"))
+        val match = Match.fromMap(scene.document, MatchMode.SINGLE)
         match.initialize()
         val player = assertNotNull(match.playerTankForTest(0))
         val origins = mutableListOf<Int>()
@@ -87,8 +87,8 @@ class VehicleSpecTest {
 
     @Test
     fun `a player-vs-player tank refills at its base after an opponent dies`() {
-        val scene = assertNotNull(ShippedScenes.load("war"))
-        val match = Match.fromSceneJson(scene.sceneJson, scene.sidecar, MatchMode.DUAL)
+        val scene = assertNotNull(ShippedMaps.load("war"))
+        val match = Match.fromMap(scene.document, MatchMode.DUAL)
         match.initialize()
         val tank = match.tanksForTest().first { it.playerIndex == 0 }
         repeat(3) {

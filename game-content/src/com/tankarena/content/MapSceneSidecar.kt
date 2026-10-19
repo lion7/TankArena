@@ -2,18 +2,10 @@ package com.tankarena.content
 
 import kotlinx.serialization.Serializable
 
-/**
- * Schema version for [MapSceneSidecar]. Bump on breaking changes to the sidecar layout
- * (tile-layer encoding, metadata keys, etc.). Loaders must reject sidecars whose
- * [MapSceneSidecar.schemaVersion] is newer than this constant.
- */
-const val SCENE_SCHEMA_VERSION: Int = 1
-
+/** A map's header, mission texts and tile layers: everything but its objects. */
 @Serializable
 data class MapSceneSidecar(
     val metadata: MapMetadata,
     val missionText: MissionText = MissionText(),
     val tileLayers: TileLayers? = null,
-    val importNotes: List<String> = emptyList(),
-    val schemaVersion: Int = SCENE_SCHEMA_VERSION,
 )

@@ -306,7 +306,7 @@ private fun GameplayScreen(
     val host = remember(mission.baseName, mode, dual) {
         controls.mode = mode
         controls.exitRequested = false
-        LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup())
+        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName, dual = dual ?: DualSetup())
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }

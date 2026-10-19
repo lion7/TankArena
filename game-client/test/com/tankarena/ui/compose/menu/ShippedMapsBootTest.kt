@@ -46,7 +46,7 @@ class ShippedMapsBootTest {
     }
 
     private fun boot(mission: MissionEntry, mode: GameMode, dual: DualSetup) {
-        val client = LocalMatchClient.fromSceneJson(mission.sceneJson, mission.sidecar, mode.toMatchMode(), dual = dual)
+        val client = LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), dual = dual)
         try {
             val players = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
             val first = client.currentServerFrame()

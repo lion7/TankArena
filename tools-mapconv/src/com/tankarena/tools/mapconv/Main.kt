@@ -1,9 +1,11 @@
 package com.tankarena.tools.mapconv
 
-import com.tankarena.content.SCENE_INDEX_FILE_NAME
 import com.tankarena.legacy.LegacyMapParser
-import com.tankarena.sim.LegacyToSceneJson
 import com.tankarena.sim.legacy.LegacyCanonicalConverter
+import com.tankarena.sim.map.LegacyMapImport
+import com.tankarena.sim.map.MAP_FILE_EXTENSION
+import com.tankarena.sim.map.MAP_INDEX_FILE_NAME
+import com.tankarena.sim.map.MapFile
 import java.io.File
 import kotlinx.serialization.json.Json
 
@@ -17,8 +19,8 @@ fun main(args: Array<String>) {
         """
         Usage:
           mapconv map <legacy-map-file> <output-json-file>
-          mapconv scene <legacy-map-file> <output-scenes-dir>
-          mapconv scene-all <legacy-maps-dir> <output-scenes-dir>
+          mapconv import <legacy-map-file> <output-maps-dir>
+          mapconv import-all <legacy-maps-dir> <output-maps-dir>
           mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-vehicles <src/data/tanks.c> <output-kotlin-file>
@@ -42,19 +44,18 @@ fun main(args: Array<String>) {
             println("Converted ${input.name} -> ${output.absolutePath}")
         }
 
-        "scene" -> {
+        "import" -> {
             require(args.size >= 3) {
-                "Usage: mapconv scene <legacy-map-file> <output-scenes-dir>"
+                "Usage: mapconv import <legacy-map-file> <output-maps-dir>"
             }
-            val input = File(args[1])
             val outputDir = File(args[2])
             outputDir.mkdirs()
-            convertSingleToScene(input, outputDir)
+            importToNative(File(args[1]), outputDir)
         }
 
-        "scene-all" -> {
+        "import-all" -> {
             require(args.size >= 3) {
-                "Usage: mapconv scene-all <legacy-maps-dir> <output-scenes-dir>"
+                "Usage: mapconv import-all <legacy-maps-dir> <output-maps-dir>"
             }
             val inputDir = File(args[1])
             val outputDir = File(args[2])
@@ -62,23 +63,21 @@ fun main(args: Array<String>) {
             outputDir.mkdirs()
             val files = inputDir.listFiles { file -> file.isFile && file.name.endsWith(".MAP", ignoreCase = true) }
                 ?: emptyArray()
-            var ok = 0
             var failed = 0
-            val converted = sortedSetOf<String>()
+            val imported = sortedSetOf<String>()
             for (file in files.sortedBy { it.name.lowercase() }) {
-                runCatching { convertSingleToScene(file, outputDir) }
+                runCatching { importToNative(file, outputDir) }
                     .onSuccess { baseName ->
-                        ok += 1
-                        if (!converted.add(baseName)) System.err.println("Warning: ${file.name} overwrote scene '$baseName'")
+                        if (!imported.add(baseName)) System.err.println("Warning: ${file.name} overwrote map '$baseName'")
                     }
                     .onFailure { ex ->
                         failed += 1
                         System.err.println("Failed ${file.name}: ${ex.message}")
                     }
             }
-            // The client discovers shipped missions through this index (classpath resources cannot be listed).
-            File(outputDir, SCENE_INDEX_FILE_NAME).writeText(converted.joinToString(separator = "\n", postfix = "\n"))
-            println("scene-all: ok=$ok failed=$failed -> ${outputDir.absolutePath}")
+            // The game finds the shipped maps through this index (classpath resources cannot be listed).
+            File(outputDir, MAP_INDEX_FILE_NAME).writeText(imported.joinToString(separator = "\n", postfix = "\n"))
+            println("import-all: ok=${imported.size} failed=$failed -> ${outputDir.absolutePath}")
         }
 
         "extract-pictures-png" -> {
@@ -161,20 +160,13 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun convertSingleToScene(input: File, outputDir: File): String {
-    val parser = LegacyMapParser()
-    val name = input.nameWithoutExtension
-    val legacy = parser.parse(input.readBytes(), name)
-    val canonical = LegacyCanonicalConverter.convert(name, legacy)
-    val converted = LegacyToSceneJson.convert(canonical)
-    val baseName = sanitizeFileName(name)
-    val sceneFile = File(outputDir, "scene_${baseName}.json")
-    val sidecarFile = File(outputDir, "metadata_${baseName}.json")
-    sceneFile.writeText(converted.sceneJson)
-    sidecarFile.writeText(converted.sidecarJson)
-    println("Converted ${input.name} -> ${sceneFile.name} + ${sidecarFile.name}")
+/** `.MAP` → `<name>.tamap`; returns the base name. */
+private fun importToNative(input: File, outputDir: File): String {
+    val result = LegacyMapImport.import(input.readBytes(), input.nameWithoutExtension)
+    val baseName = LegacyMapImport.baseName(input.nameWithoutExtension)
+    val output = File(outputDir, "$baseName.$MAP_FILE_EXTENSION")
+    output.writeText(MapFile.write(result.document))
+    result.notes.forEach { System.err.println("${input.name}: $it") }
+    println("Imported ${input.name} -> ${output.name}")
     return baseName
 }
-
-private fun sanitizeFileName(raw: String): String =
-    raw.lowercase().replace(Regex("[^a-z0-9_-]+"), "_").trim('_')

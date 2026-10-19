@@ -1,6 +1,6 @@
 package com.tankarena.sim
 
-import com.tankarena.content.MapSceneSidecar
+import com.tankarena.sim.map.MapDocument
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.sim.legacy.CanonicalMapDefinition
 import com.tankarena.protocol.InputFrame
@@ -53,15 +53,14 @@ class LocalMatchClient private constructor(
     )
 
     companion object {
-        /** [recordAs] names the shipped scene to record the match under; null plays without recording. */
-        fun fromSceneJson(
-            sceneJson: String,
-            sidecar: MapSceneSidecar,
+        /** [recordAs] names the shipped map to record the match under; null plays without recording. */
+        fun fromMap(
+            map: MapDocument,
             mode: MatchMode = MatchMode.SINGLE,
             recordAs: String? = null,
             dual: DualSetup = DualSetup(),
         ): LocalMatchClient {
-            val prototype = Match.fromSceneJson(sceneJson, sidecar, mode, dual)
+            val prototype = Match.fromMap(map, mode, dual)
             prototype.initialize()
             return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode, dual.takeIf { mode == MatchMode.DUAL }) })
         }

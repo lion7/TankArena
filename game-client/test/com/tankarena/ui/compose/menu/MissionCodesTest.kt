@@ -1,5 +1,6 @@
 package com.tankarena.ui.compose.menu
 
+
 import androidx.compose.ui.input.key.Key
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.MapMetadata
@@ -36,7 +37,7 @@ internal fun mission(
         ),
         missionText = MissionText(briefing = briefing),
     ),
-    sceneJson = "{}",
+    document = testMap(code),
 )
 
 class MissionCodesTest {

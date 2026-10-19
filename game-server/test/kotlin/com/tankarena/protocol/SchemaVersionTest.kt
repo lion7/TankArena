@@ -1,12 +1,8 @@
 package com.tankarena.protocol
 
-import com.tankarena.content.MapSceneSidecar
-import com.tankarena.content.MapMetadata
-import com.tankarena.content.SCENE_SCHEMA_VERSION
 import com.tankarena.protocol.snapshot.PROTOCOL_VERSION
 import com.tankarena.protocol.snapshot.WorldSnapshot
 import com.tankarena.protocol.snapshot.decodeWorldSnapshot
-import com.tankarena.sim.LegacyToSceneJson
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,14 +14,6 @@ class SchemaVersionTest {
     fun `WorldSnapshot defaults to current PROTOCOL_VERSION`() {
         val snapshot = WorldSnapshot(tick = 0L)
         assertEquals(PROTOCOL_VERSION, snapshot.protocolVersion)
-    }
-
-    @Test
-    fun `MapSceneSidecar defaults to current SCENE_SCHEMA_VERSION`() {
-        val sidecar = MapSceneSidecar(
-            metadata = MapMetadata(name = "x", widthTiles = 1, heightTiles = 1, missionCode = "X"),
-        )
-        assertEquals(SCENE_SCHEMA_VERSION, sidecar.schemaVersion)
     }
 
     @Test
@@ -43,17 +31,4 @@ class SchemaVersionTest {
         assertEquals(PROTOCOL_VERSION, decoded.protocolVersion)
     }
 
-    @Test
-    fun `parseSidecar rejects future schemaVersion`() {
-        val futureJson = """
-            {
-              "metadata": {"name":"x","widthTiles":1,"heightTiles":1,"missionCode":"X"},
-              "schemaVersion": ${SCENE_SCHEMA_VERSION + 1}
-            }
-        """.trimIndent()
-        val ex = assertFailsWith<IllegalArgumentException> {
-            LegacyToSceneJson.parseSidecar(futureJson)
-        }
-        check(ex.message!!.contains("schemaVersion"))
-    }
 }

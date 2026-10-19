@@ -8,7 +8,6 @@ import com.tankarena.content.TileLayers
 import com.tankarena.protocol.snapshot.TerrainGrid
 import com.tankarena.protocol.snapshot.PitShape
 import com.tankarena.protocol.snapshot.TerrainMaterial
-import com.tankarena.sim.legacy.LegacyMapImporter
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

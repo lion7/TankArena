@@ -10,7 +10,6 @@ class TankArenaSceneRoundTripTest {
     fun `hand-written scene JSON deserializes into one actor per registered type`() {
         val sceneJson = """
             [
-              {"typeId":"tankArenaWall","state":"{\"body\":{\"position\":{\"x\":99.0,\"y\":33.0},\"size\":{\"width\":33.0,\"height\":33.0},\"pivot\":{\"x\":16.5,\"y\":16.5},\"scale\":{\"horizontal\":1.0,\"vertical\":1.0},\"rotation\":0.0}}"},
               {"typeId":"tankArenaTank","state":"{\"body\":{\"position\":{\"x\":66.0,\"y\":297.0},\"size\":{\"width\":29.0,\"height\":29.0},\"pivot\":{\"x\":14.5,\"y\":14.5},\"scale\":{\"horizontal\":1.0,\"vertical\":1.0},\"rotation\":0.0},\"bodyDirection\":0,\"turretDirection\":0,\"playerIndex\":0,\"tankType\":1,\"armor\":100,\"fuel\":100,\"lives\":3,\"team\":0}"},
               {"typeId":"tankArenaTurret","state":"{\"body\":{\"position\":{\"x\":330.0,\"y\":66.0},\"size\":{\"width\":33.0,\"height\":33.0},\"pivot\":{\"x\":16.5,\"y\":16.5},\"scale\":{\"horizontal\":1.0,\"vertical\":1.0},\"rotation\":0.0},\"turretDirection\":8,\"team\":1,\"armor\":100}"},
               {"typeId":"tankArenaGoal","state":"{\"body\":{\"position\":{\"x\":264.0,\"y\":264.0},\"size\":{\"width\":16.0,\"height\":16.0},\"pivot\":{\"x\":8.0,\"y\":8.0},\"scale\":{\"horizontal\":1.0,\"vertical\":1.0},\"rotation\":0.0},\"who\":0,\"contribution\":100,\"radius\":16,\"isClaimed\":false}"}
@@ -19,14 +18,10 @@ class TankArenaSceneRoundTripTest {
 
         val actors = SceneFile.read(sceneJson)
 
-        assertEquals(4, actors.size)
-        val wall = actors.filterIsInstance<Wall>().single()
+        assertEquals(3, actors.size)
         val tank = actors.filterIsInstance<Tank>().single()
         val turret = actors.filterIsInstance<Turret>().single()
         val goal = actors.filterIsInstance<Goal>().single()
-
-        assertEquals(99f, wall.body.position.x)
-        assertEquals(33f, wall.body.size.width)
 
         assertEquals(0, tank.playerIndex)
         assertEquals(3, tank.lives)
@@ -45,7 +40,7 @@ class TankArenaSceneRoundTripTest {
     fun `unknown typeIds are silently skipped so scenes remain forward-compatible`() {
         val sceneJson = """
             [
-              {"typeId":"tankArenaWall","state":"{\"body\":{\"position\":{\"x\":0.0,\"y\":0.0},\"size\":{\"width\":33.0,\"height\":33.0},\"pivot\":{\"x\":16.5,\"y\":16.5},\"scale\":{\"horizontal\":1.0,\"vertical\":1.0},\"rotation\":0.0}}"},
+              {"typeId":"tankArenaGoal","state":"{\"body\":{\"position\":{\"x\":0.0,\"y\":0.0},\"size\":{\"width\":16.0,\"height\":16.0},\"pivot\":{\"x\":8.0,\"y\":8.0},\"scale\":{\"horizontal\":1.0,\"vertical\":1.0},\"rotation\":0.0}}"},
               {"typeId":"futureMine","state":"{\"anything\":true}"}
             ]
         """.trimIndent()
@@ -53,15 +48,12 @@ class TankArenaSceneRoundTripTest {
         val actors = SceneFile.read(sceneJson)
 
         assertEquals(1, actors.size)
-        assertTrue(actors.single() is Wall)
+        assertTrue(actors.single() is Goal)
     }
 
     @Test
     fun `constructed actors roundtrip through serializeActors plus deserializeActors`() {
         val original = listOf(
-            Wall(
-                Wall.State(body = box(x = 132f, y = 66f, size = 33f)),
-            ),
             Tank(
                 Tank.State(
                     body = box(x = 66f, y = 297f, size = 29f),
@@ -97,7 +89,7 @@ class TankArenaSceneRoundTripTest {
         val json = SceneFile.write(original)
         val restored = SceneFile.read(json)
 
-        assertEquals(4, restored.size)
+        assertEquals(3, restored.size)
         val restoredTank = restored.filterIsInstance<Tank>().single()
         assertEquals(4, restoredTank.bodyDirection)
         assertEquals(12, restoredTank.turretDirection)

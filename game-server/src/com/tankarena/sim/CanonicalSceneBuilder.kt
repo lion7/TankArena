@@ -17,40 +17,11 @@ object CanonicalSceneBuilder {
 
     fun buildActors(map: CanonicalMapDefinition): List<SceneObject<*>> {
         val actors = mutableListOf<SceneObject<*>>()
-        appendSolidWalls(map, actors)
-        appendBoundaryWalls(map, actors)
         appendAuthoredObjects(map, actors)
         return actors
     }
 
     fun buildSceneJson(map: CanonicalMapDefinition): String = SceneFile.write(buildActors(map))
-
-    private fun appendSolidWalls(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
-        val width = map.metadata.widthTiles
-        val height = map.metadata.heightTiles
-        for (y in 0 until height) {
-            for (x in 0 until width) {
-                val solid = map.layers.solid.getOrElse(x + y * width) { -1 }
-                if (solid < 0) continue
-                sink += wallActor(
-                    cx = x * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
-                    cy = y * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
-                    width = LEGACY_TILE_SIZE,
-                    height = LEGACY_TILE_SIZE,
-                )
-            }
-        }
-    }
-
-    private fun appendBoundaryWalls(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
-        val w = map.metadata.widthTiles * LEGACY_TILE_SIZE
-        val h = map.metadata.heightTiles * LEGACY_TILE_SIZE
-        val t = LEGACY_TILE_SIZE
-        sink += wallActor(cx = w / 2, cy = -t / 2, width = w + 2 * t, height = t)
-        sink += wallActor(cx = w / 2, cy = h + t / 2, width = w + 2 * t, height = t)
-        sink += wallActor(cx = -t / 2, cy = h / 2, width = t, height = h + 2 * t)
-        sink += wallActor(cx = w + t / 2, cy = h / 2, width = t, height = h + 2 * t)
-    }
 
     private fun appendAuthoredObjects(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
         var nextPlayerIndex = 0
@@ -271,16 +242,6 @@ object CanonicalSceneBuilder {
 
     private fun Map<String, String>.intList(key: String): List<Int>? =
         this[key]?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.takeIf { it.isNotEmpty() }
-
-    private fun wallActor(cx: Int, cy: Int, width: Int, height: Int): Wall =
-        Wall(
-            Wall.State(
-                body = BoxBody(
-                    position = ScenePoint((cx - width / 2).toFloat(), (cy - height / 2).toFloat()),
-                    size = SceneExtent(width.toFloat(), height.toFloat()),
-                ),
-            ),
-        )
 
     private fun tankActor(
         cx: Int,

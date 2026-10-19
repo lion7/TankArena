@@ -53,7 +53,7 @@ internal fun Match.nearestObject(self: SceneObject<*>, x: Int, y: Int): SceneObj
     var best: SceneObject<*>? = null
     var bestDistSq = 15L * 15L
     for (actor in objects.all) {
-        if (actor === self || actor is Wall) continue
+        if (actor === self) continue
         val (ax, ay) = centreOf(actor) ?: continue
         val distSq = (ax - x).toLong() * (ax - x) + (ay - y).toLong() * (ay - y)
         if (distSq < bestDistSq) {

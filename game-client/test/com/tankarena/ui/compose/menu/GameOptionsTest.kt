@@ -79,7 +79,7 @@ class GameOptionsTest {
                 metadata = MapMetadata("BEGIN1", 10, 10, "BEGIN1", nextMissionCode = "BEGIN2"),
                 missionText = MissionText(briefing = "GO", success = "WELL DONE", failure = "TOO BAD"),
             ),
-            "[]",
+            testMap(),
         )
         val settings = GameSettings()
         val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json")), settings)
@@ -95,7 +95,7 @@ class GameOptionsTest {
 
     @Test
     fun `a decided match plays VICTORY, and its rounds come from the options`() {
-        val mission = MissionEntry("FLAGISLE", "flagisle", "", MapSceneSidecar(metadata = MapMetadata("FLAGISLE", 10, 10, "DUAL")), "[]")
+        val mission = MissionEntry("FLAGISLE", "flagisle", "", MapSceneSidecar(metadata = MapMetadata("FLAGISLE", 10, 10, "DUAL")), testMap())
         val settings = GameSettings().apply { update(GameOptions(rounds = 1)) }
         val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json")), settings)
         val select = assertIs<DesktopShellScreen.TankSelect>(gate.afterBriefing(mission, GameMode.PLAYER_VS_PLAYER))

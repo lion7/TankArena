@@ -115,7 +115,7 @@ fun TankSelectScreen(
     var cancelled by remember(match) { mutableStateOf(false) }
 
     // The SELECT map runs as in a player-vs-player game: its vehicles are all computer driven.
-    val host = remember(selectMap) { selectMap?.let { LocalMatchClient.fromSceneJson(it.sceneJson, it.sidecar, MatchMode.DUAL) } }
+    val host = remember(selectMap) { selectMap?.let { LocalMatchClient.fromMap(it.document, MatchMode.DUAL) } }
     val published = remember(host) { AtomicReference(host?.currentServerFrame()) }
     var frame by remember(host) { mutableStateOf(published.get()) }
     DisposableEffect(host) {

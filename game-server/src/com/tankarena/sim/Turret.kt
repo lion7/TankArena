@@ -3,8 +3,8 @@ package com.tankarena.sim
 import com.tankarena.core.LegacyDirections
 import kotlinx.serialization.SerialName
 import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import com.tankarena.core.DetMath.cos
+import com.tankarena.core.DetMath.sin
 import kotlinx.serialization.json.Json
 
 /** Legacy `ti[0]` (src/objects/turret.c): delay 150 ticks, power 5, radius 200. */

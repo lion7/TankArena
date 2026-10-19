@@ -44,10 +44,13 @@ Goal: the same game, with no Kubriko anywhere and a simulation that can run on a
    updates objects in the order Kubriko did, `SceneFile` reads and writes the same scene JSON (all 69
    scenes regenerate byte for byte), every recording replays unchanged; `:game-editor` deleted.
 1. **Simulation:** extract `World` and `step()` from `Match`; map objects become plain
-   classes; split the tick into systems in the original's order; deterministic maths helper; add the
-   legacy-step hook ([ADR 0002](adrs/0002-fixed-step-100hz.md)) without moving any rule into it yet.
+   classes; split the tick into systems in the original's order. Done: package `com.tankarena.sim`
+   with plain names (`Match`, `Tank`, …); all trigonometry through `DetMath` (`StrictMath`, recordings
+   unchanged). The legacy step ([ADR 0002](adrs/0002-fixed-step-100hz.md)) is added together with its
+   first rule in phase 3 rather than as an empty hook.
 2. **Match host:** `MatchHost` in common code drives ticks; the desktop thread becomes a driver;
-   `LocalMatchClient` sits on top.
+   `LocalMatchClient` sits on top. Done: `SimulationLoop` moved from the client into the simulation
+   module.
 3. **Renderer:** the game's own Compose Canvas renderer (terrain, objects by height, top layer,
    effects, night and colour-cycling shaders, HUD), drawing N views from one snapshot; picture atlas.
 4. **Remove** Kubriko and the dead code: `TerrainSlideManager`, `Resolvable`, wall actors and

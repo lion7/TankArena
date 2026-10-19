@@ -1,4 +1,4 @@
-package com.tankarena.app.desktop
+package com.tankarena.sim
 
 import com.tankarena.core.FixedStepClock
 import java.util.concurrent.locks.LockSupport
@@ -9,7 +9,7 @@ import java.util.concurrent.locks.LockSupport
  * falls behind, the loop catches up by running ticks back to back, but drops the backlog after
  * [MAX_CATCH_UP] of them, so a long stall slows the game down instead of fast-forwarding it.
  */
-internal class SimulationLoop(private val step: () -> Boolean) {
+class SimulationLoop(private val step: () -> Boolean) {
     @Volatile
     private var running = false
     private val thread = Thread(::run, "simulation").apply { isDaemon = true }

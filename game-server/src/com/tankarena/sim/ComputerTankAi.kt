@@ -5,10 +5,10 @@ import com.tankarena.core.LegacyDirections
 import com.tankarena.input.PlayerIntentFrame
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
+import com.tankarena.core.DetMath.atan
+import com.tankarena.core.DetMath.cos
+import com.tankarena.core.DetMath.sin
+import com.tankarena.core.DetMath.sqrt
 import kotlin.random.Random
 
 /**

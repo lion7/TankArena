@@ -1,9 +1,7 @@
 package com.tankarena.core
 
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 object LegacyDirections {
     const val NORTH: Int = 0
@@ -36,7 +34,7 @@ object LegacyDirections {
 
     fun unitVector(direction: Int): Pair<Float, Float> {
         val angle = radians(direction)
-        return cos(angle).toFloat() to -sin(angle).toFloat()
+        return DetMath.cos(angle).toFloat() to -DetMath.sin(angle).toFloat()
     }
 
     fun toVelocityStep(direction: Int, magnitude: Float): Pair<Float, Float> {
@@ -66,7 +64,7 @@ object LegacyDirections {
      */
     fun fromAngle(dx: Int, dy: Int): Int {
         if (dx == 0 && dy == 0) return NORTH
-        val angle = kotlin.math.atan2(-dy.toDouble(), dx.toDouble())
+        val angle = DetMath.atan2(-dy.toDouble(), dx.toDouble())
         return normalize(((PI / 2.0 - angle) / (2.0 * PI / STEPS)).roundToInt())
     }
 

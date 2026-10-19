@@ -41,6 +41,7 @@ import com.tankarena.render.kubriko.LegacySpriteCatalog
 import com.tankarena.render.kubriko.TankArenaViewport
 import com.tankarena.sim.LegacyVehicles
 import com.tankarena.sim.LocalMatchClient
+import com.tankarena.sim.SimulationLoop
 import com.tankarena.sim.MatchMode
 import com.tankarena.sim.VehicleKind
 import com.tankarena.ui.compose.DualMatch
@@ -119,7 +120,7 @@ fun TankSelectScreen(
     var frame by remember(host) { mutableStateOf(published.get()) }
     DisposableEffect(host) {
         if (host == null) return@DisposableEffect onDispose { }
-        val loop = com.tankarena.app.desktop.SimulationLoop {
+        val loop = SimulationLoop {
             published.set(host.tick())
             true
         }

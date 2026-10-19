@@ -9,7 +9,7 @@ import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.SoundKind
 import kotlin.math.abs
-import kotlin.math.hypot
+import com.tankarena.core.DetMath.hypot
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlinx.serialization.SerialName

@@ -1,5 +1,6 @@
 package com.tankarena.sim
 
+import com.tankarena.core.DetMath
 import com.tankarena.protocol.snapshot.ExplosionKind
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.SoundKind
@@ -38,7 +39,7 @@ internal object AreaDamageResolver {
                 if (ownerImmune && tank === owner) continue
                 val dx = (tank.positionX - x).toLong()
                 val dy = (tank.positionY - y).toLong()
-                val centerDist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                val centerDist = DetMath.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
                 // Treat distance as the gap from the tank's hull edge rather than its
                 // centroid so a tank whose body is grazed by the blast still takes some damage.
                 val edgeDist = (centerDist - SERVER_TANK_HALF).coerceAtLeast(0f)
@@ -52,7 +53,7 @@ internal object AreaDamageResolver {
                 val dx = (turret.positionX - x).toLong()
                 val dy = (turret.positionY - y).toLong()
                 val half = (turret.body.size.width / 2f)
-                val edgeDist = (kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat() - half).coerceAtLeast(0f)
+                val edgeDist = (DetMath.sqrt((dx * dx + dy * dy).toDouble()).toFloat() - half).coerceAtLeast(0f)
                 if (edgeDist >= radius) continue
                 val scaled = if (falloff) (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt() else damage
                 if (scaled > 0) turret.takeDamage(scaled)

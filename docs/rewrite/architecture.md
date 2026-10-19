@@ -52,7 +52,8 @@ Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-edi
 
 ### `:game-protocol`
 
-- `core/FixedStepClock` (100 ticks/s), `core/LegacyDirections` (16-step compass).
+- `core/FixedStepClock` (100 ticks/s), `core/LegacyDirections` (16-step compass), `core/DetMath`
+  (trigonometry and roots through `StrictMath`, identical on every JVM; the simulation uses only this).
 - `protocol/Frames.kt`: `InputFrame` (one per player per tick), `Team`.
 - `input/PlayerIntent.kt`: `PlayerIntentFrame`, the server's internal intent, also produced by the AI
   and stored in recordings.
@@ -96,7 +97,8 @@ All under `com.tankarena.sim`.
 | `AreaDamageResolver` | Blast damage for mines, mortars, rockets, A-bombs |
 | `Tank`, `Turret`, `Projectile`, … (17 files) | Map objects: tank, turret, projectile, mine, rocket, mortar, goal, flag, product, lock, warp, destroyer, enforcer, train, zeppelin, B52, wall |
 | `MatchClient` | `MatchClient` interface and `LocalMatchClient` |
-| `MatchRecording` | Recorder, replay, `GAME_RULES_VERSION` |
+| `MatchRecording` | Recorder, replay (`MatchReplay.play`, `replayFrames`), `GAME_RULES_VERSION` |
+| `SimulationLoop` | Runs a match's ticks at 100 per second on its own thread |
 | `SceneObjects` | `SceneObject`/`Steppable`/`Resolvable`, bodies, `SceneFile` (scene reader and writer), `MatchObjectList` |
 | `CanonicalSceneBuilder`, `LegacyToSceneJson`, `legacy/*` | The importer (tools and tests only) |
 
@@ -104,7 +106,7 @@ All under `com.tankarena.sim`.
 
 | Package | Contents |
 |---|---|
-| `app/desktop` | `Main.kt` (window, screen state machine, key bindings, gameplay screen), `SimulationLoop`, `RecordingStore`, `PerfLog` |
+| `app/desktop` | `Main.kt` (window, screen state machine, key bindings, gameplay screen), `GameplayFrame` (the game screen's drawing), `RecordingStore`, `PerfLog` |
 | `ui/compose/menu` | Main and mode menus, mission-code prompt and list, `PasswordStore`, game options, tank selection, intro, text pages, briefing and end banners |
 | `ui/compose/legacy` | Mode 13h screen and fonts (generated), `FliAnimation` |
 | `ui/compose` | `LegacyScreen` (640×480 and 320×200 screens, fades), `GammaCorrection`, shell state |

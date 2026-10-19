@@ -34,6 +34,7 @@ import com.tankarena.render.kubriko.ViewportEventQueue
 import com.tankarena.sim.DualSetup
 import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode
+import com.tankarena.sim.SimulationLoop
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GAME_FADE_MILLIS
 import com.tankarena.ui.compose.GameMode

@@ -1,5 +1,6 @@
 package com.tankarena.sim
 
+import com.tankarena.core.DetMath
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.MapSceneSidecar
@@ -649,7 +650,7 @@ class Match private constructor(
             }
             repeat(5) {
                 val angle = 2 * Math.PI * objectRandom.nextInt(360) / 360
-                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x + (radius * Math.cos(angle)).toInt(), y + (radius * Math.sin(angle)).toInt())
+                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x + (radius * DetMath.cos(angle)).toInt(), y + (radius * DetMath.sin(angle)).toInt())
             }
         }
         if (destroyer.what and 2 != 0) {
@@ -755,8 +756,8 @@ class Match private constructor(
                     a = v * elapsed / 100f / RAILS_RADIUS
                     val a2 = car.railsStart - dir * a
                     car.direction = directionFromRadians(a2 + if (dir == 1) 1.5 * Math.PI else 0.5 * Math.PI)
-                    car.left = (car.railsX + RAILS_RADIUS * Math.cos(a2.toDouble()) - 16).toInt()
-                    car.top = (car.railsY - RAILS_RADIUS * Math.sin(a2.toDouble()) - 16).toInt()
+                    car.left = (car.railsX + RAILS_RADIUS * DetMath.cos(a2.toDouble()) - 16).toInt()
+                    car.top = (car.railsY - RAILS_RADIUS * DetMath.sin(a2.toDouble()) - 16).toInt()
                 }
             }
             if (a > 0.51f * Math.PI || x >= 33f || y >= 33f) {
@@ -766,7 +767,7 @@ class Match private constructor(
         }
         val front = car.front
         if (front != null && v > 0) {
-            val d = kotlin.math.sqrt(((car.left - front.left).toDouble().let { it * it }) + (car.top - front.top).toDouble().let { it * it }).toInt() - WAGON_DISTANCE
+            val d = DetMath.sqrt(((car.left - front.left).toDouble().let { it * it }) + (car.top - front.top).toDouble().let { it * it }).toInt() - WAGON_DISTANCE
             val dc = now - car.segmentStartTick
             val cc = (kotlin.math.abs(d).toFloat() * 100f / v / 10f).toLong()
             if (kotlin.math.abs(d) < 100) {
@@ -1998,8 +1999,8 @@ class Match private constructor(
             val angle = 2 * Math.PI * objectRandom.nextInt(360) / 360
             pendingEvents += GameEvent.Effect(
                 EffectKind.EXPLOSION,
-                bomb.x + (radius * Math.cos(angle)).toInt(),
-                bomb.y + (radius * Math.sin(angle)).toInt(),
+                bomb.x + (radius * DetMath.cos(angle)).toInt(),
+                bomb.y + (radius * DetMath.sin(angle)).toInt(),
             )
         }
     }
@@ -2886,7 +2887,7 @@ class Match private constructor(
                 x = actor.positionX.toInt(),
                 y = actor.positionY.toInt(),
                 kind = if (actor.dropHeight > 0) ProjectileKind.PLANEBOMB else ProjectileKind.MORTAR,
-                rangeLeft = (actor.travelTicksRemaining * kotlin.math.hypot(actor.velocityX, actor.velocityY)).toInt(),
+                rangeLeft = (actor.travelTicksRemaining * DetMath.hypot(actor.velocityX, actor.velocityY)).toInt(),
                 dropHeight = actor.dropHeight,
             )
 

@@ -1,5 +1,6 @@
 package com.tankarena.sim
 
+import com.tankarena.core.DetMath
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
@@ -58,7 +59,7 @@ class Projectile internal constructor(state: State) : Steppable,
      * before it can hit anything again.
      */
     internal fun deflect(x: Int, y: Int, direction: Int) {
-        val speed = kotlin.math.hypot(velocityX, velocityY)
+        val speed = DetMath.hypot(velocityX, velocityY)
         val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(direction)
         velocityX = fx * speed
         velocityY = fy * speed
@@ -83,7 +84,7 @@ class Projectile internal constructor(state: State) : Steppable,
     }
 
     /** Pixels left to fly (legacy `b->dist`). */
-    val rangeLeft: Int get() = (ttlTicks * kotlin.math.hypot(velocityX, velocityY)).toInt()
+    val rangeLeft: Int get() = (ttlTicks * DetMath.hypot(velocityX, velocityY)).toInt()
 
     private var explosionX: Int = 0
     private var explosionY: Int = 0
@@ -105,7 +106,7 @@ class Projectile internal constructor(state: State) : Steppable,
         positionY = exactY.toInt()
         syncBody()
         if (safetyLeft > 0f) {
-            safetyLeft -= kotlin.math.hypot(velocityX, velocityY)
+            safetyLeft -= DetMath.hypot(velocityX, velocityY)
         } else if (weaponKind == SHOT_SMALL_ROCKET) {
             // Legacy control_bullets(): a small rocket trails exhaust every 5..10 ticks.
             if (trailCooldownTicks > 0) trailCooldownTicks -= 1
@@ -140,7 +141,7 @@ class Projectile internal constructor(state: State) : Steppable,
     internal fun hitVehicle(target: Tank, x: Int, y: Int) {
         if (isDead) return
         target.queueDamage(damage)
-        val speed = kotlin.math.hypot(velocityX, velocityY)
+        val speed = DetMath.hypot(velocityX, velocityY)
         if (speed > 0f) target.addImpulse(velocityX / speed, velocityY / speed, damage)
         tankHitRef = target
         positionX = x

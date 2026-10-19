@@ -20,7 +20,7 @@ break another.
 
 **Threading**
 
-- A match runs on its own thread (`SimulationLoop` in `game-client/.../app/desktop/`), paced by
+- A match runs on its own thread (`SimulationLoop`, in `game-server/.../sim/` since 2026-10-19), paced by
   `System.nanoTime()` at exactly 100 ticks per second. When it falls behind it runs up to 10 ticks back
   to back, then drops the backlog, so a long stall slows the game instead of fast-forwarding it.
 - Each tick it submits the players' `InputFrame`s, ticks the match, queues the events per player

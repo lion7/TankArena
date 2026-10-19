@@ -1,6 +1,6 @@
 package com.tankarena.sim
 
-import kotlin.math.hypot
+import com.tankarena.core.DetMath.hypot
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 

@@ -1,7 +1,7 @@
 # Legacy System Map
 
 Where each part of the original C source (`src/`, about 23,800 lines of C and assembly) lives in the
-rewrite. Kotlin paths are abbreviated: `server/` is `game-server/src/com/tankarena/sim/`,
+rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-server/src/com/tankarena/sim/`,
 `client/` is `game-client/src/com/tankarena/`, `content/` is `game-content/src/com/tankarena/`.
 
 ## Gameplay (`src/tanks`, `src/check`, `src/objects`, `src/world`)
@@ -37,7 +37,7 @@ rewrite. Kotlin paths are abbreviated: `server/` is `game-server/src/com/tankare
 | Original | Rewrite |
 |---|---|
 | `main.c` (start-up, command-line switches) | `client/app/desktop/Main.kt`; switches **not ported** |
-| `mainloop.c` (game loop, windows, drawing) | `client/app/desktop/SimulationLoop.kt`, `Main.kt` gameplay screen, `RenderSceneSupport.legacyMapWindows` |
+| `mainloop.c` (game loop, windows, drawing) | `sim/SimulationLoop.kt`, `Main.kt` gameplay screen, `GameplayFrame`, `RenderSceneSupport.legacyMapWindows` |
 | `controls.c` (keys, F-keys) | `KeyBinding` in `Main.kt`; pause, F11, F12, PrtScr, +/- **not ported** |
 | `menu.c`, `prompt.c`, `title.c` | `client/ui/compose/menu/` |
 | `single.c`, `dualvc.c`, `listcod.c`, `passwd.c` | `MissionCodes`, `MissionGate`, `PasswordStore`; `server/MatchSetup.kt` |

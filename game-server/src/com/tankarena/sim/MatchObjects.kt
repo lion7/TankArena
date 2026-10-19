@@ -1,7 +1,7 @@
 package com.tankarena.sim
 
 import com.tankarena.core.LegacyDirections
-import kotlin.math.hypot
+import com.tankarena.core.DetMath.hypot
 import kotlin.random.Random
 
 /*

@@ -1,5 +1,6 @@
 package com.tankarena.sim
 
+import com.tankarena.core.DetMath
 /**
  * Legacy `tankinfotype.turret.main_static` (src/include/types.h): how a vehicle's main gun aims.
  *
@@ -83,8 +84,8 @@ data class VehicleLight(val size: Int, val offset: Pair<Int, Int>)
 fun rotate(direction: Int, offset: Pair<Int, Int>): Pair<Int, Int> {
     val angle = Math.toRadians(direction.mod(16) * 22.5)
     val (x, y) = offset
-    return Math.round(Math.cos(angle) * x - Math.sin(angle) * y).toInt() to
-        Math.round(Math.sin(angle) * x + Math.cos(angle) * y).toInt()
+    return Math.round(DetMath.cos(angle) * x - DetMath.sin(angle) * y).toInt() to
+        Math.round(DetMath.sin(angle) * x + DetMath.cos(angle) * y).toInt()
 }
 
 /** Per-vehicle data from `tank[]` in src/data/tanks.c, indexed by the legacy vehicle number that scenes store as `tankType`. */

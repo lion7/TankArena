@@ -11,7 +11,8 @@ rules ported from the C source, its screen layout, pictures, fonts, night lighti
 and it ships as self-contained Linux and Windows packages. What is left for full parity: the map
 editor (largely missing), supermarket mayhem, conveyors and rotating platforms, debris, terrain
 effects, the original's in-game keys, controls setup and command-line switches, and a list of smaller
-rule differences. All 295 automated tests pass and six recorded playthroughs replay; there is no CI.
+rule differences. All 297 automated tests pass, including six recorded playthroughs, a boot test of
+every map in every mode and eight reference renders; CI is set up on GitHub Actions.
 
 The direction beyond parity was decided on 2026-10-19: plain Kotlin with no Kubriko, a readable
 native map format, the editor inside the game, and two rulesets — **Classic** (the original) and
@@ -30,9 +31,9 @@ The [roadmap](rewrite/roadmap.md) orders that work.
 | Map editor | Mostly missing | [parity.md → Map editor](rewrite/parity.md#map-editor) |
 | Assets | All runtime assets converted and bundled | [assets.md](rewrite/assets.md) |
 | Content | 69 maps imported without notes | [content-format.md](rewrite/content-format.md) |
-| Tests | 295 green (server 226, client 60, content 9); 6 recordings (BEGIN1–3, COMBAT1) | [testing-strategy.md](rewrite/testing-strategy.md) |
+| Tests | 297 green (server 226, client 62, content 9); 6 recordings; every map boots; 8 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
 | Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](rewrite/build.md), [ADR 0017](rewrite/adrs/0017-desktop-packaging.md) |
-| CI | None | [testing-strategy.md](rewrite/testing-strategy.md#what-is-not-there-yet) |
+| CI | GitHub Actions workflow on every push, nightly scans; not yet run on GitHub | [testing-strategy.md](rewrite/testing-strategy.md#continuous-integration) |
 
 Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 7, `SCENE_SCHEMA_VERSION` 1.
 
@@ -47,8 +48,8 @@ settled while phase 2 of the roadmap is built.
 
 The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
 
-1. **Phase 0, safety net:** re-record BEGIN4 under rules v11 and record more missions and
-   player-vs-player matches; CI; reference renders of the current client.
+1. **Phase 0, safety net:** almost done. Left: re-record BEGIN4 under rules v11, record more missions
+   and player-vs-player matches, and the first green CI run on GitHub.
 2. **Phase 1, plain-Kotlin core:** `World`/`step()`/`MatchHost` without Kubriko, the game's own
    Compose renderer, dead code removed — with the rules version unchanged
    ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)).

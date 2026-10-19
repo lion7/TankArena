@@ -17,12 +17,15 @@ are about detection), or *Closed* (kept briefly for the record).
     happened with the unsigned goal layer).
   - Compare with DOSBox footage of the original before calling behaviour a bug or a fix.
 
-## No continuous integration
+## Tests only as good as their coverage
 
 - **Status:** Active.
-- **Risk:** tests are only run by hand; a broken build or test can sit on `rewrite` unnoticed.
-- **Mitigations:** add CI (fix the `.*` rule in `.gitignore` first); until then run `./kotlin test`
-  before every commit.
+- **Risk:** CI (GitHub Actions, since 2026-10-19) runs every test on every push, but the recordings
+  cover only BEGIN1–3 and COMBAT1, and the reference renders eight moments; a regression elsewhere can
+  still pass.
+- **Mitigations:** add recordings for more missions and player-vs-player modes; watch the nightly idle
+  scan and tick benchmark; reference renders on Ubuntu runners must match the ones made locally (Skia
+  raster output; if they differ, regenerate them on the runner).
 
 ## Server size and coupling
 

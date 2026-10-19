@@ -20,8 +20,22 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## What exists (2026-10-19)
 
-`./kotlin test` runs 295 tests, all green: 226 in `:game-server`, 60 in `:game-client`, 9 in
+`./kotlin test` runs 297 tests, all green: 226 in `:game-server`, 62 in `:game-client`, 9 in
 `:game-content`. `:game-protocol`, `:game-editor` and `:tools-mapconv` have none.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` (GitHub Actions, Ubuntu):
+
+| Job | Trigger | Contents |
+|---|---|---|
+| `test` | every push and pull request, and nightly | `./kotlin build`, `./kotlin test`; on failure the differing reference renders are uploaded |
+| `nightly` | every night at 02:30 UTC, or by hand | idle scan (`IDLE_SCAN=30000`) and tick benchmark (`TICK_BENCH=1`), logs uploaded |
+
+The toolchain, its JDK and the Maven dependencies are cached between runs
+(`~/.cache/JetBrains/Kotlin`). Runners need Maven Central, Google Maven (Compose's `androidx.*`
+artifacts) and the JetBrains toolchain repository (`packages.jetbrains.team`). `.gitignore` ignores
+dot-folders except `.github/` and `.dockerignore`.
 
 ### Rule tests (`:game-server`)
 
@@ -72,11 +86,36 @@ removal ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)), which must leave all
 | `IDLE_SCAN=<ticks>` | `IdleScanTest` | How every single-player map ends with nobody playing (catches maps that win or lose by themselves) |
 | `TICK_BENCH=1` (`TICK_BENCH_MAPS`, `TICK_BENCH_TICKS`) | `TickBenchmarkTest` | Per-map tick timings incl. p99, with the player driving and firing |
 | `DUMP_DIR=<dir>` | `ScreenDumpTest`, parts of `FliAnimationTest`, `NightHudTest` | Offscreen renders as PNG |
+| `UPDATE_REFERENCE_RENDERS=1` | `ReferenceRenderTest` | Rewrites the reference renders |
 
 ```bash
 IDLE_SCAN=30000 ./kotlin test -m game-server
 TICK_BENCH=1 ./kotlin test -m game-server
 ```
+
+### Every map boots (`:game-client`)
+
+`ShippedMapsBootTest` starts every shipped map in every mode its map type allows (legacy
+`check_suitable()`), and in player vs player once per vehicle the map's contents allow (legacy
+select_tanks()) — 143 combinations. Each must give every player a living vehicle and run 200 idle
+ticks without an exception, with every vehicle inside the world and finite speeds.
+
+### Reference renders (`:game-client`)
+
+`ReferenceRenderTest` draws eight moments through the real game screen (`GameplayFrame`) offscreen at
+640 × 480 and compares them with the PNGs in `game-client/testResources/reference-renders/`: BEGIN1
+at the start, in a fight and won; COMBAT1 lost (grey view, banner, explosion); BEGIN3 (force field,
+helicopter); ZULU at night; AIR with two players against the computer; FLAGISLE player vs player.
+
+- Moments come from the committed recordings (or idle matches) through `MatchReplay.replayFrames`;
+  the last 150 ticks before each moment are drawn one by one with their events, so effects and colour
+  cycling are in the same state on every run.
+- A render fails when more than 0.2 % of its pixels differ by more than 8 in a colour channel; the
+  actual image is written to `game-client/build/reference-renders/`.
+- `UPDATE_REFERENCE_RENDERS=1 ./kotlin test -m game-client` rewrites the references; look at them
+  before committing.
+- They pin what the current renderer draws, as the baseline for the renderer that replaces Kubriko
+  ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 
 ### Client tests (`:game-client`)
 
@@ -93,42 +132,28 @@ In order of value:
 1. **More recordings:** BEGIN4, more single-player missions, a two-vs-computer mission and
    player-vs-player matches (deathmatch, flag hunt, race); once rulesets exist, Classic and Extended
    recordings separately.
-2. **Continuous integration.** Fix `.gitignore` first (its `.*` rule ignores `.github/` and
-   `.forgejo/`). Stages:
-
-   | Stage | Trigger | Contents | Budget |
-   |---|---|---|---|
-   | check | every push | `./kotlin build`, `./kotlin test` | < 10 min |
-   | smoke | every PR | desktop smoke under Xvfb (item 5) | < 3 min |
-   | nightly | schedule | idle scan, every scene × mode boot, soak bots, tick benchmark | < 60 min |
-
-   Runners need Maven Central, Google Maven (Compose's `androidx.*` artifacts) and the JetBrains
-   toolchain repository (`packages.jetbrains.team`).
-3. **Every scene boots in every mode.** For each scene in `index.txt` and each mode its map type
-   allows: boot, assert the expected player tanks, tick 200 ticks idle, check invariants.
-4. **Invariants and bots** (scripted, not LLM): idle, random-input (seeded) and objective-seeking bots;
-   per-tick invariants (finite positions, armor and ammo in range, no unbounded object growth, one
-   `MissionResult`, tick under 5 ms); nightly soak of 20 seeds × 30,000 ticks per scene, failures
-   saved as recordings.
-5. **Desktop smoke.** Start the packaged or built game under `xvfb-run` with
+2. **Invariants and bots** (scripted, not LLM): random-input (seeded) and objective-seeking bots;
+   per-tick invariants beyond the boot test's (ammo in range, no unbounded object growth, one
+   `MissionResult`, tick under 5 ms); nightly soak of 20 seeds × 30,000 ticks per map, failures saved
+   as recordings.
+3. **Desktop smoke.** Start the built game under `xvfb-run` with
    `TANKARENA_AUTOSTART=begin1 TANKARENA_QUIT_AFTER=10`; assert it ran, logged no exception and drew
    a mostly non-black frame. The packaging smoke test (`HeadlessException` without a display) covers
    only class loading.
-6. **Golden images.** Offscreen renders (the `ImageComposeScene` path already used by the dump tests)
-   of fixed snapshots compared with PNGs: BEGIN1 start, an explosion, a wreck, split screen, night,
-   each object family. DOSBox captures of the original are the reference for presentation.
-7. **Map round trips** ([ADR 0022](adrs/0022-native-map-format.md)): `.MAP` → native → `.MAP` → native
+4. **Map round trips** ([ADR 0022](adrs/0022-native-map-format.md)): `.MAP` → native → `.MAP` → native
    identical for every shipped map. Until the native format lands, a scene-freshness test (regenerate
    into a temporary folder and compare) catches importer changes without regeneration.
-8. **Divergence reporting for recordings:** store a hash of the snapshot every N ticks in the recording
+5. **Divergence reporting for recordings:** store a hash of the snapshot every N ticks in the recording
    so a failing replay names the first tick that differs, instead of only "different result".
-9. **Match control for agents** (debug builds only): a small MCP server over stdio wrapping
+6. **More reference renders:** each object family, effects mid-animation; DOSBox captures of the
+   original as the reference for presentation (compared by eye, not in CI).
+7. **Match control for agents** (debug builds only): a small MCP server over stdio wrapping
    `MatchClient` with `list_scenes`, `start`, `step`, `snapshot`, `render` and `save_recording`, so a
    coding agent can probe the game at simulation speed and turn findings into tests. Never linked into
    the release client.
-10. **Playtest checklist** before merging milestones: BEGIN1 win and loss, a player-vs-player map, a
-    co-op map, F-key switching, every weapon, sound panning, split screen, night map, Esc and retry.
-    Each session's recording is kept if it found something.
+8. **Playtest checklist** before merging milestones: BEGIN1 win and loss, a player-vs-player map, a
+   co-op map, F-key switching, every weapon, sound panning, split screen, night map, Esc and retry.
+   Each session's recording is kept if it found something.
 
 Coverage is reported, not gated. Kover is a Gradle plugin and is not available under the Kotlin
 toolchain; JaCoCo's agent or the toolchain's own support (when it exists) can replace it.

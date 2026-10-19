@@ -2,3 +2,4 @@
 build/
 perf.log
 !.dockerignore
+!.github/

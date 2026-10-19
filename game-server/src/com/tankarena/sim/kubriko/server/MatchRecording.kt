@@ -4,6 +4,8 @@ import com.tankarena.content.MapSceneSidecar
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.PROTOCOL_VERSION
+import com.tankarena.protocol.snapshot.ServerFrame
+import com.tankarena.protocol.snapshot.WorldSnapshot
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -128,20 +130,44 @@ object MatchReplay {
      * (null if it did not end within the recorded ticks).
      */
     fun play(recording: MatchRecording, sceneJson: String, sidecar: MapSceneSidecar): RecordedResult? {
+        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual)
+        drive(recording, sceneJson, sidecar) { match, tick, world ->
+            recorder.recordEvents(match, tick, world.events)
+            true
+        }
+        return recorder.recording().result
+    }
+
+    /**
+     * Replays [recording] tick by tick and hands each tick's [ServerFrame] to [onFrame], as a client
+     * would have received it, until the recording ends or [onFrame] returns false.
+     */
+    fun replayFrames(
+        recording: MatchRecording,
+        sceneJson: String,
+        sidecar: MapSceneSidecar,
+        onFrame: (ServerFrame) -> Boolean,
+    ) = drive(recording, sceneJson, sidecar) { match, _, world ->
+        onFrame(ServerFrame(tick = world.tick, world = world, playerViews = match.buildPlayerViews()))
+    }
+
+    private inline fun drive(
+        recording: MatchRecording,
+        sceneJson: String,
+        sidecar: MapSceneSidecar,
+        step: (ServerMatchPrototype, Long, WorldSnapshot) -> Boolean,
+    ) {
         val match = ServerMatchPrototype.fromSceneJson(sceneJson, sidecar, recording.mode, recording.dual ?: DualSetup())
         match.initialize()
-        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual)
         try {
             val byTick = recording.inputs.groupBy { it.tick }
             val current = mutableMapOf<Int, PlayerIntentFrame>()
             for (tick in 0 until recording.ticks) {
                 byTick[tick]?.forEach { current[it.playerId] = it.intent }
-                val frame = match.tick(current.toMap())
-                recorder.recordEvents(match, tick, frame.events)
+                if (!step(match, tick, match.tick(current.toMap()))) return
             }
         } finally {
             match.dispose()
         }
-        return recorder.recording().result
     }
 }

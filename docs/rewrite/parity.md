@@ -289,10 +289,11 @@ Open:
 ## Tooling and delivery
 
 Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
-295 automated tests; recorded-playthrough replays; idle scan of every map; tick benchmark.
+297 automated tests; recorded-playthrough replays; every map booted in every mode; reference
+renders; idle scan of every map; tick benchmark; CI on GitHub Actions.
 
-Open: continuous integration, more recordings (BEGIN4, more missions, player vs player), and the
-other items in the [testing strategy](testing-strategy.md#what-is-not-there-yet).
+Open: more recordings (BEGIN4, more missions, player vs player) and the other items in the
+[testing strategy](testing-strategy.md#what-is-not-there-yet).
 
 ## Beyond parity
 

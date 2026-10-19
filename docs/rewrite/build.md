@@ -34,7 +34,7 @@ they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, k
 
 ```bash
 ./kotlin build                           # all modules
-./kotlin test                            # all tests (295 on 2026-10-19)
+./kotlin test                            # all tests (297 on 2026-10-19)
 ./kotlin test -m game-server             # one module
 ./kotlin run -m game-client              # the game (opens a window)
 ./kotlin run -m game-editor              # the map editor

@@ -27,11 +27,12 @@ Goal: any behaviour change shows up in a test before it reaches a playtest.
 - [x] Commit recorded playthroughs: BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1 lost (`9f816d5`).
 - [ ] Re-record BEGIN4 under rules v11; add more single-player missions, a two-vs-computer mission and
       player-vs-player matches (deathmatch, flag hunt, race).
-- [ ] CI on Forgejo Actions: build and all tests on every push (fix the `.*` rule in `.gitignore`
-      first); nightly idle scan and tick benchmark.
-- [ ] "Every shipped map boots in every allowed mode" test.
-- [ ] Reference renders: offscreen PNGs of fixed snapshots (BEGIN1 start, explosion, wreck, night map,
-      split screen) from the current client, kept as the baseline for the new renderer.
+- [x] CI on GitHub Actions (`.github/workflows/ci.yml`): build and all tests on every push and pull
+      request; nightly idle scan and tick benchmark. `.gitignore` lets `.github/` through. Not yet run
+      on GitHub: needs a push.
+- [x] "Every shipped map boots in every allowed mode" test (`ShippedMapsBootTest`, 143 combinations).
+- [x] Reference renders (`ReferenceRenderTest`): eight moments of recorded and idle matches drawn
+      through the real game screen, kept as the baseline for the new renderer.
 
 Done when: CI is green with at least eight recordings and the reference renders committed.
 

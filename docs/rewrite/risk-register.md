@@ -40,10 +40,11 @@ are about detection), or *Closed* (kept briefly for the record).
 ## Native map format and converters
 
 - **Status:** Active.
-- **Risk:** converting the 69 maps to the new format ([ADR 0022](adrs/0022-native-map-format.md)) could
-  lose data the importer does not model, and `.MAP` export could write files the original rejects.
-- **Mitigations:** keep unknown object bytes in a `legacy` field; round-trip tests for every map;
-  exported maps spot-checked in DOSBox; `MAPS/*.MAP` stays in the repository as the reference.
+- **Risk:** the importer models only the object fields the rewrite uses, so `.MAP` export could write
+  files the original rejects or plays differently ([ADR 0022](adrs/0022-native-map-format.md)).
+- **Mitigations:** the import side is pinned by `MapDocumentTest`; for export, decide how to keep the
+  unmodelled bytes, add `.MAP` round-trip tests and spot-check exported maps in DOSBox; `MAPS/*.MAP`
+  stays in the repository as the reference.
 
 ## Editor far behind
 
@@ -87,7 +88,7 @@ are about detection), or *Closed* (kept briefly for the record).
   ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
 - **55,000 wall actors:** closed 2026-10-06 by the structure grid
   ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)).
-- **Missing version fields:** closed by `PROTOCOL_VERSION`, `SCENE_SCHEMA_VERSION` and
+- **Missing version fields:** closed by `PROTOCOL_VERSION`, `MAP_FORMAT_VERSION` and
   `GAME_RULES_VERSION`.
 - **Legacy import coverage:** closed; every shipped map imports with no notes.
 - **Map source of truth undecided:** closed 2026-10-19 by [ADR 0003](adrs/0003-legacy-map-import.md)

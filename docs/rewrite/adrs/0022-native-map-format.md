@@ -1,8 +1,9 @@
 # ADR 0022: A Native, Readable Map Format with `.MAP` Converters
 
-- **Status:** Accepted (2026-10-19; container and layer encoding confirmed the same day after
-  comparing the options below). Field-level details may still change while it is implemented; this
-  ADR is updated when they do.
+- **Status:** Accepted (2026-10-19). **Import built** the same day: the 69 shipped maps are `.tamap`
+  files and the game loads only those. **Export to `.MAP` not built yet** (see Converters). The
+  format as built is documented in [content-format.md](../content-format.md); the sketch below was the
+  design and differs in details noted there.
 - **Supersedes:** the scene JSON + sidecar format of [ADR 0008](0008-kubriko-and-scene-json.md).
 - **Decides:** [ADR 0003](0003-legacy-map-import.md) — the native format is the source of truth.
 
@@ -87,13 +88,24 @@ and for the picture layers (sizes for RACE3's three layers):
 
 Sparse lists are used where they fit: the goal, bonus and men layers.
 
+**As built (2026-10-19)**, differences from the sketch above:
+
+- Legend entries are `[picture index, "NAME"]`: the same picture name occurs at several indices with
+  different properties, so the index identifies the picture and the name is checked when reading.
+- Object records are the map objects' own fields by name (`tankType`, `armor`, `ai*`, …) after
+  `type`, `at` (top-left corner) and `size`; enums by name come later. Walls are not objects.
+- Sparse cells keep the importer's numbers (`bonus`, men `type`), not names.
+
 **Converters** (`tools-mapconv` and the in-game editor):
 
-- `import <MAP> <tamap>` / `import-all <MAPS> <dir>`: `.MAP` → native. Unknown bytes in object
-  records are kept in a per-object `legacy` field so that export can write them back.
-- `export <tamap> <MAP>`: native → `.MAP` (version 6, unprotected), playable by the original.
-- **Round-trip tests:** for every shipped map, `.MAP` → native → `.MAP` → native gives the identical
-  native file, and the exported `.MAP` produces the same match as the original file in the rewrite.
+- Built: `import <MAP> <dir>` / `import-all <MAPS> <dir>`: `.MAP` → native. `MapDocumentTest`
+  requires every original `.MAP` to import without notes to exactly its committed `.tamap`.
+- Not built: `export <tamap> <MAP>`: native → `.MAP` (version 6, unprotected), playable by the
+  original. The importer reads only the fields the rewrite uses (for a tank about 15 of its roughly
+  480 bytes), so an export that writes only those may not be enough for the original. Options:
+  keep each imported object's original 696-byte record (about 2.8 MB of extra data in the files),
+  write only modelled fields and verify in DOSBox, or store per object only the bytes an export from
+  modelled fields gets wrong. To be decided before the editor needs export (phase 4).
 
 ## Consequences
 
@@ -102,6 +114,8 @@ Sparse lists are used where they fit: the goal, bonus and men layers.
   `MAPS/*.MAP` stays in the repository as the original release and as round-trip test input.
 - `.MAP` import is a permanent feature (players can bring maps from their old install); it is no
   longer how shipped content is produced.
-- The scene/sidecar files, `CanonicalSceneBuilder`, `LegacyToSceneJson`, the canonical intermediate
-  and the Kubriko serialization registry are removed; tests build fixtures as native map documents.
-- `SCENE_SCHEMA_VERSION` is replaced by the file's `format` number.
+- The scene/sidecar files, `ShippedScenes`, `LegacyToSceneJson`, `LegacyMapImporter`, the
+  `scene`/`scene-all` commands, the Kubriko serialization registry and `Wall` are removed. The
+  canonical intermediate and `CanonicalSceneBuilder` remain as the importer's object mapping and for
+  test fixtures (`Match.fromCanonicalMap`).
+- `SCENE_SCHEMA_VERSION` is replaced by the file's `format` number (`MAP_FORMAT_VERSION`).

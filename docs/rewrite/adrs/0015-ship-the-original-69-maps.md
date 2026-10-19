@@ -13,8 +13,8 @@ code chains differ from what players of the original know.
 ## Decision
 
 - The game offers exactly the 69 original maps, including `SELECT.MAP` (the tank selection arena).
-- The 53 extra maps live in `MAPS/extra/` with a README. `tools-mapconv scene-all` reads only the top
-  level of `MAPS/`, so they are not converted. Moving one back and re-running `scene-all` makes it
+- The 53 extra maps live in `MAPS/extra/` with a README. `tools-mapconv import-all` reads only the
+  top level of `MAPS/`, so they are not converted. Moving one back and re-running `import-all` makes it
   playable again.
 - Parity is judged against these 69 maps only.
 

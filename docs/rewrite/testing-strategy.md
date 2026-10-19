@@ -20,7 +20,7 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## What exists (2026-10-19)
 
-`./kotlin test` runs 293 tests, all green: 222 in `:game-server`, 62 in `:game-client`, 9 in
+`./kotlin test` runs 291 tests, all green: 220 in `:game-server`, 62 in `:game-client`, 9 in
 `:game-content`. `:game-protocol` and `:tools-mapconv` have none.
 
 ### Continuous integration
@@ -56,12 +56,12 @@ shortcuts where real projectiles reach the same state within about 1,000 ticks.
 
 ### Content tests
 
-- `AllShippedMapsImportCleanTest`: every `.MAP` in `MAPS/` imports with no notes. (It silently
-  skips maps the parser rejects; it should fail instead.)
+- `MapDocumentTest` (`sim.map`): every `.MAP` of the original release imports without notes to exactly
+  its committed `.tamap` (so an importer change without `import-all` fails); every shipped map reads
+  back to the same text and objects; a wrong legend name or a newer format is refused.
 - `ShippedSceneMatchTest` (17 tests): the index lists every scene; facts about BEGIN1, BEGIN2 and
   other shipped maps (spawns, terrain, goal counter wins and losses, player-vs-player pads, groups).
-- `SceneJsonBootstrapTest`, `TankArenaSceneRoundTripTest`: every generated pair is well-formed and
-  round-trips.
+- `TankArenaSceneRoundTripTest`: object states round-trip through their type ids.
 - `LegacySpriteResourcesTest` (`:game-content`): the extracted pictures resolve.
 
 ### Recorded playthroughs
@@ -140,9 +140,8 @@ In order of value:
    `TANKARENA_AUTOSTART=begin1 TANKARENA_QUIT_AFTER=10`; assert it ran, logged no exception and drew
    a mostly non-black frame. The packaging smoke test (`HeadlessException` without a display) covers
    only class loading.
-4. **Map round trips** ([ADR 0022](adrs/0022-native-map-format.md)): `.MAP` → native → `.MAP` → native
-   identical for every shipped map. Until the native format lands, a scene-freshness test (regenerate
-   into a temporary folder and compare) catches importer changes without regeneration.
+4. **Map round trips through `.MAP`** once export exists ([ADR 0022](adrs/0022-native-map-format.md)):
+   `.MAP` → native → `.MAP` → native identical for every shipped map.
 5. **Divergence reporting for recordings:** store a hash of the snapshot every N ticks in the recording
    so a failing replay names the first tick that differs, instead of only "different result".
 6. **More reference renders:** each object family, effects mid-animation; DOSBox captures of the

@@ -11,7 +11,7 @@ rules ported from the C source, its screen layout, pictures, fonts, night lighti
 and it ships as self-contained Linux and Windows packages. What is left for full parity: the map
 editor (largely missing), supermarket mayhem, conveyors and rotating platforms, debris, terrain
 effects, the original's in-game keys, controls setup and command-line switches, and a list of smaller
-rule differences. Since 2026-10-19 it is plain Kotlin and Compose, with no game engine. All 293
+rule differences. Since 2026-10-19 it is plain Kotlin and Compose, with no game engine. All 291
 automated tests pass, including six recorded playthroughs, a boot test of
 every map in every mode and eight reference renders; CI is set up on GitHub Actions.
 
@@ -31,12 +31,12 @@ The [roadmap](rewrite/roadmap.md) orders that work.
 | Shell: intro, menus, codes, options, help | Done; in-game keys, controls setup, switches missing | [parity.md → Shell](rewrite/parity.md#shell-and-meta-game) |
 | Map editor | Mostly missing | [parity.md → Map editor](rewrite/parity.md#map-editor) |
 | Assets | All runtime assets converted and bundled | [assets.md](rewrite/assets.md) |
-| Content | 69 maps imported without notes | [content-format.md](rewrite/content-format.md) |
-| Tests | 293 green (server 222, client 62, content 9); 6 recordings; every map boots; 8 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
+| Content | 69 maps as `.tamap` (2.3 MB), imported from `.MAP` without notes | [content-format.md](rewrite/content-format.md) |
+| Tests | 291 green (server 220, client 62, content 9); 6 recordings; every map boots; 8 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
 | Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](rewrite/build.md), [ADR 0017](rewrite/adrs/0017-desktop-packaging.md) |
 | CI | GitHub Actions on every push (green), nightly idle scan and tick benchmark | [testing-strategy.md](rewrite/testing-strategy.md#continuous-integration) |
 
-Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 7, `SCENE_SCHEMA_VERSION` 1.
+Versions: `GAME_RULES_VERSION` 11, `PROTOCOL_VERSION` 8, `MAP_FORMAT_VERSION` 1.
 
 ## Open decisions
 
@@ -54,8 +54,8 @@ The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
 2. **Phase 1, plain-Kotlin core:** done on 2026-10-19 — no module uses Kubriko any more, the game
    draws itself, and every recording and reference render is unchanged
    ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)).
-3. **Phase 2, native map format** with `.MAP` import and export
-   ([ADR 0022](rewrite/adrs/0022-native-map-format.md)).
+3. **Phase 2, native map format:** the 69 maps are readable `.tamap` files and the game loads only
+   those; `.MAP` export is open ([ADR 0022](rewrite/adrs/0022-native-map-format.md)).
 4. Then, side by side: Classic parity (starting with rules that run per legacy step, about 3× too
    fast today), the in-game editor, and the Classic/Extended rulesets.
 
@@ -67,7 +67,7 @@ The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
   exclusions.
 - [`rewrite/roadmap.md`](rewrite/roadmap.md) — phases from today to the Classic and Extended goals.
 - [`rewrite/adrs/`](rewrite/adrs/README.md) — decisions 0001–0027.
-- [`rewrite/content-format.md`](rewrite/content-format.md) — map files and the importer.
+- [`rewrite/content-format.md`](rewrite/content-format.md) — the `.tamap` map format and the importer.
 - [`rewrite/assets.md`](rewrite/assets.md) — every original asset and its converted form;
   `tools-mapconv`.
 - [`rewrite/build.md`](rewrite/build.md) — building, running, packaging.

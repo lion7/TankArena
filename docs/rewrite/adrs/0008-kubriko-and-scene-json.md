@@ -1,8 +1,8 @@
 # ADR 0008: Kubriko Dependency and Scene JSON Map Format
 
 - **Status:** Superseded on 2026-10-19: Kubriko is removed ([ADR 0019](0019-plain-kotlin-no-kubriko.md))
-  and maps move to a native format ([ADR 0022](0022-native-map-format.md)). This describes the format
-  in use until that migration lands.
+  and maps moved to the native `.tamap` format ([ADR 0022](0022-native-map-format.md)), which
+  replaced the scene and sidecar files on 2026-10-19. Kept for the record.
 
 ## Context
 

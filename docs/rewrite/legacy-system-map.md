@@ -42,7 +42,7 @@ rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-server/src
 | `menu.c`, `prompt.c`, `title.c` | `client/ui/compose/menu/` |
 | `single.c`, `dualvc.c`, `listcod.c`, `passwd.c` | `MissionCodes`, `MissionGate`, `PasswordStore`; `server/MatchSetup.kt` |
 | `dual.c`, `seltank.c`, `sellist.c` | `DualMatch`, `TankSelectScreen`, map prompt; `server/DualRules.kt` |
-| `mapfiles.c` (load/save maps, map-type rules) | importer (`content/legacy/LegacyMapParser.kt`, `server/legacy/`), `MissionCatalog` filters |
+| `mapfiles.c` (load/save maps, map-type rules) | `.MAP` import (`content/legacy/LegacyMapParser.kt`, `sim/legacy/`, `sim/map/LegacyMapImport.kt`), `MissionCatalog` filters; native maps in `sim/map/` |
 | `init.c` (pictures, night pictures) | `tools-mapconv` extractors; `NightLighting`, `NightHud` |
 | `night.c` | `client/render/NightLighting.kt` |
 | `radar.c` | `HudOverlay` radar; contacts from `Match.buildRadar` |

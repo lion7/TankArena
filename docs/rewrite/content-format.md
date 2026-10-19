@@ -1,111 +1,130 @@
 # Content Format
 
-How a map is stored and loaded in the rewrite **today**; the planned native format is
-[ADR 0022](adrs/0022-native-map-format.md). Where the files come from and every other asset are
-in [assets.md](assets.md). The original `.MAP` format is in
-[`docs/game/map-format.md`](../game/map-format.md).
+How a map is stored and loaded in the rewrite: the native `.tamap` format of
+[ADR 0022](adrs/0022-native-map-format.md). Where the files come from and every other asset are in
+[assets.md](assets.md); the original `.MAP` format is in [`docs/game/map-format.md`](../game/map-format.md).
 
-## A map is two files
+## One file per map
 
-Each shipped map is a pair in `game-content/resources/scenes/`, listed in `index.txt` (69 entries,
-one per map of the original release, including `select`, the tank selection arena):
+The shipped maps are `game-content/resources/maps/<name>.tamap`, listed in `index.txt` (69 entries,
+one per map of the original release, including `select`, the tank selection arena). `<name>` is the
+`.MAP` file name in lower case, with characters other than `a-z0-9_-` replaced by `_` (for example
+`3_vs_3.tamap`). All 69 maps take 2.3 MB.
 
-| File | Contents | Read by |
-|---|---|---|
-| `scene_<name>.json` | Scene JSON: the map's objects | `SceneFile` (game-server) |
-| `metadata_<name>.json` | `MapSceneSidecar`: header, mission texts, tile layers | `ShippedScenes` (kotlinx.serialization) |
+A `.tamap` file is UTF-8 JSON, written so that people can read and diff it: one map row per line,
+short records on one line. Top-level fields, in file order:
 
-`<name>` is the `.MAP` file name in lower case, with characters other than `a-z0-9_-` replaced by `_`
-(for example `metadata_3_vs_3.json`).
+| Field | Contents |
+|---|---|
+| `format` | Format version (1); omitted while it is the current one. Newer files are refused. |
+| `header` | `name`, `size` [width, height] in tiles, `code`, `next`, `world`, `night`, `type`, `contents`, `publicCode`, `randomBonus`, `legacyVersion` |
+| `texts` | `briefing`, `success`, `failure` |
+| `legend` | Two-character code → `[picture index, "NAME"]` in the world's picture table |
+| `floor`, `solid`, `top` | The three picture layers (legacy `mapm.m[0..2]`): one string per row, two characters per cell, `..` for none |
+| `goals` | `{"at": [x, y], "share": n}` for every cell whose building has a goal-counter share (signed) |
+| `bonuses` | `{"at": [x, y], "bonus": n}` for every cell with a bonus |
+| `men` | `{"at": [x, y], "type": n, "count": n}`: paratroopers in a building |
+| `objects` | The map objects, in file order |
 
-### Scene file
+Fields with their default value are left out (for example `night: false`).
 
-A JSON list of `{typeId, state}` entries. Each `state` is the `State` data class of a server map
-object (`map object.State`). Type ids and their counts over the 69 shipped maps on 2026-10-19:
+### Legend and rows
 
-| `typeId` | Server class | Count | Notes |
+Each picture a map uses gets a code when it first appears. The first character tells the kind of tile,
+so the rows read like a sketch of the map:
+
+| Letter | Tiles | Letter | Tiles |
 |---|---|---|---|
-| `tankArenaTank` | `Tank` | 718 | Map tanks and start pads (`startPadType`, `padAmmo`) |
-| `tankArenaTurret` | `Turret` | 672 | |
-| `tankArenaMine` | `Mine` | 1252 | Authored mines |
-| `tankArenaTrain` | `Train` | 244 | Engines and wagons with their rail state |
-| `tankArenaLock` | `Lock` | 148 | |
-| `tankArenaProduct` | `Product` | 84 | |
-| `tankArenaWarp` | `Warp` | 70 | |
-| `tankArenaFlag` | `Flag` | 42 | |
-| `tankArenaGoal` | `Goal` | 36 | |
-| `tankArenaB52` | `B52` | 6 | |
-| `tankArenaDestroyer` | `Destroyer` | 2 | |
-| `tankArenaWall` | `Wall` | 40,263 | Editor only; dropped when a match starts |
+| `g` | plain ground | `p` | pits |
+| `h` | buildings (destructible) | `j` | ramps |
+| `#` | indestructible structures | `c` | conveyors, turntables |
+| `r` | roads, runways | `f` | force fields |
+| `=` | rails | `x` | warps |
+| `w` | water | `k` | race checkpoints, start |
+| `b` | bridges | `s` | shelters |
+| `l` | lava | `d` | fuel dumps |
+| `o` | oil | `a` | A-bomb boxes |
+| `t` | bushes, trees | `n` | barriers and walls |
+| `i` | lamps | `e` | helipads |
 
-Enforcer and zeppelin types exist but no shipped map uses them. Placed men and bonuses are parsed
-by the importer but not written (none of the 69 maps has them as objects; men and bonuses come from
-the tile layers). Rockets, A-bombs and mortars are runtime-only, as in the original's `load_map()`.
+The second character counts up (`1`–`9`, `a`–`z`, `A`–`Z`); when a kind runs out, the upper-case
+letter and then other free characters are used. The legend keeps the picture index because the same
+picture appears at several indices with different properties; the name is checked against the index
+when the file is read.
 
-All positions are object centres in pixels (the original stores top-left corners; the importer adds
-16). Tiles are 33 pixels (`LEGACY_TILE_SIZE`).
+### Objects
 
-### Sidecar (`MapSceneSidecar`, schema version 1)
+Each object is a record whose `type` is one of `tank` (map tanks and start pads), `turret`, `mine`,
+`train` (engines and wagons), `lock`, `product`, `warp`, `flag`, `goal`, `b52`, `destroyer`,
+`enforcer` and `zeppelin`. `at` is the object's top-left corner in pixels and `size` its box (left out
+for mines, which have none). The other fields are the object's own, by name (for a tank: `tankType`,
+`armor`, `ammo`, `power`, `controllerId`, `computer`, the `ai*` fields, `wayPoints`, …); fields with
+default values are left out.
 
-```text
-MapSceneSidecar
-  schemaVersion          1 (SCENE_SCHEMA_VERSION); newer files are rejected
-  metadata: MapMetadata
-    name, widthTiles, heightTiles
-    missionCode, nextMissionCode, publicPassword
-    world (DESERT, TEMPERATE, CITY, NIGHT = legacy background 0..3), night
-    modeCompatibility (legacy map_type), mapContents (MAPC_* bits)
-    randomBonus, legacyMapVersion
-  missionText: briefing, success, failure
-  tileLayers: base, solid, top          picture index per tile, -1 = none (legacy mapm.m[0..2])
-              goalLayer                 signed -100..100 (legacy mapm.g)
-              bonusLayer                bonus per tile, -1 = none
-              manTypeLayer, manAmountLayer  paratroopers per tile (type and count)
-  importNotes            importer warnings; empty for every shipped map
+Counts over the 69 shipped maps: 1,252 mines, 718 tanks, 672 turrets, 244 train cars, 148 locks,
+84 products, 70 warps, 42 flags, 36 goals, 6 B52s, 2 destroyers; enforcers and zeppelins exist as types
+but no shipped map uses them. Rockets, A-bombs and mortars are runtime-only. Walls are not objects:
+buildings are the solid and top layers.
+
+### Example (BEGIN1, shortened)
+
+```json
+{
+  "header": { "name": "BEGIN1", "size": [12, 12], "code": "BEGIN1", "next": "BEGIN2", "world": "CITY",
+              "type": "SINGLE", "legacyVersion": 6 },
+  "legend": { "r1": [159, "WEGRB"], "r2": [147, "WEGH"], "g1": [460, "PLATFORM"], "n1": [235, "WALLLT"] },
+  "floor": [
+    "........................",
+    "..r1r2r2r2r2r2r2r2r2r3..",
+    "..r4......g1g1......r4.."
+  ],
+  "objects": [
+    { "type": "tank", "at": [184, 182], "size": [29, 29], "controllerId": 1, "computer": false,
+      "tankType": 1, "ammo": [50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "maxArmor": 30 }
+  ]
+}
 ```
-
-Layers are row-major lists of `widthTiles × heightTiles` integers.
 
 ## Loading
 
-1. The client asks `ShippedScenes.load(name)` for the pair (class path, cached).
-2. `Match.fromSceneJson` deserializes the scene's map objects, drops the wall entries,
-   builds the terrain grid (`TerrainGridBuilder`, material and speed per tile from the generated
-   picture terrain table) and the `StructureGrid` from the tile layers.
-3. The client draws the terrain from the same sidecar layers; destroyed tiles arrive as `TileState`s.
+1. `ShippedMaps` (game-server, `com.tankarena.sim.map`) reads `maps/index.txt` and each `.tamap` from
+   the class path once (`MapFile.read`).
+2. `Match.fromMap(document, mode, dual)` builds a match: `MapConversion.sidecarOf` gives the header,
+   texts and layers, `MapConversion.objectsOf` gives fresh map objects (a match changes them, so every
+   match restores its own).
+3. The terrain grid and the `StructureGrid` are built from the layers; the client draws the terrain
+   from the same layers, and destroyed tiles arrive as `TileState`s.
 
 The client never reads `.MAP` files.
 
-## Producing the files
+## Making the files
 
-`tools-mapconv scene-all <MAPS> <out>` converts every `*.MAP` at the top level of `MAPS/` (not
-`MAPS/extra/`) and rewrites `index.txt`:
-
-```text
-.MAP bytes
-  -> LegacyMapParser          (game-content)  header, 7 layers, texts, object blob
-  -> LegacyObjectParser       (game-server)   object records by type
-  -> LegacyCanonicalConverter (game-server)   CanonicalLegacyMap
-  -> CanonicalSceneBuilder    (game-server)   scene JSON (+ wall entries for the editor)
-  -> LegacyToSceneJson        (game-server)   scene JSON + MapSceneSidecar
-```
+The `.tamap` files are the source of the shipped maps ([ADR 0003](adrs/0003-legacy-map-import.md)).
+`.MAP` files are converted with:
 
 ```bash
-./kotlin run -m tools-mapconv -- scene-all "$PWD/MAPS" "$PWD/game-content/resources/scenes"
+./kotlin run -m tools-mapconv -- import <file.MAP> <out-dir>
+./kotlin run -m tools-mapconv -- import-all "$PWD/MAPS" "$PWD/game-content/resources/maps"
 ```
 
-This format is being replaced by a native, readable `.tamap` file per map with `.MAP` import and
-export ([ADR 0022](adrs/0022-native-map-format.md)); the native files then become the source
-([ADR 0003](adrs/0003-legacy-map-import.md)). Until then: after any importer change, run `scene-all`
-and commit the regenerated files together with the change.
+`import-all` converts every `*.MAP` at the top level of `MAPS/` (not `MAPS/extra/`) and writes
+`index.txt`. The importer chain: `LegacyMapParser` (game-content) → `LegacyObjectParser` and
+`LegacyCanonicalConverter` (game-server, `sim.legacy`) → `CanonicalSceneBuilder.buildActors` → map
+objects → `MapConversion.toDocument` → `MapFile.write`.
+
+`MapDocumentTest` requires every `.MAP` of the original release to import without notes to exactly
+its committed `.tamap`, so a change to the importer shows up as a failing test until `import-all` is run
+and the new files are committed. Until the in-game editor exists ([ADR 0021](adrs/0021-editor-in-the-game.md)),
+maps are changed by changing the importer or the `.MAP` file, not by hand-editing `.tamap` files.
+
+Export back to `.MAP` is not built yet (see [ADR 0022](adrs/0022-native-map-format.md)).
 
 ## Versioning
 
-- Bump `SCENE_SCHEMA_VERSION` when the sidecar layout changes incompatibly.
-- The scene file keeps the format Kubriko used to write ([ADR 0008](adrs/0008-kubriko-and-scene-json.md));
-  since 2026-10-19 `SceneFile` reads and writes it without Kubriko.
-- Both formats are replaced by the native format ([ADR 0022](adrs/0022-native-map-format.md)) when
-  Kubriko is removed ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
+- `MAP_FORMAT_VERSION` (`com.tankarena.sim.map`, 1) is bumped when the format changes incompatibly;
+  readers refuse newer files.
+- The object records follow the map objects' `State` classes (`com.tankarena.sim`); a renamed or
+  removed field needs a format bump or a migration.
 
 ## Known import gaps
 

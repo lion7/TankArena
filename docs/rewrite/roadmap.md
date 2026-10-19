@@ -64,16 +64,16 @@ Carried over:
 
 Goal: one readable file per map, and permanent `.MAP` import and export.
 
-- Map document model and `.tamap` reader/writer (kotlinx.serialization).
-- `tools-mapconv import`, `import-all` and `export`; the same converters as a library for the editor.
-- Convert the 69 maps into `game-content/resources/maps/`; drop the scene and sidecar files,
-  `CanonicalSceneBuilder`, `LegacyToSceneJson` and the canonical intermediate; tests build fixtures as
-  map documents.
-- Round-trip tests for every shipped map (`.MAP` → native → `.MAP` → native identical; exported maps
-  play the same in the rewrite); spot-check exported maps in the original under DOSBox.
-
-Depends on: phase 1 (done). Done when: the game loads only `.tamap` files and the
-round-trip tests pass for all 69 maps.
+- [x] Map document model and `.tamap` reader/writer; legend grids, sparse cells, typed object records
+      ([content-format.md](content-format.md)).
+- [x] `tools-mapconv import` and `import-all`; the 69 maps in `game-content/resources/maps/` (2.3 MB).
+- [x] The game, client and tests load `.tamap` (`ShippedMaps`, `Match.fromMap`); the scene and sidecar
+      files, `ShippedScenes`, `LegacyToSceneJson`, the `scene` commands and `Wall` are gone. Every
+      recording, reference render and boot test is unchanged.
+- [x] Tests: every original `.MAP` imports without notes to exactly its committed `.tamap`; every map
+      reads back to the same text and objects.
+- [ ] `export` to `.MAP`, round-trip tests through `.MAP`, spot checks in DOSBox — waiting for the
+      decision on how to keep the bytes the rewrite does not model (ADR 0022); needed by phase 4.
 
 ## Phase 3 — Classic parity (ongoing track)
 

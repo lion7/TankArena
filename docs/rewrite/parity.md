@@ -289,7 +289,7 @@ Open:
 ## Tooling and delivery
 
 Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
-293 automated tests; recorded-playthrough replays; every map booted in every mode; reference
+291 automated tests; recorded-playthrough replays; every map booted in every mode; reference
 renders; idle scan of every map; tick benchmark; CI on GitHub Actions.
 
 Open: more recordings (BEGIN4, more missions, player vs player) and the other items in the

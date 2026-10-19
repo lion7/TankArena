@@ -28,9 +28,9 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
                  | Match: map objects, StructureGrid, ComputerTankAi, |
                  | DualRules, mission rules  -->  WorldSnapshot + PlayerViews        |
                  +-------------------------------------------------------------------+
-                                    |  ShippedScenes (class path)
+                                    |  ShippedMaps (class path)
                  +--------------------- game-content (library) ---------------------+
-                 | scene_*.json + metadata_*.json, pictures catalog, terrain table,  |
+                 | maps/*.tamap, pictures catalog, terrain table,                    |
                  | pixel masks, sounds, music                                        |
                  +-------------------------------------------------------------------+
 ```
@@ -63,10 +63,9 @@ Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-edi
 
 ### `:game-content`
 
-- `ShippedScenes`: loads `scenes/index.txt` and the `scene_<name>.json` / `metadata_<name>.json`
-  pairs from the class path; rejects sidecars newer than `SCENE_SCHEMA_VERSION`.
-- `MapSceneSidecar`: header fields, mission texts and tile layers of a map
-  ([content-format.md](content-format.md)).
+- `resources/maps`: the 69 shipped maps as `.tamap` files and `index.txt` ([content-format.md](content-format.md)).
+- `MapSceneSidecar`: a map's header fields, mission texts and tile layers in memory (the name is a
+  leftover of the old sidecar file).
 - Generated from the C source: `GeneratedLegacyPictureCatalog` and `GeneratedLegacyPictureTerrain`
   (`src/data/pictures.c`); `PictureCatalog` and `TerrainGridBuilder` build each map's terrain grid
   (material and speed per tile).
@@ -96,8 +95,9 @@ All under `com.tankarena.sim`.
 | `MatchClient` | `MatchClient` interface and `LocalMatchClient` |
 | `MatchRecording` | Recorder, replay (`MatchReplay.play`, `replayFrames`), `GAME_RULES_VERSION` |
 | `SimulationLoop` | Runs a match's ticks at 100 per second on its own thread |
-| `SceneObjects` | `SceneObject`/`Steppable`/`Resolvable`, bodies, `SceneFile` (scene reader and writer), `MatchObjectList` |
-| `CanonicalSceneBuilder`, `LegacyToSceneJson`, `legacy/*` | The importer (tools and tests only) |
+| `SceneObjects` | `SceneObject`/`Steppable`/`Resolvable`, bodies, `SceneFile` (each object's state by type id), `MatchObjectList` |
+| `map/` | `MapDocument`/`MapFile` (the `.tamap` format), `MapConversion` (document ↔ layers and objects), `ShippedMaps` (loader), `LegacyMapImport` (`.MAP` → document) |
+| `CanonicalSceneBuilder`, `legacy/*` | The importer's object mapping (tools, tests and fixtures) |
 
 ### `:game-client`
 
@@ -129,11 +129,11 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
 
 1. **Choose.** The shell picks a mission (by code, [ADR 0015](adrs/0015-ship-the-original-69-maps.md)
    for which maps exist) or, in player vs player, a map and each player's vehicle on the tank selection
-   screen (which itself runs `scene_select` as a live match).
-2. **Create.** `LocalMatchClient.fromSceneJson(scene, sidecar, mode, dual, recordAs)` calls
-   `Match.fromSceneJson`: `SceneFile` reads the scene's map objects, wall
-   objects are dropped, `MatchSetup.assignControl` gives tanks to players per mode, and the terrain
-   grid and `StructureGrid` are built from the sidecar. `initialize()` assigns `actorId`s, start
+   screen (which itself runs `select.tamap` as a live match).
+2. **Create.** `LocalMatchClient.fromMap(document, mode, recordAs, dual)` calls `Match.fromMap`:
+   `MapConversion` restores fresh map objects and the layers from the `.tamap` document,
+   `MatchSetup.assignControl` gives tanks to players per mode, and the terrain grid and
+   `StructureGrid` are built from the layers. `initialize()` assigns `actorId`s, start
    shields, `DualRules`, trains, B52s, locks, fallen turrets and bonuses.
 3. **Run.** `SimulationLoop` calls the gameplay step 100 times per second
    ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)): submit each player's `InputFrame`, then
@@ -169,8 +169,8 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
 
 | Constant | Value | Where | Checked |
 |---|---|---|---|
-| `PROTOCOL_VERSION` | 7 | `game-protocol/.../snapshot/WorldSnapshot.kt` | `decodeWorldSnapshot` (tests only today) |
-| `SCENE_SCHEMA_VERSION` | 1 | `game-content/.../MapSceneSidecar.kt` | `ShippedScenes` rejects newer sidecars |
+| `PROTOCOL_VERSION` | 8 | `game-protocol/.../snapshot/WorldSnapshot.kt` | `decodeWorldSnapshot` (tests only today) |
+| `MAP_FORMAT_VERSION` | 1 | `game-server/.../sim/map/MapDocument.kt` | `MapFile.read` refuses newer maps |
 | `GAME_RULES_VERSION` | 11 | `game-server/.../MatchRecording.kt` | `RecordedPlaythroughTest` requires equality |
 
 ## Threads
@@ -199,11 +199,9 @@ are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 
 - `Tank.kt` is 1,760 lines; vehicle movement, weapons and damage could be split like `Match` was.
   The subsystems in the `Match*.kt` files still share `Match`'s state (made `internal` for them).
-- `Wall` and `CanonicalSceneBuilder`'s wall entries exist only because the scene files still contain
-  wall entries; both go with the native map format ([ADR 0022](adrs/0022-native-map-format.md)).
 - `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests
-  depend on the importer; with the native format they build map documents instead
-  ([ADR 0022](adrs/0022-native-map-format.md)).
+  depend on the importer's intermediate; they could build map documents instead.
+- `MapSceneSidecar` still carries its old name; `MapInfo` would say what it is.
 
 ## Target architecture
 

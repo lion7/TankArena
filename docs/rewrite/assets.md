@@ -39,7 +39,7 @@ content reaches the rewrite through `PICTURES.DAT`.
 
 | Original | In the rewrite | Made by |
 |---|---|---|
-| `MAPS/*.MAP` (69, incl. `SELECT.MAP`) | `game-content/resources/scenes/` scene + sidecar pairs and `index.txt` | `scene-all` ([content-format.md](content-format.md)) |
+| `MAPS/*.MAP` (69, incl. `SELECT.MAP`) | `game-content/resources/maps/*.tamap` and `index.txt` | `import-all` ([content-format.md](content-format.md)) |
 | `MAPS/*.0`, `*.1`, `*.2` (mission text sources) | — | Not needed: the texts are embedded in each `.MAP` and imported from there |
 | `MAPS/extra/` (53 maps not in the release) | — | Deliberately not converted ([ADR 0015](adrs/0015-ship-the-original-69-maps.md)) |
 
@@ -72,8 +72,8 @@ All converters run through `:tools-mapconv`:
 
 | Subcommand | Reads | Writes |
 |---|---|---|
-| `scene <MAP> <dir>` | One `.MAP` | Its scene and sidecar |
-| `scene-all <MAPS> <dir>` | Every `*.MAP` at the top of `MAPS/` | All pairs and `index.txt` |
+| `import <MAP> <dir>` | One `.MAP` | Its `.tamap` |
+| `import-all <MAPS> <dir>` | Every `*.MAP` at the top of `MAPS/` | All `.tamap` files and `index.txt` |
 | `map <MAP> <json>` | One `.MAP` | The importer's intermediate JSON (debugging) |
 | `extract-pictures-png <DATA> <drawable> <catalog.kt> <pictures.c>` | `PICTURES.DAT/IDX`, `PALETTE.DAT` | PNGs and the picture catalog |
 | `extract-pictures <pictures.c> <kt>` | `src/data/pictures.c` | The picture catalog only |

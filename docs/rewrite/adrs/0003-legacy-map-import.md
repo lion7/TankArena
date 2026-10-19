@@ -12,7 +12,7 @@
 The original ships its maps as binary `.MAP` files (format in
 [`docs/game/map-format.md`](../../game/map-format.md)). The rewrite plays converted files, currently
 a Kubriko scene JSON plus a `MapSceneSidecar` ([content format](../content-format.md)), regenerated
-from `MAPS/*.MAP` by `tools-mapconv scene-all`.
+from `MAPS/*.MAP` by `tools-mapconv scene-all` (until 2026-10-19).
 
 The 2026-05 decision treated the importer as transitional and planned to delete it. In practice it
 was re-run in most gameplay commits since 2026-09, because every faithfully ported rule needed a field
@@ -37,8 +37,9 @@ next regeneration.
   from their own installation, and maps made in the rewrite can be played in the original.
 - `MAPS/*.MAP` (the 69 originals) and `MAPS/extra/` stay in the repository as the original release and
   as test input for round-trip tests; they are no longer converted as part of the build.
-- Until the native format lands, the current rule holds: after any importer change, run `scene-all`
-  and commit the regenerated files with it.
+- Done on 2026-10-19: the 69 maps are `.tamap` files; the scene files are gone. Until the editor exists,
+  an importer change is followed by `import-all` and a commit of the regenerated maps (a test enforces
+  it). Export to `.MAP` is still to be built (ADR 0022).
 
 ## Consequences
 

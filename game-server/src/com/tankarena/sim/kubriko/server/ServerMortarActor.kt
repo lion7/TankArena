@@ -1,13 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.actor.traits.Dynamic
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.CircleCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializablePointBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -16,16 +8,10 @@ internal const val MORTAR_TRAVEL_TICKS: Int = 160
 internal const val MORTAR_MIN_RADIUS_PX: Int = 5
 internal const val MORTAR_MAX_RADIUS_PX: Int = 60
 
-class ServerMortarActor internal constructor(state: State) :
-    Collidable,
-    Dynamic,
-    Serializable<ServerMortarActor> {
+class ServerMortarActor internal constructor(state: State) : Steppable,
+    SceneObject<ServerMortarActor>, Placed {
 
     override val body: PointBody = state.body
-    override val collisionMask: CircleCollisionMask = CircleCollisionMask(
-        initialPosition = body.position,
-        initialRadius = 2f.sceneUnit,
-    )
 
     val ownerActorId: Long = state.ownerActorId
     val damage: Int = state.damage
@@ -33,9 +19,9 @@ class ServerMortarActor internal constructor(state: State) :
     /** Legacy HT_PLANEBOMB: the height a plane dropped this bomb from; 0 for a mortar shell. */
     val dropHeight: Int = state.dropHeight
 
-    var positionX: Float = body.position.x.raw
+    var positionX: Float = body.position.x
         private set
-    var positionY: Float = body.position.y.raw
+    var positionY: Float = body.position.y
         private set
     var velocityX: Float = state.velocityX
         private set
@@ -54,9 +40,8 @@ class ServerMortarActor internal constructor(state: State) :
         // The shell flies in a straight line over walls; the lob arc is only drawn.
         positionX += velocityX
         positionY += velocityY
-        val offset = SceneOffset(positionX.sceneUnit, positionY.sceneUnit)
+        val offset = ScenePoint(positionX.toFloat(), positionY.toFloat())
         body.position = offset
-        collisionMask.position = offset
         travelTicksRemaining -= 1
         if (travelTicksRemaining <= 0) detonate()
     }
@@ -97,7 +82,7 @@ class ServerMortarActor internal constructor(state: State) :
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializablePointBody = PointBody(),
+        @SerialName("body") val body: PointBody = PointBody(),
         @SerialName("ownerActorId") val ownerActorId: Long = 0L,
         @SerialName("damage") val damage: Int = 0,
         @SerialName("maxRadius") val maxRadius: Int = MORTAR_MAX_RADIUS_PX,
@@ -105,7 +90,7 @@ class ServerMortarActor internal constructor(state: State) :
         @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("travelTicksRemaining") val travelTicksRemaining: Int = MORTAR_TRAVEL_TICKS,
         @SerialName("dropHeight") val dropHeight: Int = 0,
-    ) : Serializable.State<ServerMortarActor> {
+    ) : SceneObject.State<ServerMortarActor> {
         override fun restore(): ServerMortarActor = ServerMortarActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

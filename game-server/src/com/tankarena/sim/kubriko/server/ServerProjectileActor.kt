@@ -1,13 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.actor.traits.Dynamic
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.CircleCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializablePointBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
@@ -17,17 +9,10 @@ private const val PROJECTILE_RADIUS_PX: Float = 1.5f
 /** Legacy `b->safety = 4` after a bounce off a force field. */
 private const val FIELD_SAFETY_PX: Float = 4f
 
-class ServerProjectileActor internal constructor(state: State) :
-    Collidable,
-    Dynamic,
-    Serializable<ServerProjectileActor> {
+class ServerProjectileActor internal constructor(state: State) : Steppable,
+    SceneObject<ServerProjectileActor>, Placed {
 
     override val body: PointBody = state.body
-    override val collisionMask: CircleCollisionMask = CircleCollisionMask(
-        initialPosition = body.position,
-        initialRadius = PROJECTILE_RADIUS_PX.sceneUnit,
-    )
-    override val isAlwaysActive: Boolean = true
 
 
     val ownerActorId: Long = state.ownerActorId
@@ -40,8 +25,8 @@ class ServerProjectileActor internal constructor(state: State) :
     var velocityY: Float = state.velocityY
         private set
 
-    private var exactX: Float = body.position.x.raw
-    private var exactY: Float = body.position.y.raw
+    private var exactX: Float = body.position.x
+    private var exactY: Float = body.position.y
     var positionX: Int = exactX.toInt()
         private set
     var positionY: Int = exactY.toInt()
@@ -58,7 +43,7 @@ class ServerProjectileActor internal constructor(state: State) :
 
     private var trailCooldownTicks: Int = 0
     private var pendingTrail: Pair<Int, Int>? = null
-    private val trailRandom = kotlin.random.Random(state.ownerActorId * 31 + state.body.position.x.raw.toLong())
+    private val trailRandom = kotlin.random.Random(state.ownerActorId * 31 + state.body.position.x.toLong())
 
     /** Where a small rocket left a puff of exhaust this tick, if it did. */
     fun drainTrail(): Pair<Int, Int>? = pendingTrail.also { pendingTrail = null }
@@ -201,14 +186,13 @@ class ServerProjectileActor internal constructor(state: State) :
     }
 
     private fun syncBody() {
-        val offset = SceneOffset(positionX.toFloat().sceneUnit, positionY.toFloat().sceneUnit)
+        val offset = ScenePoint(positionX.toFloat().toFloat(), positionY.toFloat().toFloat())
         body.position = offset
-        collisionMask.position = offset
     }
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializablePointBody = PointBody(),
+        @SerialName("body") val body: PointBody = PointBody(),
         @SerialName("ownerActorId") val ownerActorId: Long = 0L,
         @SerialName("ownerKind") val ownerKind: ProjectileOwnerKind = ProjectileOwnerKind.TANK,
         @SerialName("damage") val damage: Int = 0,
@@ -217,7 +201,7 @@ class ServerProjectileActor internal constructor(state: State) :
         @SerialName("ttlTicks") val ttlTicks: Int = PROJECTILE_TTL_TICKS,
         @SerialName("weaponKind") val weaponKind: Int = WEAPON_MAIN,
         @SerialName("safetyPx") val safetyPx: Int = 0,
-    ) : Serializable.State<ServerProjectileActor> {
+    ) : SceneObject.State<ServerProjectileActor> {
         override fun restore(): ServerProjectileActor = ServerProjectileActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

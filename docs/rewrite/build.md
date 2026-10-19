@@ -15,15 +15,14 @@ wrappers ([ADR 0016](adrs/0016-kotlin-toolchain-build.md)). There is no Gradle b
 - Build output: `build/` (override with `--build-dir` or `KOTLIN_TOOLCHAIN_BUILD_DIR`).
 
 Products: `:game-protocol`, `:game-content` and `:game-server` are `kmp/lib` with
-`platforms: [jvm]`; `:game-client`, `:game-editor` and `:tools-mapconv` are `jvm/app`
-(main classes `com.tankarena.app.desktop.MainKt`, `com.tankarena.app.editor.MainKt`,
-`com.tankarena.tools.mapconv.MainKt`).
+`platforms: [jvm]`; `:game-client` and `:tools-mapconv` are `jvm/app` (main classes
+`com.tankarena.app.desktop.MainKt` and `com.tankarena.tools.mapconv.MainKt`).
 
 ## Versions
 
 Kotlin, Compose Multiplatform, kotlinx.serialization and the JDK are not pinned in the module files;
 they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, kotlinx.serialization
-1.11.0, JDK 25. Explicit versions: Kubriko 0.7.3 and `org.jetbrains.compose.material3:material3`
+1.11.0, JDK 25. Explicit versions: Kubriko 0.7.3 (client only, until phase 1 removes it) and `org.jetbrains.compose.material3:material3`
 1.12.0-alpha03 (there is no 1.12.1 release of it).
 
 ```bash
@@ -34,10 +33,9 @@ they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, k
 
 ```bash
 ./kotlin build                           # all modules
-./kotlin test                            # all tests (297 on 2026-10-19)
+./kotlin test                            # all tests (293 on 2026-10-19)
 ./kotlin test -m game-server             # one module
 ./kotlin run -m game-client              # the game (opens a window)
-./kotlin run -m game-editor              # the map editor
 ./kotlin run -m tools-mapconv -- <subcommand> <args>
 ```
 

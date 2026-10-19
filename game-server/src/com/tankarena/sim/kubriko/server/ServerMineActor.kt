@@ -1,37 +1,23 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.actor.traits.Dynamic
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.CircleCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializablePointBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 internal const val MINE_ACTIVATION_TICKS: Int = 100
 internal const val LIGHT_MINE_RADIUS_PX: Int = 30
 
-class ServerMineActor internal constructor(state: State) :
-    Collidable,
-    Dynamic,
-    Serializable<ServerMineActor> {
+class ServerMineActor internal constructor(state: State) : Steppable,
+    SceneObject<ServerMineActor>, Placed {
 
     override val body: PointBody = state.body
-    override val collisionMask: CircleCollisionMask = CircleCollisionMask(
-        initialPosition = body.position,
-        initialRadius = state.radius.toFloat().sceneUnit,
-    )
 
     val ownerActorId: Long = state.ownerActorId
     val damage: Int = state.damage
     val radius: Int = state.radius
 
-    var positionX: Int = body.position.x.raw.toInt()
+    var positionX: Int = body.position.x.toInt()
         private set
-    var positionY: Int = body.position.y.raw.toInt()
+    var positionY: Int = body.position.y.toInt()
         private set
     var activationTicksRemaining: Int = state.activationTicksRemaining
         private set
@@ -76,12 +62,12 @@ class ServerMineActor internal constructor(state: State) :
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializablePointBody = PointBody(),
+        @SerialName("body") val body: PointBody = PointBody(),
         @SerialName("ownerActorId") val ownerActorId: Long = 0L,
         @SerialName("damage") val damage: Int = 0,
         @SerialName("radius") val radius: Int = LIGHT_MINE_RADIUS_PX,
         @SerialName("activationTicksRemaining") val activationTicksRemaining: Int = MINE_ACTIVATION_TICKS,
-    ) : Serializable.State<ServerMineActor> {
+    ) : SceneObject.State<ServerMineActor> {
         override fun restore(): ServerMineActor = ServerMineActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

@@ -40,6 +40,9 @@ Done when: CI is green with at least eight recordings and the reference renders 
 
 Goal: the same game, with no Kubriko anywhere and a simulation that can run on any platform.
 
+0. **Done 2026-10-19:** Kubriko removed from `:game-server` and `:tools-mapconv` — `MatchObjectList`
+   updates objects in the order Kubriko did, `SceneFile` reads and writes the same scene JSON (all 69
+   scenes regenerate byte for byte), every recording replays unchanged; `:game-editor` deleted.
 1. **Simulation:** extract `World` and `step()` from `ServerMatchPrototype`; map objects become plain
    classes; split the tick into systems in the original's order; deterministic maths helper; add the
    legacy-step hook ([ADR 0002](adrs/0002-fixed-step-100hz.md)) without moving any rule into it yet.

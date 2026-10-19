@@ -23,8 +23,9 @@ drifted apart.
   objects (bonuses, soldiers, A-bombs) and the structure tiles that changed. The client keeps one
   render actor per stable `actorId` (`ClientScene.sync`).
 
-## How the server uses Kubriko today
+## How the server used Kubriko (until 2026-10-19)
 
+Removed on 2026-10-19 (phase 1, [ADR 0019](0019-plain-kotlin-no-kubriko.md)); kept for the record.
 The 2026-04 version of this ADR said the match is a headless Kubriko instance whose managers do the
 work. That is no longer true:
 

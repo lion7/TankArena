@@ -1,6 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.serialization.SerializableMetadata
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.ShippedScenes
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
@@ -16,10 +15,7 @@ object LegacyToSceneJson {
     data class Output(val sceneJson: String, val sidecarJson: String)
 
     fun convert(map: CanonicalMapDefinition): Output {
-        val serializationManager = SerializableMetadata.newSerializationManagerInstance(
-            *tankArenaSerializableMetadata,
-        )
-        val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManager)
+        val sceneJson = CanonicalSceneBuilder.buildSceneJson(map)
         val sidecar = MapSceneSidecar(
             metadata = map.metadata,
             missionText = map.missionText,

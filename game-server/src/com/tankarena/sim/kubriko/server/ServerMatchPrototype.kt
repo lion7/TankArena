@@ -1,17 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.Kubriko
-import com.pandulapeter.kubriko.actor.Actor
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.collision.CollisionManager
-import com.pandulapeter.kubriko.helpers.ManualTickSource
-import com.pandulapeter.kubriko.helpers.TickSource
-import com.pandulapeter.kubriko.helpers.extensions.get
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.manager.ActorManager
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.SerializableMetadata
-import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.MapSceneSidecar
@@ -56,13 +44,8 @@ import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.TurretState
 import com.tankarena.protocol.snapshot.WallState
 import com.tankarena.protocol.snapshot.WorldSnapshot
-import com.tankarena.sim.kubriko.TerrainSlideManager
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 
-private const val MILLIS_PER_TICK: Int = 10
 /** Legacy nearest_target(): a rocket locks onto anything within 15 px of the marker. */
 private const val ROCKET_TARGET_RADIUS_PX: Int = 15
 /** Legacy create_mortar(): each growth step of the blast hits structures for 5. */
@@ -105,7 +88,7 @@ private const val B52_FOOTPRINT: Int = 32
 
 class ServerMatchPrototype private constructor(
     private val mapMetadata: MapMetadata,
-    private val initialActors: List<Serializable<*>>,
+    private val initialActors: List<SceneObject<*>>,
     private val terrainGrid: TerrainGrid,
     /** The map's buildings: strengths, ruins and the pixel masks tanks and bullets collide with. */
     internal val structures: StructureGrid,
@@ -118,24 +101,10 @@ class ServerMatchPrototype private constructor(
     val dual: DualSetup = DualSetup(),
 ) {
 
-    private val tickSource: ManualTickSource = TickSource.manual()
-    private val serializationManager = SerializableMetadata.newSerializationManagerInstance(
-        *tankArenaSerializableMetadata,
-    )
     private val worldWidthPixels: Int = mapMetadata.widthTiles * LEGACY_TILE_SIZE
     private val worldHeightPixels: Int = mapMetadata.heightTiles * LEGACY_TILE_SIZE
-    private val kubriko: Kubriko = Kubriko.newInstance(
-        ActorManager.newInstance(
-            initialActors = initialActors,
-            shouldPutFarAwayActorsToSleep = false,
-        ),
-        CollisionManager.newInstance(),
-        serializationManager,
-        TerrainSlideManager(worldWidthPixels, worldHeightPixels),
-        tickSource = tickSource,
-    )
-    private val actorManager: ActorManager = kubriko.get()
-    private val actorIds: MutableMap<Actor, Long> = IdentityHashMap()
+    private val objects = MatchObjectList(initialActors)
+    private val actorIds: MutableMap<SceneObject<*>, Long> = IdentityHashMap()
     private val tanksByPlayerIndex: MutableMap<Int, ServerTankActor> = HashMap()
     /** Tanks are never spawned or removed after [initialize], so this list is stable for the match. */
     private var allTanks: List<ServerTankActor> = emptyList()
@@ -178,14 +147,13 @@ class ServerMatchPrototype private constructor(
     val missionCode: String get() = mapMetadata.missionCode
 
     fun initialize() {
-        tickSource.start()
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             actorIds.getOrPut(actor) { nextActorId++ }
             if (actor is ServerTankActor && actor.playerIndex >= 0) {
                 tanksByPlayerIndex.putIfAbsent(actor.playerIndex, actor)
             }
         }
-        allTanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        allTanks = objects.all.filterIsInstance<ServerTankActor>()
         for (tank in allTanks) {
             tank.configureForMatch(
                 maxX = worldWidthPixels - LEGACY_TILE_SIZE,
@@ -199,7 +167,7 @@ class ServerMatchPrototype private constructor(
         }
         // Legacy prepare_player() / prepare_flag(): pads, races and flags only play in player vs
         // player; elsewhere the flags are removed.
-        val flags = actorManager.allActors.value.filterIsInstance<ServerFlagActor>()
+        val flags = objects.all.filterIsInstance<ServerFlagActor>()
         val unused = if (mode == MatchMode.DUAL) {
             DualRules(dual, mapMetadata.world, mapMetadata.widthTiles, mapMetadata.heightTiles, structures, objectRandom)
                 .also { dualRules = it }
@@ -207,7 +175,7 @@ class ServerMatchPrototype private constructor(
         } else {
             flags
         }
-        if (unused.isNotEmpty()) actorManager.remove(unused)
+        if (unused.isNotEmpty()) objects.remove(unused)
         linkTrains()
         prepareB52s()
         prepareLocks()
@@ -218,7 +186,7 @@ class ServerMatchPrototype private constructor(
         createAllBonuses()
         missionKills = 0
         missionScore = 0
-        val all = actorManager.allActors.value
+        val all = objects.all
         val reachable = all.filterIsInstance<ServerTankActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
             all.filterIsInstance<ServerTurretActor>().sumOf { it.goalContribution.coerceAtLeast(0) } +
             all.filterIsInstance<ServerGoalActor>().filter { it.who == 0 }.sumOf { it.contribution.coerceAtLeast(0) }
@@ -242,7 +210,7 @@ class ServerMatchPrototype private constructor(
         stepAiTanks()
         stepTurrets()
         applyTerrainEffects()
-        tickSource.tick(MILLIS_PER_TICK)
+        objects.step(worldWidthPixels, worldHeightPixels)
         flushOutOfBoundsProjectiles()
         checkProjectileStructureHits()
         checkProjectileVehicleHits()
@@ -295,12 +263,12 @@ class ServerMatchPrototype private constructor(
 
     internal fun locksForTest(): List<ServerLockActor> = locks
 
-    internal fun zeppelinsForTest(): List<ServerZeppelinActor> = actorManager.allActors.value.filterIsInstance<ServerZeppelinActor>()
+    internal fun zeppelinsForTest(): List<ServerZeppelinActor> = objects.all.filterIsInstance<ServerZeppelinActor>()
 
     internal fun hitTrainForTest(car: ServerTrainActor, power: Int) = hitTrain(car, power)
 
     internal fun turretsForTest(): List<ServerTurretActor> =
-        actorManager.allActors.value.filterIsInstance<ServerTurretActor>()
+        objects.all.filterIsInstance<ServerTurretActor>()
 
     internal fun solidTileCountForTest(): Int = structures.blockingLayer().count { it >= 0 }
 
@@ -329,23 +297,23 @@ class ServerMatchPrototype private constructor(
 
     /** Damage the first alive enemy tank (for scenario tests). */
     internal fun queueDamageToEnemyForTest(amount: Int) {
-        val enemy = actorManager.allActors.value
+        val enemy = objects.all
             .filterIsInstance<ServerTankActor>()
             .firstOrNull { it.team == 1 && it.armor > 0 }
         enemy?.queueDamage(amount)
     }
 
     internal fun snapshotMines(): List<ServerMineActor> =
-        actorManager.allActors.value.filterIsInstance<ServerMineActor>()
+        objects.all.filterIsInstance<ServerMineActor>()
 
     internal fun snapshotRockets(): List<ServerRocketActor> =
-        actorManager.allActors.value.filterIsInstance<ServerRocketActor>()
+        objects.all.filterIsInstance<ServerRocketActor>()
 
     internal fun snapshotMortars(): List<ServerMortarActor> =
-        actorManager.allActors.value.filterIsInstance<ServerMortarActor>()
+        objects.all.filterIsInstance<ServerMortarActor>()
 
     internal fun injectMortarExplosionForTest(x: Int, y: Int, radius: Int, damage: Int) {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
         pendingEvents.addAll(AreaDamageResolver.resolve(
             tanks = tanks,
             x = x,
@@ -359,21 +327,19 @@ class ServerMatchPrototype private constructor(
     internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int) {
         val mine = ServerMineActor(
             ServerMineActor.State(
-                body = PointBody(initialPosition = SceneOffset(x.toFloat().sceneUnit, y.toFloat().sceneUnit)),
+                body = PointBody(position = ScenePoint(x.toFloat().toFloat(), y.toFloat().toFloat())),
                 ownerActorId = 0L,
                 damage = damage,
                 radius = radius,
                 activationTicksRemaining = 0,
             ),
         )
-        val expected = actorManager.allActors.value.size + 1
-        actorManager.add(listOf(mine))
-        awaitActorCount(expected)
+        objects.add(listOf(mine))
         actorIds.getOrPut(mine) { nextActorId++ }
     }
 
     fun buildPlayerViews(): List<PlayerView> {
-        val all = actorManager.allActors.value
+        val all = objects.all
         val tanks = all.filterIsInstance<ServerTankActor>()
         val turrets = all.filterIsInstance<ServerTurretActor>()
         val goals = all.filterIsInstance<ServerGoalActor>()
@@ -461,7 +427,7 @@ class ServerMatchPrototype private constructor(
                 team = turret.team.toProtocolTeam(),
             )
         }
-        for (rocket in actorManager.allActors.value.filterIsInstance<ServerRocketActor>()) {
+        for (rocket in objects.all.filterIsInstance<ServerRocketActor>()) {
             if (rocket.isDead) continue
             val id = actorIds[rocket] ?: continue
             contacts += RadarContact(
@@ -476,33 +442,20 @@ class ServerMatchPrototype private constructor(
 
     fun dispose() {
         isDisposed = true
-        kubriko.dispose()
-    }
-
-    /**
-     * Kubriko applies additions made after `start()` on a background thread. Once `allActors` reflects them, the next
-     * tick updates them too: the engine publishes its list of updated actors before `allActors`.
-     */
-    private fun awaitActorCount(expected: Int) = runBlocking {
-        withTimeout(2_000) {
-            while (actorManager.allActors.value.size != expected) {
-                delay(2)
-            }
-        }
     }
 
     private fun stepWarps() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (warp in actorManager.allActors.value.filterIsInstance<ServerWarpActor>()) {
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
+        for (warp in objects.all.filterIsInstance<ServerWarpActor>()) {
             if (warp.cooldownTicks > 0) {
                 warp.cooldownTicks--
                 continue
             }
             val size = warp.body.size
             val pos = warp.body.position
-            val wx = (pos.x.raw + size.width.raw / 2f).toInt()
-            val wy = (pos.y.raw + size.height.raw / 2f).toInt()
+            val wx = (pos.x + size.width / 2f).toInt()
+            val wy = (pos.y + size.height / 2f).toInt()
             val warpRadius = 15
             val trigger = tanks.firstOrNull { tank ->
                 tank.armor > 0 && withinRadius(tank.positionX, tank.positionY, wx, wy, warpRadius)
@@ -517,32 +470,32 @@ class ServerMatchPrototype private constructor(
 
     private var destroyers: List<ServerDestroyerActor> = emptyList()
     private var locks: List<ServerLockActor> = emptyList()
-    private val lockOwners: MutableMap<ServerLockActor, Actor?> = IdentityHashMap()
-    private val lockTargets: MutableMap<ServerLockActor, Actor?> = IdentityHashMap()
+    private val lockOwners: MutableMap<ServerLockActor, SceneObject<*>?> = IdentityHashMap()
+    private val lockTargets: MutableMap<ServerLockActor, SceneObject<*>?> = IdentityHashMap()
 
     /** Centre of any scene object, for legacy nearest_object(). */
-    private fun centreOf(actor: Actor): Pair<Int, Int>? = when (actor) {
+    private fun centreOf(actor: SceneObject<*>): Pair<Int, Int>? = when (actor) {
         is ServerTankActor -> actor.positionX to actor.positionY
         is ServerTrainActor -> actor.positionX to actor.positionY
         is ServerMineActor -> actor.positionX to actor.positionY
         is ServerB52Actor -> actor.positionX to actor.positionY
         is ServerZeppelinActor -> actor.positionX to actor.positionY
-        is com.pandulapeter.kubriko.actor.traits.Positionable -> {
+        is Placed -> {
             val body = actor.body
-            if (body is com.pandulapeter.kubriko.actor.body.BoxBody) {
-                (body.position.x.raw + body.size.width.raw / 2f).toInt() to (body.position.y.raw + body.size.height.raw / 2f).toInt()
+            if (body is BoxBody) {
+                (body.position.x + body.size.width / 2f).toInt() to (body.position.y + body.size.height / 2f).toInt()
             } else {
-                body.position.x.raw.toInt() to body.position.y.raw.toInt()
+                body.position.x.toInt() to body.position.y.toInt()
             }
         }
         else -> null
     }
 
     /** Legacy nearest_object(): the closest other object within 15 px of ([x], [y]). */
-    private fun nearestObject(self: Actor, x: Int, y: Int): Actor? {
-        var best: Actor? = null
+    private fun nearestObject(self: SceneObject<*>, x: Int, y: Int): SceneObject<*>? {
+        var best: SceneObject<*>? = null
         var bestDistSq = 15L * 15L
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor === self || actor is ServerWallActor) continue
             val (ax, ay) = centreOf(actor) ?: continue
             val distSq = (ax - x).toLong() * (ax - x) + (ay - y).toLong() * (ay - y)
@@ -560,8 +513,8 @@ class ServerMatchPrototype private constructor(
      * the structure there, which it makes indestructible until the lock blows.
      */
     private fun prepareLocks() {
-        locks = actorManager.allActors.value.filterIsInstance<ServerLockActor>()
-        destroyers = actorManager.allActors.value.filterIsInstance<ServerDestroyerActor>()
+        locks = objects.all.filterIsInstance<ServerLockActor>()
+        destroyers = objects.all.filterIsInstance<ServerDestroyerActor>()
         for (lock in locks) {
             val (x, y) = centreOf(lock) ?: continue
             if (lock.activation == 1) lockOwners[lock] = nearestObject(lock, x, y)
@@ -573,7 +526,7 @@ class ServerMatchPrototype private constructor(
     }
 
     /** Legacy remove_object() for the objects a lock watches: is this one gone (or a dead vehicle)? */
-    private fun isGone(actor: Actor?): Boolean = when (actor) {
+    private fun isGone(actor: SceneObject<*>?): Boolean = when (actor) {
         null -> true
         is ServerTankActor -> actor.armor <= 0
         is ServerTurretActor -> !actor.isAlive
@@ -621,7 +574,7 @@ class ServerMatchPrototype private constructor(
     }
 
     /** Legacy hit_obj_for(target, ..., HT_DESTROY, 1000). */
-    private fun destroyObject(actor: Actor) {
+    private fun destroyObject(actor: SceneObject<*>) {
         centreOf(actor)?.let { (x, y) ->
             if (actor !is ServerMineActor) {
                 pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x, y)
@@ -640,7 +593,7 @@ class ServerMatchPrototype private constructor(
     }
 
     /** Legacy remove_object(target): the object is simply gone (and does what it does when removed). */
-    private fun removeObject(actor: Actor) {
+    private fun removeObject(actor: SceneObject<*>) {
         when (actor) {
             // Vehicles cannot leave the match here; a removed vehicle counts as destroyed.
             is ServerTankActor -> actor.queueDestroy()
@@ -715,7 +668,7 @@ class ServerMatchPrototype private constructor(
      * weapon selected, and every `delay` ticks one of them fires it.
      */
     private fun stepEnforcers() {
-        for (enforcer in actorManager.allActors.value.filterIsInstance<ServerEnforcerActor>()) {
+        for (enforcer in objects.all.filterIsInstance<ServerEnforcerActor>()) {
             if (enforcer.cooldownTicks > 0) enforcer.cooldownTicks -= 1
             val (ex, ey) = centreOf(enforcer) ?: continue
             for (tank in allTanks) {
@@ -740,14 +693,14 @@ class ServerMatchPrototype private constructor(
 
     /** Legacy prepare_train() with relocate(): tie each car to its neighbours and its turret. */
     private fun linkTrains() {
-        trains = actorManager.allActors.value.filterIsInstance<ServerTrainActor>()
+        trains = objects.all.filterIsInstance<ServerTrainActor>()
         val byRef = trains.filter { it.ref != 0 }.associateBy { it.ref }
         for (car in trains) {
             car.front = byRef[car.frontRef]?.takeIf { it !== car }
             car.rear = byRef[car.rearRef]?.takeIf { it !== car }
             car.syncBody()
         }
-        for (turret in actorManager.allActors.value.filterIsInstance<ServerTurretActor>()) {
+        for (turret in objects.all.filterIsInstance<ServerTurretActor>()) {
             if (turret.ownerRef == 0) continue
             val wagon = byRef[turret.ownerRef] ?: continue
             wagon.turret = turret
@@ -957,7 +910,7 @@ class ServerMatchPrototype private constructor(
             val dy = other.positionY - car.positionY
             if (dx * dx + dy * dy < (2 * r) * (2 * r)) removeTrain(other)
         }
-        for (mine in actorManager.allActors.value) {
+        for (mine in objects.all) {
             if (mine !is ServerMineActor || !mine.isActive) continue
             val reach = r + MINE_RADIUS_PX
             val dx = mine.positionX - car.positionX
@@ -1001,7 +954,7 @@ class ServerMatchPrototype private constructor(
 
     /** Legacy control_zeppelin(): drift west at 10 px/s and come back in from the east. */
     private fun stepZeppelins() {
-        for (zep in actorManager.allActors.value.filterIsInstance<ServerZeppelinActor>()) {
+        for (zep in objects.all.filterIsInstance<ServerZeppelinActor>()) {
             if (!zep.alive) continue
             zep.exactX -= ZEPPELIN_SPEED * 0.01f
             if (zep.exactX - LEGACY_TILE_SIZE / 2 < -4 * LEGACY_TILE_SIZE) {
@@ -1009,9 +962,9 @@ class ServerMatchPrototype private constructor(
                 zep.positionY = airRandom.nextInt(worldHeightPixels) + LEGACY_TILE_SIZE / 2
             }
             zep.positionX = Math.round(zep.exactX)
-            zep.body.position = SceneOffset(
-                (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
-                (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit,
+            zep.body.position = ScenePoint(
+                (zep.positionX - ZEPPELIN_FOOTPRINT / 2).toFloat().toFloat(),
+                (zep.positionY - ZEPPELIN_FOOTPRINT / 2).toFloat().toFloat(),
             )
             if (--zep.frameCooldownTicks <= 0) {
                 zep.frame = zep.frame xor 1
@@ -1027,7 +980,7 @@ class ServerMatchPrototype private constructor(
 
     /** Legacy prepare_b52(): a bomber waits 500..1000 ticks before it starts its take-off run. */
     private fun prepareB52s() {
-        b52s = actorManager.allActors.value.filterIsInstance<ServerB52Actor>()
+        b52s = objects.all.filterIsInstance<ServerB52Actor>()
         for (b52 in b52s) {
             b52.moveTo(b52.positionX.toFloat(), b52.positionY.toFloat())
             b52.speedCooldownTicks = 500 + airRandom.nextInt(500)
@@ -1117,7 +1070,7 @@ class ServerMatchPrototype private constructor(
         if (b52.height <= 1) {
             for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, r + SOLDIER_RADIUS_PX - 1)) removeSoldier(soldier)
             soldiers.removeAll { it.removed }
-            for (mine in actorManager.allActors.value) {
+            for (mine in objects.all) {
                 if (mine is ServerMineActor && mine.isActive && withinRadius(mine.positionX, mine.positionY, x, y, r + MINE_RADIUS_PX - 1)) mine.detonateOn(null)
             }
         }
@@ -1280,13 +1233,13 @@ class ServerMatchPrototype private constructor(
 
     private fun collectProducts() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (product in actorManager.allActors.value.filterIsInstance<ServerProductActor>()) {
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
+        for (product in objects.all.filterIsInstance<ServerProductActor>()) {
             if (product.isCollected) continue
             val size = product.body.size
             val pos = product.body.position
-            val pcx = (pos.x.raw + size.width.raw / 2f).toInt()
-            val pcy = (pos.y.raw + size.height.raw / 2f).toInt()
+            val pcx = (pos.x + size.width / 2f).toInt()
+            val pcy = (pos.y + size.height / 2f).toInt()
             val pickupRadius = 16
             val pickup = tanks.firstOrNull { tank ->
                 tank.playerIndex >= 0 && tank.armor > 0 &&
@@ -1304,19 +1257,19 @@ class ServerMatchPrototype private constructor(
 
     private fun collectGoals() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (actor in actorManager.allActors.value) {
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
+        for (actor in objects.all) {
             if (actor !is ServerGoalActor || actor.isClaimed) continue
             val position = actor.body.position
             val size = actor.body.size
-            val cx = (position.x.raw + size.width.raw / 2f).toInt()
-            val cy = (position.y.raw + size.height.raw / 2f).toInt()
+            val cx = (position.x + size.width / 2f).toInt()
+            val cy = (position.y + size.height / 2f).toInt()
             // Legacy control_goal(): who=0 is reached by a good tank, who=1 by an evil tank,
             // who=2 by a train; who=3 (a linked object) is not modelled yet.
             val reached = when (actor.who) {
                 0 -> tanks.any { it.team == 0 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
                 1 -> tanks.any { it.team == 1 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
-                2 -> actorManager.allActors.value.filterIsInstance<ServerTrainActor>()
+                2 -> objects.all.filterIsInstance<ServerTrainActor>()
                     .any { it.alive && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
                 else -> false
             }
@@ -1331,7 +1284,7 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun drainTankLifecycleEvents() {
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor !is ServerTankActor) continue
             val id = actorIds[actor] ?: continue
             val events = actor.drainLifecycleEvents(id)
@@ -1374,7 +1327,7 @@ class ServerMatchPrototype private constructor(
         if (tank.lives > 0) return // respawns at its pad; the goal counter only counts final deaths
         val isHumanTank = tank.playerIndex >= 0 || (!tank.computer && tank.team == 0)
         if (isHumanTank) {
-            val othersAlive = actorManager.allActors.value.filterIsInstance<ServerTankActor>().any { other ->
+            val othersAlive = objects.all.filterIsInstance<ServerTankActor>().any { other ->
                 other !== tank && other.armor > 0 && (other.playerIndex >= 0 || (!other.computer && other.team == 0))
             }
             if (!othersAlive) {
@@ -1388,7 +1341,7 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun drainTurretDestructions() {
-        for (turret in actorManager.allActors.value) {
+        for (turret in objects.all) {
             if (turret !is ServerTurretActor || !turret.drainDestroyed()) continue
             val id = actorIds[turret] ?: continue
             pendingEvents += GameEvent.TurretDestroyed(id)
@@ -1458,7 +1411,7 @@ class ServerMatchPrototype private constructor(
 
     private fun evaluateMission() {
         if (missionStatus != MissionStatus.IN_PROGRESS) return
-        val all = actorManager.allActors.value
+        val all = objects.all
         val tanks = all.filterIsInstance<ServerTankActor>()
 
         if (mode == MatchMode.DUAL) {
@@ -1591,7 +1544,7 @@ class ServerMatchPrototype private constructor(
      */
     private fun aiObjects(): List<AiObject> {
         val list = ArrayList<AiObject>()
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             val (x, y) = centreOf(actor) ?: continue
             when (actor) {
                 is ServerTankActor -> list += AiObject(actor, x, y, actor.height, actor.spec.radius, tank = actor)
@@ -1718,7 +1671,7 @@ class ServerMatchPrototype private constructor(
      * goal contribution) as soon as that building is gone.
      */
     private fun removeFallenTurrets() {
-        for (turret in actorManager.allActors.value) {
+        for (turret in objects.all) {
             if (turret !is ServerTurretActor || !turret.isAlive || turret in ridingTurrets) continue
             val tileX = turret.positionX / LEGACY_TILE_SIZE
             val tileY = turret.positionY / LEGACY_TILE_SIZE
@@ -1732,7 +1685,7 @@ class ServerMatchPrototype private constructor(
      * (they ignore structures within two tiles of it).
      */
     private fun checkProjectileStructureHits() {
-        for (projectile in actorManager.allActors.value) {
+        for (projectile in objects.all) {
             // Legacy control_bullets(): a small rocket within its safety distance passes everything.
             if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
             val turret = projectile.ownerTurretRef
@@ -1776,7 +1729,7 @@ class ServerMatchPrototype private constructor(
      * (triggerFlameContacts()).
      */
     private fun checkProjectileVehicleHits() {
-        for (projectile in actorManager.allActors.value) {
+        for (projectile in objects.all) {
             if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
             if (projectile.weaponKind == WEAPON_FLAME) continue
             val (fromX, fromY) = projectile.previousPosition
@@ -2084,7 +2037,7 @@ class ServerMatchPrototype private constructor(
         for (car in trains) {
             if (car.alive && power > 0 && withinRadius(car.positionX, car.positionY, x, y, maxOf(radius, ServerTrainActor.RADIUS))) hitTrain(car, power)
         }
-        for (mine in actorManager.allActors.value) {
+        for (mine in objects.all) {
             if (mine is ServerMineActor && !mine.isDead && withinRadius(mine.positionX, mine.positionY, x, y, maxOf(radius, MINE_RADIUS_PX))) {
                 mine.detonateOn(null)
             }
@@ -2111,12 +2064,12 @@ class ServerMatchPrototype private constructor(
      * and stops. Soldiers of one vehicle do not hit each other.
      */
     private fun checkSmallObjectHits() {
-        for (projectile in actorManager.allActors.value) {
+        for (projectile in objects.all) {
             if (projectile !is ServerProjectileActor) continue
             projectile.drainTrail()?.let { (x, y) -> pendingEvents += GameEvent.Effect(EffectKind.EXHAUST, x, y) }
         }
         if (soldiers.isEmpty() && bonuses.isEmpty() && abombs.isEmpty() && trains.isEmpty() && b52s.isEmpty()) return
-        for (projectile in actorManager.allActors.value) {
+        for (projectile in objects.all) {
             if (projectile !is ServerProjectileActor || projectile.isDead || !projectile.armed) continue
             val (x1, y1) = projectile.previousPosition
             val x2 = projectile.positionX
@@ -2251,9 +2204,9 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun stepTurrets() {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
         if (tanks.isEmpty()) return
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor is ServerTurretActor) actor.step(tanks)
         }
     }
@@ -2264,7 +2217,7 @@ class ServerMatchPrototype private constructor(
      * the picture table); the legacy game never kills a tank for driving into it.
      */
     private fun applyTerrainEffects() {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
         for (tank in tanks) {
             if (tank.armor <= 0) continue
             val tileX = tank.positionX / LEGACY_TILE_SIZE
@@ -2313,7 +2266,7 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun flushOutOfBoundsProjectiles() {
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor is ServerProjectileActor) {
                 actor.markOutOfBoundsIfNeeded(worldWidthPixels, worldHeightPixels)
             }
@@ -2321,7 +2274,7 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun removeDeadProjectiles() {
-        val doomed = actorManager.allActors.value
+        val doomed = objects.all
             .filterIsInstance<ServerProjectileActor>()
             .filter { it.isDead }
         if (doomed.isEmpty()) return
@@ -2329,9 +2282,7 @@ class ServerMatchPrototype private constructor(
             val end = projectile.drainExplosion() ?: continue
             hitEffectFor(projectile.weaponKind, end.expired)?.let { pendingEvents += GameEvent.Effect(it, end.x, end.y) }
         }
-        val expected = actorManager.allActors.value.size - doomed.size
-        actorManager.remove(doomed)
-        awaitActorCount(expected)
+        objects.remove(doomed)
         for (projectile in doomed) {
             actorIds.remove(projectile)
         }
@@ -2353,7 +2304,7 @@ class ServerMatchPrototype private constructor(
      * turret within 15 px of it, other than the tank that fired it.
      */
     private fun triggerFlameContacts() {
-        val flames = actorManager.allActors.value.filterIsInstance<ServerProjectileActor>()
+        val flames = objects.all.filterIsInstance<ServerProjectileActor>()
             .filter { it.weaponKind == WEAPON_FLAME && !it.isDead && it.armed }
         if (flames.isEmpty()) return
         for (flame in flames) {
@@ -2370,7 +2321,7 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun flushOutOfBoundsRockets() {
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor is ServerRocketActor) actor.markOutOfBoundsIfNeeded(worldWidthPixels, worldHeightPixels)
         }
     }
@@ -2395,7 +2346,7 @@ class ServerMatchPrototype private constructor(
     private fun rocketTargetAt(x: Int, y: Int, owner: ServerTankActor?): RocketTarget? {
         var best: RocketTarget? = null
         var bestDistSq = ROCKET_TARGET_RADIUS_PX.toLong() * ROCKET_TARGET_RADIUS_PX
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             val (ax, ay, target) = when {
                 actor is ServerTankActor && actor !== owner && actor.armor > 0 ->
                     Triple(actor.positionX, actor.positionY, RocketTarget { actor.takeIf { it.armor > 0 }?.let { it.positionX to it.positionY } })
@@ -2423,8 +2374,8 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun drainRocketExplosions() {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (actor in actorManager.allActors.value) {
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
+        for (actor in objects.all) {
             if (actor !is ServerRocketActor) continue
             val explosion = actor.drainExplosion() ?: continue
             // Legacy control_rocket(): a rocket without a target hits the structure at the marker.
@@ -2450,11 +2401,9 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun removeDeadRockets() {
-        val doomed = actorManager.allActors.value.filterIsInstance<ServerRocketActor>().filter { it.isDead }
+        val doomed = objects.all.filterIsInstance<ServerRocketActor>().filter { it.isDead }
         if (doomed.isEmpty()) return
-        val expected = actorManager.allActors.value.size - doomed.size
-        actorManager.remove(doomed)
-        awaitActorCount(expected)
+        objects.remove(doomed)
         for (rocket in doomed) actorIds.remove(rocket)
     }
 
@@ -2477,9 +2426,7 @@ class ServerMatchPrototype private constructor(
         }
         pendingTurretRockets.clear()
         if (spawns.isEmpty()) return
-        val expected = actorManager.allActors.value.size + spawns.size
-        actorManager.add(spawns)
-        awaitActorCount(expected)
+        objects.add(spawns)
         for (rocket in spawns) actorIds.getOrPut(rocket) { nextActorId++ }
     }
 
@@ -2491,9 +2438,9 @@ class ServerMatchPrototype private constructor(
         val rocket = ServerRocketActor(
             ServerRocketActor.State(
                 body = PointBody(
-                    initialPosition = SceneOffset(
-                        request.originX.toFloat().sceneUnit,
-                        request.originY.toFloat().sceneUnit,
+                    position = ScenePoint(
+                        request.originX.toFloat().toFloat(),
+                        request.originY.toFloat().toFloat(),
                     ),
                 ),
                 ownerActorId = ownerActorId,
@@ -2517,14 +2464,14 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun flushOutOfBoundsMortars() {
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor is ServerMortarActor) actor.markOutOfBoundsIfNeeded(worldWidthPixels, worldHeightPixels)
         }
     }
 
     private fun drainMortarExplosions() {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (actor in actorManager.allActors.value) {
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
+        for (actor in objects.all) {
             if (actor !is ServerMortarActor) continue
             val explosion = actor.drainExplosion() ?: continue
             pendingEvents.addAll(AreaDamageResolver.resolve(
@@ -2543,11 +2490,9 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun removeDeadMortars() {
-        val doomed = actorManager.allActors.value.filterIsInstance<ServerMortarActor>().filter { it.isDead }
+        val doomed = objects.all.filterIsInstance<ServerMortarActor>().filter { it.isDead }
         if (doomed.isEmpty()) return
-        val expected = actorManager.allActors.value.size - doomed.size
-        actorManager.remove(doomed)
-        awaitActorCount(expected)
+        objects.remove(doomed)
         for (mortar in doomed) actorIds.remove(mortar)
     }
 
@@ -2558,9 +2503,7 @@ class ServerMatchPrototype private constructor(
             spawns += mortarFromRequest(tank, request)
         }
         if (spawns.isEmpty()) return
-        val expected = actorManager.allActors.value.size + spawns.size
-        actorManager.add(spawns)
-        awaitActorCount(expected)
+        objects.add(spawns)
         for (mortar in spawns) actorIds.getOrPut(mortar) { nextActorId++ }
     }
 
@@ -2572,9 +2515,9 @@ class ServerMatchPrototype private constructor(
         val mortar = ServerMortarActor(
             ServerMortarActor.State(
                 body = PointBody(
-                    initialPosition = SceneOffset(
-                        request.originX.toFloat().sceneUnit,
-                        request.originY.toFloat().sceneUnit,
+                    position = ScenePoint(
+                        request.originX.toFloat().toFloat(),
+                        request.originY.toFloat().toFloat(),
                     ),
                 ),
                 ownerActorId = ownerActorId,
@@ -2601,9 +2544,9 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun triggerMineContacts() {
-        val mines = actorManager.allActors.value.filterIsInstance<ServerMineActor>().filter { it.isActive && !it.isDead }
+        val mines = objects.all.filterIsInstance<ServerMineActor>().filter { it.isActive && !it.isDead }
         if (mines.isEmpty()) return
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
+        val tanks = objects.all.filterIsInstance<ServerTankActor>().filter { it.armor > 0 }
         for (mine in mines) {
             val triggerRadius = mine.radius + SERVER_TANK_HALF
             val victim = tanks.firstOrNull { tank ->
@@ -2614,8 +2557,8 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun drainMineDetonations() {
-        val tanks = actorManager.allActors.value.filterIsInstance<ServerTankActor>()
-        for (actor in actorManager.allActors.value) {
+        val tanks = objects.all.filterIsInstance<ServerTankActor>()
+        for (actor in objects.all) {
             if (actor !is ServerMineActor) continue
             val det = actor.drainDetonation() ?: continue
             pendingEvents.addAll(AreaDamageResolver.resolve(
@@ -2634,13 +2577,11 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun removeDeadMines() {
-        val doomed = actorManager.allActors.value
+        val doomed = objects.all
             .filterIsInstance<ServerMineActor>()
             .filter { it.isDead && !it.detonationPending }
         if (doomed.isEmpty()) return
-        val expected = actorManager.allActors.value.size - doomed.size
-        actorManager.remove(doomed)
-        awaitActorCount(expected)
+        objects.remove(doomed)
         for (mine in doomed) actorIds.remove(mine)
     }
 
@@ -2651,9 +2592,7 @@ class ServerMatchPrototype private constructor(
             spawns += mineFromRequest(tank, request)
         }
         if (spawns.isEmpty()) return
-        val expected = actorManager.allActors.value.size + spawns.size
-        actorManager.add(spawns)
-        awaitActorCount(expected)
+        objects.add(spawns)
         for (mine in spawns) actorIds.getOrPut(mine) { nextActorId++ }
     }
 
@@ -2665,9 +2604,9 @@ class ServerMatchPrototype private constructor(
         val mine = ServerMineActor(
             ServerMineActor.State(
                 body = PointBody(
-                    initialPosition = SceneOffset(
-                        request.originX.toFloat().sceneUnit,
-                        request.originY.toFloat().sceneUnit,
+                    position = ScenePoint(
+                        request.originX.toFloat().toFloat(),
+                        request.originY.toFloat().toFloat(),
                     ),
                 ),
                 ownerActorId = ownerActorId,
@@ -2684,7 +2623,7 @@ class ServerMatchPrototype private constructor(
         for (tank in allTanks) {
             for (request in tank.drainFireRequests()) spawns += projectileFromRequest(tank, request)
         }
-        for (actor in actorManager.allActors.value) {
+        for (actor in objects.all) {
             if (actor is ServerTurretActor) {
                 val request = actor.drainFireRequest() ?: continue
                 if (request.rocketTarget != null) pendingTurretRockets += actor to request
@@ -2694,9 +2633,7 @@ class ServerMatchPrototype private constructor(
         for ((soldier, shot) in pendingSoldierShots) spawns += projectileFromSoldier(soldier, shot)
         pendingSoldierShots.clear()
         if (spawns.isEmpty()) return
-        val expected = actorManager.allActors.value.size + spawns.size
-        actorManager.add(spawns)
-        awaitActorCount(expected)
+        objects.add(spawns)
         for (projectile in spawns) {
             actorIds.getOrPut(projectile) { nextActorId++ }
         }
@@ -2710,9 +2647,9 @@ class ServerMatchPrototype private constructor(
         val projectile = ServerProjectileActor(
             ServerProjectileActor.State(
                 body = PointBody(
-                    initialPosition = SceneOffset(
-                        request.originX.toFloat().sceneUnit,
-                        request.originY.toFloat().sceneUnit,
+                    position = ScenePoint(
+                        request.originX.toFloat().toFloat(),
+                        request.originY.toFloat().toFloat(),
                     ),
                 ),
                 ownerActorId = ownerActorId,
@@ -2748,7 +2685,7 @@ class ServerMatchPrototype private constructor(
         val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(shot.direction)
         val projectile = ServerProjectileActor(
             ServerProjectileActor.State(
-                body = PointBody(initialPosition = SceneOffset(shot.x.toFloat().sceneUnit, shot.y.toFloat().sceneUnit)),
+                body = PointBody(position = ScenePoint(shot.x.toFloat().toFloat(), shot.y.toFloat().toFloat())),
                 ownerActorId = soldier.id,
                 ownerKind = ProjectileOwnerKind.MAN,
                 damage = soldier.power,
@@ -2771,9 +2708,9 @@ class ServerMatchPrototype private constructor(
         val projectile = ServerProjectileActor(
             ServerProjectileActor.State(
                 body = PointBody(
-                    initialPosition = SceneOffset(
-                        request.originX.toFloat().sceneUnit,
-                        request.originY.toFloat().sceneUnit,
+                    position = ScenePoint(
+                        request.originX.toFloat().toFloat(),
+                        request.originY.toFloat().toFloat(),
                     ),
                 ),
                 ownerActorId = ownerActorId,
@@ -2813,7 +2750,7 @@ class ServerMatchPrototype private constructor(
     }
 
     private fun buildSnapshot(drainEvents: Boolean): WorldSnapshot {
-        val states = actorManager.allActors.value.mapNotNull { actor ->
+        val states = objects.all.mapNotNull { actor ->
             val id = actorIds[actor] ?: return@mapNotNull null
             projectToWireState(actor, id)
         }
@@ -2845,17 +2782,17 @@ class ServerMatchPrototype private constructor(
         )
     }
 
-    private fun projectToWireState(actor: Actor, id: Long): ActorState? {
+    private fun projectToWireState(actor: SceneObject<*>, id: Long): ActorState? {
         return when (actor) {
             is ServerWallActor -> {
                 val size = actor.body.size
                 val position = actor.body.position
                 WallState(
                     actorId = id,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
-                    width = size.width.raw.toInt(),
-                    height = size.height.raw.toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
+                    width = size.width.toInt(),
+                    height = size.height.toInt(),
                 )
             }
 
@@ -2893,8 +2830,8 @@ class ServerMatchPrototype private constructor(
                     actorId = id,
                     team = actor.team.toProtocolTeam(),
                     turretType = actor.turretType,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     turretDirection = actor.turretDirection,
                     alive = actor.armor > 0,
                     primaryCooldownTicks = actor.cooldownTicks,
@@ -2911,8 +2848,8 @@ class ServerMatchPrototype private constructor(
                         1 -> Team.ENEMY
                         else -> Team.NEUTRAL
                     },
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     captured = actor.isClaimed,
                 )
             }
@@ -2967,8 +2904,8 @@ class ServerMatchPrototype private constructor(
                     actorId = id,
                     flagType = actor.flagType,
                     number = actor.number,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     isCarried = actor.isCarried,
                 )
             }
@@ -2980,8 +2917,8 @@ class ServerMatchPrototype private constructor(
                     actorId = id,
                     productType = actor.productType,
                     price = actor.price,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     isCollected = actor.isCollected,
                 )
             }
@@ -2993,8 +2930,8 @@ class ServerMatchPrototype private constructor(
                     actorId = id,
                     activation = actor.activation,
                     target = actor.target,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     isFired = actor.isFired,
                 )
             }
@@ -3006,8 +2943,8 @@ class ServerMatchPrototype private constructor(
                     actorId = id,
                     targetX = actor.targetX,
                     targetY = actor.targetY,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     cooldownTicks = actor.cooldownTicks,
                 )
             }
@@ -3020,8 +2957,8 @@ class ServerMatchPrototype private constructor(
                     radius = actor.radius,
                     what = actor.what,
                     immediate = actor.immediate,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                     isFired = actor.isFired,
                 )
             }
@@ -3036,8 +2973,8 @@ class ServerMatchPrototype private constructor(
                     delay = actor.delay,
                     good = actor.good,
                     bad = actor.bad,
-                    x = (position.x.raw + size.width.raw / 2f).toInt(),
-                    y = (position.y.raw + size.height.raw / 2f).toInt(),
+                    x = (position.x + size.width / 2f).toInt(),
+                    y = (position.y + size.height / 2f).toInt(),
                 )
             }
 
@@ -3097,16 +3034,13 @@ class ServerMatchPrototype private constructor(
             dual: DualSetup = DualSetup(),
         ): ServerMatchPrototype {
             // Round-trip through scene JSON so fixtures exercise the same load path as shipped scenes.
-            val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
-                *tankArenaSerializableMetadata,
-            )
-            val sceneJson = CanonicalSceneBuilder.buildSceneJson(map, serializationManagerForBuild)
-            return create(map.metadata, map.layers, serializationManagerForBuild.deserializeActors(sceneJson), mode, startShields, dual)
+            val sceneJson = CanonicalSceneBuilder.buildSceneJson(map)
+            return create(map.metadata, map.layers, SceneFile.read(sceneJson), mode, startShields, dual)
         }
 
         /**
          * Production bootstrap: a committed scene plus its sidecar. The sidecar's tile layers drive
-         * terrain effects, pits, A* pathing and line-of-sight exactly as on the fixture path.
+         * terrain effects, pits and the computer AI exactly as on the fixture path.
          */
         fun fromSceneJson(
             sceneJson: String,
@@ -3114,17 +3048,14 @@ class ServerMatchPrototype private constructor(
             mode: MatchMode = MatchMode.SINGLE,
             dual: DualSetup = DualSetup(),
         ): ServerMatchPrototype {
-            val serializationManagerForBuild = SerializableMetadata.newSerializationManagerInstance(
-                *tankArenaSerializableMetadata,
-            )
-            val actors = serializationManagerForBuild.deserializeActors(sceneJson)
+            val actors = SceneFile.read(sceneJson)
             return create(sidecar.metadata, sidecar.tileLayers, actors, mode, startShields = true, dual = dual)
         }
 
         private fun create(
             metadata: MapMetadata,
             layers: TileLayers?,
-            actors: List<Serializable<*>>,
+            actors: List<SceneObject<*>>,
             mode: MatchMode,
             startShields: Boolean,
             dual: DualSetup = DualSetup(),

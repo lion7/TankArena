@@ -1,11 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
-import com.pandulapeter.kubriko.sceneEditor.Editable
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -16,14 +10,9 @@ import kotlinx.serialization.json.Json
  * `immediate`: if true, activates on map load.
  * `what`: 1=walls, 2=objects, 3=both.
  */
-class ServerDestroyerActor internal constructor(state: State) : Collidable, Editable<ServerDestroyerActor> {
+class ServerDestroyerActor internal constructor(state: State) : SceneObject<ServerDestroyerActor>, Placed {
 
     override val body: BoxBody = state.body
-    override val collisionMask: BoxCollisionMask = BoxCollisionMask(
-        initialSize = body.size,
-        initialPosition = body.position,
-        initialRotation = body.rotation,
-    )
 
     val radius: Int = state.radius
     val what: Int = state.what
@@ -43,13 +32,13 @@ class ServerDestroyerActor internal constructor(state: State) : Collidable, Edit
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializableBoxBody = BoxBody(),
+        @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("radius") val radius: Int = 0,
         @SerialName("what") val what: Int = 3,
         @SerialName("immediate") val immediate: Boolean = false,
         @SerialName("isFired") val isFired: Boolean = false,
         @SerialName("goalContribution") val goalContribution: Int = 0,
-    ) : Serializable.State<ServerDestroyerActor> {
+    ) : SceneObject.State<ServerDestroyerActor> {
         override fun restore(): ServerDestroyerActor = ServerDestroyerActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

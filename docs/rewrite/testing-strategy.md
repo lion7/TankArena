@@ -20,8 +20,8 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## What exists (2026-10-19)
 
-`./kotlin test` runs 297 tests, all green: 226 in `:game-server`, 62 in `:game-client`, 9 in
-`:game-content`. `:game-protocol`, `:game-editor` and `:tools-mapconv` have none.
+`./kotlin test` runs 293 tests, all green: 222 in `:game-server`, 62 in `:game-client`, 9 in
+`:game-content`. `:game-protocol` and `:tools-mapconv` have none.
 
 ### Continuous integration
 
@@ -49,7 +49,7 @@ shipped scenes, one rule per test:
 | Terrain and structures | `TerrainMaterialTest`, `TerrainGridBuilderTest`, `StructureGridTest`, `StructureGameplayTest`, `BombersFieldsRampsTest` |
 | Objects | `MapObjectsTest`, `ServerProductActorTest`, `ServerGoalCaptureTest` |
 | Missions, control, modes, AI | `MissionEvaluationTest`, `ControlAndObjectivesTest`, `DualRulesTest`, `PilotAndNightTest`, `ComputerTankAiTest`, `ServerAiTankTest` |
-| Infrastructure | `ActorRoundTripTest` (5 actor types), `SchemaVersionTest`, `FixedStepClockTest`, `HeadlessKubrikoSmokeTest`, `TerrainSlideManagerTest`, `ServerMatchPrototypeTest`, `LocalMatchClientTest`, `ServerPlayerViewTest`, `EditorBoundaryGuardTest`, `legacy/LegacyObjectParserTest` |
+| Infrastructure | `ActorRoundTripTest` (5 actor types), `SchemaVersionTest`, `FixedStepClockTest`, `MatchObjectListTest`, `ServerMatchPrototypeTest`, `LocalMatchClientTest`, `ServerPlayerViewTest`, `legacy/LegacyObjectParserTest` |
 
 Conventions: name tests after the behaviour; cite the C source; avoid the `queueDamage*ForTest`
 shortcuts where real projectiles reach the same state within about 1,000 ticks.

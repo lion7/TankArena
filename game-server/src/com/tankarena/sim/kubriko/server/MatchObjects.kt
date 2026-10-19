@@ -6,7 +6,7 @@ import kotlin.random.Random
 
 /*
  * Objects that only ever exist while a match runs (the original never stores them in a map):
- * bonuses, soldiers and A-bombs. The match owns them directly instead of as Kubriko actors.
+ * bonuses, soldiers and A-bombs. The match owns them directly; they are not stored in scene files.
  */
 
 /** Legacy create_object(BONUS_TYPE, ..., r = 2): a bullet or blast this close destroys a bonus. */

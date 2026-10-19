@@ -1,13 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.sceneEditor.Editable
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -17,17 +9,12 @@ import kotlinx.serialization.json.Json
  * bombs every 650 ticks, re-entering from a random edge each time it leaves ([Phase.FLYING]).
  * Shot down it sinks, burning, and lies as a wreck. The match drives it (stepB52s()).
  */
-class ServerB52Actor internal constructor(state: State) : Collidable, Editable<ServerB52Actor> {
+class ServerB52Actor internal constructor(state: State) : SceneObject<ServerB52Actor>, Placed {
 
     /** Legacy control functions: lift_b52, fly_b52, crash_b52, control_b52_wreck. */
     enum class Phase { LIFTING, FLYING, CRASHING, WRECK }
 
     override val body: BoxBody = state.body
-    override val collisionMask: BoxCollisionMask = BoxCollisionMask(
-        initialSize = body.size,
-        initialPosition = body.position,
-        initialRotation = body.rotation,
-    )
 
     var armor: Int = state.armor
     var alive: Boolean = state.alive
@@ -61,9 +48,8 @@ class ServerB52Actor internal constructor(state: State) : Collidable, Editable<S
         exactY = y
         positionX = Math.round(x)
         positionY = Math.round(y)
-        val offset = SceneOffset((positionX - body.size.width.raw / 2f).sceneUnit, (positionY - body.size.height.raw / 2f).sceneUnit)
+        val offset = ScenePoint((positionX - body.size.width / 2f).toFloat(), (positionY - body.size.height / 2f).toFloat())
         body.position = offset
-        collisionMask.position = offset
     }
 
     override fun save(): State = State(
@@ -79,7 +65,7 @@ class ServerB52Actor internal constructor(state: State) : Collidable, Editable<S
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializableBoxBody = BoxBody(),
+        @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("armor") val armor: Int = 30,
         @SerialName("alive") val alive: Boolean = true,
         @SerialName("x") val x: Int = 0,
@@ -87,7 +73,7 @@ class ServerB52Actor internal constructor(state: State) : Collidable, Editable<S
         @SerialName("bombCount") val bombCount: Int = 0,
         @SerialName("heading") val heading: Int = 0,
         @SerialName("goalContribution") val goalContribution: Int = 0,
-    ) : Serializable.State<ServerB52Actor> {
+    ) : SceneObject.State<ServerB52Actor> {
         override fun restore(): ServerB52Actor = ServerB52Actor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

@@ -1,15 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.actor.traits.Dynamic
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.CollisionDetector
-import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.sceneEditor.Editable
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.LegacySpriteResources
 import com.tankarena.content.PictureMasks
@@ -18,12 +8,10 @@ import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.SoundKind
-import com.tankarena.sim.kubriko.Resolvable
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.random.Random
-import kotlin.reflect.KClass
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -163,21 +151,13 @@ internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
 internal const val SERVER_TANK_HALF: Int = SERVER_TANK_FOOTPRINT / 2
 
 class ServerTankActor(state: State) :
-    CollisionDetector,
-    Dynamic,
+    Steppable,
     Resolvable,
-    Editable<ServerTankActor> {
+    SceneObject<ServerTankActor>, Placed {
 
     override val body: BoxBody = state.body
-    override val collisionMask: BoxCollisionMask = BoxCollisionMask(
-        initialSize = body.size,
-        initialPosition = body.position,
-        initialRotation = body.rotation,
-    )
-    override val isAlwaysActive: Boolean = true
 
     // Structures and other vehicles are handled by the legacy movement rules in advancePosition().
-    override val collidableTypes: List<KClass<out Collidable>> = listOf(ServerGoalActor::class)
 
     var bodyDirection: Int = state.bodyDirection
         private set
@@ -255,9 +235,9 @@ class ServerTankActor(state: State) :
     val maxArmor: Int = if (state.maxArmor > 0) state.maxArmor else spec.armor.coerceAtLeast(state.armor).coerceAtLeast(1)
     val maxFuel: Int = if (state.maxFuel > 0) state.maxFuel else state.fuel.coerceAtLeast(0)
     internal val spawnX: Int = if (state.spawnX >= 0) state.spawnX
-        else (body.position.x.raw + body.size.width.raw / 2f).toInt()
+        else (body.position.x + body.size.width / 2f).toInt()
     internal val spawnY: Int = if (state.spawnY >= 0) state.spawnY
-        else (body.position.y.raw + body.size.height.raw / 2f).toInt()
+        else (body.position.y + body.size.height / 2f).toInt()
     private val spawnBodyDirection: Int = state.spawnBodyDirection.takeIf { it >= 0 } ?: state.bodyDirection
     private val spawnTurretDirection: Int = state.spawnTurretDirection.takeIf { it >= 0 } ?: state.turretDirection
     /** Legacy control_race(): a race tank restarts at the last checkpoint it passed. */
@@ -280,8 +260,8 @@ class ServerTankActor(state: State) :
     internal fun resetSpawn() = moveSpawn(spawnX, spawnY, spawnBodyDirection)
 
     /** Sub-pixel position (legacy `o->fx`, `o->fy`); [positionX]/[positionY] are its rounded values. */
-    private var exactX: Float = body.position.x.raw + body.size.width.raw / 2f
-    private var exactY: Float = body.position.y.raw + body.size.height.raw / 2f
+    private var exactX: Float = body.position.x + body.size.width / 2f
+    private var exactY: Float = body.position.y + body.size.height / 2f
     var positionX: Int = exactX.roundToInt()
         private set
     var positionY: Int = exactY.roundToInt()
@@ -796,7 +776,6 @@ class ServerTankActor(state: State) :
         return pendingSoldierRequests.toList().also { pendingSoldierRequests.clear() }
     }
 
-    override fun onCollisionDetected(collidables: List<Collidable>) = Unit
 
     override fun applyPendingResolutions(worldWidthPixels: Int, worldHeightPixels: Int) {
         if (pendingResolveX == 0 && pendingResolveY == 0 && pendingDamageThisTick == 0 && pendingRocketProofDamage == 0 && !pendingDestroy) return
@@ -1678,17 +1657,16 @@ class ServerTankActor(state: State) :
     }
 
     private fun syncBodyFromPosition() {
-        val topLeft = SceneOffset(
-            (positionX - SERVER_TANK_HALF).toFloat().sceneUnit,
-            (positionY - SERVER_TANK_HALF).toFloat().sceneUnit,
+        val topLeft = ScenePoint(
+            (positionX - SERVER_TANK_HALF).toFloat().toFloat(),
+            (positionY - SERVER_TANK_HALF).toFloat().toFloat(),
         )
         body.position = topLeft
-        collisionMask.position = topLeft
     }
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializableBoxBody = BoxBody(),
+        @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("bodyDirection") val bodyDirection: Int = 0,
         @SerialName("turretDirection") val turretDirection: Int = 0,
         @SerialName("playerIndex") val playerIndex: Int = -1,
@@ -1734,7 +1712,7 @@ class ServerTankActor(state: State) :
         @SerialName("spawnY") val spawnY: Int = -1,
         @SerialName("spawnBodyDirection") val spawnBodyDirection: Int = -1,
         @SerialName("spawnTurretDirection") val spawnTurretDirection: Int = -1,
-    ) : Serializable.State<ServerTankActor> {
+    ) : SceneObject.State<ServerTankActor> {
         override fun restore(): ServerTankActor = ServerTankActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

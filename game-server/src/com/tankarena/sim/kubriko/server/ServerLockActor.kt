@@ -1,11 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
-import com.pandulapeter.kubriko.sceneEditor.Editable
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -16,14 +10,9 @@ import kotlinx.serialization.json.Json
  * `target`: 0 = blow structure, 1 = destroy object, 2 = remove object.
  * `lockX`, `lockY`: monitored location for structure-activation.
  */
-class ServerLockActor internal constructor(state: State) : Collidable, Editable<ServerLockActor> {
+class ServerLockActor internal constructor(state: State) : SceneObject<ServerLockActor>, Placed {
 
     override val body: BoxBody = state.body
-    override val collisionMask: BoxCollisionMask = BoxCollisionMask(
-        initialSize = body.size,
-        initialPosition = body.position,
-        initialRotation = body.rotation,
-    )
 
     val activation: Int = state.activation
     val target: Int = state.target
@@ -45,14 +34,14 @@ class ServerLockActor internal constructor(state: State) : Collidable, Editable<
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializableBoxBody = BoxBody(),
+        @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("activation") val activation: Int = 0,
         @SerialName("target") val target: Int = 0,
         @SerialName("lockX") val lockX: Int = 0,
         @SerialName("lockY") val lockY: Int = 0,
         @SerialName("isFired") val isFired: Boolean = false,
         @SerialName("goalContribution") val goalContribution: Int = 0,
-    ) : Serializable.State<ServerLockActor> {
+    ) : SceneObject.State<ServerLockActor> {
         override fun restore(): ServerLockActor = ServerLockActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

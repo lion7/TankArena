@@ -1,13 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.sceneEditor.Editable
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
@@ -22,14 +14,9 @@ internal const val RAILS_CIRCLE: Int = 2
  * (`end`), and its neighbours in the train. The match drives the cars (ServerMatchPrototype
  * stepTrains()); the engine pulls the cars behind it, which keep 31 px apart.
  */
-class ServerTrainActor internal constructor(state: State) : Collidable, Editable<ServerTrainActor> {
+class ServerTrainActor internal constructor(state: State) : SceneObject<ServerTrainActor>, Placed {
 
     override val body: BoxBody = state.body
-    override val collisionMask: BoxCollisionMask = BoxCollisionMask(
-        initialSize = body.size,
-        initialPosition = body.position,
-        initialRotation = body.rotation,
-    )
 
     val isEngine: Boolean = state.isEngine
     var armor: Int = state.armor
@@ -87,9 +74,8 @@ class ServerTrainActor internal constructor(state: State) : Collidable, Editable
         }
 
     internal fun syncBody() {
-        val offset = SceneOffset((positionX - body.size.width.raw / 2f).sceneUnit, (positionY - body.size.height.raw / 2f).sceneUnit)
+        val offset = ScenePoint((positionX - body.size.width / 2f).toFloat(), (positionY - body.size.height / 2f).toFloat())
         body.position = offset
-        collisionMask.position = offset
     }
 
     override fun save(): State = State(
@@ -121,7 +107,7 @@ class ServerTrainActor internal constructor(state: State) : Collidable, Editable
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializableBoxBody = BoxBody(),
+        @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("isEngine") val isEngine: Boolean = true,
         @SerialName("armor") val armor: Int = 60,
         @SerialName("alive") val alive: Boolean = true,
@@ -145,7 +131,7 @@ class ServerTrainActor internal constructor(state: State) : Collidable, Editable
         @SerialName("endX") val endX: Int = 0,
         @SerialName("endY") val endY: Int = 0,
         @SerialName("goalContribution") val goalContribution: Int = 0,
-    ) : Serializable.State<ServerTrainActor> {
+    ) : SceneObject.State<ServerTrainActor> {
         override fun restore(): ServerTrainActor = ServerTrainActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

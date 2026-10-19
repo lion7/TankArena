@@ -1,6 +1,9 @@
 # ADR 0019: Plain Kotlin Everywhere — No Kubriko
 
-- **Status:** Accepted (2026-10-19). First step of the [roadmap](../roadmap.md) after the safety net.
+- **Status:** Accepted (2026-10-19); in progress. Done: the simulation and the importer no longer use
+  Kubriko (a game-owned object list and scene reader/writer; the scene files and every recording are
+  unchanged), and `:game-editor` is deleted. Left: the client renderer and the rest of the roadmap's
+  phase 1.
 - **Supersedes:** the Kubriko parts of [ADR 0001](0001-desktop-first-compose-kubriko.md),
   [ADR 0007](0007-authoritative-headless-kubriko-server.md) and
   [ADR 0008](0008-kubriko-and-scene-json.md); [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md).

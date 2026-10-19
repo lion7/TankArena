@@ -1,13 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.SerializableMetadata
-import com.pandulapeter.kubriko.serialization.SerializationManager
-import com.pandulapeter.kubriko.types.SceneOffset
-import com.pandulapeter.kubriko.types.SceneSize
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.sim.kubriko.server.legacy.CanonicalMapDefinition
 import com.tankarena.sim.kubriko.server.legacy.ObjectKinds
@@ -24,20 +16,17 @@ private const val HEAVY_MINE_DAMAGE: Int = 20
 
 object CanonicalSceneBuilder {
 
-    fun buildActors(map: CanonicalMapDefinition): List<Serializable<*>> {
-        val actors = mutableListOf<Serializable<*>>()
+    fun buildActors(map: CanonicalMapDefinition): List<SceneObject<*>> {
+        val actors = mutableListOf<SceneObject<*>>()
         appendSolidWalls(map, actors)
         appendBoundaryWalls(map, actors)
         appendAuthoredObjects(map, actors)
         return actors
     }
 
-    fun buildSceneJson(
-        map: CanonicalMapDefinition,
-        serializationManager: SerializationManager<SerializableMetadata<*>, Serializable<*>>,
-    ): String = serializationManager.serializeActors(buildActors(map))
+    fun buildSceneJson(map: CanonicalMapDefinition): String = SceneFile.write(buildActors(map))
 
-    private fun appendSolidWalls(map: CanonicalMapDefinition, sink: MutableList<Serializable<*>>) {
+    private fun appendSolidWalls(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
         val width = map.metadata.widthTiles
         val height = map.metadata.heightTiles
         for (y in 0 until height) {
@@ -54,7 +43,7 @@ object CanonicalSceneBuilder {
         }
     }
 
-    private fun appendBoundaryWalls(map: CanonicalMapDefinition, sink: MutableList<Serializable<*>>) {
+    private fun appendBoundaryWalls(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
         val w = map.metadata.widthTiles * LEGACY_TILE_SIZE
         val h = map.metadata.heightTiles * LEGACY_TILE_SIZE
         val t = LEGACY_TILE_SIZE
@@ -64,7 +53,7 @@ object CanonicalSceneBuilder {
         sink += wallActor(cx = w + t / 2, cy = h / 2, width = t, height = h + 2 * t)
     }
 
-    private fun appendAuthoredObjects(map: CanonicalMapDefinition, sink: MutableList<Serializable<*>>) {
+    private fun appendAuthoredObjects(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
         var nextPlayerIndex = 0
         for (obj in map.objects) {
             val props = obj.properties
@@ -246,7 +235,7 @@ object CanonicalSceneBuilder {
                     val heavy = props.int("mineType") == 1
                     sink += ServerMineActor(
                         ServerMineActor.State(
-                            body = PointBody(initialPosition = SceneOffset(obj.x.toFloat().sceneUnit, obj.y.toFloat().sceneUnit)),
+                            body = PointBody(position = ScenePoint(obj.x.toFloat().toFloat(), obj.y.toFloat().toFloat())),
                             ownerActorId = 0L,
                             damage = if (heavy) HEAVY_MINE_DAMAGE else LIGHT_MINE_DAMAGE,
                             radius = LIGHT_MINE_RADIUS_PX,
@@ -288,8 +277,8 @@ object CanonicalSceneBuilder {
         ServerWallActor(
             ServerWallActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - width / 2).toFloat().sceneUnit, (cy - height / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(width.toFloat().sceneUnit, height.toFloat().sceneUnit),
+                    position = ScenePoint((cx - width / 2).toFloat().toFloat(), (cy - height / 2).toFloat().toFloat()),
+                    size = SceneExtent(width.toFloat().toFloat(), height.toFloat().toFloat()),
                 ),
             ),
         )
@@ -327,8 +316,8 @@ object CanonicalSceneBuilder {
     ): ServerTankActor = ServerTankActor(
         ServerTankActor.State(
             body = BoxBody(
-                initialPosition = SceneOffset((cx - TANK_FOOTPRINT / 2).toFloat().sceneUnit, (cy - TANK_FOOTPRINT / 2).toFloat().sceneUnit),
-                initialSize = SceneSize(TANK_FOOTPRINT.toFloat().sceneUnit, TANK_FOOTPRINT.toFloat().sceneUnit),
+                position = ScenePoint((cx - TANK_FOOTPRINT / 2).toFloat().toFloat(), (cy - TANK_FOOTPRINT / 2).toFloat().toFloat()),
+                size = SceneExtent(TANK_FOOTPRINT.toFloat().toFloat(), TANK_FOOTPRINT.toFloat().toFloat()),
             ),
             bodyDirection = bodyDirection,
             turretDirection = turretDirection,
@@ -380,8 +369,8 @@ object CanonicalSceneBuilder {
         ServerTurretActor(
             ServerTurretActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - TURRET_FOOTPRINT / 2).toFloat().sceneUnit, (cy - TURRET_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(TURRET_FOOTPRINT.toFloat().sceneUnit, TURRET_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - TURRET_FOOTPRINT / 2).toFloat().toFloat(), (cy - TURRET_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(TURRET_FOOTPRINT.toFloat().toFloat(), TURRET_FOOTPRINT.toFloat().toFloat()),
                 ),
                 turretDirection = turretDirection,
                 team = team,
@@ -402,8 +391,8 @@ object CanonicalSceneBuilder {
         ServerGoalActor(
             ServerGoalActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - GOAL_FOOTPRINT / 2).toFloat().sceneUnit, (cy - GOAL_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(GOAL_FOOTPRINT.toFloat().sceneUnit, GOAL_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - GOAL_FOOTPRINT / 2).toFloat().toFloat(), (cy - GOAL_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(GOAL_FOOTPRINT.toFloat().toFloat(), GOAL_FOOTPRINT.toFloat().toFloat()),
                 ),
                 who = who,
                 contribution = contribution,
@@ -426,8 +415,8 @@ object CanonicalSceneBuilder {
         ServerFlagActor(
             ServerFlagActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - FLAG_FOOTPRINT / 2).toFloat().sceneUnit, (cy - FLAG_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(FLAG_FOOTPRINT.toFloat().sceneUnit, FLAG_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - FLAG_FOOTPRINT / 2).toFloat().toFloat(), (cy - FLAG_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(FLAG_FOOTPRINT.toFloat().toFloat(), FLAG_FOOTPRINT.toFloat().toFloat()),
                 ),
                 flagType = flagType,
                 number = number,
@@ -442,8 +431,8 @@ object CanonicalSceneBuilder {
         ServerProductActor(
             ServerProductActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - PRODUCT_FOOTPRINT / 2).toFloat().sceneUnit, (cy - PRODUCT_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(PRODUCT_FOOTPRINT.toFloat().sceneUnit, PRODUCT_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - PRODUCT_FOOTPRINT / 2).toFloat().toFloat(), (cy - PRODUCT_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(PRODUCT_FOOTPRINT.toFloat().toFloat(), PRODUCT_FOOTPRINT.toFloat().toFloat()),
                 ),
                 productType = productType,
                 price = price,
@@ -455,8 +444,8 @@ object CanonicalSceneBuilder {
         ServerLockActor(
             ServerLockActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - LOCK_FOOTPRINT / 2).toFloat().sceneUnit, (cy - LOCK_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(LOCK_FOOTPRINT.toFloat().sceneUnit, LOCK_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - LOCK_FOOTPRINT / 2).toFloat().toFloat(), (cy - LOCK_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(LOCK_FOOTPRINT.toFloat().toFloat(), LOCK_FOOTPRINT.toFloat().toFloat()),
                 ),
                 activation = activation,
                 target = target,
@@ -471,8 +460,8 @@ object CanonicalSceneBuilder {
         ServerWarpActor(
             ServerWarpActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - WARP_FOOTPRINT / 2).toFloat().sceneUnit, (cy - WARP_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(WARP_FOOTPRINT.toFloat().sceneUnit, WARP_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - WARP_FOOTPRINT / 2).toFloat().toFloat(), (cy - WARP_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(WARP_FOOTPRINT.toFloat().toFloat(), WARP_FOOTPRINT.toFloat().toFloat()),
                 ),
                 targetX = targetX,
                 targetY = targetY,
@@ -484,8 +473,8 @@ object CanonicalSceneBuilder {
         ServerDestroyerActor(
             ServerDestroyerActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - DESTROYER_FOOTPRINT / 2).toFloat().sceneUnit, (cy - DESTROYER_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(DESTROYER_FOOTPRINT.toFloat().sceneUnit, DESTROYER_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - DESTROYER_FOOTPRINT / 2).toFloat().toFloat(), (cy - DESTROYER_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(DESTROYER_FOOTPRINT.toFloat().toFloat(), DESTROYER_FOOTPRINT.toFloat().toFloat()),
                 ),
                 radius = radius,
                 what = what,
@@ -509,8 +498,8 @@ object CanonicalSceneBuilder {
         ServerEnforcerActor(
             ServerEnforcerActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - ENFORCER_FOOTPRINT / 2).toFloat().sceneUnit, (cy - ENFORCER_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(ENFORCER_FOOTPRINT.toFloat().sceneUnit, ENFORCER_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - ENFORCER_FOOTPRINT / 2).toFloat().toFloat(), (cy - ENFORCER_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(ENFORCER_FOOTPRINT.toFloat().toFloat(), ENFORCER_FOOTPRINT.toFloat().toFloat()),
                 ),
                 radius = radius,
                 weapon = weapon,
@@ -527,8 +516,8 @@ object CanonicalSceneBuilder {
         ServerTrainActor(
             ServerTrainActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit, (cy - TRAIN_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(TRAIN_FOOTPRINT.toFloat().sceneUnit, TRAIN_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - TRAIN_FOOTPRINT / 2).toFloat().toFloat(), (cy - TRAIN_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(TRAIN_FOOTPRINT.toFloat().toFloat(), TRAIN_FOOTPRINT.toFloat().toFloat()),
                 ),
                 isEngine = isEngine,
                 armor = props.int("armor") ?: if (isEngine) 60 else 40,
@@ -560,8 +549,8 @@ object CanonicalSceneBuilder {
         ServerZeppelinActor(
             ServerZeppelinActor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit, (cy - ZEPPELIN_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(ZEPPELIN_FOOTPRINT.toFloat().sceneUnit, ZEPPELIN_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - ZEPPELIN_FOOTPRINT / 2).toFloat().toFloat(), (cy - ZEPPELIN_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(ZEPPELIN_FOOTPRINT.toFloat().toFloat(), ZEPPELIN_FOOTPRINT.toFloat().toFloat()),
                 ),
                 alive = true,
                 x = cx,
@@ -573,8 +562,8 @@ object CanonicalSceneBuilder {
         ServerB52Actor(
             ServerB52Actor.State(
                 body = BoxBody(
-                    initialPosition = SceneOffset((cx - B52_FOOTPRINT / 2).toFloat().sceneUnit, (cy - B52_FOOTPRINT / 2).toFloat().sceneUnit),
-                    initialSize = SceneSize(B52_FOOTPRINT.toFloat().sceneUnit, B52_FOOTPRINT.toFloat().sceneUnit),
+                    position = ScenePoint((cx - B52_FOOTPRINT / 2).toFloat().toFloat(), (cy - B52_FOOTPRINT / 2).toFloat().toFloat()),
+                    size = SceneExtent(B52_FOOTPRINT.toFloat().toFloat(), B52_FOOTPRINT.toFloat().toFloat()),
                 ),
                 armor = armor,
                 alive = true,

@@ -1,6 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.serialization.Serializable
 
 /** The three ways the original game starts a map (`game.mode` in src/include/types.h). */
 enum class MatchMode {
@@ -48,7 +47,7 @@ data class DualSetup(
  */
 internal object MatchSetup {
 
-    fun assignControl(actors: List<Serializable<*>>, mode: MatchMode, dual: DualSetup = DualSetup()): List<Serializable<*>> {
+    fun assignControl(actors: List<SceneObject<*>>, mode: MatchMode, dual: DualSetup = DualSetup()): List<SceneObject<*>> {
         val tanks = actors.filterIsInstance<ServerTankActor>()
         val humanIds = tanks
             .filter { it.startPadType < 0 && !it.computer && it.controllerId >= 0 && it.playerIndex < 0 }

@@ -1,10 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.SerializableMetadata
-import com.pandulapeter.kubriko.types.SceneOffset
-import com.pandulapeter.kubriko.types.SceneSize
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -22,10 +17,7 @@ class TankArenaSceneRoundTripTest {
             ]
         """.trimIndent()
 
-        val serializationManager = SerializableMetadata.newSerializationManagerInstance(
-            *tankArenaSerializableMetadata,
-        )
-        val actors = serializationManager.deserializeActors(sceneJson)
+        val actors = SceneFile.read(sceneJson)
 
         assertEquals(4, actors.size)
         val wall = actors.filterIsInstance<ServerWallActor>().single()
@@ -33,13 +25,13 @@ class TankArenaSceneRoundTripTest {
         val turret = actors.filterIsInstance<ServerTurretActor>().single()
         val goal = actors.filterIsInstance<ServerGoalActor>().single()
 
-        assertEquals(99f, wall.body.position.x.raw)
-        assertEquals(33f, wall.body.size.width.raw)
+        assertEquals(99f, wall.body.position.x)
+        assertEquals(33f, wall.body.size.width)
 
         assertEquals(0, tank.playerIndex)
         assertEquals(3, tank.lives)
         assertEquals(100, tank.armor)
-        assertEquals(66f, tank.body.position.x.raw)
+        assertEquals(66f, tank.body.position.x)
 
         assertEquals(8, turret.turretDirection)
         assertEquals(1, turret.team)
@@ -58,10 +50,7 @@ class TankArenaSceneRoundTripTest {
             ]
         """.trimIndent()
 
-        val serializationManager = SerializableMetadata.newSerializationManagerInstance(
-            *tankArenaSerializableMetadata,
-        )
-        val actors = serializationManager.deserializeActors(sceneJson)
+        val actors = SceneFile.read(sceneJson)
 
         assertEquals(1, actors.size)
         assertTrue(actors.single() is ServerWallActor)
@@ -69,9 +58,6 @@ class TankArenaSceneRoundTripTest {
 
     @Test
     fun `constructed actors roundtrip through serializeActors plus deserializeActors`() {
-        val serializationManager = SerializableMetadata.newSerializationManagerInstance(
-            *tankArenaSerializableMetadata,
-        )
         val original = listOf(
             ServerWallActor(
                 ServerWallActor.State(body = box(x = 132f, y = 66f, size = 33f)),
@@ -108,8 +94,8 @@ class TankArenaSceneRoundTripTest {
             ),
         )
 
-        val json = serializationManager.serializeActors(original)
-        val restored = serializationManager.deserializeActors(json)
+        val json = SceneFile.write(original)
+        val restored = SceneFile.read(json)
 
         assertEquals(4, restored.size)
         val restoredTank = restored.filterIsInstance<ServerTankActor>().single()
@@ -131,7 +117,7 @@ class TankArenaSceneRoundTripTest {
     }
 
     private fun box(x: Float, y: Float, size: Float): BoxBody = BoxBody(
-        initialPosition = SceneOffset(x.sceneUnit, y.sceneUnit),
-        initialSize = SceneSize(size.sceneUnit, size.sceneUnit),
+        position = ScenePoint(x.toFloat(), y.toFloat()),
+        size = SceneExtent(size.toFloat(), size.toFloat()),
     )
 }

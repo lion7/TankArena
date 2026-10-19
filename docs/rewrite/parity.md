@@ -256,8 +256,8 @@ Open:
 
 Target: an editor screen inside the game, started from the main menu as in the original, that does
 everything the original editor does plus validation, undo and play-test
-([ADR 0021](adrs/0021-editor-in-the-game.md)). Today there is only the separate `:game-editor`
-(Kubriko's `SceneEditor` on four object types), which will be deleted.
+([ADR 0021](adrs/0021-editor-in-the-game.md)). There is no editor at the moment: the old
+`:game-editor` (Kubriko's `SceneEditor` on four object types) was deleted on 2026-10-19.
 
 Missing:
 
@@ -289,7 +289,7 @@ Open:
 ## Tooling and delivery
 
 Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
-297 automated tests; recorded-playthrough replays; every map booted in every mode; reference
+293 automated tests; recorded-playthrough replays; every map booted in every mode; reference
 renders; idle scan of every map; tick benchmark; CI on GitHub Actions.
 
 Open: more recordings (BEGIN4, more missions, player vs player) and the other items in the

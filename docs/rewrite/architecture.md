@@ -4,7 +4,8 @@ This document describes how the Kotlin rewrite is built **today** (2026-10-19). 
 reasons are in the [ADRs](adrs/); the original game it reproduces is described in
 [`docs/game/`](../game/) and the C source in `src/`.
 
-> **Planned changes.** Kubriko is being removed everywhere ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)),
+> **Planned changes.** Kubriko is being removed everywhere (done for the server on 2026-10-19; the
+> client still draws with it) ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)),
 > maps move to a native format ([ADR 0022](adrs/0022-native-map-format.md)), the editor moves into the
 > game ([ADR 0021](adrs/0021-editor-in-the-game.md)) and the modules are reorganised for Android and a
 > dedicated server ([ADR 0025](adrs/0025-multiplatform-modules-and-android.md)). The target shape is
@@ -37,8 +38,9 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
 
 ## Modules
 
-Six modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md)). Dependencies point one way:
-`game-protocol` ← `game-content` ← `game-server` ← `game-client`, `game-editor`, `tools-mapconv`.
+Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-editor` was deleted on
+2026-10-19, [ADR 0021](adrs/0021-editor-in-the-game.md)). Dependencies point one way:
+`game-protocol` ← `game-content` ← `game-server` ← `game-client`, `tools-mapconv`.
 
 | Module | Kind | Holds |
 |---|---|---|
@@ -46,7 +48,6 @@ Six modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md)). Dependenci
 | `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, map importer |
 | `:game-server` | library | The authoritative simulation and the server half of the importer |
 | `:game-client` | desktop app | Shell, playfield rendering, HUD, audio, settings, recordings |
-| `:game-editor` | desktop app | Map editor on Kubriko's `SceneEditor` (to be deleted, ADR 0021) |
 | `:tools-mapconv` | command line | Map conversion and asset extraction |
 
 ### `:game-protocol`
@@ -96,7 +97,7 @@ All under `com.tankarena.sim.kubriko.server`.
 | `Server*Actor` (17 files) | Map objects: turret, projectile, mine, rocket, mortar, goal, flag, product, lock, warp, destroyer, enforcer, train, zeppelin, B52, wall |
 | `MatchClient` | `MatchClient` interface and `LocalMatchClient` |
 | `MatchRecording` | Recorder, replay, `GAME_RULES_VERSION` |
-| `TankArenaSerializableMetadata` | Scene type ids for Kubriko serialization |
+| `SceneObjects` | `SceneObject`/`Steppable`/`Resolvable`, bodies, `SceneFile` (scene reader and writer), `MatchObjectList` |
 | `CanonicalSceneBuilder`, `LegacyToSceneJson`, `legacy/*` | The importer (tools and tests only) |
 
 ### `:game-client`
@@ -111,23 +112,19 @@ All under `com.tankarena.sim.kubriko.server`.
 | `render/kubriko` | `TankArenaViewport`, `ClientScene`, terrain and top-layer actors, sprite catalog and preload, `NightLighting`, `PaletteCycling`, map window layout |
 | `audio` | `AudioBackend`, `DesktopAudioBackend` (software mixer), `AudioManager`, `MusicPlayer` |
 
-### `:game-editor` and `:tools-mapconv`
+### `:tools-mapconv`
 
-- `:game-editor` is one file that opens Kubriko's `SceneEditor` on `game-content/resources/scenes`
-  with four editable types (wall, tank, turret, goal). It is superseded by the in-game editor
-  ([ADR 0021](adrs/0021-editor-in-the-game.md)) and will be deleted.
-- `:tools-mapconv` is one file (`Main.kt`) of subcommands over the `:game-content` and `:game-server`
-  converter code; see [assets.md](assets.md#tools-mapconv).
+One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` converter code; see
+[assets.md](assets.md#tools-mapconv).
 
 ## Boundaries
 
 - `:game-protocol` and `:game-content` contain no Compose or Kubriko code.
 - Only `:game-server` decides gameplay. The client renders snapshots and sends inputs.
-- The editor never runs the simulation (`EditorBoundaryGuardTest`).
 - No runtime code reads repository folders (`MAPS/`, `DATA/`, `unpacked/`); everything shipped comes
   from the class path. Only the tools and some tests read them.
-- Known exception to the intended layering: `:game-server` depends on Compose and Kubriko because its
-  map objects are Kubriko actors. [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md) removes that.
+- `:game-server` depends only on `:game-content`, `:game-protocol` and kotlinx.serialization (since
+  2026-10-19); only `:game-client` still uses Kubriko, for drawing.
 
 ## A match, step by step
 
@@ -135,7 +132,7 @@ All under `com.tankarena.sim.kubriko.server`.
    for which maps exist) or, in player vs player, a map and each player's vehicle on the tank selection
    screen (which itself runs `scene_select` as a live match).
 2. **Create.** `LocalMatchClient.fromSceneJson(scene, sidecar, mode, dual, recordAs)` calls
-   `ServerMatchPrototype.fromSceneJson`: Kubriko's serializer reads the scene's map objects, wall
+   `ServerMatchPrototype.fromSceneJson`: `SceneFile` reads the scene's map objects, wall
    objects are dropped, `MatchSetup.assignControl` gives tanks to players per mode, and the terrain
    grid and `StructureGrid` are built from the sidecar. `initialize()` assigns `actorId`s, start
    shields, `DualRules`, trains, B52s, locks, fallen turrets and bonuses.
@@ -143,7 +140,8 @@ All under `com.tankarena.sim.kubriko.server`.
    ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)): submit each player's `InputFrame`, then
    `tick()`.
 4. **Tick.** `ServerMatchPrototype.tick()` runs a fixed pipeline: player intents to every tank in the
-   player's group; AI tanks; turrets; terrain effects; the actor updates (through Kubriko's tick);
+   player's group; AI tanks; turrets; terrain effects; the map objects' own updates and queued tank
+   damage (`MatchObjectList.step`, in the order objects were added);
    projectile hits on structures and vehicles; flames; small objects; vehicle overlaps; mines,
    rockets, mortars, soldiers, A-bombs, warps, locks, destroyers, enforcers, trains, B52s and
    zeppelins; goals and the mission rules; then the snapshot.
@@ -160,7 +158,7 @@ All under `com.tankarena.sim.kubriko.server`.
 
 ## Replication
 
-- The snapshot is a **projection**, not Kubriko serialization: `projectToWireState` copies each map
+- The snapshot is a **projection**, not the scene format: `projectToWireState` copies each map
   object's fields into its protocol `ActorState`, then the runtime objects and changed structure tiles
   are added. Scene files and the wire therefore use different types.
 - `actorId`s are stable for the life of a match; the client keys its render actors by them.
@@ -181,7 +179,7 @@ All under `com.tankarena.sim.kubriko.server`.
 - **`simulation`** thread: the match ticks (`SimulationLoop`), one per running match.
 - **`audio-mixer`** thread: mixes up to 32 voices onto one output line.
 - Java's MIDI sequencer thread for music.
-- Kubriko's own coroutines for actor bookkeeping (server and client instances).
+- Kubriko's own coroutines for render-actor bookkeeping (client only).
 
 ## Debug and measurement switches
 
@@ -203,8 +201,8 @@ are part of parity ([parity.md](parity.md#shell-and-meta-game)).
 - `ServerMatchPrototype.kt` is 3,149 lines and `ServerTankActor.kt` 1,760; most new rules land there.
   Splitting by subsystem (objects, hits, mission rules, view building) would help, ideally as part of
   [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md).
-- Dead code listed above (protocol leftovers, `ServerWallActor`/`WallState`, `TerrainSlideManager`'s
-  old role, the no-op `CollisionManager`) and a stale KDoc on `fromSceneJson` that still mentions A*.
+- Dead code listed above (protocol leftovers, `ServerWallActor`/`WallState`, kept only because the scene
+  files still contain wall entries until the native map format replaces them).
 - `fromCanonicalMap` builds test fixtures through the importer's `CanonicalSceneBuilder`, so tests
   depend on the importer; with the native format they build map documents instead
   ([ADR 0022](adrs/0022-native-map-format.md)).

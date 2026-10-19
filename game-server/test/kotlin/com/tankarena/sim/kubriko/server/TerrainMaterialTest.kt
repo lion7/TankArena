@@ -1,9 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.types.SceneOffset
-import com.pandulapeter.kubriko.types.SceneSize
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.MapMetadata
 import com.tankarena.content.TankArenaWorld

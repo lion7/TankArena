@@ -1,12 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.BoxCollisionMask
-import com.pandulapeter.kubriko.sceneEditor.Editable
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializableBoxBody
 import com.tankarena.core.LegacyDirections
 import kotlinx.serialization.SerialName
 import kotlin.math.PI
@@ -56,14 +49,9 @@ internal fun rotateLegacyOffset(direction: Int, x: Int, y: Int): Pair<Int, Int> 
  * the closest vehicle it may shoot at ([shootAt]), turns towards it one step at a time while it
  * is in range, and fires bullets or rockets when its gun points straight at it.
  */
-class ServerTurretActor internal constructor(state: State) : Collidable, Editable<ServerTurretActor> {
+class ServerTurretActor internal constructor(state: State) : SceneObject<ServerTurretActor>, Placed {
 
     override val body: BoxBody = state.body
-    override val collisionMask: BoxCollisionMask = BoxCollisionMask(
-        initialSize = body.size,
-        initialPosition = body.position,
-        initialRotation = body.rotation,
-    )
 
     var turretDirection: Int = state.turretDirection
         private set
@@ -92,8 +80,8 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
 
     private var destroyedThisTick: Boolean = false
 
-    val positionX: Int get() = (body.position.x.raw + body.size.width.raw / 2f).toInt()
-    val positionY: Int get() = (body.position.y.raw + body.size.height.raw / 2f).toInt()
+    val positionX: Int get() = (body.position.x + body.size.width / 2f).toInt()
+    val positionY: Int get() = (body.position.y + body.size.height / 2f).toInt()
 
     private var pendingFireRequest: FireRequest? = null
 
@@ -209,10 +197,9 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
 
     /** Legacy control_train(): a turret on a wagon moves with it. */
     internal fun moveTo(x: Int, y: Int) {
-        val half = body.size.width.raw / 2f
-        val offset = com.pandulapeter.kubriko.types.SceneOffset((x - half).sceneUnit, (y - half).sceneUnit)
+        val half = body.size.width / 2f
+        val offset = ScenePoint((x - half).toFloat(), (y - half).toFloat())
         body.position = offset
-        collisionMask.position = offset
     }
 
     /** Legacy closest_tank(): the nearest live, visible vehicle this turret may shoot at, at any range. */
@@ -242,7 +229,7 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializableBoxBody = BoxBody(),
+        @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("turretDirection") val turretDirection: Int = 0,
         @SerialName("team") val team: Int = 1,
         @SerialName("armor") val armor: Int = DEFAULT_TURRET_ARMOR,
@@ -256,7 +243,7 @@ class ServerTurretActor internal constructor(state: State) : Collidable, Editabl
         @SerialName("shootAt") val shootAt: Int = 1,
         @SerialName("fixed") val fixed: Boolean = false,
         @SerialName("forbidDirections") val forbidDirections: Int = 0,
-    ) : Serializable.State<ServerTurretActor> {
+    ) : SceneObject.State<ServerTurretActor> {
         override fun restore(): ServerTurretActor = ServerTurretActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

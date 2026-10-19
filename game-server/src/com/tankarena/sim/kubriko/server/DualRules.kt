@@ -1,7 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.types.SceneOffset
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.content.PictureCatalog
 import com.tankarena.content.TankArenaWorld
@@ -207,12 +205,12 @@ internal class DualRules(
 
     private fun centreOf(flag: ServerFlagActor): Pair<Int, Int> {
         val body = flag.body
-        return (body.position.x.raw + body.size.width.raw / 2f).toInt() to (body.position.y.raw + body.size.height.raw / 2f).toInt()
+        return (body.position.x + body.size.width / 2f).toInt() to (body.position.y + body.size.height / 2f).toInt()
     }
 
     private fun moveTo(flag: ServerFlagActor, x: Int, y: Int) {
         val body = flag.body
-        body.position = SceneOffset((x - body.size.width.raw / 2f).sceneUnit, (y - body.size.height.raw / 2f).sceneUnit)
+        body.position = ScenePoint((x - body.size.width / 2f).toFloat(), (y - body.size.height / 2f).toFloat())
     }
 
     private companion object {

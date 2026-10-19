@@ -68,7 +68,7 @@ rewrite. Kotlin paths are abbreviated: `server/` is `game-server/src/com/tankare
 |---|---|
 | `data/tanks.c` | `server/GeneratedLegacyVehicles.kt` (`extract-vehicles`) |
 | `data/pictures.c` | `content/GeneratedLegacyPictureCatalog.kt`, `GeneratedLegacyPictureTerrain.kt` |
-| `edit/*` (map editor) | Planned: an editor screen in the game ([ADR 0021](adrs/0021-editor-in-the-game.md)); today only the `:game-editor` stub |
+| `edit/*` (map editor) | Planned: an editor screen in the game ([ADR 0021](adrs/0021-editor-in-the-game.md)); not built yet |
 | `setup/*` (sound and video setup) | out of scope |
 | `utils/*` (picture packing and conversion) | `tools-mapconv` extractors work in the other direction |
 | `include/*` | constants live next to the code that uses them, with C references |

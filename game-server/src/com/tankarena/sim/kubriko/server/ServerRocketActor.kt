@@ -1,13 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.actor.traits.Dynamic
-import com.pandulapeter.kubriko.collision.Collidable
-import com.pandulapeter.kubriko.collision.mask.CircleCollisionMask
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.typeSerializers.SerializablePointBody
-import com.pandulapeter.kubriko.types.SceneOffset
 import kotlin.math.hypot
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
@@ -32,23 +24,17 @@ internal fun interface RocketTarget {
  * accelerating from standstill, and explodes when it arrives or runs out of range. The target
  * is whatever was under the lock-on marker when it was launched, or else the marker's spot.
  */
-class ServerRocketActor internal constructor(state: State) :
-    Collidable,
-    Dynamic,
-    Serializable<ServerRocketActor> {
+class ServerRocketActor internal constructor(state: State) : Steppable,
+    SceneObject<ServerRocketActor>, Placed {
 
     override val body: PointBody = state.body
-    override val collisionMask: CircleCollisionMask = CircleCollisionMask(
-        initialPosition = body.position,
-        initialRadius = 2f.sceneUnit,
-    )
 
     val ownerActorId: Long = state.ownerActorId
     val damage: Int = state.damage
 
-    var positionX: Float = body.position.x.raw
+    var positionX: Float = body.position.x
         private set
-    var positionY: Float = body.position.y.raw
+    var positionY: Float = body.position.y
         private set
     var velocityX: Float = state.velocityX
         private set
@@ -90,9 +76,8 @@ class ServerRocketActor internal constructor(state: State) :
         positionY += velocityY
         rangeLeft -= step
         if (speed < ROCKET_MAX_SPEED_PX_PER_SECOND) speed += 1
-        val offset = SceneOffset(positionX.sceneUnit, positionY.sceneUnit)
+        val offset = ScenePoint(positionX.toFloat(), positionY.toFloat())
         body.position = offset
-        collisionMask.position = offset
         if (arrived || rangeLeft < 0f) markDead()
     }
 
@@ -135,7 +120,7 @@ class ServerRocketActor internal constructor(state: State) :
 
     @kotlinx.serialization.Serializable
     data class State(
-        @SerialName("body") val body: SerializablePointBody = PointBody(),
+        @SerialName("body") val body: PointBody = PointBody(),
         @SerialName("ownerActorId") val ownerActorId: Long = 0L,
         @SerialName("damage") val damage: Int = 0,
         @SerialName("velocityX") val velocityX: Float = 0f,
@@ -144,7 +129,7 @@ class ServerRocketActor internal constructor(state: State) :
         @SerialName("targetY") val targetY: Int = 0,
         @SerialName("speed") val speed: Int = 0,
         @SerialName("rangeLeft") val rangeLeft: Float = ROCKET_RANGE_PX.toFloat(),
-    ) : Serializable.State<ServerRocketActor> {
+    ) : SceneObject.State<ServerRocketActor> {
         override fun restore(): ServerRocketActor = ServerRocketActor(this)
         override fun serialize(): String = Json.encodeToString(this)
     }

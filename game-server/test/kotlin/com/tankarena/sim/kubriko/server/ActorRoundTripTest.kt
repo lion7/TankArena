@@ -1,12 +1,5 @@
 package com.tankarena.sim.kubriko.server
 
-import com.pandulapeter.kubriko.actor.body.BoxBody
-import com.pandulapeter.kubriko.actor.body.PointBody
-import com.pandulapeter.kubriko.helpers.extensions.sceneUnit
-import com.pandulapeter.kubriko.serialization.Serializable
-import com.pandulapeter.kubriko.serialization.SerializableMetadata
-import com.pandulapeter.kubriko.types.SceneOffset
-import com.pandulapeter.kubriko.types.SceneSize
 import com.tankarena.protocol.snapshot.ProjectileOwnerKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,7 +12,6 @@ import kotlin.test.assertEquals
  */
 class ActorRoundTripTest {
 
-    private val manager = SerializableMetadata.newSerializationManagerInstance(*tankArenaSerializableMetadata)
 
     @Test
     fun `ServerWallActor round-trip preserves body geometry`() {
@@ -28,10 +20,10 @@ class ActorRoundTripTest {
         )
         val restored = roundTrip(original).filterIsInstance<ServerWallActor>().single()
 
-        assertEquals(132f, restored.body.position.x.raw)
-        assertEquals(264f, restored.body.position.y.raw)
-        assertEquals(33f, restored.body.size.width.raw)
-        assertEquals(66f, restored.body.size.height.raw)
+        assertEquals(132f, restored.body.position.x)
+        assertEquals(264f, restored.body.position.y)
+        assertEquals(33f, restored.body.size.width)
+        assertEquals(66f, restored.body.size.height)
     }
 
     @Test
@@ -72,8 +64,8 @@ class ActorRoundTripTest {
         assertEquals(1.5f, restored.velocityX)
         assertEquals(-2.25f, restored.velocityY)
         assertEquals(17, restored.primaryCooldownTicks)
-        assertEquals(99f, restored.body.position.x.raw)
-        assertEquals(297f, restored.body.position.y.raw)
+        assertEquals(99f, restored.body.position.x)
+        assertEquals(297f, restored.body.position.y)
     }
 
     @Test
@@ -93,7 +85,7 @@ class ActorRoundTripTest {
         assertEquals(1, restored.team)
         assertEquals(64, restored.armor)
         assertEquals(90, restored.cooldownTicks)
-        assertEquals(198f, restored.body.position.x.raw)
+        assertEquals(198f, restored.body.position.x)
     }
 
     @Test
@@ -119,7 +111,7 @@ class ActorRoundTripTest {
     fun `ServerProjectileActor round-trip preserves ownership velocity damage and TTL`() {
         val original = ServerProjectileActor(
             ServerProjectileActor.State(
-                body = PointBody(initialPosition = SceneOffset(150f.sceneUnit, 250f.sceneUnit)),
+                body = PointBody(position = ScenePoint(150f.toFloat(), 250f.toFloat())),
                 ownerActorId = 42L,
                 ownerKind = ProjectileOwnerKind.TURRET,
                 damage = 17,
@@ -140,13 +132,13 @@ class ActorRoundTripTest {
         assertEquals(250, restored.positionY)
     }
 
-    private fun roundTrip(actor: Serializable<*>): List<com.pandulapeter.kubriko.actor.Actor> {
-        val json = manager.serializeActors(listOf(actor))
-        return manager.deserializeActors(json)
+    private fun roundTrip(actor: SceneObject<*>): List<SceneObject<*>> {
+        val json = SceneFile.write(listOf(actor))
+        return SceneFile.read(json)
     }
 
     private fun box(x: Float, y: Float, w: Float, h: Float): BoxBody = BoxBody(
-        initialPosition = SceneOffset(x.sceneUnit, y.sceneUnit),
-        initialSize = SceneSize(w.sceneUnit, h.sceneUnit),
+        position = ScenePoint(x.toFloat(), y.toFloat()),
+        size = SceneExtent(w.toFloat(), h.toFloat()),
     )
 }

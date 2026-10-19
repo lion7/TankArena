@@ -51,7 +51,7 @@ internal object AreaDamageResolver {
                 if (!turret.isAlive) continue
                 val dx = (turret.positionX - x).toLong()
                 val dy = (turret.positionY - y).toLong()
-                val half = (turret.body.size.width.raw / 2f)
+                val half = (turret.body.size.width / 2f)
                 val edgeDist = (kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat() - half).coerceAtLeast(0f)
                 if (edgeDist >= radius) continue
                 val scaled = if (falloff) (damage.toFloat() * (1f - edgeDist / radius.toFloat())).toInt() else damage

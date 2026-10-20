@@ -249,6 +249,12 @@ internal fun Match.blastSmallObjects(x: Int, y: Int, radius: Int, nuke: Boolean 
             if (!bomb.exploding && withinRadius(bomb.x, bomb.y, x, y, maxOf(radius, ABOMB_RADIUS_PX))) bomb.removed = true
         }
     }
+    // Legacy determine_hit(): rockets in flight can always be hit.
+    for (rocket in objects.all.filterIsInstance<Rocket>()) {
+        if (!rocket.isDead && withinRadius(rocket.positionX.toInt(), rocket.positionY.toInt(), x, y, maxOf(radius, ROCKET_RADIUS_PX))) {
+            destroyRocket(rocket)
+        }
+    }
     soldiers.removeAll { it.removed }
     bonuses.removeAll { it.removed }
     abombs.removeAll { it.removed }
@@ -264,7 +270,9 @@ internal fun Match.checkSmallObjectHits() {
         if (projectile !is Projectile) continue
         projectile.drainTrail()?.let { (x, y) -> pendingEvents += GameEvent.Effect(EffectKind.EXHAUST, x, y) }
     }
-    if (soldiers.isEmpty() && bonuses.isEmpty() && abombs.isEmpty() && trains.isEmpty() && b52s.isEmpty()) return
+    val rockets = objects.all.filterIsInstance<Rocket>()
+    val mines = objects.all.filterIsInstance<Mine>()
+    if (soldiers.isEmpty() && bonuses.isEmpty() && abombs.isEmpty() && trains.isEmpty() && b52s.isEmpty() && rockets.isEmpty() && mines.isEmpty()) return
     for (projectile in objects.all) {
         if (projectile !is Projectile || projectile.isDead || !projectile.armed) continue
         val (x1, y1) = projectile.previousPosition
@@ -314,6 +322,24 @@ internal fun Match.checkSmallObjectHits() {
         if (bomb != null) {
             bomb.removed = true
             projectile.stopAt(bomb.x, bomb.y)
+            continue
+        }
+        // Legacy line_obj_hit_point() / line_obj_hit_radius(): a rocket in flight or a mine on the
+        // path (within its 3 px, or a flame's 15 px) is hit too, whatever its height.
+        val rocket = rockets.firstOrNull {
+            !it.isDead && nearSegment(x1, y1, x2, y2, it.positionX.toInt(), it.positionY.toInt(), if (flame) FLAME_HIT_RADIUS_PX else ROCKET_RADIUS_PX)
+        }
+        if (rocket != null) {
+            destroyRocket(rocket)
+            projectile.stopAt(rocket.positionX.toInt(), rocket.positionY.toInt())
+            continue
+        }
+        val mine = mines.firstOrNull {
+            !it.isDead && nearSegment(x1, y1, x2, y2, it.positionX, it.positionY, if (flame) FLAME_HIT_RADIUS_PX else MINE_RADIUS_PX)
+        }
+        if (mine != null) {
+            mine.detonateOn(null)
+            projectile.stopAt(mine.positionX, mine.positionY)
         }
     }
     soldiers.removeAll { it.removed }

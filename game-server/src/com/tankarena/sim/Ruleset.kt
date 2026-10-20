@@ -30,5 +30,6 @@ enum class Ruleset {
  * 1: Extended introduced; it plays exactly like Classic v11.
  * 2: Classic v12 (legacy steps).
  * 3: Classic v13 (the rest of Classic parity).
+ * 4: Classic v14 (rockets and mines can be hit).
  */
-const val EXTENDED_RULES_VERSION: Int = 3
+const val EXTENDED_RULES_VERSION: Int = 4

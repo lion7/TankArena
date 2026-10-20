@@ -212,6 +212,13 @@ internal fun Match.bombObjects(bomber: B52, x: Int, y: Int): Boolean {
         hitAt(x, y)
         hitB52(other, B52_BOMB_POWER)
     }
+    // Legacy check_obj_hit_point(): rockets in flight and mines under the bomb are hit too.
+    for (rocket in objects.all.filterIsInstance<Rocket>()) {
+        if (!rocket.isDead && withinRadius(rocket.positionX.toInt(), rocket.positionY.toInt(), x, y, ROCKET_RADIUS_PX)) destroyRocket(rocket)
+    }
+    for (mine in objects.all.filterIsInstance<Mine>()) {
+        if (!mine.isDead && withinRadius(mine.positionX, mine.positionY, x, y, MINE_RADIUS_PX)) mine.detonateOn(null)
+    }
     soldiers.removeAll { it.removed }
     bonuses.removeAll { it.removed }
     return false

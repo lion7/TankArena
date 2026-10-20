@@ -39,8 +39,9 @@ import kotlinx.serialization.json.Json
  *     between steps; wrecks, map wrap, fuel and fire_delay; heavy mines, the growing mortar blast,
  *     rockets at any object, warps for every kind; conveyors, turntables, burning fuel-dump pieces,
  *     ground effects; supermarket mayhem; linked goals; cheats.
+ * 14: rockets in flight and mines can be hit by flames, shots, blasts, bombs and burning pieces.
  */
-const val GAME_RULES_VERSION: Int = 13
+const val GAME_RULES_VERSION: Int = 14
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

@@ -147,15 +147,14 @@ internal fun Match.drainRocketExplosions() {
             pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, explosion.x, explosion.y)
         }
         blastSmallObjects(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, power = actor.damage, rocket = true)
-        // Legacy hit_rocket(): other rockets in the blast are gone.
-        for (other in objects.all.filterIsInstance<Rocket>()) {
-            if (other !== actor && !other.isDead &&
-                withinRadius(other.positionX.toInt(), other.positionY.toInt(), explosion.x, explosion.y, maxOf(ROCKET_BLAST_RADIUS_PX, ROCKET_RADIUS_PX))
-            ) {
-                other.removeQuietly()
-            }
-        }
     }
+}
+
+/** Legacy hit_rocket() and remove_rocket(): a rocket that is hit is gone, in a big explosion. */
+internal fun Match.destroyRocket(rocket: Rocket) {
+    if (rocket.isDead) return
+    rocket.removeQuietly()
+    pendingEvents += GameEvent.Effect(EffectKind.LEXPLOSION, rocket.positionX.toInt(), rocket.positionY.toInt())
 }
 
 internal fun Match.removeDeadRockets() {

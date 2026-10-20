@@ -207,6 +207,19 @@ internal fun Match.stepFlameParts() {
         for (step in 1..steps) {
             val x = from.first + (to.first - from.first) * step / steps
             val y = from.second + (to.second - from.second) * step / steps
+            // Legacy line_obj_hit_point(): a rocket in flight or a mine on the path stops the piece.
+            val rocket = objects.all.firstOrNull { it is Rocket && !it.isDead && withinRadius(it.positionX.toInt(), it.positionY.toInt(), x, y, ROCKET_RADIUS_PX) } as Rocket?
+            if (rocket != null) {
+                destroyRocket(rocket)
+                part.removed = true
+                break
+            }
+            val mine = objects.all.firstOrNull { it is Mine && !it.isDead && withinRadius(it.positionX, it.positionY, x, y, MINE_RADIUS_PX) } as Mine?
+            if (mine != null) {
+                mine.detonateOn(null)
+                part.removed = true
+                break
+            }
             val tank = allTanks.firstOrNull { (it.armor > 0 || it.isWreck) && it.height >= 1 && it.bodyCovers(x, y) }
             if (tank != null) {
                 tank.queueDamage(FLAME_PART_POWER_TANK)

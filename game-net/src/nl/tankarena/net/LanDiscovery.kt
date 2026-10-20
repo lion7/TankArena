@@ -54,6 +54,7 @@ fun broadcastTargets(port: Int = DISCOVERY_PORT): List<InetSocketAddress> {
  * Says [beacon] to [targets] once a second on a thread of its own until [stop]; a null beacon is
  * not sent (the game started).
  */
+@OptIn(ExperimentalSerializationApi::class)
 class LanAnnouncer(
     private val targets: List<InetSocketAddress>,
     private val beacon: () -> LanBeacon?,
@@ -95,6 +96,7 @@ class LanAnnouncer(
  * Listens for games announcing themselves ([LanAnnouncer]) on [port] (0: any free one, for tests;
  * see [boundPort]); [games] holds those heard in the last few seconds that this version can join.
  */
+@OptIn(ExperimentalSerializationApi::class)
 class LanFinder(
     private val port: Int = DISCOVERY_PORT,
     private val protocolVersion: Int,

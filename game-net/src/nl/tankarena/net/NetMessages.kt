@@ -14,7 +14,7 @@ import nl.tankarena.sim.Ruleset
  * Version of the messages below. The frames inside carry [nl.tankarena.protocol.snapshot.PROTOCOL_VERSION];
  * the handshake compares both, and the rules version, and refuses a mismatch (ADR 0024).
  */
-const val NET_VERSION: Int = 1
+const val NET_VERSION: Int = 2
 
 /** The port a game listens on unless told otherwise. */
 const val DEFAULT_PORT: Int = 47_300
@@ -91,6 +91,11 @@ sealed interface ServerMessage {
     @Serializable
     @SerialName("frame")
     data class Frame(val frame: ServerFrame) : ServerMessage
+
+    /** One step as the difference with the frame before it ([DeltaFrame]). */
+    @Serializable
+    @SerialName("delta")
+    data class Delta(val delta: DeltaFrame) : ServerMessage
 
     /** The match or the lobby is over (the host left or stopped it). */
     @Serializable

@@ -1,5 +1,6 @@
 package nl.tankarena.net
 
+import io.ktor.websocket.WebSocketDeflateExtension
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.WebSockets
@@ -48,10 +49,14 @@ class GameClient(
         install(WebSockets) {
             pingIntervalMillis = 5_000
             maxFrameSize = Long.MAX_VALUE
+            extensions { install(WebSocketDeflateExtension) }
         }
     }
     private val toServer = Channel<ClientMessage>(Channel.UNLIMITED)
     private val stateFlow = MutableStateFlow<ClientState>(ClientState.Connecting)
+
+    /** The frames rebuilt from whole frames and deltas, as they arrive. */
+    private val frames = DeltaDecoder()
 
     val state: StateFlow<ClientState> = stateFlow.asStateFlow()
 
@@ -117,7 +122,8 @@ class GameClient(
             }
             is ServerMessage.Lobby -> if (current is ClientState.InLobby) stateFlow.value = current.copy(members = message.members)
             is ServerMessage.MatchStart -> stateFlow.value = ClientState.Playing(RemoteMatchClient(message, this))
-            is ServerMessage.Frame -> (current as? ClientState.Playing)?.match?.receive(message.frame)
+            is ServerMessage.Frame -> (current as? ClientState.Playing)?.match?.receive(frames.whole(message.frame))
+            is ServerMessage.Delta -> (current as? ClientState.Playing)?.match?.receive(frames.apply(message.delta))
             is ServerMessage.Ended -> {
                 (current as? ClientState.Playing)?.match?.end(message.reason)
                 stateFlow.value = ClientState.Out(message.reason)

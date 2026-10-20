@@ -233,8 +233,11 @@ Depends on: phases 1 and 6 (the move is mechanical once the core is platform-fre
      (`LanAnnouncer`, a CBOR `LanBeacon`), the join screen lists what `LanFinder` hears (only games of
      the same versions) and keeps "Type an address…"; Android holds a Wi-Fi multicast lock meanwhile.
      Not tried between two real machines yet (the emulator is behind NAT).
-   - [ ] Smaller frames: deltas and only what is near the machine's views (median 4 KB, SUBURBS
-     35 KB per frame now; fine on a LAN, too much for the internet).
+   - [x] Smaller frames: each frame is a delta of the one before it to that machine (new or changed
+     actors, removed ids, changed tiles; whole again after a dropped frame), and the WebSocket
+     deflates with the context of the frames before. Median 99 bytes per frame, SUBURBS 551 (was
+     4 KB and 35 KB): about 3 to 18 KB/s per guest, so limiting frames to what is near the views is
+     not needed.
    - [ ] More players per machine (the join screen first), the vehicle choice over the network,
      several rounds, a result screen.
 2. [x] Dedicated headless `app-server` (`--map`, `--mode`, `--players`, `--port`, `--repeat`).

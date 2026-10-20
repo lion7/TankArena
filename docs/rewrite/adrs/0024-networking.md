@@ -1,7 +1,8 @@
 # ADR 0024: Networked Play — Authoritative Server with Snapshots
 
 - **Status:** Accepted (2026-10-19); partly implemented (2026-10-20: LAN play by address or from
-  the LAN list, and the dedicated server; frames are not deltas yet). Extended ruleset only
+  the LAN list, deltas against the previous frame instead of an acknowledged one (the connection
+  is ordered), and the dedicated server). Extended ruleset only
   ([ADR 0023](0023-classic-and-extended-rulesets.md)).
 
 ## Context

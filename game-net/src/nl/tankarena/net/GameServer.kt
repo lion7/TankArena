@@ -1,5 +1,6 @@
 package nl.tankarena.net
 
+import io.ktor.websocket.WebSocketDeflateExtension
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.cio.CIOApplicationEngine
@@ -56,6 +57,9 @@ class GameServer(
     private class Session(val name: String, var seats: List<Int>, val socket: DefaultWebSocketSession) {
         /** Messages to send, in order; frames are dropped when a client falls more than this behind. */
         val outgoing = Channel<ServerMessage>(OUTGOING_CAPACITY)
+
+        /** The frames as deltas of the one sent before; only the simulation thread uses it. */
+        val frames = DeltaEncoder()
     }
 
     private val lock = Any()
@@ -79,6 +83,8 @@ class GameServer(
                 pingPeriod = 5.seconds
                 timeout = 15.seconds
                 maxFrameSize = Long.MAX_VALUE
+                // Compressed with the context of the frames before: a step is then 60-500 bytes.
+                extensions { install(WebSocketDeflateExtension) }
             }
             routing {
                 webSocket(GAME_PATH) { serve(this) }
@@ -148,7 +154,11 @@ class GameServer(
     /** Sends one step of the match to every machine, each with only its own players' views. */
     internal fun broadcast(frame: ServerFrame) {
         val all = synchronized(lock) { sessions.toList() }
-        for (session in all) session.outgoing.trySend(ServerMessage.Frame(frame.forSeats(session.seats)))
+        for (session in all) {
+            val message = session.frames.encode(frame.forSeats(session.seats))
+            // A dropped frame breaks the chain of deltas: the next one is whole again.
+            if (session.outgoing.trySend(message).isFailure) session.frames.reset()
+        }
     }
 
     internal fun matchEnded() {

@@ -111,6 +111,8 @@ All under `nl.tankarena.sim`.
   their players the next free ids, keeps the lobby, and starts a `HostedMatch`.
 - `HostedMatch`: a `LocalMatchClient` plus the joined players' latest controls; sends one frame per
   step (33 a second) with the events since the last one and only that machine's views.
+- `DeltaFrames.kt`: `DeltaEncoder` (per machine, on the server) and `DeltaDecoder` make each frame
+  the difference with the one before; the WebSocket deflates them (permessage-deflate).
 - `LanDiscovery.kt`: `LanAnnouncer` (the lobby's beacon on UDP port 47301, once a second, to every
   broadcast address) and `LanFinder` (the games heard lately).
 - `GameClient` (connection and lobby) and `RemoteMatchClient`: a `MatchClient` that sends its players'

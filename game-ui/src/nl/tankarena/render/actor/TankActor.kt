@@ -71,44 +71,47 @@ internal class TankActor(
     }
 
     fun collectSpriteResources(target: MutableSet<DrawableResource>) {
-        spriteNames().forEach { name -> sprites.findResource(name)?.let(target::add) }
+        sprites.findResource(bodyName())?.let(target::add)
+        turretName()?.let(sprites::findResource)?.let(target::add)
         sprites.findResource(SHIELD_SPRITE)?.let(target::add)
         for (depth in 0..4) {
             sprites.findResource(LegacySpriteResources.nameForTankBody(tankType, PIT_FRAME_BASE + depth))?.let(target::add)
         }
     }
 
-    /** Legacy frames (0-based): body `dir` (+16 animated), turret `32 + ldir`, wreck `48`. */
-    private fun spriteNames(): List<String> {
-        // Legacy write_tank(): `pic[49 - h]` while sinking into a pit, and at its bottom once dead.
-        if (height < 1) return listOf(LegacySpriteResources.nameForTankBody(tankType, PIT_FRAME_BASE - height))
-        if (!alive) return listOf(LegacySpriteResources.nameForTankBody(tankType, WRECK_FRAME))
-        val direction = LegacySpriteResources.tankBodyFrameForFacing(bodyDirection)
-        return listOf(
-            LegacySpriteResources.nameForTankBody(tankType, direction + trackFrame),
-            LegacySpriteResources.nameForTankBody(tankType, TURRET_FRAME_OFFSET + LegacySpriteResources.tankBodyFrameForFacing(turretDirection)),
-        )
+    /**
+     * Legacy frames (0-based): body `dir` (+16 animated), turret `32 + ldir`, wreck `48`; legacy
+     * write_tank() shows `pic[49 - h]` while sinking into a pit, and at its bottom once dead.
+     */
+    private fun bodyName(): String = when {
+        height < 1 -> LegacySpriteResources.nameForTankBody(tankType, PIT_FRAME_BASE - height)
+        !alive -> LegacySpriteResources.nameForTankBody(tankType, WRECK_FRAME)
+        else -> LegacySpriteResources.nameForTankBody(tankType, LegacySpriteResources.tankBodyFrameForFacing(bodyDirection) + trackFrame)
     }
 
+    /** The turret on top (frame `32 + ldir`), none in a pit or as a wreck. */
+    private fun turretName(): String? =
+        if (height < 1 || !alive) {
+            null
+        } else {
+            LegacySpriteResources.nameForTankBody(tankType, TURRET_FRAME_OFFSET + LegacySpriteResources.tankBodyFrameForFacing(turretDirection))
+        }
+
+    // Drawn for every vehicle in every frame: no lists, so nothing to collect afterwards.
     override fun DrawScope.draw() {
         if (alive && height >= 1 && !visible) return
-        val images = spriteNames().map { name -> sprites.findResource(name)?.let(pictures::get) }
         // Sprites load asynchronously at mission start; draw nothing until the body frame is ready.
-        if (images.firstOrNull() == null) return
+        val body = sprites.findResource(bodyName())?.let(pictures::get) ?: return
+        // Vehicles without a separate turret have no frames past 31; then there is none to draw.
+        val turret = turretName()?.let(sprites::findResource)?.let(pictures::get)
         // Legacy write_tank(): above the ground a vehicle casts its shadow `h` right and `2h` down,
         // a helicopter's rotor too.
         if (height > 1) {
-            val shadows = if (chopper) images else images.take(1)
-            for (image in shadows) {
-                image ?: continue
-                drawLegacyShadow(image, height, 2 * height)
-            }
+            drawLegacyShadow(body, height, 2 * height)
+            if (chopper && turret != null) drawLegacyShadow(turret, height, 2 * height)
         }
-        for (image in images) {
-            // Vehicles without a separate turret have no frames past 31; skip what is missing.
-            image ?: continue
-            drawSprite(image, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
-        }
+        drawSprite(body, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
+        if (turret != null) drawSprite(turret, x = 0f, y = 0f, width = LEGACY_TILE_SIZE, height = LEGACY_TILE_SIZE)
         // Legacy write_tank(): the ARMOR ring while the shield key works or the start shield blinks on.
         if (shielded && alive && height >= 1) {
             sprites.findResource(SHIELD_SPRITE)?.let(pictures::get)?.let { ring ->

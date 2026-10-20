@@ -60,6 +60,8 @@ internal class RenderScene {
         drawables.removeAll { it in doomed }
     }
 
+    private val visible = ArrayList<SceneDrawable>()
+
     /** Draws everything inside the camera's view onto this canvas, which shows [sceneWidth] scene pixels across. */
     fun draw(scope: DrawScope, cameraX: Float, cameraY: Float, sceneWidth: Float) = with(scope) {
         if (size.width <= 0f || size.height <= 0f) return@with
@@ -70,14 +72,18 @@ internal class RenderScene {
         val top = cameraY - halfHeight
         val right = cameraX + halfWidth
         val bottom = cameraY + halfHeight
-        val ordered = drawables
-            .filter { drawable ->
-                val box = drawable.body
-                val boxLeft = box.position.x - box.pivot.x
-                val boxTop = box.position.y - box.pivot.y
-                boxLeft <= right && boxTop <= bottom && boxLeft + box.size.width >= left && boxTop + box.size.height >= top
+        // One list for every frame, sorted in place (stable, as before): drawing makes no garbage.
+        val ordered = visible
+        ordered.clear()
+        for (drawable in drawables) {
+            val box = drawable.body
+            val boxLeft = box.position.x - box.pivot.x
+            val boxTop = box.position.y - box.pivot.y
+            if (boxLeft <= right && boxTop <= bottom && boxLeft + box.size.width >= left && boxTop + box.size.height >= top) {
+                ordered += drawable
             }
-            .sortedWith(compareBy<SceneDrawable> { it.layerIndex }.thenByDescending { it.drawingOrder + 0f })
+        }
+        ordered.sortWith(DRAWING_ORDER)
         withTransform({
             translate(left = size.width / 2f - cameraX, top = size.height / 2f - cameraY)
             scale(scaleX = scale, scaleY = scale, pivot = Offset(cameraX, cameraY))
@@ -120,4 +126,9 @@ class PictureCache private constructor() {
     companion object {
         val shared: PictureCache by lazy { PictureCache() }
     }
+}
+
+/** By layer, then highest [SceneDrawable.drawingOrder] first (`+ 0f`: -0 and 0 are the same height). */
+private val DRAWING_ORDER = Comparator<SceneDrawable> { a, b ->
+    if (a.layerIndex != b.layerIndex) a.layerIndex.compareTo(b.layerIndex) else (b.drawingOrder + 0f).compareTo(a.drawingOrder + 0f)
 }

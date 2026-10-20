@@ -1,5 +1,7 @@
 package nl.tankarena.render
 
+import androidx.collection.emptyIntObjectMap
+import androidx.collection.IntObjectMap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.FilterQuality
@@ -58,7 +60,7 @@ internal class RuntimeSnapshot(
     }
 
     /** Tiles the server reports as changed (destroyed buildings, bridges turned to water), by index. */
-    var changedTiles: Map<Int, TileState> = emptyMap()
+    var changedTiles: IntObjectMap<TileState> = emptyIntObjectMap()
 
     val sceneWidth: Int
         get() = geometry.sceneWidth
@@ -132,8 +134,11 @@ internal fun createWorldBody(worldWidth: Int, worldHeight: Int): RenderBody = Re
 fun backgroundTileName(world: TankArenaWorld, tileX: Int, tileY: Int): String {
     val hash = (tileX * 73_856_093) xor (tileY * 19_349_663)
     val variant = (hash ushr 7) and 3
-    return "BACK${world.ordinal * 4 + variant + 1}"
+    return BACKGROUND_NAMES[world.ordinal * 4 + variant]
 }
+
+/** `BACK1`..`BACK16`, made once: every visible tile asks for its name in every frame. */
+private val BACKGROUND_NAMES = Array(TankArenaWorld.entries.size * 4) { "BACK${it + 1}" }
 
 internal fun addTileSprite(
     target: MutableSet<DrawableResource>,

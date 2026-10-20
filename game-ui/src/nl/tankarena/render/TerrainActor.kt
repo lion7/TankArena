@@ -114,24 +114,30 @@ internal class TopLayerActor(
         val width = sidecar.metadata.widthTiles
         val height = sidecar.metadata.heightTiles
         val world = sidecar.metadata.world
-        val roofs = ArrayList<Triple<androidx.compose.ui.graphics.ImageBitmap, Int, Int>>()
         val (columns, rows) = snapshot.visibleTiles(width, height)
-        for (y in rows) {
-            for (x in columns) {
-                val index = x + y * width
-                val changed = snapshot.changedTiles[index]
-                val top = changed?.top ?: tiles.top[index]
-                if (top < 0) continue
-                val standing = changed?.solidStanding ?: initiallyStanding(world, tiles.solid[index], top)
-                if (!standing) continue
-                val intact = changed?.topIntact ?: true
-                val variant = if (intact) LegacyPictureVariant.INTACT else LegacyPictureVariant.DAMAGED
-                val name = LegacySpriteResources.nameForTile(world, top, variant) ?: continue
-                val image = sprites.findResource(name)?.let(pictures::get) ?: continue
-                roofs += Triple(image, (snapshot.renderOffsetX + x * TILE_SIZE).toInt(), (snapshot.renderOffsetY + y * TILE_SIZE).toInt())
+        // All shadows first, then the roofs; the visible tiles are walked twice rather than listed.
+        for (pass in 0..1) {
+            for (y in rows) {
+                for (x in columns) {
+                    val index = x + y * width
+                    val changed = snapshot.changedTiles[index]
+                    val top = changed?.top ?: tiles.top[index]
+                    if (top < 0) continue
+                    val standing = changed?.solidStanding ?: initiallyStanding(world, tiles.solid[index], top)
+                    if (!standing) continue
+                    val intact = changed?.topIntact ?: true
+                    val variant = if (intact) LegacyPictureVariant.INTACT else LegacyPictureVariant.DAMAGED
+                    val name = LegacySpriteResources.nameForTile(world, top, variant) ?: continue
+                    val image = sprites.findResource(name)?.let(pictures::get) ?: continue
+                    val left = (snapshot.renderOffsetX + x * TILE_SIZE).toInt()
+                    val roofTop = (snapshot.renderOffsetY + y * TILE_SIZE).toInt()
+                    if (pass == 0) {
+                        drawLegacyShadow(image, left + 1, roofTop + 2)
+                    } else {
+                        drawSprite(image, left.toFloat(), roofTop.toFloat(), TILE_SIZE.toInt(), TILE_SIZE.toInt())
+                    }
+                }
             }
         }
-        for ((image, left, top) in roofs) drawLegacyShadow(image, left + 1, top + 2)
-        for ((image, left, top) in roofs) drawSprite(image, left.toFloat(), top.toFloat(), TILE_SIZE.toInt(), TILE_SIZE.toInt())
     }
 }

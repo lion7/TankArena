@@ -211,7 +211,11 @@ Depends on: phase 5.
   through the intro, credits, texts, Classic menus and yes/no questions; Back is ESC.
 - [x] App icon (the packaging's `tankarena.png`).
 - [ ] Release signing (deferred).
-- [ ] Less allocation in a game (the garbage collector frees about 24 MB every 4 s on Android).
+- [x] Less allocation in a game: 6.3 → 3.3 MB/s on the emulator (picture names made once, pictures
+  preloaded only when new, no per-frame lists in drawing, HUD and touch labels made once); see
+  [performance](performance.md).
+- [ ] Later: the simulation's per-tick garbage on Android (iterators, boxing, lists in the AI,
+  trains, mission checks and views); the sites and approach are in [performance](performance.md).
 
 Depends on: phases 1 and 6 (the move is mechanical once the core is platform-free).
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -68,6 +69,13 @@ internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Uni
                 Spot(TouchRole.PAUSE, Offset(w / 2 - h * 0.09f, h * 0.07f), h * 0.045f, "II"),
                 Spot(TouchRole.EXIT, Offset(w / 2 + h * 0.09f, h * 0.07f), h * 0.045f, "✕"),
             )
+        }
+        // The labels are measured once per screen size, not in every frame.
+        val density = LocalDensity.current.density
+        val labels = remember(spots, density) {
+            spots.map { spot ->
+                measurer.measure(spot.label, TextStyle(color = Color.White.copy(alpha = 0.85f), fontSize = (spot.radius * 0.45f / density).sp))
+            }
         }
         // Per finger: its role and, for a stick, where the stick's centre is.
         val fingers = remember { HashMap<PointerId, Pair<TouchRole, Offset>>() }
@@ -168,10 +176,10 @@ internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Uni
             circle(aimHome, stick, aimKnob != Offset.Zero)
             val aimClamp = if (aimKnob.getDistance() > stick) aimKnob * (stick / aimKnob.getDistance()) else aimKnob
             circle(aimHome + aimClamp, stick * 0.4f, aimKnob != Offset.Zero)
-            for (spot in spots) {
+            for (index in spots.indices) {
+                val spot = spots[index]
+                val layout = labels[index]
                 circle(spot.centre, spot.radius, spot.role in held)
-                val style = TextStyle(color = Color.White.copy(alpha = 0.85f), fontSize = (spot.radius * 0.45f / density).sp)
-                val layout = measurer.measure(spot.label, style)
                 drawText(layout, topLeft = spot.centre - Offset(layout.size.width / 2f, layout.size.height / 2f))
             }
         }

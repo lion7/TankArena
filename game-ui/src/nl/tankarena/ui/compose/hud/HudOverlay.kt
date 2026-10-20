@@ -37,6 +37,21 @@ private fun paletteColor(index: Int) = Color(0xFF000000.toInt() or LegacyFonts.g
 /** Legacy `num_weapon`. */
 private const val WEAPON_COUNT = 12
 private const val FLAME_WEAPON = 2
+/** The HUD's picture names, made once. */
+private object HudNames {
+    val METERS = listOf("METER2A", "METER2B", "METER3A", "METER3B")
+    val SMALL_ICONS = (1..15).map { "ICON$it" }
+    val LARGE_ICONS = (1..15).map { "XCON$it" }
+    val ARROWS = (1..8).map { "ARROW$it" }
+    val FLAG_ICONS = listOf("VLAG3", "VLAG4")
+    val PRODUCTS = (0 until 15).map { nl.tankarena.render.productSpriteName(it) }
+    /** The meters' numbers 0..99, drawn every frame. */
+    val NUMBERS = Array(100) { it.toString() }
+    private val faces = HashMap<Int, List<String>>()
+
+    fun faces(vehicleType: Int): List<String> = faces.getOrPut(vehicleType) { (1..5).map { "FACE${vehicleType + 1}-$it" } }
+}
+
 /** Legacy radar (src/game/radar.c): 15 tiles around the player, `res_x / 6` across, 4 px blips. */
 private const val RADAR_RANGE_TILES = 15
 private const val RADAR_RADIUS = 640 / 6 / 2
@@ -83,17 +98,18 @@ fun HudOverlay(
     val sprites = LegacySpriteCatalog.shared
     @Composable
     fun picture(name: String): ImageBitmap? = sprites.findResource(name)?.let { imageResource(it) }
-    val meters = listOf("METER2A", "METER2B", "METER3A", "METER3B").map { picture(it) }
-    val smallIcons = (1..15).map { picture("ICON$it") }
-    val largeIcons = (1..15).map { picture("XCON$it") }
+    // The HUD recomposes every tick: the names are made once (see HudNames), only looked up here.
+    val meters = HudNames.METERS.map { picture(it) }
+    val smallIcons = HudNames.SMALL_ICONS.map { picture(it) }
+    val largeIcons = HudNames.LARGE_ICONS.map { picture(it) }
     val select = picture("SELECT")
-    val arrows = (1..8).map { picture("ARROW$it") }
+    val arrows = HudNames.ARROWS.map { picture(it) }
     val tankIcon = picture("TANKICO")
     // Legacy VLAGICON: VLAG3 for one flag, VLAG4 for two.
-    val flagIcons = listOf(picture("VLAG3"), picture("VLAG4"))
+    val flagIcons = HudNames.FLAG_ICONS.map { picture(it) }
     // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
-    val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
-    val products = (0 until 15).map { picture(nl.tankarena.render.productSpriteName(it)) }
+    val faces = HudNames.faces(hudState.vehicleType).map { picture(it) }
+    val products = HudNames.PRODUCTS.map { picture(it) }
 
     // [layer] null draws everything; at night the dark and the lit pictures go to separate layers.
     val draw: DrawScope.(layer: NightLayer?) -> Unit = draw@{ layer ->
@@ -304,7 +320,7 @@ private class HudPainter(
 
     fun number(x: Float, y: Float, value: Int) {
         val shown = value.coerceIn(0, 99)
-        text(if (shown < 10) x + 3 else x, y, shown.toString(), METER_TEXT)
+        text(if (shown < 10) x + 3 else x, y, HudNames.NUMBERS[shown], METER_TEXT)
     }
 
     /** Legacy b_write_text(): the 5×5 font, 6 pixels per character, only the set pixels. */

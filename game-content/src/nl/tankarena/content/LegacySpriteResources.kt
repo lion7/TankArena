@@ -41,21 +41,23 @@ object LegacySpriteResources {
      * picks from the 54 body frames (0 -> -1 suffix). Frames 0..15 are
      * the 16 cardinal/diagonal facings used by the legacy renderer.
      */
-    fun nameForTankBody(tankIndex: Int, frameIndex: Int): String {
-        val variant = (tankIndex.coerceAtLeast(0) % MAX_TANK_VARIANTS) + 1
-        val frame = (frameIndex.coerceAtLeast(0) % MAX_TANK_FRAMES) + 1
-        return "TAN${variant.toString().padStart(2, '0')}-$frame"
-    }
+    fun nameForTankBody(tankIndex: Int, frameIndex: Int): String =
+        tankBodyNames[tankIndex.coerceAtLeast(0) % MAX_TANK_VARIANTS][frameIndex.coerceAtLeast(0) % MAX_TANK_FRAMES]
 
     /**
      * Turret sprite. Mirrors `sprintf("TUR%ld-%ld", i+1, j+1)`: 9 turret
      * variants, each with 5 directional frames (north to east, in quarter
      * steps) that are mirrored for the other directions like a vehicle's.
      */
-    fun nameForTurret(turretIndex: Int, frameIndex: Int): String {
-        val variant = (turretIndex.coerceAtLeast(0) % MAX_TURRET_VARIANTS) + 1
-        val frame = (frameIndex.coerceAtLeast(0) % MAX_TURRET_FRAMES) + 1
-        return "TUR$variant-$frame"
+    fun nameForTurret(turretIndex: Int, frameIndex: Int): String =
+        turretNames[turretIndex.coerceAtLeast(0) % MAX_TURRET_VARIANTS][frameIndex.coerceAtLeast(0) % MAX_TURRET_FRAMES]
+
+    // The names are looked up for every vehicle in every tick and frame: made once, not each time.
+    private val tankBodyNames = Array(MAX_TANK_VARIANTS) { variant ->
+        Array(MAX_TANK_FRAMES) { frame -> "TAN${(variant + 1).toString().padStart(2, '0')}-${frame + 1}" }
+    }
+    private val turretNames = Array(MAX_TURRET_VARIANTS) { variant ->
+        Array(MAX_TURRET_FRAMES) { frame -> "TUR${variant + 1}-${frame + 1}" }
     }
 
     /**

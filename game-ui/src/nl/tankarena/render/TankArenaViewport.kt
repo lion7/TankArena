@@ -1,5 +1,6 @@
 package nl.tankarena.render
 
+import androidx.collection.MutableIntObjectMap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,6 +18,7 @@ import nl.tankarena.content.MapSceneSidecar
 import nl.tankarena.protocol.snapshot.GameEvent
 import nl.tankarena.protocol.snapshot.PlayerView
 import nl.tankarena.protocol.snapshot.ServerFrame
+import nl.tankarena.protocol.snapshot.TileState
 import nl.tankarena.protocol.snapshot.WorldSnapshot
 
 @Composable
@@ -141,6 +143,12 @@ private class ViewportRuntime(
         sprites = sprites,
     )
 
+    // Before init: its sync already uses them.
+    private var preloadedTilesFor: MapSceneSidecar? = null
+
+    /** Every picture the scene has asked for so far; only new ones are loaded (no garbage per tick). */
+    private val knownSprites = HashSet<org.jetbrains.compose.resources.DrawableResource>()
+
     init {
         sync(sidecar, initialView, initialWorld, worldWidth, worldHeight)
     }
@@ -162,7 +170,9 @@ private class ViewportRuntime(
         terrainActor.syncBounds()
         topLayerActor.syncBounds()
         if (world.changedTiles.size != snapshot.changedTiles.size) {
-            snapshot.changedTiles = world.changedTiles.associateBy { it.index }
+            snapshot.changedTiles = MutableIntObjectMap<TileState>(world.changedTiles.size).apply {
+                for (tile in world.changedTiles) set(tile.index, tile)
+            }
         }
         clientScene.sync(world, events, playerView.lockMarker, playerView.controlledActorId)
         preloadSceneSprites(sidecar)
@@ -186,10 +196,9 @@ private class ViewportRuntime(
 
     fun dispose() = Unit
 
-    private var preloadedTilesFor: MapSceneSidecar? = null
-
     private fun preloadSceneSprites(sidecar: MapSceneSidecar?) {
-        val resources = LinkedHashSet<org.jetbrains.compose.resources.DrawableResource>()
+        val resources = knownSprites
+        val known = resources.size
         val tiles = sidecar?.tileLayers
         // Tiles never change during a match; only walk the layers once per map.
         if (sidecar != null && tiles != null && preloadedTilesFor !== sidecar) {
@@ -207,7 +216,7 @@ private class ViewportRuntime(
             }
         }
         clientScene.collectSpriteResources(resources)
-        if (resources.isNotEmpty()) {
+        if (resources.size != known) {
             pictures.preload(resources)
         }
     }

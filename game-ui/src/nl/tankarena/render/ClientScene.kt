@@ -1,5 +1,6 @@
 package nl.tankarena.render
 
+import androidx.collection.MutableLongSet
 import androidx.compose.ui.geometry.Offset
 import nl.tankarena.protocol.snapshot.AbombState
 import nl.tankarena.protocol.snapshot.B52State
@@ -97,6 +98,14 @@ internal class ClientScene(
 
     private var lockMarkerActor: SpriteActor? = null
 
+    // The actors seen in this sync, kept between syncs (and without boxing) so a tick makes no garbage.
+    private val tankIds = MutableLongSet()
+    private val turretIds = MutableLongSet()
+    private val goalIds = MutableLongSet()
+    private val projectileIds = MutableLongSet()
+    private val objectIds = MutableLongSet()
+    private val tiledIds = MutableLongSet()
+
     /** [viewerActorId]: the vehicle this viewport's player drives, who still sees it while cloaked. */
     fun sync(
         world: WorldSnapshot,
@@ -104,12 +113,12 @@ internal class ClientScene(
         lockMarker: LockMarker? = null,
         viewerActorId: Long? = null,
     ) {
-        val tankIds = LinkedHashSet<Long>()
-        val turretIds = LinkedHashSet<Long>()
-        val goalIds = LinkedHashSet<Long>()
-        val projectileIds = LinkedHashSet<Long>()
-        val objectIds = LinkedHashSet<Long>()
-        val tiledIds = LinkedHashSet<Long>()
+        tankIds.clear()
+        turretIds.clear()
+        goalIds.clear()
+        projectileIds.clear()
+        objectIds.clear()
+        tiledIds.clear()
 
         for (state in world.actors) {
             when (state) {
@@ -170,7 +179,7 @@ internal class ClientScene(
                         .showDirectional(state.direction) { "ROCK1-${it + 1}" }
                     // Legacy write_bullets(): flames and mortar shells change picture as they fly
                     // (`b->dist`), and a shell's shadow falls `h` away along its arc.
-                    ProjectileKind.MORTAR -> syncObject(objectIds, state.actorId, state.x, state.y, "MORT${flightFrame(state.rangeLeft)}")
+                    ProjectileKind.MORTAR -> syncObject(objectIds, state.actorId, state.x, state.y, MORT_NAMES[flightFrame(state.rangeLeft)])
                         .apply { shadowOffset = mortarArcHeight(state.rangeLeft) }
                     // A plane's bomb shrinks as it falls: MORT1 + dist / 50, its shadow closing in.
                     ProjectileKind.PLANEBOMB -> syncObject(
@@ -180,24 +189,24 @@ internal class ClientScene(
                         state.y,
                         "MORT${(1 + state.rangeLeft / 50).coerceIn(1, 5)}",
                     ).apply { shadowOffset = state.rangeLeft * state.dropHeight / 120 }
-                    ProjectileKind.FLAME -> syncObject(objectIds, state.actorId, state.x, state.y, "FLAME${flightFrame(state.rangeLeft)}")
+                    ProjectileKind.FLAME -> syncObject(objectIds, state.actorId, state.x, state.y, FLAME_NAMES[flightFrame(state.rangeLeft)])
                 }
                 // Legacy write_bonus(): the bonus type's icon.
-                is BonusState -> syncObject(objectIds, state.actorId, state.x, state.y, "ICON${state.bonusType.mod(15) + 1}")
+                is BonusState -> syncObject(objectIds, state.actorId, state.x, state.y, ICON_NAMES[state.bonusType.mod(15) + 1])
                 // Legacy write_man(): MAN-1..5 or MAN-6..10 while walking, turned to his direction.
                 is ManState -> syncObject(objectIds, state.actorId, state.x, state.y, null)
                     .showDirectional(state.direction) { "MAN-${state.frame + it + 1}" }
                 // Legacy write_abomb(): ABOMB1..4 while it counts down, nothing in water or once it goes off.
                 is AbombState -> if (!state.exploding && !state.hidden) {
-                    syncObject(objectIds, state.actorId, state.x, state.y, "ABOMB${(4 - state.countdown).coerceIn(1, 4)}")
+                    syncObject(objectIds, state.actorId, state.x, state.y, ABOMB_NAMES[(4 - state.countdown).coerceIn(1, 4)])
                 }
                 // Legacy write_parts(): a burning piece of a fuel dump, FLAME1..5 as it flies on.
-                is FlamePartState -> syncObject(objectIds, state.actorId, state.x, state.y, "FLAME${state.frame + 1}")
+                is FlamePartState -> syncObject(objectIds, state.actorId, state.x, state.y, FLAME_NAMES[state.frame + 1])
                 // Legacy write_mine(): only heavy mines show, and not on water.
                 is MineState -> if (state.heavy && !state.hidden) syncObject(objectIds, state.actorId, state.x, state.y, "RMINE")
                 // Legacy write_flag(): a carried flag is not drawn (its carrier shows a flag icon).
                 is FlagState -> if (!state.isCarried) {
-                    syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")
+                    syncObject(objectIds, state.actorId, state.x, state.y, VLAG_NAMES[state.flagType.mod(4) + 1])
                 }
                 is ProductState -> if (!state.isCollected) {
                     syncObject(objectIds, state.actorId, state.x, state.y, productSpriteName(state.productType))
@@ -234,8 +243,8 @@ internal class ClientScene(
         prune(projectiles, projectileIds)
         prune(objects, objectIds)
         prune(tiled, tiledIds)
-        rocketPositions.keys.retainAll(objectIds)
-        rocketDirections.keys.retainAll(objectIds)
+        if (rocketPositions.isNotEmpty()) rocketPositions.keys.retainAll { it in objectIds }
+        if (rocketDirections.isNotEmpty()) rocketDirections.keys.retainAll { it in objectIds }
         syncEffects(world.tick, events)
         syncLockMarker(lockMarker)
     }
@@ -268,16 +277,16 @@ internal class ClientScene(
             frames.forEach { (name, _) -> sprites.findResource(name)?.let(target::add) }
         }
         for (index in 1..5) {
-            sprites.findResource("FLAME$index")?.let(target::add)
-            sprites.findResource("MORT$index")?.let(target::add)
+            sprites.findResource(FLAME_NAMES[index])?.let(target::add)
+            sprites.findResource(MORT_NAMES[index])?.let(target::add)
         }
         sprites.findResource("ARMOR")?.let(target::add)
-        for (name in listOf("MARKER", "MARKER2", "MARKER3", "MARKER4")) {
+        for (name in MARKER_NAMES) {
             sprites.findResource(name)?.let(target::add)
         }
     }
 
-    private fun syncObject(ids: MutableSet<Long>, actorId: Long, x: Int, y: Int, sprite: String?): SpriteActor {
+    private fun syncObject(ids: MutableLongSet, actorId: Long, x: Int, y: Int, sprite: String?): SpriteActor {
         ids += actorId
         return objects.getOrPut(actorId) {
             SpriteActor(actorId, snapshot, pictures, sprites).also { scene.add(it) }
@@ -291,7 +300,7 @@ internal class ClientScene(
     }
 
     private fun syncTiled(
-        ids: MutableSet<Long>,
+        ids: MutableLongSet,
         actorId: Long,
         x: Int,
         y: Int,
@@ -453,8 +462,9 @@ internal class ClientScene(
         effects += Effect(actor, frames, frame = 0, nextFrameTick = tick + frames.first().second)
     }
 
-    private fun <T : SceneDrawable> prune(actorsById: MutableMap<Long, T>, keepIds: Set<Long>) {
-        if (actorsById.isEmpty()) return
+    private fun <T : SceneDrawable> prune(actorsById: MutableMap<Long, T>, keepIds: MutableLongSet) {
+        // Nearly always nothing is gone: only then build the lists.
+        if (actorsById.size == keepIds.size) return
         val staleIds = actorsById.keys.filterNot(keepIds::contains)
         if (staleIds.isEmpty()) return
         val staleActors = staleIds.mapNotNull(actorsById::remove)
@@ -463,7 +473,23 @@ internal class ClientScene(
 }
 
 /** Legacy `intern[PRODUCTS + type]`: PRODUCT1..9, PRODUC10..15. */
-internal fun productSpriteName(productType: Int): String {
-    val index = productType.mod(15) + 1
-    return if (index < 10) "PRODUCT$index" else "PRODUC$index"
+internal fun productSpriteName(productType: Int): String = PRODUCT_NAMES[productType.mod(15)]
+
+/**
+ * Picture names `<prefix>1`, `<prefix>2`, ..., made once: they are asked for per object per tick.
+ * Beyond the table a name is built as before.
+ */
+private class NumberedNames(private val prefix: String, count: Int) {
+    private val names = Array(count) { "$prefix${it + 1}" }
+
+    operator fun get(number: Int): String = names.getOrNull(number - 1) ?: "$prefix$number"
 }
+
+private val MORT_NAMES = NumberedNames("MORT", 5)
+private val FLAME_NAMES = NumberedNames("FLAME", 10)
+private val ICON_NAMES = NumberedNames("ICON", 15)
+private val ABOMB_NAMES = NumberedNames("ABOMB", 4)
+private val VLAG_NAMES = NumberedNames("VLAG", 4)
+private val MARKER_NAMES = listOf("MARKER", "MARKER2", "MARKER3", "MARKER4")
+
+private val PRODUCT_NAMES = Array(15) { val index = it + 1; if (index < 10) "PRODUCT$index" else "PRODUC$index" }

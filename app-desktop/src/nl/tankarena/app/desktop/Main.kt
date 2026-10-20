@@ -12,7 +12,7 @@ import nl.tankarena.app.GamePlatform
 import nl.tankarena.app.Music
 import nl.tankarena.app.TankArenaApp
 import nl.tankarena.audio.AudioBackend
-import nl.tankarena.audio.DesktopAudioBackend
+import nl.tankarena.audio.desktopAudioBackend
 import nl.tankarena.audio.MusicPlayer
 import nl.tankarena.input.Gamepads
 import nl.tankarena.input.PadReading
@@ -43,7 +43,7 @@ fun main(args: Array<String>) = application {
 private class DesktopPlatform(private val exit: () -> Unit) : GamePlatform {
     var window: java.awt.Window? = null
 
-    override fun audioBackend(): AudioBackend = DesktopAudioBackend()
+    override fun audioBackend(): AudioBackend = desktopAudioBackend()
 
     override val music: Music = MusicPlayer()
 

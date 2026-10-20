@@ -1,7 +1,6 @@
 package nl.tankarena.app
 
 import java.io.File
-import java.lang.management.ManagementFactory
 
 /**
  * Opt-in performance log (`TANKARENA_PERF=1`): once a second, how long the simulation ticks
@@ -10,9 +9,6 @@ import java.lang.management.ManagementFactory
  */
 internal object PerfLog {
     val enabled: Boolean = System.getenv("TANKARENA_PERF") == "1"
-
-    private val gcBeans = ManagementFactory.getGarbageCollectorMXBeans()
-    private val memory = ManagementFactory.getMemoryMXBean()
     private val file: File? = if (enabled) File("perf.log").also { it.writeText("") } else null
 
     private var windowStart = System.nanoTime()
@@ -64,7 +60,7 @@ internal object PerfLog {
     private fun flushIfDue(now: Long) {
         if (now - windowStart < 1_000_000_000L) return
         val gc = gcMillis()
-        val heapMb = memory.heapMemoryUsage.used / (1024 * 1024)
+        val heapMb = Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() } / (1024 * 1024)
         write(
             "PERF %s ticks=%d tickMean=%.2fms tickMax=%.2fms loopGapMax=%.1fms frames=%d frameGapMax=%.1fms frames>20ms=%d gc=%dms heap=%dMB".format(
                 label, ticks, if (ticks > 0) tickNanos / 1e6 / ticks else 0.0, tickMaxNanos / 1e6, loopGapMaxNanos / 1e6,
@@ -86,7 +82,7 @@ internal object PerfLog {
         gcMillisAtStart = gcMillis()
     }
 
-    private fun gcMillis(): Long = gcBeans.sumOf { it.collectionTime.coerceAtLeast(0) }
+    private fun gcMillis(): Long = collectionMillis()
 
     private fun write(line: String) {
         println(line)

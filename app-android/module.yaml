@@ -1,0 +1,19 @@
+# The Android game (ADR 0025): an Activity around TankArenaApp, Android audio and MIDI, gamepads,
+# app storage.
+product: android/app
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-ui
+  - androidx.activity:activity-compose:1.9.3
+
+settings:
+  compose: enabled
+  android:
+    namespace: nl.tankarena.android
+    applicationId: nl.tankarena
+    minSdk: 26
+    versionCode: 1
+    versionName: 0.7.0

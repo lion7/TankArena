@@ -192,11 +192,20 @@ Depends on: phase 5.
 
 ## Phase 7 — Android ([ADR 0025](adrs/0025-multiplatform-modules-and-android.md))
 
-- Multiplatform module layout (`game-protocol`, `game-sim`, `game-content`, `game-net`, `game-ui`,
-  `app-desktop`, `app-android`, `app-server`, `tools-mapconv`).
-- Android services: audio through `AudioTrack`, MIDI through `MediaPlayer`, AGSL shaders, storage,
-  controllers, on-screen controls for phones.
-- Android packaging and signing.
+- [x] Module layout and package `nl.tankarena` (2026-10-20): `game-protocol`, `game-content`,
+      `game-sim` and `game-ui` compile for the JVM and Android; `app-desktop`, `app-android`,
+      `tools-mapconv`. (`game-net` and `app-server` come with phase 8.)
+- [x] The whole game is `TankArenaApp` in `game-ui`; a `GamePlatform` gives it sound, music, pads,
+      quitting and screenshots, `AppDirs` its folders, `GameKeyHook` every key first.
+- [x] Graphics behind `PlatformGraphics`: Skia on the desktop, Android bitmaps and AGSL runtime
+      shaders (night, palette cycling, gamma from Android 13; drawn plainly before).
+- [x] Android services: the shared software mixer on an `AudioTrack`, MIDI through `MediaPlayer`,
+      storage in the app's folders, gamepads from key and motion events (A/START are Enter, B/BACK
+      and the back button Esc in menus). Debug APK and release bundle build; R8 finds no missing
+      classes.
+- [ ] Try it on a device or an emulator.
+- [ ] Touch: on-screen controls for phones, tapping through menus and texts.
+- [ ] Release signing, app icon.
 
 Depends on: phases 1 and 6 (the move is mechanical once the core is platform-free).
 

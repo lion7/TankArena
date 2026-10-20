@@ -1,6 +1,12 @@
 # ADR 0027: Four Players Means Two Teams of Two
 
-- **Status:** Accepted (2026-10-19); not implemented. Extended ruleset only.
+- **Status:** Accepted (2026-10-19). Built 2026-10-20 (Extended rules v6, `RuleFlags.teams`):
+  players 0 and 2 are side one, 1 and 3 side two; player vs player gives each player the first free
+  pad of their side, team mates sharing a pad start on the nearest free tile
+  (`Match.spreadPlayers`); against the computer players without a map tank of their own drive a copy
+  of a team mate's; 2 × 2 split screen; the arrow points at the nearest player of the other side;
+  a side is out of lives when all its players are; recordings keep the number of players. Extra pads
+  per team in map files are not built yet. Extended ruleset only.
 
 ## Context
 

@@ -193,6 +193,7 @@ fun legacyMapWindows(
     /** Legacy pixels across the screen: 640, or more on Extended's wide screen. */
     screenWidth: Int = SCREEN_WIDTH,
 ): List<LegacyMapWindow> {
+    if (players > 2) return fourWindows(players, worldWidth, worldHeight, windowSize, screenWidth)
     // Legacy compute_window_size(): every step of `win_size` (0..5) takes 5% of the screen off.
     val width = min((screenWidth - screenWidth * windowSize / 20) / players - 1, worldWidth)
     val height = min(SCREEN_HEIGHT - SCREEN_HEIGHT * windowSize / 20, worldHeight)
@@ -200,6 +201,22 @@ fun legacyMapWindows(
     val top = (SCREEN_HEIGHT - height) / 3
     return List(players) { index ->
         val left = if (index == 1) first + first + width + 1 else first
+        LegacyMapWindow(left = left and 3.inv(), top = top, width = width, height = height)
+    }
+}
+
+/**
+ * Extended's three or four players (ADR 0027): two rows of two windows, team one (players 1 and 3)
+ * on the left, as the original puts player one; gaps as the two-player layout has them.
+ */
+private fun fourWindows(players: Int, worldWidth: Int, worldHeight: Int, windowSize: Int, screenWidth: Int): List<LegacyMapWindow> {
+    val width = min((screenWidth - screenWidth * windowSize / 20) / 2 - 1, worldWidth)
+    val height = min((SCREEN_HEIGHT - SCREEN_HEIGHT * windowSize / 20) / 2 - 1, worldHeight)
+    val firstX = (screenWidth - 2 * width) / 3
+    val firstY = (SCREEN_HEIGHT - 2 * height) / 3
+    return List(players) { index ->
+        val left = if (index % 2 == 1) firstX + firstX + width + 1 else firstX
+        val top = if (index >= 2) firstY + firstY + height + 1 else firstY
         LegacyMapWindow(left = left and 3.inv(), top = top, width = width, height = height)
     }
 }

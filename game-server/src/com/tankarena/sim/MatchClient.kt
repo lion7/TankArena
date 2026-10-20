@@ -61,10 +61,11 @@ class LocalMatchClient private constructor(
             dual: DualSetup = DualSetup(),
             ruleset: Ruleset = Ruleset.CLASSIC,
             cheats: Cheats = Cheats(),
+            players: Int = mode.defaultPlayers,
         ): LocalMatchClient {
-            val prototype = Match.fromMap(map, mode, dual, ruleset, cheats)
+            val prototype = Match.fromMap(map, mode, dual, ruleset, cheats, players)
             prototype.initialize()
-            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode, dual.takeIf { mode == MatchMode.DUAL }, ruleset, cheats) })
+            return LocalMatchClient(prototype, recordAs?.let { MatchRecorder(it, mode, dual.takeIf { mode == MatchMode.DUAL }, ruleset, cheats, players) })
         }
 
         internal fun fromCanonicalMap(map: CanonicalMapDefinition, mode: MatchMode = MatchMode.SINGLE): LocalMatchClient {
@@ -95,7 +96,7 @@ private fun InputFrame.toIntent(): PlayerIntentFrame = PlayerIntentFrame(
  * recorded for it; [submitInput] is ignored. The match runs as long as the recording, then [finished].
  */
 class ReplayMatchClient(private val recording: MatchRecording, map: MapDocument) : MatchClient {
-    private val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset, recording.cheats)
+    private val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset, recording.cheats, recording.playerCount)
     private val byTick = recording.inputs.groupBy { it.tick }
     private val current = mutableMapOf<Int, PlayerIntentFrame>()
     private var tickIndex: Long = 0

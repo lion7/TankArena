@@ -70,7 +70,12 @@ data class MatchRecording(
     val ticks: Long = 0,
     /** A name the player gave the replay; null shows the mission and date. */
     val title: String? = null,
+    /** Local players (ADR 0027); null: as many as the mode has. */
+    val players: Int? = null,
 ) {
+    /** How many players the match had. */
+    val playerCount: Int get() = players ?: mode.defaultPlayers
+
     fun toJson(): String = json.encodeToString(this)
 
     companion object {
@@ -104,6 +109,7 @@ class MatchRecorder(
     private val dual: DualSetup? = null,
     private val ruleset: Ruleset = Ruleset.CLASSIC,
     private val cheats: Cheats = Cheats(),
+    private val players: Int = mode.defaultPlayers,
 ) {
     private val inputs = mutableListOf<RecordedInput>()
     private val lastIntent = mutableMapOf<Int, PlayerIntentFrame>()
@@ -142,6 +148,7 @@ class MatchRecorder(
         inputs = inputs.toList(),
         result = result,
         ticks = ticks,
+        players = players.takeIf { it != mode.defaultPlayers },
     )
 }
 
@@ -177,7 +184,7 @@ object MatchReplay {
         map: MapDocument,
         step: (Match, Long, WorldSnapshot) -> Boolean,
     ) {
-        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset, recording.cheats)
+        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset, recording.cheats, recording.playerCount)
         match.initialize()
         try {
             val byTick = recording.inputs.groupBy { it.tick }

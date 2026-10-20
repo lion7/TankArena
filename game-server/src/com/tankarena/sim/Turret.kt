@@ -211,8 +211,9 @@ class Turret internal constructor(state: State) : SceneObject<Turret>, Placed {
             val skip = when (shootAt) {
                 1 -> tank.team != 0
                 2 -> tank.team == 0
-                3 -> tank.playerIndex == 0
-                4 -> tank.playerIndex == 1
+                // Player one's or two's side (with teams, ADR 0027, their team mates too).
+                3 -> tank.playerIndex.side == 0
+                4 -> tank.playerIndex.side == 1
                 else -> false
             }
             if (skip) continue

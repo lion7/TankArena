@@ -119,9 +119,13 @@ internal fun GameplayFrame(
                         playerVsPlayer = mode == GameMode.PLAYER_VS_PLAYER,
                         showRadar = showRadar,
                         // Legacy write_arrow(): only player-vs-player points at the other player.
+                        // With teams (ADR 0027) the nearest player of the other side.
                         opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
-                            val otherId = views.getOrNull(1 - index)?.controlledActorId
-                            serverFrame.world.actors.firstOrNull { it is TankState && it.actorId == otherId } as TankState?
+                            val tanks = serverFrame.world.actors.filterIsInstance<TankState>()
+                            val own = tanks.firstOrNull { it.actorId == view.controlledActorId }
+                            views.filter { (it.playerId and 1) != (view.playerId and 1) }
+                                .mapNotNull { other -> tanks.firstOrNull { it.actorId == other.controlledActorId } }
+                                .minByOrNull { if (own == null) 0 else (it.x - own.x) * (it.x - own.x) + (it.y - own.y) * (it.y - own.y) }
                         } else {
                             null
                         },

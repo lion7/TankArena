@@ -11,7 +11,14 @@ enum class MatchMode {
 
     /** Two players co-operate: player 1 drives id 1, player 2 drives id 2 (`src/game/dualvc.c`). */
     DUAL_VS_COMPUTER,
+    ;
+
+    /** The original's number of players in this mode. */
+    val defaultPlayers: Int get() = if (this == SINGLE) 1 else 2
 }
+
+/** A player's side (ADR 0027): 0 the original's player one (players 0 and 2), 1 player two (1 and 3); -1 none. */
+internal val Int.side: Int get() = if (this < 0) -1 else this and 1
 
 /** Player vs player (legacy dual_game(), src/game/dual.c): what the players chose for this round. */
 @kotlinx.serialization.Serializable
@@ -52,7 +59,9 @@ internal object MatchSetup {
         mode: MatchMode,
         dual: DualSetup = DualSetup(),
         flags: RuleFlags = RuleFlags(),
+        playerCount: Int = mode.defaultPlayers,
     ): List<SceneObject<*>> {
+        if (playerCount > 2) return assignTeams(actors, mode, dual, playerCount)
         val tanks = actors.filterIsInstance<Tank>()
         val humanIds = tanks
             .filter { it.startPadType < 0 && !it.computer && it.controllerId >= 0 && it.playerIndex < 0 }
@@ -106,6 +115,54 @@ internal object MatchSetup {
             val player = idForPlayer.entries.firstOrNull { it.value == actor.controllerId }?.key
             if (player != null) actor.withPlayerIndex(player) else actor
         }
+    }
+
+    /**
+     * ADR 0027: three or four players as two teams. Player vs player: each player gets the first
+     * free pad of their side for the vehicle they chose (a race pad for a race), or shares one when
+     * there are not enough. Against the computer every player is on the good side: each takes a
+     * human tank of the map (id player + 1 first), and who finds none gets a copy of a team mate's.
+     * Players on the same spot are spread out when the match starts ([Match.spreadPlayers]).
+     */
+    private fun assignTeams(actors: List<SceneObject<*>>, mode: MatchMode, dual: DualSetup, playerCount: Int): List<SceneObject<*>> {
+        val tanks = actors.filterIsInstance<Tank>()
+        val pads = tanks.filter { it.startPadType >= 0 }
+        if (mode == MatchMode.DUAL) {
+            val others = actors.filter { it !is Tank || it.computer && it.startPadType < 0 }
+            val used = mutableSetOf<Tank>()
+            val vehicles = (0 until playerCount).mapNotNull { player ->
+                val side = player.side
+                val chosen = dual.tankTypes.getOrElse(player) { 0 }
+                val own = pads.filter { (it.startPadType and 1) == side }
+                val race = own.filter { it.startPadType shr 1 == DualSetup.PAD_RACE }
+                val fitting = race.ifEmpty { own.filter { it.startPadType shr 1 == padKind(chosen) } }
+                val pad = fitting.firstOrNull { it !in used } ?: fitting.firstOrNull() ?: return@mapNotNull null
+                used += pad
+                val type = if (race.isNotEmpty()) DualSetup.RACE_TANK else chosen
+                Tank(pad.asVehicle(type).save().copy(playerIndex = player))
+            }
+            return others + vehicles
+        }
+        val humanIds = tanks.filter { it.startPadType < 0 && !it.computer && it.controllerId >= 0 }.map { it.controllerId }.distinct().sorted()
+        val idForPlayer = mutableMapOf<Int, Int>()
+        for (player in 0 until playerCount) {
+            val preferred = (player + 1).takeIf { it in humanIds && it !in idForPlayer.values }
+            (preferred ?: humanIds.firstOrNull { it !in idForPlayer.values })?.let { idForPlayer[player] = it }
+        }
+        val assigned = actors.mapNotNull { actor ->
+            if (actor !is Tank) return@mapNotNull actor
+            if (actor.startPadType >= 0) return@mapNotNull null
+            if (actor.computer || actor.controllerId < 0) return@mapNotNull actor
+            val player = idForPlayer.entries.firstOrNull { it.value == actor.controllerId }?.key
+            if (player != null) actor.withPlayerIndex(player) else actor
+        }
+        // Players without a tank of their own drive a copy of a team mate's (or anyone's).
+        val extra = (0 until playerCount).filter { it !in idForPlayer }.mapNotNull { player ->
+            val mate = assigned.filterIsInstance<Tank>().filter { it.playerIndex >= 0 }
+                .minByOrNull { if (it.playerIndex.side == player.side) 0 else 1 } ?: return@mapNotNull null
+            Tank(mate.save().copy(playerIndex = player, controllerId = -1, ref = 0, goalContribution = 0))
+        }
+        return assigned + extra
     }
 
     private fun Tank.withPlayerIndex(index: Int): Tank =

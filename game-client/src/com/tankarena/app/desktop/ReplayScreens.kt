@@ -267,7 +267,7 @@ internal fun ReplayScreen(
         MatchMode.DUAL -> GameMode.PLAYER_VS_PLAYER
         MatchMode.DUAL_VS_COMPUTER -> GameMode.DUAL_PLAYER_VS_COMPUTER
     }
-    val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
+    val playerIds = (0 until recording.playerCount).toList()
     // R at the end starts the replay again: a new client from the first tick.
     var run by remember { mutableIntStateOf(0) }
     val host = remember(recording, run) { ReplayMatchClient(recording, mission.document) }
@@ -275,7 +275,7 @@ internal fun ReplayScreen(
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
-    val eventQueues = remember(host) { List(2) { ViewportEventQueue() } }
+    val eventQueues = remember(host) { List(MAX_PLAYERS) { ViewportEventQueue() } }
     val published = remember(host) { AtomicReference(ReplayView(host.currentServerFrame())) }
     var view by remember(host) { mutableStateOf(published.get()) }
     var paused by remember { mutableStateOf(false) }

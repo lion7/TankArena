@@ -170,7 +170,13 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
 
     /** Extended local games ask who plays with what first, when there is a gamepad to choose. */
     fun joinFirst(next: DesktopShellScreen): DesktopShellScreen =
-        if (Gamepads.read().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = 2)
+        if (Gamepads.read().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS)
+
+    /** Players this session: who joined (Extended, ADR 0027), else as many as the mode has. */
+    fun sessionPlayers(mode: GameMode): Int {
+        val default = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) 1 else 2
+        return controls.seats?.size?.takeIf { extended && it > default } ?: default
+    }
 
     val windowRef = remember { AtomicReference<java.awt.Window?>(null) }
     Window(
@@ -490,8 +496,9 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         selectMap = missions.orEmpty().firstOrNull { it.baseName.equals("select", ignoreCase = true) },
                         initial = playerTanks,
                         keyFor = { key -> selectionKeyFor(key, settings.options.controls) },
+                        players = sessionPlayers(GameMode.PLAYER_VS_PLAYER),
                         padActions = remember(current) {
-                            val pads = List(2) { GamepadMenuKeys() }
+                            val pads = List(MAX_PLAYERS) { GamepadMenuKeys() }
                             val actions = mapOf(
                                 java.awt.event.KeyEvent.VK_UP to SelectionKey.UP,
                                 java.awt.event.KeyEvent.VK_DOWN to SelectionKey.DOWN,
@@ -502,7 +509,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                             {
                                 val now = System.nanoTime()
                                 val readings = Gamepads.read()
-                                (0..1).flatMap { player ->
+                                (0 until MAX_PLAYERS).flatMap { player ->
                                     val pad = controls.padIndex(player)?.let(readings::getOrNull) ?: return@flatMap emptyList()
                                     pads[player].step(now, listOf(pad)).mapNotNull { actions[it] }.map { player to it }
                                 }
@@ -520,6 +527,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         mission = current.mission,
                         mode = current.mode,
                         controls = controls,
+                        players = sessionPlayers(current.mode),
                         soundVolume = options.soundVolume,
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
@@ -547,6 +555,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         mission = current.mission,
                         mode = current.mode,
                         controls = controls,
+                        players = sessionPlayers(current.mode),
                         soundVolume = options.soundVolume,
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
@@ -635,22 +644,27 @@ private fun GameplayScreen(
     wide: Boolean = false,
     /** Player vs player: the round's vehicles and score. */
     dual: DualSetup? = null,
+    /** Local players: up to four as teams in Extended (ADR 0027). */
+    players: Int = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) 1 else 2,
     /**
      * Called once the screen has faded out; the outcome is null when the player left with ESC.
      * In player vs player WON means player 1 won the round, LOST player 2.
      */
     onMissionEnd: (MissionOutcome?) -> Unit,
 ) {
-    val host = remember(mission.baseName, mode, dual) {
+    val host = remember(mission.baseName, mode, dual, players) {
         controls.mode = mode
         controls.exitRequested = false
-        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(), ruleset = ruleset, cheats = cheats)
+        LocalMatchClient.fromMap(
+            mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(),
+            ruleset = ruleset, cheats = cheats, players = players,
+        )
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
-    val eventQueues = remember(host) { List(2) { ViewportEventQueue() } }
-    val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
+    val eventQueues = remember(host) { List(MAX_PLAYERS) { ViewportEventQueue() } }
+    val playerIds = (0 until players).toList()
     // What the simulation thread last published, and what the screen shows.
     val published = remember(host) { AtomicReference(GameplayView(host.currentServerFrame())) }
     var view by remember(host) { mutableStateOf(published.get()) }

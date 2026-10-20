@@ -185,7 +185,7 @@ class Match private constructor(
         // player; elsewhere the flags are removed.
         val flags = objects.all.filterIsInstance<Flag>()
         val unused = if (mode == MatchMode.DUAL) {
-            DualRules(dual, mapMetadata.world, mapMetadata.widthTiles, mapMetadata.heightTiles, structures, objectRandom)
+            DualRules(dual, mapMetadata.world, mapMetadata.widthTiles, mapMetadata.heightTiles, structures, objectRandom, teams = ruleset.flags.teams)
                 .also { dualRules = it }
                 .prepare(allTanks, flags)
         } else {
@@ -505,8 +505,8 @@ class Match private constructor(
                     alive = tank.armor > 0,
                     flagHunt = dualRules?.flagHunt == true,
                     flags = tank.flagsPicked,
-                    roundWon = dualRules?.winner == playerIndex,
-                    roundLost = dualRules?.winner == (playerIndex xor 1),
+                    roundWon = dualRules?.winner == playerIndex.side,
+                    roundLost = dualRules?.winner == (playerIndex.side xor 1),
                     mayhem = mayhemHud(),
                     // Legacy write_screen(): no radar in supermarket mayhem.
                     radarHidden = mayhem,
@@ -654,9 +654,11 @@ class Match private constructor(
             dual: DualSetup = DualSetup(),
             ruleset: Ruleset = Ruleset.CLASSIC,
             cheats: Cheats = Cheats(),
+            /** Local players: 1 or 2 as the mode has them, up to 4 with [RuleFlags.teams]. */
+            players: Int = mode.defaultPlayers,
         ): Match {
             val sidecar = MapConversion.sidecarOf(map)
-            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual, ruleset = ruleset, cheats = cheats)
+            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual, ruleset = ruleset, cheats = cheats, players = players)
         }
 
         private fun create(
@@ -668,12 +670,18 @@ class Match private constructor(
             dual: DualSetup = DualSetup(),
             ruleset: Ruleset = Ruleset.CLASSIC,
             cheats: Cheats = Cheats(),
+            players: Int = mode.defaultPlayers,
         ): Match {
+            require(players in 1..2 || ruleset.flags.teams && players in 1..4) { "$players players need teams (Extended)" }
+            val terrain = TerrainGridBuilder.build(layers, metadata)
+            val structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers)
+            var assigned = MatchSetup.assignControl(actors, mode, dual, ruleset.flags, players)
+            if (players > 2) assigned = spreadPlayers(assigned, terrain, structures, metadata.widthTiles, metadata.heightTiles)
             val instance = Match(
                 mapMetadata = metadata,
-                initialActors = MatchSetup.assignControl(actors, mode, dual, ruleset.flags),
-                terrainGrid = TerrainGridBuilder.build(layers, metadata),
-                structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers),
+                initialActors = assigned,
+                terrainGrid = terrain,
+                structures = structures,
                 mode = mode,
                 startShields = startShields,
                 layers = layers,
@@ -682,6 +690,54 @@ class Match private constructor(
                 cheats = cheats,
             )
             return instance
+        }
+
+        /** Ground a vehicle on the ground cannot be put down on (aircraft can be over anything). */
+        private val NO_GROUND = setOf(TerrainMaterial.WATER, TerrainMaterial.PIT_BIG, TerrainMaterial.PIT_SMALL, TerrainMaterial.LAVA)
+
+        /**
+         * ADR 0027: players who start on the same spot (team mates sharing a pad, copies of a team
+         * mate's tank) are moved to the nearest free tile, which also becomes where they restart.
+         */
+        internal fun spreadPlayers(
+            actors: List<SceneObject<*>>,
+            terrain: TerrainGrid,
+            structures: StructureGrid,
+            width: Int,
+            height: Int,
+        ): List<SceneObject<*>> {
+            val taken = mutableListOf<Pair<Int, Int>>()
+            fun free(x: Int, y: Int) = taken.none { (tx, ty) -> (tx - x) * (tx - x) + (ty - y) * (ty - y) < LEGACY_TILE_SIZE * LEGACY_TILE_SIZE }
+            return actors.map { actor ->
+                if (actor !is Tank || actor.playerIndex < 0) return@map actor
+                val x = actor.positionX
+                val y = actor.positionY
+                if (free(x, y)) {
+                    taken += x to y
+                    return@map actor
+                }
+                val airborne = actor.spec.kind == VehicleKind.CHOPPER || actor.spec.kind == VehicleKind.PLANE
+                val tileX = x / LEGACY_TILE_SIZE
+                val tileY = y / LEGACY_TILE_SIZE
+                val spot = (1..4).asSequence().flatMap { r ->
+                    (-r..r).asSequence().flatMap { dx -> (-r..r).asSequence().map { dy -> dx to dy } }
+                        .filter { (dx, dy) -> maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy)) == r }
+                }.map { (dx, dy) -> tileX + dx to tileY + dy }
+                    .filter { (tx, ty) -> tx in 0 until width && ty in 0 until height }
+                    .filter { (tx, ty) -> !structures.isStanding(tx, ty) && (airborne || terrain.at(tx, ty).material !in NO_GROUND) }
+                    .map { (tx, ty) -> tx * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 to ty * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2 }
+                    .firstOrNull { (cx, cy) -> free(cx, cy) } ?: return@map actor
+                taken += spot
+                val state = actor.save()
+                val body = state.body
+                Tank(
+                    state.copy(
+                        body = BoxBody(ScenePoint(spot.first - body.size.width / 2, spot.second - body.size.height / 2), body.size, body.pivot, body.scale, body.rotation),
+                        spawnX = spot.first,
+                        spawnY = spot.second,
+                    ),
+                )
+            }
         }
     }
 }

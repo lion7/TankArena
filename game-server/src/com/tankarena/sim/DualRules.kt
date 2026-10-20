@@ -23,6 +23,8 @@ internal class DualRules(
     private val heightTiles: Int,
     private val structures: StructureGrid,
     private val random: Random,
+    /** ADR 0027: a side is out when all its players are, not with its first. */
+    private val teams: Boolean = false,
 ) {
     /** Legacy `game.winner`: -1 while the round is on, else the player (0 or 1) who won it. */
     var winner: Int = -1
@@ -109,7 +111,13 @@ internal class DualRules(
             if (tank.startPadType < 0 || tank.startPadType shr 1 == DualSetup.PAD_RACE) continue
             val player = tank.startPadType and 1
             if (tank.armor <= 0) {
-                if (!tank.infiniteLives && tank.lives <= 0 && winner == -1) winner = player xor 1
+                val out = { t: Tank -> !t.infiniteLives && t.lives <= 0 && t.armor <= 0 }
+                val sideOut = if (teams) {
+                    tanks.filter { it.startPadType >= 0 && it.startPadType and 1 == player }.all(out)
+                } else {
+                    out(tank)
+                }
+                if (sideOut && winner == -1) winner = player xor 1
                 continue
             }
             // With the building on the pad destroyed this vehicle is the player's last.

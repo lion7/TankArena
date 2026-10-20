@@ -27,7 +27,7 @@ enum class Ruleset {
     val flags: RuleFlags
         get() = when (this) {
             CLASSIC -> RuleFlags()
-            EXTENDED -> RuleFlags(stackedComputerVehiclesSurvive = true, oneVehiclePerPlayer = true)
+            EXTENDED -> RuleFlags(stackedComputerVehiclesSurvive = true, oneVehiclePerPlayer = true, teams = true)
         }
 }
 
@@ -46,6 +46,12 @@ data class RuleFlags(
      * original puts one on every such pad, all driven by the same keys (prepare_player()).
      */
     val oneVehiclePerPlayer: Boolean = false,
+    /**
+     * Up to four local players as two teams of up to two (ADR 0027): players 0 and 2 take the
+     * original's player one's place (pads, flag, base, turrets sparing player one), 1 and 3 player
+     * two's. A side is out of lives when all its players are.
+     */
+    val teams: Boolean = false,
 )
 
 /**
@@ -56,5 +62,6 @@ data class RuleFlags(
  * 3: Classic v13 (the rest of Classic parity).
  * 4: Classic v14 (rockets and mines can be hit).
  * 5: the first flags: stacked computer vehicles survive, one vehicle per player in player vs player.
+ * 6: four players as two teams.
  */
-const val EXTENDED_RULES_VERSION: Int = 5
+const val EXTENDED_RULES_VERSION: Int = 6

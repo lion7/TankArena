@@ -79,8 +79,8 @@ internal fun Match.buildRadar(
         val friendly = when (turret.shootAt) {
             1 -> !viewerGood
             2 -> viewerGood
-            3 -> dual && self.playerIndex == 0
-            4 -> dual && self.playerIndex == 1
+            3 -> dual && self.playerIndex.side == 0
+            4 -> dual && self.playerIndex.side == 1
             else -> false
         }
         add(turret, turret.positionX, turret.positionY, RadarContactKind.TURRET, if (friendly) RadarColor.FRIEND else RadarColor.ENEMY)

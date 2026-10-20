@@ -181,8 +181,10 @@ Depends on: phase 1 (renderer for the replay viewer).
       selection reads each player's pad.
 - [x] Menus with a gamepad (both rulesets, outside games): stick or D-pad are the arrow keys with
       repeat, A and START Enter, B and BACK Esc, LB and RB Page Up and Down.
-- Four local players as two teams on existing maps; 2 × 2 split screen; per-team scoring; optional
-  extra pads per team in map files.
+- [x] Four local players as two teams on existing maps (Extended rules v6): join up to four, tank
+      selection for four in the sides' colours, 2 × 2 split screen, per-team scoring and lives,
+      team mates spread out from a shared pad, copies of a team mate's tank against the computer.
+- [ ] Optional extra pads per team in map files (with the editor's `extended` section).
 
 Depends on: phase 5.
 

@@ -3,7 +3,7 @@
 - **Status:** Accepted (2026-10-19). Built 2026-10-20: the input layer (`com.tankarena.input`:
   `InputState`, `ControlMapping` for relative and direct steering with keys and sticks) and gamepads
   through Jamepad 2.30.0.0 as the original's joysticks; press to join (`JoinState`, session `Seat`s)
-  and menus with a pad (`GamepadMenuKeys`). Not yet: more than two players.
+  and menus with a pad (`GamepadMenuKeys`); up to four players join ([ADR 0027](0027-four-players-two-teams.md)).
 
 ## Context
 

@@ -110,9 +110,12 @@ fun TankSelectScreen(
     onCancel: () -> Unit,
     /** The players' gamepads this frame, as moves (polled once a frame). */
     padActions: () -> List<Pair<Int, SelectionKey>> = { emptyList() },
+    /** Extended's teams (ADR 0027): up to four players, the frame in their side's colour. */
+    players: Int = 2,
 ) {
     val allowed = remember(match) { allowedTanks(match.mission.sidecar.metadata.mapContents, match.wins, match.options.losersTank) }
-    var chosen by remember(match) { mutableStateOf(autoSelect(initial, allowed)) }
+    var chosen by remember(match) { mutableStateOf(autoSelect(List(players) { initial.getOrElse(it) { initial.getOrElse(it and 1) { 0 } } }, allowed)) }
+    val everyone = (1 shl players) - 1
     var confirmed by remember(match) { mutableIntStateOf(0) }
     var cancelled by remember(match) { mutableStateOf(false) }
 
@@ -141,7 +144,7 @@ fun TankSelectScreen(
 
     // Legacy start_fade_in() / start_fade_out(): 0.6 s each.
     val brightness = remember(match) { androidx.compose.animation.core.Animatable(0f) }
-    val leaving = confirmed == 3 || cancelled
+    val leaving = confirmed == everyone || cancelled
     LaunchedEffect(leaving) {
         val spec = androidx.compose.animation.core.tween<Float>(GAME_FADE_MILLIS, easing = androidx.compose.animation.core.LinearEasing)
         if (!leaving) {
@@ -154,7 +157,8 @@ fun TankSelectScreen(
 
     fun canConfirm(player: Int): Boolean {
         val tank = chosen[player]
-        return allowed[tank] && (tank != CHOICES - 1 || match.wins[player] < match.wins[player xor 1])
+        val side = player and 1
+        return allowed[tank] && (tank != CHOICES - 1 || match.wins[side] < match.wins[side xor 1])
     }
 
     fun act(player: Int, action: SelectionKey) {
@@ -176,7 +180,7 @@ fun TankSelectScreen(
     LaunchedEffect(match) {
         while (true) {
             val actions = withFrameNanos { padActions() }
-            for ((player, action) in actions) if (player in 0..1) act(player, action)
+            for ((player, action) in actions) if (player in 0 until players) act(player, action)
         }
     }
 
@@ -185,7 +189,7 @@ fun TankSelectScreen(
         onKey = { event ->
             if (leaving) return@Mode13View true
             when (event.key) {
-                Key.Enter, Key.NumPadEnter -> if (canConfirm(0) && canConfirm(1)) confirmed = 3
+                Key.Enter, Key.NumPadEnter -> if ((0 until players).all(::canConfirm)) confirmed = everyone
                 Key.Escape -> cancelled = true
                 else -> {
                     val (player, action) = keyFor(event.key) ?: return@Mode13View false
@@ -202,16 +206,21 @@ fun TankSelectScreen(
                 val state = current?.world?.actors?.firstOrNull { it is TankState && it.tankType == tank } as TankState?
                 if (current != null && state != null && selectMap != null) {
                     val border = when {
-                        chosen[0] == tank && chosen[1] == tank -> BORDER_BOTH
-                        chosen[0] == tank -> BORDER_P1
-                        chosen[1] == tank -> BORDER_P2
+                        // A side's colour for its players (with two players, each player's own).
+                        chosen.indices.any { chosen[it] == tank && it and 1 == 0 } && chosen.indices.any { chosen[it] == tank && it and 1 == 1 } -> BORDER_BOTH
+                        chosen.indices.any { chosen[it] == tank && it and 1 == 0 } -> BORDER_P1
+                        chosen.indices.any { chosen[it] == tank && it and 1 == 1 } -> BORDER_P2
                         else -> -1
                     }
                     VehicleWindow(selectMap, current, state, tank, left, top, gray = !allowed[tank], border = border)
                 }
                 // Legacy m13_add_image(..., TANKICO): a player who has confirmed.
-                if (chosen[0] == tank && confirmed and 1 != 0) TankIcon(left - 14, top - 11)
-                if (chosen[1] == tank && confirmed and 2 != 0) TankIcon(left + 30, top - 11)
+                for (player in 0 until players) {
+                    // Players 1 and 2 as the original; 3 and 4 below the window.
+                    if (chosen[player] == tank && confirmed and (1 shl player) != 0) {
+                        TankIcon(if (player and 1 == 0) left - 14 else left + 30, if (player < 2) top - 11 else top + 47)
+                    }
+                }
             }
         },
     ) {

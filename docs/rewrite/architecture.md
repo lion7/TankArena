@@ -13,7 +13,7 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
 ## Overview
 
 ```text
-                 +-------------------- game-client (desktop app) -------------------+
+                 +------------- app-desktop (desktop app) on game-ui (library) -----+
  keyboard  -->   | Compose shell: intro, menus, prompts, text pages, options         |
                  | GameplayScreen                                                    |
                  |   SimulationLoop thread (100 ticks/s)                             |
@@ -24,7 +24,7 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
                  |   AudioManager --> DesktopAudioBackend (mixer), MusicPlayer       |
                  +-------------------------------------------------------------------+
                                     |  LocalMatchClient (in-process)
-                 +--------------------- game-server (library) ----------------------+
+                 +--------------------- game-sim (library) ----------------------+
                  | Match: map objects, StructureGrid, ComputerTankAi, |
                  | DualRules, mission rules  -->  WorldSnapshot + PlayerViews        |
                  +-------------------------------------------------------------------+
@@ -37,17 +37,19 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
 
 ## Modules
 
-Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-editor` was deleted on
-2026-10-19, [ADR 0021](adrs/0021-editor-in-the-game.md)). Dependencies point one way:
-`game-protocol` ← `game-content` ← `game-server` ← `game-client`, `tools-mapconv`.
+Six modules (2026-10-20, the first step of [ADR 0025](adrs/0025-multiplatform-modules-and-android.md));
+all compile for the JVM only so far. Dependencies point one way:
+`game-protocol` ← `game-content` ← `game-sim` ← `game-ui` ← `app-desktop`; `tools-mapconv` uses
+`game-content` and `game-sim`. Packages are under `nl.tankarena`; artifacts are `nl.tankarena:<module>`.
 
 | Module | Kind | Holds |
 |---|---|---|
 | `:game-protocol` | library | Wire and timing types, deterministic maths; no Compose |
-| `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, map importer |
-| `:game-server` | library | The authoritative simulation and the server half of the importer |
-| `:game-client` | desktop app | Shell, playfield rendering, HUD, audio, settings, recordings |
-| `:tools-mapconv` | command line | Map conversion and asset extraction |
+| `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, `.MAP` parser |
+| `:game-sim` | library | The authoritative simulation, the native map format, `.MAP` import and export, the editor's rules |
+| `:game-ui` | library (Compose) | Renderer, HUD, both menus, editor and replay screens' parts, input layer, sound mixer, pictures |
+| `:app-desktop` | desktop app | Window and screen state machine, desktop audio and MIDI, gamepads (Jamepad), storage, editor and replay screens |
+| `:tools-mapconv` | command line | Map conversion and asset extraction (the extractors live here) |
 
 ### `:game-protocol`
 
@@ -71,13 +73,11 @@ Five modules, all JVM-only ([ADR 0006](adrs/0006-module-collapse.md); `:game-edi
   (material and speed per tile).
 - `PictureMasks`: opaque-pixel masks of every picture (`resources/masks/pictures.mask`).
 - `legacy/LegacyMapParser`: the raw `.MAP` reader (importer only).
-- `tools/mapconv/*`: the extractor library behind `:tools-mapconv` (pictures, fonts, night tables,
-  masks, vehicle and terrain tables).
 - Resources: `scenes/`, `masks/`, `sounds/` (29 WAVs), `music/` (two MIDI files).
 
-### `:game-server`
+### `:game-sim`
 
-All under `com.tankarena.sim`.
+All under `nl.tankarena.sim`.
 
 | File | Role |
 |---|---|
@@ -99,30 +99,41 @@ All under `com.tankarena.sim`.
 | `map/` | `MapDocument`/`MapFile` (the `.tamap` format), `MapConversion` (document ↔ layers and objects), `ShippedMaps` (loader), `LegacyMapImport` (`.MAP` → document) |
 | `CanonicalSceneBuilder`, `legacy/*` | The importer's object mapping (tools, tests and fixtures) |
 
-### `:game-client`
+### `:game-ui`
 
 | Package | Contents |
 |---|---|
-| `app/desktop` | `Main.kt` (window, screen state machine, key bindings, gameplay screen), `GameplayFrame` (the game screen's drawing), `RecordingStore`, `PerfLog` |
-| `ui/compose/menu` | Main and mode menus, mission-code prompt and list, `PasswordStore`, game options, tank selection, intro, text pages, briefing and end banners |
+| `ui/compose/menu` | Main and mode menus, mission-code prompt and list, `PasswordStore`, game options and controls, tank selection, intro, text pages, briefing and end banners |
+| `ui/compose/extended` | Extended's own look: home, campaign, local game, join, settings, help, texts |
 | `ui/compose/legacy` | Mode 13h screen and fonts (generated), `FliAnimation` |
-| `ui/compose` | `LegacyScreen` (640×480 and 320×200 screens, fades), `GammaCorrection`, shell state |
+| `ui/compose` | `LegacyScreen` (640×480 and 320×200 screens, fades), `GammaCorrection`, the shell's screen states |
 | `ui/compose/hud` | `HudOverlay` (status display, radar, pilot face and messages, banners, arrow), `NightHud` |
-| `render` | `TankArenaViewport` (one player window), `RenderScene` (draws a window's scene; `RenderBody`, `SceneDrawable`), `PictureCache` (decoded pictures), `ClientScene` (render actors kept in step with snapshots), terrain and top-layer drawing, sprite catalog, `NightLighting`, `PaletteCycling`, map window layout |
-| `audio` | `AudioBackend`, `DesktopAudioBackend` (software mixer), `AudioManager`, `MusicPlayer` |
+| `render` | `TankArenaViewport` (one player window), `RenderScene`, `PictureCache`, `ClientScene`, terrain and top-layer drawing, sprite catalog, `NightLighting`, `PaletteCycling`, map window layout |
+| `input` | `InputState`, `ControlMapping` (relative and direct steering), `PadReading`, `GamepadMenuKeys`, `Seat` |
+| `audio` | `AudioBackend`, `AudioManager` (the software mixer's logic) |
+
+### `:app-desktop`
+
+| Package | Contents |
+|---|---|
+| `app/desktop` | `Main.kt` (window, screen state machine, gameplay screen), `DesktopControls`, `GameplayFrame`, editor screens, replay screens, `UserMapStore`, `RecordingStore`, `PerfLog` |
+| `audio` | `DesktopAudioBackend` (`javax.sound`), `MusicPlayer` (MIDI) |
+| `input` | `Gamepads` (Jamepad) |
 
 ### `:tools-mapconv`
 
-One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` converter code; see
+`Main.kt` (subcommands) and the extractors (pictures, fonts, night tables, masks, vehicle and terrain
+tables) over `:game-content` and `:game-sim`; see
 [assets.md](assets.md#tools-mapconv).
 
 ## Boundaries
 
-- `:game-protocol` and `:game-content` contain no Compose code.
-- Only `:game-server` decides gameplay. The client renders snapshots and sends inputs.
+- `:game-protocol`, `:game-content` and `:game-sim` contain no Compose code; desktop-only APIs
+  (`javax.sound`, Jamepad, the player's folders) are in `:app-desktop`.
+- Only `:game-sim` decides gameplay. The client renders snapshots and sends inputs.
 - No runtime code reads repository folders (`MAPS/`, `DATA/`, `unpacked/`); everything shipped comes
   from the class path. Only the tools and some tests read them.
-- `:game-server` depends only on `:game-content`, `:game-protocol` and kotlinx.serialization. No module
+- `:game-sim` depends only on `:game-content`, `:game-protocol` and kotlinx.serialization. No module
   uses Kubriko (removed 2026-10-19, [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 
 ## A match, step by step
@@ -170,8 +181,8 @@ One file (`Main.kt`) of subcommands over the `:game-content` and `:game-server` 
 | Constant | Value | Where | Checked |
 |---|---|---|---|
 | `PROTOCOL_VERSION` | 8 | `game-protocol/.../snapshot/WorldSnapshot.kt` | `decodeWorldSnapshot` (tests only today) |
-| `MAP_FORMAT_VERSION` | 1 | `game-server/.../sim/map/MapDocument.kt` | `MapFile.read` refuses newer maps |
-| `GAME_RULES_VERSION` | 11 | `game-server/.../MatchRecording.kt` | `RecordedPlaythroughTest` requires equality |
+| `MAP_FORMAT_VERSION` | 1 | `game-sim/.../sim/map/MapDocument.kt` | `MapFile.read` refuses newer maps |
+| `GAME_RULES_VERSION` | 11 | `game-sim/.../MatchRecording.kt` | `RecordedPlaythroughTest` requires equality |
 
 ## Threads
 

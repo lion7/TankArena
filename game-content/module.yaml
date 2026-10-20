@@ -2,9 +2,8 @@ product:
   type: kmp/lib
   platforms: [jvm]
 
+apply:
+  - ../common.module-template.yaml
+
 dependencies:
   - ../game-protocol
-
-settings:
-  kotlin:
-    serialization: json

@@ -1,8 +1,9 @@
 # Legacy System Map
 
 Where each part of the original C source (`src/`, about 23,800 lines of C and assembly) lives in the
-rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-server/src/com/tankarena/sim/`,
-`client/` is `game-client/src/com/tankarena/`, `content/` is `game-content/src/com/tankarena/`.
+rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-sim/src/nl/tankarena/sim/`,
+`client/` is `game-ui/src/nl/tankarena/` (and `app-desktop/src/nl/tankarena/` for the desktop app),
+`content/` is `game-content/src/nl/tankarena/`.
 
 ## Gameplay (`src/tanks`, `src/check`, `src/objects`, `src/world`)
 

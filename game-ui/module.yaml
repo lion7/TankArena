@@ -1,0 +1,27 @@
+# The game's screens, renderer, input layer and editor, shared by the desktop and Android apps
+# (ADR 0025).
+product:
+  type: kmp/lib
+  platforms: [jvm]
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-content: exported
+  - ../game-protocol: exported
+  - ../game-sim: exported
+  - $compose.foundation: exported
+  - $compose.material3: exported
+  - $compose.components.resources: exported
+
+settings:
+  compose:
+    enabled: true
+    resources:
+      packageName: nl.tankarena.ui.resources
+      exposedAccessors: true
+
+# Rendering tests need Skia's native library for this machine.
+test-dependencies:
+  - $compose.desktop.currentOs

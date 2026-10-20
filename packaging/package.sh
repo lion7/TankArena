@@ -36,7 +36,7 @@ echo "Using $jpackage ($("$jpackage" --version))"
 echo "Building the game..."
 # Packaging the executable jar is what writes the module jars (build/tasks/_<module>_jarJvm); the
 # executable jar itself is not used, see below.
-"${kotlin[@]}" package -m game-client -f executable-jar
+"${kotlin[@]}" package -m app-desktop -f executable-jar
 
 # Every runtime library jar, named by group as well: Compose 1.12 has artifacts with the same file
 # name in two groups (androidx.compose.runtime:runtime-desktop and its empty JetBrains redirect),
@@ -44,7 +44,7 @@ echo "Building the game..."
 input="build/package-input"
 rm -rf "$input" "$dist/$name"
 mkdir -p "$input" "$dist"
-"${kotlin[@]}" show dependencies -m game-client --scope runtime -p jvm \
+"${kotlin[@]}" show dependencies -m app-desktop --scope runtime -p jvm \
     | grep -oE '[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.+-]*( -> [0-9][A-Za-z0-9_.+-]*)?( \(\*\))?$' \
     | sed -E 's/ \(\*\)$//; s/^([^:]+):([^:]+):[^ ]+ -> (.*)$/\1:\2:\3/' \
     | sort -u \
@@ -53,7 +53,7 @@ mkdir -p "$input" "$dist"
         # Umbrella artifacts have no jar of their own, only metadata.
         if [[ -f "$jar" ]]; then cp "$jar" "$input/$group.$artifact-$version.jar"; fi
     done
-for module in game-client game-content game-protocol game-server; do
+for module in app-desktop game-ui game-sim game-content game-protocol; do
     cp "build/tasks/_${module}_jarJvm/$module-jvm.jar" "$input/"
 done
 echo "$(ls "$input" | wc -l) jars on the class path"
@@ -64,8 +64,8 @@ common=(
     --vendor "TankArena"
     --description "Tank Arena, rewritten in Kotlin"
     --input "$input"
-    --main-jar game-client-jvm.jar
-    --main-class com.tankarena.app.desktop.MainKt
+    --main-jar app-desktop-jvm.jar
+    --main-class nl.tankarena.app.desktop.MainKt
     --icon packaging/tankarena.png
     # Only the Java modules the game uses (jdeps --print-module-deps over the jars).
     --add-modules java.base,java.desktop,java.instrument,java.management,jdk.unsupported

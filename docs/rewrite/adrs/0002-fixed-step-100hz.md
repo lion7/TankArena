@@ -20,8 +20,8 @@ never built and is withdrawn here (replays store inputs instead; see ADR 0014).
 
 - The authoritative simulation advances in fixed steps of **10 ms (100 ticks per second)**.
   `FixedStepClock.TICKS_PER_SECOND = 100` and `MILLIS_PER_TICK = 10`
-  (`game-protocol/src/com/tankarena/core/FixedStepClock.kt`).
-- Every `*_TICKS` constant in `:game-server` is in these units and cites the C source it came from.
+  (`game-protocol/src/nl/tankarena/core/FixedStepClock.kt`).
+- Every `*_TICKS` constant in `:game-sim` is in these units and cites the C source it came from.
 - The tick rate is independent of the display: the client draws the newest finished tick on every
   display frame. Gameplay never runs faster or slower to match the screen.
 - A future network transport chooses its own send rate; it is not tied to the simulation rate.

@@ -31,7 +31,7 @@ Write-Host "Using $jpackage ($(& $jpackage --version))"
 Write-Host 'Building the game...'
 # Packaging the executable jar is what writes the module jars (build\tasks\_<module>_jarJvm); the
 # executable jar itself is not used, see below.
-Invoke-Kotlin package -m game-client -f executable-jar
+Invoke-Kotlin package -m app-desktop -f executable-jar
 
 # Every runtime library jar, named by group as well: Compose 1.12 has artifacts with the same file
 # name in two groups (androidx.compose.runtime:runtime-desktop and its empty JetBrains redirect),
@@ -41,7 +41,7 @@ Remove-Item -Recurse -Force $inputDir, "$dist\$name" -ErrorAction SilentlyContin
 New-Item -ItemType Directory -Force $inputDir, $dist | Out-Null
 $pattern = '([A-Za-z0-9_.-]+):([A-Za-z0-9_.-]+):([0-9][A-Za-z0-9_.+-]*)(?: -> ([0-9][A-Za-z0-9_.+-]*))?(?: \(\*\))?$'
 $seen = @{}
-foreach ($line in (Invoke-Kotlin show dependencies -m game-client --scope runtime -p jvm)) {
+foreach ($line in (Invoke-Kotlin show dependencies -m app-desktop --scope runtime -p jvm)) {
     if ($line -notmatch $pattern) { continue }
     $group = $Matches[1]
     $artifact = $Matches[2]
@@ -53,7 +53,7 @@ foreach ($line in (Invoke-Kotlin show dependencies -m game-client --scope runtim
     # Umbrella artifacts have no jar of their own, only metadata.
     if (Test-Path $jar) { Copy-Item $jar "$inputDir\$group.$artifact-$ver.jar" }
 }
-foreach ($module in 'game-client', 'game-content', 'game-protocol', 'game-server') {
+foreach ($module in 'app-desktop', 'game-ui', 'game-sim', 'game-content', 'game-protocol') {
     Copy-Item "build\tasks\_${module}_jarJvm\$module-jvm.jar" $inputDir
 }
 Write-Host "$((Get-ChildItem $inputDir).Count) jars on the class path"
@@ -64,8 +64,8 @@ $common = @(
     '--vendor', 'TankArena',
     '--description', 'Tank Arena, rewritten in Kotlin',
     '--input', $inputDir,
-    '--main-jar', 'game-client-jvm.jar',
-    '--main-class', 'com.tankarena.app.desktop.MainKt',
+    '--main-jar', 'app-desktop-jvm.jar',
+    '--main-class', 'nl.tankarena.app.desktop.MainKt',
     '--icon', 'packaging\tankarena.ico',
     # Only the Java modules the game uses (jdeps --print-module-deps over the jars).
     '--add-modules', 'java.base,java.desktop,java.instrument,java.management,jdk.unsupported',

@@ -13,13 +13,13 @@ converted belongs to the map editor, the DOS setup program or the DOS distributi
 
 | Original | In the rewrite | Made by |
 |---|---|---|
-| `PICTURES.DAT`, `PICTURES.IDX`, `PALETTE.DAT` | 2,960 transparent PNGs `pic_*.png` in `game-client/composeResources/drawable/`, plus `GeneratedLegacyPictureCatalog.kt` | `extract-pictures-png` |
+| `PICTURES.DAT`, `PICTURES.IDX`, `PALETTE.DAT` | 2,960 transparent PNGs `pic_*.png` in `game-ui/composeResources/drawable/`, plus `GeneratedLegacyPictureCatalog.kt` | `extract-pictures-png` |
 | Picture attributes in `src/data/pictures.c` (type, speed, strengths, explosion, links) | `GeneratedLegacyPictureTerrain.kt` | `extract-picture-terrain` |
 | Opaque pixels of every picture | `game-content/resources/masks/pictures.mask` | `extract-masks` |
 | `NIGHT.PAL`, `NIGHT.LNK` (+ `PALETTE.DAT`) | `night_lut.png` (64³ colour lookup table) | `extract-night` |
 | `LIGHT.DAT` (15 light cones, LZSS-packed Allegro datafile) | `light_{s,m,l}light1..5.png` | `extract-night` |
 | `src/graph/5x5font.s`, `SETUP_FONT` in `SETSOUND.DAT`, `PALETTE.DAT` | `GeneratedLegacyFonts.kt` (client) | `extract-fonts` |
-| `bitmaps.dat`: `PANEL`, `BLACK1`–`BLACK11`, `CREDITS`, `CREDITS2` | `game-client/resources/backgrounds/*.bmp` | Copied (from `unpacked/backgrounds/`) |
+| `bitmaps.dat`: `PANEL`, `BLACK1`–`BLACK11`, `CREDITS`, `CREDITS2` | `game-ui/resources/backgrounds/*.bmp` | Copied (from `unpacked/backgrounds/`) |
 
 The `pics/`, `2hpics/`, `2vpics/`, `23pics/`, `32pics/`, `3pics/`, `4pics/`, `4hpics/` folders are
 the original's drawing sources from which `PICTURES.DAT` was built (`bat/*.bat`, `src/utils/`); their
@@ -31,9 +31,9 @@ content reaches the rewrite through `PICTURES.DAT`.
 |---|---|---|
 | `SOUND.DAT` (29 samples) | `game-content/resources/sounds/*.wav` | Copied from `unpacked/sound/` (no extractor) |
 | `TUNE.MID`, `Belved.mid` | `game-content/resources/music/TUNE.MID`, `BELVED.MID` | Copied |
-| `FLI/LOGO.FLI`, `FLI/TITLE.FLI` | `game-client/resources/fli/` | Copied; decoded at runtime by `FliAnimation` |
+| `FLI/LOGO.FLI`, `FLI/TITLE.FLI` | `game-ui/resources/fli/` | Copied; decoded at runtime by `FliAnimation` |
 | `VICTORY.FLI`, `THUNDER.FLI` | — | Not in the original release either; the game skips them like the original |
-| `KEYS.HLP`, `TANK.HLP` | `game-client/resources/help/` | Copied; shown by `TextPages` |
+| `KEYS.HLP`, `TANK.HLP` | `game-ui/resources/help/` | Copied; shown by `TextPages` |
 
 ### Maps
 

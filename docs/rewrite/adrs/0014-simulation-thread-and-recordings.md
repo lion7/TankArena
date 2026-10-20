@@ -20,7 +20,7 @@ break another.
 
 **Threading**
 
-- A match runs on its own thread (`SimulationLoop`, in `game-server/.../sim/` since 2026-10-19), paced by
+- A match runs on its own thread (`SimulationLoop`, in `game-sim/.../sim/` since 2026-10-19), paced by
   `System.nanoTime()` at exactly 100 ticks per second. When it falls behind it runs up to 10 ticks back
   to back, then drops the backlog, so a long stall slows the game instead of fast-forwarding it.
 - Each tick it submits the players' `InputFrame`s, ticks the match, queues the events per player
@@ -41,7 +41,7 @@ break another.
   tick). No snapshots are stored.
 - The client saves each finished mission to `$XDG_DATA_HOME/tankarena/recordings` (default
   `~/.local/share/tankarena/recordings`) as `<mission>-<stamp>-<won|lost|unfinished>.json`.
-- Recordings copied into `game-server/testResources/recordings/` are replayed headless by
+- Recordings copied into `game-sim/testResources/recordings/` are replayed headless by
   `RecordedPlaythroughTest`, which requires the identical result.
 - `GAME_RULES_VERSION` (`MatchRecording.kt`, 11 on 2026-10-19) is bumped with every change that makes
   the same inputs play out differently; a recording from another version fails and must be played

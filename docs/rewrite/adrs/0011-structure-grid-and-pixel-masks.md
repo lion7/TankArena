@@ -20,7 +20,7 @@ the actor count was the main performance cost.
 
 ## Decision
 
-- **`StructureGrid`** (`game-server/.../sim/StructureGrid.kt`) holds the solid and top layers with
+- **`StructureGrid`** (`game-sim/.../sim/StructureGrid.kt`) holds the solid and top layers with
   their strengths, links, ruins, goal shares and changed tiles, initialised from the sidecar's tile
   layers exactly as `load_map()` does.
 - **Pixel masks** of every picture are generated at build time (`tools-mapconv extract-masks` →

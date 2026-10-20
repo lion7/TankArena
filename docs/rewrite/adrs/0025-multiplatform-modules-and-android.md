@@ -1,7 +1,9 @@
 # ADR 0025: Multiplatform Module Layout and an Android Package
 
-- **Status:** Accepted (2026-10-19); not implemented. Replaces the module list of
-  [ADR 0006](0006-module-collapse.md) when done.
+- **Status:** Accepted (2026-10-19). First step done 2026-10-20: `game-server` became `game-sim`,
+  `game-client` was split into `game-ui` and `app-desktop`, the extractors moved to `tools-mapconv`,
+  packages and artifacts are `nl.tankarena`. Still JVM only; `game-net`, `app-android` and
+  `app-server` come with phases 7 and 8. Replaces the module list of [ADR 0006](0006-module-collapse.md).
 
 ## Context
 

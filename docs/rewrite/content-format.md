@@ -87,7 +87,7 @@ buildings are the solid and top layers.
 
 ## Loading
 
-1. `ShippedMaps` (game-server, `com.tankarena.sim.map`) reads `maps/index.txt` and each `.tamap` from
+1. `ShippedMaps` (game-sim, `nl.tankarena.sim.map`) reads `maps/index.txt` and each `.tamap` from
    the class path once (`MapFile.read`).
 2. `Match.fromMap(document, mode, dual)` builds a match: `MapConversion.sidecarOf` gives the header,
    texts and layers, `MapConversion.objectsOf` gives fresh map objects (a match changes them, so every
@@ -109,7 +109,7 @@ The `.tamap` files are the source of the shipped maps ([ADR 0003](adrs/0003-lega
 
 `import-all` converts every `*.MAP` at the top level of `MAPS/` (not `MAPS/extra/`) and writes
 `index.txt`. The importer chain: `LegacyMapParser` (game-content) → `LegacyObjectParser` and
-`LegacyCanonicalConverter` (game-server, `sim.legacy`) → `CanonicalSceneBuilder.buildActors` → map
+`LegacyCanonicalConverter` (game-sim, `sim.legacy`) → `CanonicalSceneBuilder.buildActors` → map
 objects → `MapConversion.toDocument` → `MapFile.write`.
 
 `MapDocumentTest` requires every `.MAP` of the original release to import without notes to exactly
@@ -121,9 +121,9 @@ Export back to `.MAP` is not built yet (see [ADR 0022](adrs/0022-native-map-form
 
 ## Versioning
 
-- `MAP_FORMAT_VERSION` (`com.tankarena.sim.map`, 1) is bumped when the format changes incompatibly;
+- `MAP_FORMAT_VERSION` (`nl.tankarena.sim.map`, 1) is bumped when the format changes incompatibly;
   readers refuse newer files.
-- The object records follow the map objects' `State` classes (`com.tankarena.sim`); a renamed or
+- The object records follow the map objects' `State` classes (`nl.tankarena.sim`); a renamed or
   removed field needs a format bump or a migration.
 
 ## Known import gaps

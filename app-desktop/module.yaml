@@ -1,0 +1,17 @@
+# The desktop game: window, desktop audio and MIDI, gamepads, storage, packaging (ADR 0025).
+product: jvm/app
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-ui
+  - $compose.desktop.currentOs
+  - org.jetbrains.compose.material3:material3:1.12.0-alpha03
+  # Gamepads through SDL2's game-controller layer (ADR 0026).
+  - com.badlogicgames.jamepad:jamepad:2.30.0.0
+
+settings:
+  compose: enabled
+  jvm:
+    mainClass: nl.tankarena.app.desktop.MainKt

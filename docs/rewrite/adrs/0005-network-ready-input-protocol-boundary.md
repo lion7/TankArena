@@ -12,10 +12,10 @@ player asks for" and "what the game decides".
 ## Decision
 
 - Player input crosses the seam as one `InputFrame` per player per tick
-  (`game-protocol/src/com/tankarena/protocol/Frames.kt`): drive and turn keys, turret keys, fire,
+  (`game-protocol/src/nl/tankarena/protocol/Frames.kt`): drive and turn keys, turret keys, fire,
   weapon cycling, shield and tank selection (F1–F10). The rocket lock marker is steered with the
   drive keys while fire is held, as in the original. The server turns it into the internal
-  `PlayerIntentFrame` (`game-protocol/src/com/tankarena/input/PlayerIntent.kt`), which is also what
+  `PlayerIntentFrame` (`game-protocol/src/nl/tankarena/input/PlayerIntent.kt`), which is also what
   the computer AI produces and what recordings store.
 - Output crosses the seam as a `ServerFrame`: the `WorldSnapshot` plus one `PlayerView` per player
   (camera, status display, radar, lock marker) and the tick's `GameEvent`s.

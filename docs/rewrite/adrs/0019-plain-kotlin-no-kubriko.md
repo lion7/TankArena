@@ -3,7 +3,7 @@
 - **Status:** Accepted and done (2026-10-19). No module depends on Kubriko:
   - simulation and importer: `MatchObjectList` updates objects in Kubriko's order and `SceneFile`
     reads and writes the same scene JSON (all 69 scenes regenerate byte for byte, every recording
-    replays unchanged); package `com.tankarena.sim` with plain names (`Match`, `Tank`, …), `Match`'s
+    replays unchanged); package `nl.tankarena.sim` with plain names (`Match`, `Tank`, …), `Match`'s
     rules split into `Match*.kt` files, maths through `DetMath`;
   - client: `RenderScene` draws each window on a Compose `Canvas` the way Kubriko's viewport did and
     `PictureCache` replaces the sprite manager; the reference renders came out byte-identical;

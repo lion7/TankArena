@@ -1,6 +1,7 @@
 modules:
-  - game-client
+  - app-desktop
   - game-content
   - game-protocol
-  - game-server
+  - game-sim
+  - game-ui
   - tools-mapconv

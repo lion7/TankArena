@@ -5,7 +5,7 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## Principles
 
-1. **Test the simulation, not the pixels.** All gameplay truth lives in `:game-server`, which runs
+1. **Test the simulation, not the pixels.** All gameplay truth lives in `:game-sim`, which runs
    headless at 100 ticks per second and is driven only by inputs. Every rule can be checked by
    stepping ticks and reading the `WorldSnapshot`, `PlayerView`s and `GameEvent`s.
 2. **One seam.** Tests, recordings, bots and agents drive a match through `MatchClient`
@@ -20,7 +20,8 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## What exists (2026-10-19)
 
-`./kotlin test` runs 324 tests, all green: 250 in `:game-server`, 65 in `:game-client`, 9 in
+`./kotlin test` runs 371 tests, all green (2026-10-20): 281 in `:game-sim`, 62 in `:game-ui`, 17 in
+`:app-desktop`, 11 in
 `:game-content`. `:game-protocol` and `:tools-mapconv` have none.
 
 ### Continuous integration
@@ -37,7 +38,7 @@ The toolchain, its JDK and the Maven dependencies are cached between runs
 artifacts) and the JetBrains toolchain repository (`packages.jetbrains.team`). `.gitignore` ignores
 dot-folders except `.github/` and `.dockerignore`.
 
-### Rule tests (`:game-server`)
+### Rule tests (`:game-sim`)
 
 Small fixture maps (`CanonicalMapDefinition` through `Match.fromCanonicalMap`) or
 shipped scenes, one rule per test:
@@ -66,7 +67,7 @@ shortcuts where real projectiles reach the same state within about 1,000 ticks.
 
 ### Recorded playthroughs
 
-`RecordedPlaythroughTest` replays every `game-server/testResources/recordings/*.json` and requires
+`RecordedPlaythroughTest` replays every `game-sim/testResources/recordings/*.json` and requires
 the identical result; a second test records and replays a scripted BEGIN2 match. Recordings come from
 normal play (the client saves every mission) and are tied to `GAME_RULES_VERSION`
 ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
@@ -91,21 +92,21 @@ only those that change, and relabel the rest. Recordings were the main safety ne
 | `UPDATE_REFERENCE_RENDERS=1` | `ReferenceRenderTest` | Rewrites the reference renders |
 
 ```bash
-IDLE_SCAN=30000 ./kotlin test -m game-server
-TICK_BENCH=1 ./kotlin test -m game-server
+IDLE_SCAN=30000 ./kotlin test -m game-sim
+TICK_BENCH=1 ./kotlin test -m game-sim
 ```
 
-### Every map boots (`:game-client`)
+### Every map boots (`:game-ui`)
 
 `ShippedMapsBootTest` starts every shipped map in every mode its map type allows (legacy
 `check_suitable()`), and in player vs player once per vehicle the map's contents allow (legacy
 select_tanks()) — 143 combinations. Each must give every player a living vehicle and run 200 idle
 ticks without an exception, with every vehicle inside the world and finite speeds.
 
-### Reference renders (`:game-client`)
+### Reference renders (`:app-desktop`)
 
 `ReferenceRenderTest` draws eight moments through the real game screen (`GameplayFrame`) offscreen at
-640 × 480 and compares them with the PNGs in `game-client/testResources/reference-renders/`: BEGIN1
+640 × 480 and compares them with the PNGs in `app-desktop/testResources/reference-renders/`: BEGIN1
 at the start, in a fight and won; COMBAT1 lost (grey view, banner, explosion); BEGIN3 (force field,
 helicopter); ZULU at night; AIR with two players against the computer; FLAGISLE player vs player.
 
@@ -113,13 +114,13 @@ helicopter); ZULU at night; AIR with two players against the computer; FLAGISLE 
   the last 150 ticks before each moment are drawn one by one with their events, so effects and colour
   cycling are in the same state on every run.
 - A render fails when more than 0.2 % of its pixels differ by more than 8 in a colour channel; the
-  actual image is written to `game-client/build/reference-renders/`.
-- `UPDATE_REFERENCE_RENDERS=1 ./kotlin test -m game-client` rewrites the references; look at them
+  actual image is written to `app-desktop/build/reference-renders/`.
+- `UPDATE_REFERENCE_RENDERS=1 ./kotlin test -m app-desktop` rewrites the references; look at them
   before committing.
 - They pinned what Kubriko drew; the game's own renderer that replaced it on 2026-10-19 reproduces
   them byte for byte ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).
 
-### Client tests (`:game-client`)
+### Client tests (`:game-ui`, `:app-desktop`)
 
 Pure logic and offscreen rendering, no UI automation: `AudioMathTest`, `MissionCodesTest`,
 `GameOptionsTest`, `PasswordStoreTest`, `MapWindowTest`, `TankSelectTest`, `TextPagesTest`,

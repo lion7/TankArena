@@ -19,7 +19,7 @@ crashing into something that is not its target.
 
 ## Decision
 
-- `ComputerTankAi` (`game-server/.../sim/ComputerTankAi.kt`) ports `computer.c` rule by rule.
+- `ComputerTankAi` (`game-sim/.../sim/ComputerTankAi.kt`) ports `computer.c` rule by rule.
 - The importer reads every AI field the original stores (`attack_at`, `attack_goals`, `wave_delay`,
   waypoint mode and all ten slots, activation fields) and the scenes were regenerated.
 - The A* path finder, line of sight, waypoint follower and mode dispatcher were deleted.

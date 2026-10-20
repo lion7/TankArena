@@ -44,7 +44,7 @@ Goal: the same game, with no Kubriko anywhere and a simulation that can run on a
 
 - [x] Simulation and importer without Kubriko: `MatchObjectList` (objects updated in Kubriko's
       order), `SceneFile` (the same scene JSON; all 69 scenes regenerate byte for byte).
-- [x] Package `com.tankarena.sim` with plain names (`Match`, `Tank`, …); `Match`'s rules split into
+- [x] Package `nl.tankarena.sim` with plain names (`Match`, `Tank`, …); `Match`'s rules split into
       ten `Match*.kt` files by subsystem.
 - [x] All trigonometry through `DetMath` (`StrictMath`, identical on every JVM).
 - [x] `SimulationLoop` moved into the simulation module.
@@ -138,7 +138,7 @@ Depends on: phases 1 and 2.
 
 Goal: choose Classic or Extended; Extended has its own clearer menu.
 
-- [x] `Ruleset` (`com.tankarena.sim`): Classic and Extended, a rules version each
+- [x] `Ruleset` (`nl.tankarena.sim`): Classic and Extended, a rules version each
       (`GAME_RULES_VERSION`, `EXTENDED_RULES_VERSION`); stored in recordings (old ones read as Classic)
       and in `settings.json`; first-start choice, `--classic` / `--extended`, and "Switch to Classic"
       in Extended's settings. Rule changes are named flags (`RuleFlags`).

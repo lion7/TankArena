@@ -5,18 +5,21 @@ wrappers ([ADR 0016](adrs/0016-kotlin-toolchain-build.md)). There is no Gradle b
 
 ## Layout
 
-- Root: `project.yaml` (the module list); per module: `<module>/module.yaml`.
+- Root: `project.yaml` (the module list) and `common.module-template.yaml` (applied by every module:
+  kotlinx.serialization, and the publishing group `nl.tankarena`; the artifact id is the module's
+  name); per module: `<module>/module.yaml`.
 - Wrappers: `./kotlin` and `kotlin.bat` (`./kotlin update` moves the pin).
 - Sources: `<module>/src/` with packages directly under it (no `src/kotlin`).
-- Tests: `<module>/test/`. `:game-server` uses `test/kotlin/com/…`; `:game-client` and
-  `:game-content` use `test/com/…`.
-- Resources: `game-content/resources/`, `game-client/resources/`,
-  `game-client/composeResources/drawable/` (Compose resources), `game-server/testResources/`.
+- Tests: `<module>/test/`, packages directly under it (`test/nl/tankarena/…`).
+- Resources: `game-content/resources/`, `game-ui/resources/`,
+  `game-ui/composeResources/drawable/` (Compose resources, accessors in `nl.tankarena.ui.resources`),
+  `game-sim/testResources/`, `app-desktop/testResources/`.
 - Build output: `build/` (override with `--build-dir` or `KOTLIN_TOOLCHAIN_BUILD_DIR`).
 
-Products: `:game-protocol`, `:game-content` and `:game-server` are `kmp/lib` with
-`platforms: [jvm]`; `:game-client` and `:tools-mapconv` are `jvm/app` (main classes
-`com.tankarena.app.desktop.MainKt` and `com.tankarena.tools.mapconv.MainKt`).
+Products: `:game-protocol`, `:game-content`, `:game-sim` and `:game-ui` are `kmp/lib` with
+`platforms: [jvm]` (Android comes next, [ADR 0025](adrs/0025-multiplatform-modules-and-android.md));
+`:app-desktop` and `:tools-mapconv` are `jvm/app` (main classes `nl.tankarena.app.desktop.MainKt`
+and `nl.tankarena.tools.mapconv.MainKt`).
 
 ## Versions
 
@@ -33,9 +36,9 @@ they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, k
 
 ```bash
 ./kotlin build                           # all modules
-./kotlin test                            # all tests (324 on 2026-10-20)
-./kotlin test -m game-server             # one module
-./kotlin run -m game-client              # the game (opens a window)
+./kotlin test                            # all tests (371 on 2026-10-20)
+./kotlin test -m game-sim                # one module
+./kotlin run -m app-desktop              # the game (opens a window)
 ./kotlin run -m tools-mapconv -- <subcommand> <args>
 ```
 

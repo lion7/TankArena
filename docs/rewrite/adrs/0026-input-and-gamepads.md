@@ -1,13 +1,13 @@
 # ADR 0026: Input Layer, Remapping and Gamepads
 
-- **Status:** Accepted (2026-10-19). Built 2026-10-20: the input layer (`com.tankarena.input`:
+- **Status:** Accepted (2026-10-19). Built 2026-10-20: the input layer (`nl.tankarena.input`:
   `InputState`, `ControlMapping` for relative and direct steering with keys and sticks) and gamepads
   through Jamepad 2.30.0.0 as the original's joysticks; press to join (`JoinState`, session `Seat`s)
   and menus with a pad (`GamepadMenuKeys`); up to four players join ([ADR 0027](0027-four-players-two-teams.md)).
 
 ## Context
 
-Keys are hard-coded in `KeyBinding` (`game-client/.../app/desktop/Main.kt`). The original has
+Keys are hard-coded in `KeyBinding` (`app-desktop/.../app/desktop/Main.kt`). The original has
 remappable keys for two players, RELATIVE and DIRECT control modes and two joysticks, all saved in
 `TANK.CFG`; that is part of Classic parity. Extended adds gamepads (including several Bluetooth
 controllers at once, for four players), touch on Android, and per-device settings.

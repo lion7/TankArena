@@ -12,7 +12,7 @@ drifted apart.
 
 ## Decision
 
-- **One authoritative simulation per match**, in `:game-server` (`Match`). Single
+- **One authoritative simulation per match**, in `:game-sim` (`Match`). Single
   player, two players on one machine and (later) networked play all run the same code.
 - **The client only renders.** It submits `InputFrame`s and draws `ServerFrame`s through `MatchClient`
   ([ADR 0005](0005-network-ready-input-protocol-boundary.md)); it never decides gameplay.

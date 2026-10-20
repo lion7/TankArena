@@ -124,6 +124,8 @@ private val WEAPON_NAMES: List<String> = listOf(
 )
 
 /** Legacy WRECK_LIFE_TIME: a wreck smokes (ROOK every 500..800 ticks) for 30 s. */
+/** Legacy WRECK_LIFE_TIME (src/tanks/control.c): a wreck burns this long, then blows up. */
+internal const val WRECK_LIFE_TICKS: Int = 3000
 private const val WRECK_SMOKE_MIN_TICKS: Int = 500
 private const val WRECK_SMOKE_SPREAD_TICKS: Int = 300
 
@@ -521,18 +523,55 @@ class Tank(state: State) :
 
     fun queueDamage(amount: Int) {
         if (amount <= 0) return
+        if (isWreck) wreckBlowUp = true
         pendingDamageThisTick += amount
     }
 
     /** Damage the shield key cannot stop, though the start shield still does (legacy HT_ROCKET). */
     fun queueUnshieldableDamage(amount: Int) {
         if (amount <= 0) return
+        if (isWreck) wreckBlowUp = true
         pendingRocketProofDamage += amount
     }
 
     /** Legacy HT_DESTROY (pits, crashes): kills through every shield. */
     fun queueDestroy() {
+        if (isWreck) wreckBlowUp = true
         pendingDestroy = true
+    }
+
+    /**
+     * Legacy control_wreck(): ticks until the wreck blows up, from when its dying explosions end;
+     * -1 while the vehicle is not a wreck.
+     */
+    private var wreckLifeTicks: Int = -1
+
+    /** A burnt-out vehicle (legacy `funct.hit = hit_wreck`): any hit blows it up. */
+    val isWreck: Boolean get() = armor <= 0 && wreckLifeTicks >= 0 && !wreckGone
+
+    /** The wreck should blow up (its time ran out, or something hit it); the match decides. */
+    internal var wreckBlowUp: Boolean = false
+
+    /** The wreck has blown up and is gone; a player's vehicle waits for its respawn unseen. */
+    var wreckGone: Boolean = false
+        private set
+
+    internal fun removeWreck() {
+        wreckGone = true
+        wreckBlowUp = false
+    }
+
+    /** What a respawn leaves behind: the old wreck, as a vehicle of its own (legacy control_player()). */
+    private var leftWreck: Tank? = null
+
+    internal fun drainLeftWreck(): Tank? = leftWreck.also { leftWreck = null }
+
+    /** Makes this a wreck with [lifeTicks] to go. */
+    internal fun becomeWreck(lifeTicks: Int) {
+        armor = 0
+        dyingTicks = 0
+        wreckLifeTicks = lifeTicks
+        smokeCooldownTicks = WRECK_SMOKE_MIN_TICKS + random.nextInt(WRECK_SMOKE_SPREAD_TICKS)
     }
 
     fun grantShield(amount: Int) {
@@ -720,6 +759,23 @@ class Tank(state: State) :
     }
 
     private fun respawn() {
+        // Legacy control_player() makes a new vehicle and leaves the old one where it lies.
+        if (isWreck) {
+            leftWreck = Tank(
+                save().copy(
+                    playerIndex = -1,
+                    controllerId = -1,
+                    ref = 0,
+                    lives = 0,
+                    goalContribution = 0,
+                    startPadType = -1,
+                    padAmmo = null,
+                ),
+            ).also { it.becomeWreck(wreckLifeTicks) }
+        }
+        wreckLifeTicks = -1
+        wreckGone = false
+        wreckBlowUp = false
         exactX = restartX.toFloat()
         exactY = restartY.toFloat()
         positionX = restartX
@@ -1634,6 +1690,7 @@ class Tank(state: State) :
     private fun stepWreck() {
         // A tank that fell into a pit lies at the bottom without burning.
         if (height < 1) return
+        if (wreckGone) return
         if (dyingTicks > 0) {
             // Legacy control_tank(): an explosion on every step until `contr.disable` runs out.
             dyingTicks = dyingTicks.afterStep()
@@ -1644,6 +1701,13 @@ class Tank(state: State) :
             )
             return
         }
+        if (wreckLifeTicks < 0) {
+            // Legacy control_tank(): once on the ground and done exploding, it is a wreck.
+            if (!airborne) wreckLifeTicks = WRECK_LIFE_TICKS
+            return
+        }
+        wreckLifeTicks = wreckLifeTicks.afterStep()
+        if (wreckLifeTicks == 0) wreckBlowUp = true
         smokeCooldownTicks = smokeCooldownTicks.afterStep()
         if (smokeCooldownTicks > 0) return
         pendingEffects += GameEvent.Effect(EffectKind.ROOK, positionX - 4 + random.nextInt(8), positionY - 4 + random.nextInt(8))

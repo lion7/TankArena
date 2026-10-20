@@ -158,7 +158,8 @@ internal fun Match.changedTileStates(): List<TileState> = structures.changedTile
 
 internal fun Match.projectToWireState(actor: SceneObject<*>, id: Long): ActorState? {
     return when (actor) {
-        is Tank -> {
+        // A player's vehicle whose wreck blew up waits for its respawn unseen.
+        is Tank -> if (actor.wreckGone) null else {
             TankState(
                 actorId = id,
                 team = actor.team.toProtocolTeam(),

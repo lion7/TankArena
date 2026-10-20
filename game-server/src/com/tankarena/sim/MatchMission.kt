@@ -48,9 +48,49 @@ internal fun Match.linkGoals() {
     }
 }
 
+/**
+ * Legacy control_player() and hit_wreck() (src/objects/player.c, src/tanks/control.c): a respawn
+ * leaves the old wreck on the map; while the round is running, a wreck that is hit or has burnt for
+ * [WRECK_LIFE_TICKS] blows up and is gone.
+ */
+internal fun Match.manageWrecks() {
+    for (tank in allTanks) {
+        val wreck = tank.drainLeftWreck() ?: continue
+        wreck.configureForMatch(
+            maxX = worldWidthPixels - com.tankarena.content.LEGACY_TILE_SIZE,
+            maxY = worldHeightPixels - com.tankarena.content.LEGACY_TILE_SIZE,
+            dual = mode == MatchMode.DUAL,
+            night = mapMetadata.night,
+        )
+        wreck.surroundings = tank.surroundings
+        objects.add(listOf(wreck))
+        allTanks = allTanks + wreck
+        actorIds.getOrPut(wreck) { nextActorId++ }
+    }
+    val roundRunning = if (mode == MatchMode.DUAL) dualRules?.winner == -1 else missionStatus == MissionStatus.IN_PROGRESS
+    for (tank in allTanks.filter { it.wreckBlowUp }) {
+        tank.wreckBlowUp = false
+        if (!roundRunning) continue
+        repeat(10) {
+            pendingEvents += GameEvent.Effect(
+                com.tankarena.protocol.snapshot.EffectKind.EXPLOSION,
+                tank.positionX - 8 + objectRandom.nextInt(16),
+                tank.positionY - 8 + objectRandom.nextInt(16),
+            )
+        }
+        pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, tank.positionX, tank.positionY)
+        tank.removeWreck()
+        // A player's own vehicle stays (unseen) for its respawn; other wrecks leave the map.
+        if (tank.playerIndex < 0 && tanksByPlayerIndex.values.none { it === tank }) {
+            objects.remove(listOf(tank))
+            allTanks = allTanks - tank
+        }
+    }
+}
+
 internal fun Match.collectGoals() {
     if (missionStatus != MissionStatus.IN_PROGRESS) return
-    val tanks = objects.all.filterIsInstance<Tank>()
+    val tanks = objects.all.filterIsInstance<Tank>().filter { !it.wreckGone }
     for (actor in objects.all) {
         if (actor !is Goal || actor.isClaimed) continue
         val position = actor.body.position

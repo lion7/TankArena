@@ -35,7 +35,7 @@ internal object AreaDamageResolver {
         
         if (radius > 0 && damage > 0) {
             for (tank in tanks) {
-                if (tank.armor <= 0) continue
+                if (tank.armor <= 0 && !tank.isWreck) continue
                 if (ownerImmune && tank === owner) continue
                 val dx = (tank.positionX - x).toLong()
                 val dy = (tank.positionY - y).toLong()

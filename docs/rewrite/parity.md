@@ -101,13 +101,14 @@ structure collisions; pits, ramps; turret modes; atomic tank.
 
 Open:
 
-- **differs** — respawn reuses the dead tank, so its wreck vanishes; the original creates a new tank
-  and leaves the wreck (`src/objects/player.c:76`).
-- **differs** — the map edge clamps (plus boundary walls); the original wraps `x`/`y` in
-  `new_position()`.
-- **differs** — fuel use is keyed on "has a player" instead of `!contr.computer`; the start shield
-  ignores the original's `o->h >= 1` condition.
-- **differs** — low-armor smoke is also emitted on water (`src/tanks/control.c:426` skips it).
+- **done** — wrecks (`src/tanks/control.c:14-39,138-146`, `src/objects/player.c:71-86`): a vehicle
+  becomes a wreck when its dying explosions end; it smokes, blows up when hit or after 3000 ticks while
+  the round runs, and is gone; a player-vs-player respawn leaves the old wreck where it lay. Wrecks
+  still reach goals.
+- **done** — vehicles leaving the map come back in on the other side (`new_position()`).
+- **done** — every vehicle not driven by the computer burns fuel for the move it tries; the start
+  shield only protects at height ≥ 1.
+- **done** — no driving smoke on water.
 
 ## Weapons
 
@@ -162,8 +163,7 @@ falling with their building); computer tanks.
 
 Open:
 
-- **missing** — goal `who = 3` (a linked object reaching the goal); 5 shipped goals use it and never
-  complete.
+- **done** — goal `who = 3`: the importer links the goal to its vehicle (WEAPON's five goals).
 - **done** — supermarket mayhem (`src/objects/product.c`, `src/world/status.c:162-232`,
   `src/objects/goal.c:22`, `src/tanks/tank.c:293`): cash 40, price per product, 20 products needed,
   180 s limit, −100 when cash or time runs out, the way out (goal `who = 0`) closed while products
@@ -172,21 +172,10 @@ Open:
 - **differs** — warps teleport only live tanks and add a 30-tick cooldown; the original also warps men,
   B52s, rockets and wrecks, has no cooldown, and shows `TELEPORT_SPARK` with `SND_TELEPORT`
   (`src/objects/warp.c:28-31`).
-- **missing** — placed men and bonuses as map objects (parsed, not built; no shipped map has them, so
-  this matters only for the editor).
-
-## AI
-
-Done: `ComputerTankAi` ports `control_computer_tank()`: activation, target choice weighted by
-`attack_tanks` / `attack_goals`, waypoints, attack waves, dangers, crash panic, fire and speed rules
-([ADR 0012](adrs/0012-port-the-computer-ai.md)).
-
-Open:
-
-- **differs** — `computer.fire_delay` is not imported, so computer tanks refire at `weap.speed`
-  (`src/tanks/fire.c:171`).
-- **differs** — cloaked tanks still show on the radar (`src/game/radar.c:37` hides them). Turrets
-  already ignore them; computer tanks targeting them is faithful.
+- **done** — placed soldier and bonus objects are skipped with a note: the original refuses such maps.
+- **done** — computer vehicles refire after their imported `computer.fire_delay` (`src/tanks/fire.c:171`).
+- **done** — the radar as `write_radar()` draws it: no cloaked vehicles or wrecks, bombers and trains,
+  colours per viewer, turrets by `shootat` (`src/game/radar.c`).
 
 ## Modes
 
@@ -280,8 +269,8 @@ types 0–19 except the runtime-only ones are read.
 
 Open:
 
-- **differs** — `computer.fire_delay` is not read (see AI).
-- **missing** — placed men and bonuses are parsed but not written to scenes.
+- **done** — `computer.fire_delay` is imported (tank record offset 120).
+- **done** — placed men and bonuses are skipped with a note (see map objects).
 - **partial** — header fields `map_version`, `shareware` and `lock` are parsed but unused (only matters
   for the editor writing maps).
 - The per-type field offsets inside object records are only verified for the fields the game uses.

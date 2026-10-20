@@ -150,7 +150,7 @@ internal fun Match.checkProjectileVehicleHits() {
         val stepY = Integer.signum(dy)
         for (tank in allTanks) {
             if (projectile.ownerKind == ProjectileOwnerKind.TANK && tank === projectile.ownerRef) continue
-            if (tank.armor <= 0 || tank.height < 1) continue
+            if ((tank.armor <= 0 && !tank.isWreck) || tank.height < 1) continue
             var x = fromX
             var y = fromY
             var hit = false

@@ -148,6 +148,25 @@ class DualRulesTest {
         assertEquals(0, won)
     }
 
+    @Test
+    fun `a respawn leaves the old wreck, which blows up when hit`() {
+        val match = start(pads = listOf(pad(0, tileX = 2), pad(1, tileX = 12)))
+        val tank = match.playerTankForTest(0)!!
+        tank.teleportTo(6 * T + T / 2, ROW * T + T / 2)
+        tank.queueDestroy()
+        repeat((RESPAWN_DELAY_TICKS + 30) / STEP_TICKS) { match.stepForTest() }
+        assertTrue(tank.armor > 0, "the player has a vehicle again")
+        assertEquals(2 * T + T / 2, tank.positionX, "at its pad")
+        val wreck = match.tanksForTest().single { it !== tank && it.armor == 0 }
+        assertTrue(kotlin.math.abs(wreck.positionX - (6 * T + T / 2)) <= 1, "the wreck stays where the vehicle died (${wreck.positionX})")
+        assertTrue(wreck.isWreck)
+
+        wreck.queueDamage(5)
+        val events = match.stepForTest().events
+        assertTrue(wreck !in match.tanksForTest(), "a hit wreck is gone")
+        assertEquals(10, events.count { it is GameEvent.Effect && it.kind == com.tankarena.protocol.snapshot.EffectKind.EXPLOSION })
+    }
+
     private fun pictureOfType(world: TankArenaWorld, type: String): Int? =
         (0 until 400).firstOrNull { PictureCatalog.legacyRow(world, it)?.type == type }
 

@@ -53,6 +53,20 @@ class VehicleRulesTest {
     }
 
     @Test
+    fun `a wreck burns for 3000 ticks, then blows up and is gone`() {
+        // A second enemy keeps the mission going: hit_wreck() does nothing once it is decided.
+        val match = start(tileX = 5, extraTank = true, bystander = true)
+        val computer = match.tanksForTest().first { it.computer }
+        computer.queueDestroy()
+        repeat((100 + 30) / STEP_TICKS) { match.stepForTest() }
+        assertTrue(computer.isWreck)
+        repeat((WRECK_LIFE_TICKS - 60) / STEP_TICKS) { match.stepForTest() }
+        assertTrue(computer in match.tanksForTest(), "still burning")
+        repeat(30) { match.stepForTest() }
+        assertTrue(computer !in match.tanksForTest(), "blown up")
+    }
+
+    @Test
     fun `the start shield does not protect below ground`() {
         val match = start(tileX = 5)
         val tank = match.playerTankForTest(0)!!
@@ -67,7 +81,7 @@ class VehicleRulesTest {
         assertEquals(armor - 5, tank.armor, "below ground it does not")
     }
 
-    private fun start(tileX: Int, extraTank: Boolean = false, aiFireDelay: Int? = null): Match {
+    private fun start(tileX: Int, extraTank: Boolean = false, aiFireDelay: Int? = null, bystander: Boolean = false): Match {
         val width = 12
         val height = 5
         val cells = width * height
@@ -77,6 +91,7 @@ class VehicleRulesTest {
                 val delay = aiFireDelay?.let { mapOf("fireDelay" to it.toString()) }.orEmpty()
                 add(tank("ai", ObjectKinds.AI_TANK, tileX + 4, mapOf("activationRadius" to "1") + delay))
             }
+            if (bystander) add(tank("ai2", ObjectKinds.AI_TANK, tileX + 6, mapOf("activationRadius" to "1")))
         }
         val match = Match.fromCanonicalMap(
             CanonicalMapDefinition(

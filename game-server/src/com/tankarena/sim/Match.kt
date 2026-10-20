@@ -256,6 +256,7 @@ class Match private constructor(
         touchSmallObjects()
         checkVehicleOverlaps()
         drainTankLifecycleEvents()
+        manageWrecks()
         drainTurretDestructions()
         handOverDeadPlayers()
         stepWarps()
@@ -502,7 +503,7 @@ class Match private constructor(
         override val worldWidth: Int get() = worldWidthPixels
         override val worldHeight: Int get() = worldHeightPixels
         override val tick: Long get() = currentTick
-        override fun tanks(): List<Tank> = allTanks
+        override fun tanks(): List<Tank> = allTanks.filter { !it.wreckGone }
         override fun baseType(tileX: Int, tileY: Int): String? {
             if (tileX !in 0 until mapMetadata.widthTiles || tileY !in 0 until mapMetadata.heightTiles) return null
             return com.tankarena.content.PictureCatalog.legacyRow(mapMetadata.world, structures.base[tileX + tileY * mapMetadata.widthTiles])?.type

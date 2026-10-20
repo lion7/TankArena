@@ -65,7 +65,7 @@ internal fun Match.triggerFlameContacts() {
         // within 15 px (or its own radius, if larger) of the flame's path this tick burns.
         val (fromX, fromY) = flame.previousPosition
         val burnt = allTanks.filter { tank ->
-            tank !== flame.ownerRef && tank.armor > 0 && tank.height > 0 &&
+            tank !== flame.ownerRef && (tank.armor > 0 || tank.isWreck) && tank.height > 0 &&
                 nearSegment(fromX, fromY, flame.positionX, flame.positionY, tank.positionX, tank.positionY, maxOf(FLAME_HIT_RADIUS_PX, tank.spec.radius))
         }
         for (tank in burnt) tank.queueDamage(flame.damage)

@@ -100,12 +100,16 @@ Sparse lists are used where they fit: the goal, bonus and men layers.
 
 - Built: `import <MAP> <dir>` / `import-all <MAPS> <dir>`: `.MAP` → native. `MapDocumentTest`
   requires every original `.MAP` to import without notes to exactly its committed `.tamap`.
-- Not built: `export <tamap> <MAP>`: native → `.MAP` (version 6, unprotected), playable by the
-  original. The importer reads only the fields the rewrite uses (for a tank about 15 of its roughly
-  480 bytes), so an export that writes only those may not be enough for the original. Options:
-  keep each imported object's original 696-byte record (about 2.8 MB of extra data in the files),
-  write only modelled fields and verify in DOSBox, or store per object only the bytes an export from
-  modelled fields gets wrong. To be decided before the editor needs export (phase 4).
+- Built (2026-10-20, option C): `export <tamap> <MAP>` and the editor's "Export .MAP" write a
+  `.MAP` (version 6, not locked) for the original. `LegacyMapExport` makes each object's 696-byte
+  record as the original editor's `make_*()` would, with the map's values on top. What it cannot make
+  (pointers and timers saved by the original editor, text left after a code, fields the rewrite does
+  not use such as a mine's goal share or a pad's laps) is kept per imported map in an optional
+  `legacy` section: byte runs `[offset, "hex"]` for the header and for each object, and the texts as
+  they were in the file. With it every original `.MAP` exports to exactly its own file (unlocked); the
+  69 maps grow by about 400 KB in all. The editor drops the runs over bytes an edit changes, so
+  edited objects export with their new values; new objects have none.
+- Not checked yet: maps exported from the editor in DOSBox.
 
 ## Consequences
 

@@ -59,6 +59,11 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
     private var sidecar = MapConversion.sidecarOf(document)
     private var objectList: List<MapObject> = document.objects.map { MapConversion.restoreObject(it).save() }
 
+    /** An imported map's `.MAP` leftovers (ADR 0022, option C): per object, and for the header. */
+    private var objectPatches: List<List<PatchRun>?> = List(objectList.size) { document.legacy?.objects?.get(it.toString()) }
+    private var headPatch: List<PatchRun>? = document.legacy?.head
+    private val rawTexts: List<String>? = document.legacy?.texts
+
     /** Every per-cell layer: the three picture layers first, in [MapLayer] order. */
     private enum class Grid { FLOOR, SOLID, TOP, GOAL, BONUS, MAN_TYPE, MAN_COUNT }
 
@@ -76,10 +81,21 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
 
     private data class CellChange(val grid: Grid, val index: Int, val before: Int, val after: Int) : Change
 
-    private data class ObjectsChange(val before: List<MapObject>, val after: List<MapObject>) : Change
+    private data class ObjectsChange(
+        val before: List<MapObject>,
+        val after: List<MapObject>,
+        val patchesBefore: List<List<PatchRun>?>,
+        val patchesAfter: List<List<PatchRun>?>,
+    ) : Change
 
     /** The header and texts ([MapSceneSidecar] without its layers, which [CellChange] covers). */
-    private data class SidecarChange(val before: MapSceneSidecar, val after: MapSceneSidecar, val texts: Boolean) : Change
+    private data class SidecarChange(
+        val before: MapSceneSidecar,
+        val after: MapSceneSidecar,
+        val texts: Boolean,
+        val headBefore: List<PatchRun>?,
+        val headAfter: List<PatchRun>?,
+    ) : Change
 
     private val undoStack = ArrayDeque<List<Change>>()
     private val redoStack = ArrayDeque<List<Change>>()
@@ -149,14 +165,19 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
 
     private fun changeSidecar(after: MapSceneSidecar, texts: Boolean) {
         if (after == sidecar) return
+        // The header's leftovers stay only over bytes the change leaves as they were.
+        val head = headPatch?.let { runs ->
+            LegacyMapExport.keepRuns(runs, LegacyMapExport.head(sidecar, rawTexts), LegacyMapExport.head(after, rawTexts)).ifEmpty { null }
+        }
         val last = undoStack.lastOrNull()?.singleOrNull()
         if (texts && stroke == null && last is SidecarChange && last.texts && redoStack.isEmpty()) {
-            undoStack[undoStack.lastIndex] = listOf(last.copy(after = after))
+            undoStack[undoStack.lastIndex] = listOf(last.copy(after = after, headAfter = head))
             modified = true
         } else {
-            record(SidecarChange(sidecar, after, texts))
+            record(SidecarChange(sidecar, after, texts, headPatch, head))
         }
         sidecar = after
+        headPatch = head
     }
 
     /**
@@ -180,10 +201,24 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
     /** The map's objects, in the order they are saved. */
     val objects: List<MapObject> get() = objectList
 
-    private fun setObjects(after: List<MapObject>) {
+    /**
+     * Replaces the objects; [origins] says for each new one which old one it is (null: a new object).
+     * An object's leftovers from its `.MAP` stay only over bytes an edit leaves as they were.
+     */
+    private fun setObjects(after: List<MapObject>, origins: List<Int?> = after.indices.map { it.takeIf { i -> i < objectList.size } }) {
         if (after == objectList) return
-        record(ObjectsChange(objectList, after))
+        val patches = after.indices.map { j ->
+            val i = origins[j] ?: return@map null
+            val runs = objectPatches[i] ?: return@map null
+            val before = objectList[i]
+            if (before == after[j]) return@map runs
+            val old = LegacyMapExport.bareRecord(before) ?: return@map null
+            val new = LegacyMapExport.bareRecord(after[j]) ?: return@map null
+            LegacyMapExport.keepRuns(runs, old, new).ifEmpty { null }
+        }
+        record(ObjectsChange(objectList, after, objectPatches, patches))
         objectList = after
+        objectPatches = patches
     }
 
     /** Adds [added] (an object, or a wagon with its turret); returns the index of the first. */
@@ -248,7 +283,8 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
                 }
             }
         }
-        setObjects(list.filterIndexed { i, _ -> i !in gone })
+        val kept = list.indices.filter { it !in gone }
+        setObjects(kept.map { list[it] }, kept)
     }
 
     /** Couples a new wagon of [picture] (1..8) behind the train car at [index] (legacy add_loco()). */
@@ -280,8 +316,9 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
     fun setPoint(index: Int, point: ObjectPoint, x: Int, y: Int, slot: Int = 0, clear: Boolean = false): Boolean {
         val state = objectList[index]
         val changed: MapObject = when {
-            point == ObjectPoint.WARP_EXIT && state is Warp.State -> state.copy(targetX = x - 16, targetY = y - 16)
-            point == ObjectPoint.LOCK_KEY && state is Lock.State -> state.copy(lockX = x - 16, lockY = y - 16)
+            // Warp exits and lock keys are kept as points on the map (the saved corner + 16).
+            point == ObjectPoint.WARP_EXIT && state is Warp.State -> state.copy(targetX = x, targetY = y)
+            point == ObjectPoint.LOCK_KEY && state is Lock.State -> state.copy(lockX = x, lockY = y)
             point == ObjectPoint.WAYPOINT && state is Tank.State -> MapObjects.withWaypoint(state, slot, if (clear) null else x to y)
             point == ObjectPoint.FORBIDDEN_DIRECTION && state is Turret.State -> {
                 val (cx, cy) = MapObjects.centre(state)
@@ -427,8 +464,14 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         val changes = undoStack.removeLastOrNull() ?: return false
         for (change in changes.asReversed()) when (change) {
             is CellChange -> grids.getValue(change.grid)[change.index] = change.before
-            is ObjectsChange -> objectList = change.before
-            is SidecarChange -> sidecar = change.before
+            is ObjectsChange -> {
+                objectList = change.before
+                objectPatches = change.patchesBefore
+            }
+            is SidecarChange -> {
+                sidecar = change.before
+                headPatch = change.headBefore
+            }
         }
         redoStack.addLast(changes)
         modified = true
@@ -440,8 +483,14 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         val changes = redoStack.removeLastOrNull() ?: return false
         for (change in changes) when (change) {
             is CellChange -> grids.getValue(change.grid)[change.index] = change.after
-            is ObjectsChange -> objectList = change.after
-            is SidecarChange -> sidecar = change.after
+            is ObjectsChange -> {
+                objectList = change.after
+                objectPatches = change.patchesAfter
+            }
+            is SidecarChange -> {
+                sidecar = change.after
+                headPatch = change.headAfter
+            }
         }
         undoStack.addLast(changes)
         modified = true
@@ -465,7 +514,10 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         )
         // Legacy save_map(): the contents follow the pads and flags; no code is the map's name.
         val metadata = sidecar.metadata.let { it.copy(mapContents = contents, missionCode = it.missionCode.ifBlank { it.name.uppercase() }) }
-        return MapConversion.documentOf(sidecar.copy(metadata = metadata, tileLayers = tiles), objectList.mapNotNull { MapConversion.objectRecord(it.restore()) })
+        val records = objectList.map { requireNotNull(MapConversion.objectRecord(it.restore())) { "cannot save $it" } }
+        val objects = objectPatches.withIndex().filter { it.value != null }.associate { it.index.toString() to it.value!! }
+        val legacy = LegacyPatch(headPatch, rawTexts, objects.ifEmpty { null }).takeIf { it != LegacyPatch() }
+        return MapConversion.documentOf(sidecar.copy(metadata = metadata, tileLayers = tiles), records).copy(legacy = legacy)
     }
 
     companion object {

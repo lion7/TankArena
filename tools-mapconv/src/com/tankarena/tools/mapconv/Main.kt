@@ -2,6 +2,7 @@ package com.tankarena.tools.mapconv
 
 import com.tankarena.legacy.LegacyMapParser
 import com.tankarena.sim.legacy.LegacyCanonicalConverter
+import com.tankarena.sim.map.LegacyMapExport
 import com.tankarena.sim.map.LegacyMapImport
 import com.tankarena.sim.map.MAP_FILE_EXTENSION
 import com.tankarena.sim.map.MAP_INDEX_FILE_NAME
@@ -21,6 +22,7 @@ fun main(args: Array<String>) {
           mapconv map <legacy-map-file> <output-json-file>
           mapconv import <legacy-map-file> <output-maps-dir>
           mapconv import-all <legacy-maps-dir> <output-maps-dir>
+          mapconv export <tamap-file> <legacy-map-file>
           mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>
           mapconv extract-vehicles <src/data/tanks.c> <output-kotlin-file>
@@ -51,6 +53,17 @@ fun main(args: Array<String>) {
             val outputDir = File(args[2])
             outputDir.mkdirs()
             importToNative(File(args[1]), outputDir)
+        }
+
+        "export" -> {
+            require(args.size >= 3) {
+                "Usage: mapconv export <tamap-file> <legacy-map-file>"
+            }
+            // ADR 0022, option C: a `.MAP` version 6, not locked, that the original plays and edits.
+            val output = File(args[2])
+            output.parentFile?.mkdirs()
+            output.writeBytes(LegacyMapExport.export(MapFile.read(File(args[1]).readText())))
+            println("Exported ${args[1]} -> ${output.absolutePath}")
         }
 
         "import-all" -> {

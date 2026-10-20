@@ -231,7 +231,7 @@ private val BONUS_SHORT = listOf("GR", "MG", "FU", "MI", "RO", "MO", "AB", "CG",
  * right −10, with Shift ±1); bonuses (left puts the chosen one, right removes); men (left adds one with
  * the chosen weapon, right removes one); objects (key 8: select, drag, add, turn, settings and points;
  * Delete removes, C clones at the cursor); the map's settings and texts (key 9). Middle button or the arrow keys scroll, the wheel zooms.
- * Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, F5 play-tests the map as it is, ESC leaves (twice with
+ * Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, Ctrl+E exports an original `.MAP`, F5 play-tests the map as it is, ESC leaves (twice with
  * unsaved changes).
  */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -322,6 +322,14 @@ private fun EditorContent(
         revision++
     }
 
+    /** Writes an original `.MAP` for the original game (Ctrl+E). */
+    fun exportLegacy() {
+        status = runCatching {
+            "Exported for the original game: ${UserMapStore.exportLegacy(choice.baseName, editor.toDocument())}"
+        }.getOrElse { "Not exported: ${it.message}" }
+        revision++
+    }
+
     fun pixelAt(position: Offset): Pair<Int, Int> =
         floor((position.x + scrollX) / zoom).toInt() to floor((position.y + scrollY) / zoom).toInt()
 
@@ -373,6 +381,7 @@ private fun EditorContent(
                     event.isCtrlPressed && event.key == Key.Z -> if (editor.undo()) revision++
                     event.isCtrlPressed && event.key == Key.Y -> if (editor.redo()) revision++
                     event.isCtrlPressed && event.key == Key.S -> save()
+                    event.isCtrlPressed && event.key == Key.E -> exportLegacy()
                     event.key == Key.F5 -> onPlayTest(editor.toDocument())
                     event.key == Key.One -> { tool = EditorTool.PICTURES; layer = MapLayer.FLOOR }
                     event.key == Key.Two -> { tool = EditorTool.PICTURES; layer = MapLayer.SOLID }
@@ -435,6 +444,7 @@ private fun EditorContent(
             Button(onClick = { if (editor.undo()) revision++ }, enabled = revision.let { editor.canUndo }) { Text("Undo") }
             Button(onClick = { if (editor.redo()) revision++ }, enabled = revision.let { editor.canRedo }) { Text("Redo") }
             Button(onClick = ::save) { Text("Save") }
+            Button(onClick = ::exportLegacy) { Text("Export .MAP") }
             Button(onClick = { onPlayTest(editor.toDocument()) }) { Text("Play") }
             Button(onClick = onClose) { Text("Close") }
         }

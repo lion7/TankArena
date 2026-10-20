@@ -108,5 +108,16 @@
       "spawnBodyDirection": 4,
       "spawnTurretDirection": 4
     }
-  ]
+  ],
+  "legacy": {
+    "texts": [
+      "Ever played pingpong? Well here's your chance!\n\n",
+      "",
+      ""
+    ],
+    "objects": {
+      "0": [[4, "044882"], [20, "04908200d88201"], [32, "8c0902"], [96, "05"]],
+      "1": [[4, "049082"], [16, "044882"], [24, "d88201"], [32, "8c0902"], [96, "05"]]
+    }
+  }
 }

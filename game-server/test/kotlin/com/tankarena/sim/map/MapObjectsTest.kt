@@ -122,7 +122,7 @@ class MapObjectsTest {
         val editor = editor()
         val warp = editor.addObject(template("Warp"), 100, 100)!!
         editor.setPoint(warp, ObjectPoint.WARP_EXIT, 500, 600)
-        assertEquals(484 to 584, (editor.objects[warp] as Warp.State).let { it.targetX to it.targetY })
+        assertEquals(500 to 600, (editor.objects[warp] as Warp.State).let { it.targetX to it.targetY })
 
         val tank = editor.addObject(MapObjects.TEMPLATES.first { it.group == "Computer vehicle" }, 300, 300)!!
         editor.setPoint(tank, ObjectPoint.WAYPOINT, 400, 410, slot = 2)

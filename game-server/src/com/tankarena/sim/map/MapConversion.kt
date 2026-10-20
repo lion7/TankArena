@@ -20,7 +20,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /** A map as the game holds it in memory: its header, texts and layers, and its objects. */
-class LoadedMap(val sidecar: MapSceneSidecar, val objects: List<SceneObject<*>>)
+class LoadedMap(
+    val sidecar: MapSceneSidecar,
+    val objects: List<SceneObject<*>>,
+    /** An imported map's `.MAP` leftovers, kept for export. */
+    val legacy: LegacyPatch? = null,
+)
 
 /** Converts between [MapDocument] (the file) and [LoadedMap] (what a match is built from). */
 object MapConversion {
@@ -29,7 +34,7 @@ object MapConversion {
     private const val TYPE_PREFIX = "tankArena"
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun toDocument(map: LoadedMap): MapDocument = documentOf(map.sidecar, map.objects.mapNotNull(::objectRecord))
+    fun toDocument(map: LoadedMap): MapDocument = documentOf(map.sidecar, map.objects.mapNotNull(::objectRecord)).copy(legacy = map.legacy)
 
     /** The document for a map's header, texts and layers ([sidecar]) and its object [records]. */
     fun documentOf(sidecar: MapSceneSidecar, records: List<JsonObject>): MapDocument {
@@ -69,7 +74,7 @@ object MapConversion {
         )
     }
 
-    fun fromDocument(document: MapDocument): LoadedMap = LoadedMap(sidecarOf(document), objectsOf(document))
+    fun fromDocument(document: MapDocument): LoadedMap = LoadedMap(sidecarOf(document), objectsOf(document), document.legacy)
 
     /** Fresh objects of the map; a match changes them, so every match gets its own. */
     fun objectsOf(document: MapDocument): List<SceneObject<*>> = document.objects.map(::restoreObject)

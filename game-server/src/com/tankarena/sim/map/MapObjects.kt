@@ -137,8 +137,8 @@ object MapObjects {
         add(Template("Other", "B52") { x, y, _ -> build(ObjectKinds.B52, x, y) })
         add(Template("Mine", "Light mine") { x, y, _ -> build(ObjectKinds.MINE, x, y, "minePower" to "7") })
         add(Template("Mine", "Heavy mine") { x, y, _ -> build(ObjectKinds.MINE, x, y, "mineType" to "1", "minePower" to "7") })
-        add(Template("Other", "Warp") { x, y, _ -> build(ObjectKinds.WARP, x, y, "targetX" to "${x - 16}", "targetY" to "${y - 16}") })
-        add(Template("Other", "Lock") { x, y, _ -> build(ObjectKinds.LOCK, x, y, "lockX" to "${x - 16}", "lockY" to "${y - 16}") })
+        add(Template("Other", "Warp") { x, y, _ -> build(ObjectKinds.WARP, x, y, "targetX" to "$x", "targetY" to "$y") })
+        add(Template("Other", "Lock") { x, y, _ -> build(ObjectKinds.LOCK, x, y, "lockX" to "$x", "lockY" to "$y") })
         add(Template("Other", "Goal") { x, y, _ -> build(ObjectKinds.GOAL, x, y, "radius" to "30", "contribution" to "0") })
         add(Template("Other", "Destroyer") { x, y, _ -> build(ObjectKinds.DESTROYER, x, y, "radius" to "30", "immediate" to "1", "what" to "3") })
         add(Template("Other", "Enforcer") { x, y, _ ->

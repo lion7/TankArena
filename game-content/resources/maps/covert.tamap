@@ -245,5 +245,41 @@
     {"type": "lock", "at": [139, 273], "size": [16, 16], "activation": 1, "lockX": 49, "lockY": 245},
     {"type": "goal", "at": [141, 273], "size": [16, 16], "contribution": 0, "radius": 30},
     {"type": "goal", "at": [765, 536], "size": [16, 16], "contribution": 10, "radius": 30}
-  ]
+  ],
+  "legacy": {
+    "head": [[7, "4f462049524151"]],
+    "texts": [
+      "Recently after a nuclear bomb hit the Los\nAlamos test site, you've been assigned to\na small island in Frech Polynesia. The bomb\nseemed to have came from that island.\n\nYou've been given a Hovertank (Destroyer)\nloaded with weapons. Your mission is to\nget on the island by bridge (the bridge will\nbe dynamited when you're there), escape the\nlocal defenses and place a remote controlled\nbomb on the nuclear weapons to detonate them.\n\nYou must go by tunnel into the base, place the\ntime bombs, then get out by the small opening\nand detonate the bombs.\n\n- Warning -\nThe only defense of this island is an LRM-1.\nIt has been refitted to fire mortars.\nDestroy this fast if you want to survive.\n \n",
+      "",
+      ""
+    ],
+    "objects": {
+      "0": [
+        [4, "046c10"],
+        [20, "04681000c09f010050a401006ca60100aca901"],
+        [44, "a8a801"],
+        [84, "f0bd09"],
+        [136, "6525"],
+        [420, "6525"],
+        [428, "2d26"],
+        [436, "05"]
+      ],
+      "1": [
+        [4, "046810"],
+        [16, "046c100004c48100c09f010050a401006ca60100aca901"],
+        [44, "a8a801"],
+        [84, "30aa09"],
+        [136, "6525"],
+        [420, "6525"],
+        [428, "2d26"]
+      ],
+      "2": [[4, "04c481"], [16, "0468100004c88100340f02"], [32, "3c0e02"]],
+      "3": [[4, "04c881"], [16, "04c4810004c08100340f02"], [32, "3c0e02"]],
+      "4": [[4, "04c081"], [16, "04c8810004d08100641102"], [32, "fc1202"]],
+      "5": [[4, "04d081"], [12, "04d4810004c0810004cc8100340f02"], [32, "3c0e02"]],
+      "6": [[4, "04cc81"], [12, "04d8810004d0810004d88100340f02"], [32, "3c0e02"]],
+      "7": [[4, "04d881"], [16, "04cc810004d48100641102"], [32, "fc1202"]],
+      "8": [[4, "04d481"], [16, "04d881"], [24, "641102"], [32, "fc1202"]]
+    }
+  }
 }

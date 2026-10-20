@@ -46,6 +46,8 @@ data class MapDocument(
     val men: List<MenCell> = emptyList(),
     /** The map's objects: `type`, `at` (and `size`), then the object's own fields. */
     val objects: List<JsonObject> = emptyList(),
+    /** For a map imported from a `.MAP`: the bytes export does not make itself (ADR 0022, option C). */
+    val legacy: LegacyPatch? = null,
 )
 
 @Serializable
@@ -82,6 +84,38 @@ data class BonusCell(val at: List<Int>, val bonus: Int)
 
 @Serializable
 data class MenCell(val at: List<Int>, val type: Int, val count: Int)
+
+/**
+ * The bytes of an imported `.MAP` that [LegacyMapExport] does not make from the map itself: timers
+ * and pointers saved by the original editor, text left behind in the code fields, fields the rewrite
+ * does not use. [head] patches the header, layers and texts, [objects] each object's record (by its
+ * place in [MapDocument.objects]); [texts] are the original's three texts as they were in the file,
+ * used while the map's text is still the same. The editor drops the runs over bytes an edit changes;
+ * a new object has none.
+ */
+@Serializable
+data class LegacyPatch(
+    val head: List<PatchRun>? = null,
+    val texts: List<String>? = null,
+    val objects: Map<String, List<PatchRun>>? = null,
+)
+
+/** Bytes at an offset, written as `[offset, "hex"]`. */
+@Serializable(with = PatchRunSerializer::class)
+data class PatchRun(val offset: Int, val data: String)
+
+internal object PatchRunSerializer : KSerializer<PatchRun> {
+    override val descriptor: SerialDescriptor = JsonArray.serializer().descriptor
+
+    override fun serialize(encoder: Encoder, value: PatchRun) =
+        encoder.encodeSerializableValue(JsonArray.serializer(), JsonArray(listOf(JsonPrimitive(value.offset), JsonPrimitive(value.data))))
+
+    override fun deserialize(decoder: Decoder): PatchRun {
+        val array = decoder.decodeSerializableValue(JsonArray.serializer())
+        require(array.size == 2) { "a patch run is [offset, hex], got $array" }
+        return PatchRun(array[0].jsonPrimitive.int, array[1].jsonPrimitive.content)
+    }
+}
 
 /** A legend entry is written as `[index, "NAME"]`. */
 internal object LegendEntrySerializer : KSerializer<LegendEntry> {

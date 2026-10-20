@@ -296,7 +296,7 @@ Missing:
 - Whole-map overview. (The original's structure-library editor under F12, "not supposed to be used
   by other people", is left out on purpose: the libraries are shipped as they are.)
 - Validation.
-- `.MAP` export
+- Exported `.MAP` files tried in the original (DOSBox); export itself is built
   ([ADR 0022](adrs/0022-native-map-format.md)).
 
 ## Content and import

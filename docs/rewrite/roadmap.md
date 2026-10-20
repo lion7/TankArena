@@ -73,8 +73,8 @@ Goal: one readable file per map, and permanent `.MAP` import and export.
       recording, reference render and boot test is unchanged.
 - [x] Tests: every original `.MAP` imports without notes to exactly its committed `.tamap`; every map
       reads back to the same text and objects.
-- [ ] `export` to `.MAP`, round-trip tests through `.MAP`, spot checks in DOSBox — waiting for the
-      decision on how to keep the bytes the rewrite does not model (ADR 0022); needed by phase 4.
+- [x] `export` to `.MAP` (ADR 0022, option C) with round-trip tests through `.MAP`; spot checks in
+      DOSBox still to do.
 
 ## Phase 3 — Classic parity (done 2026-10-20, rules v14)
 
@@ -128,7 +128,9 @@ Goal: everything the original editor can do, inside the game, plus validation, u
       took from separate `MAPS/name.0..2` files (lines over 51 characters are flagged). Saving works
       out what the pads and flags give room for and warns of a start point conflict, as `save_map()`.
       Every shipped map comes back unchanged when opened and saved.
-- [ ] Export `.MAP` (ADR 0022, option C); validation; whole-map overview.
+- [x] Export `.MAP` (ADR 0022, option C; "Export .MAP" or Ctrl+E): every original map exports to
+      exactly its own file; edited and new maps export from their own values.
+- [ ] Validation; whole-map overview; try exported maps in DOSBox.
 
 Depends on: phases 1 and 2.
 

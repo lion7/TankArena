@@ -1,5 +1,6 @@
 package com.tankarena.app.desktop
 
+import com.tankarena.sim.map.LegacyMapExport
 import com.tankarena.sim.map.MAP_FILE_EXTENSION
 import com.tankarena.sim.map.MapDocument
 import com.tankarena.sim.map.MapFile
@@ -43,6 +44,17 @@ internal object UserMapStore {
             file.delete()
             check(temp.renameTo(file)) { "cannot write $file" }
         }
+        return file
+    }
+
+    /**
+     * Writes the map as an original `.MAP` (ADR 0022, option C) to `export/` next to the player's maps,
+     * named as DOS wants it: at most 8 characters, upper case. Returns the file.
+     */
+    fun exportLegacy(baseName: String, document: MapDocument): File {
+        val file = File(File(directory(), "export"), baseName.uppercase().take(8) + ".MAP")
+        file.parentFile.mkdirs()
+        file.writeBytes(LegacyMapExport.export(document))
         return file
     }
 

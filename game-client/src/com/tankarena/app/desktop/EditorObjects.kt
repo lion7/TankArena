@@ -101,9 +101,9 @@ internal fun DrawScope.drawObjects(
     fun circle(radius: Int, colour: Color = link) = drawCircle(colour, radius * zoom, centre, style = Stroke(width = 1f))
     fun label(text: String, where: Offset) = drawText(measurer, text, where, TextStyle(color = Color.White, fontSize = 11.sp, background = Color(0xB0000000)))
     when (state) {
-        is Warp.State -> drawLine(link, centre, at(state.targetX + 16, state.targetY + 16), strokeWidth = 2f)
+        is Warp.State -> drawLine(link, centre, at(state.targetX, state.targetY), strokeWidth = 2f)
         is Lock.State -> {
-            val key = at(state.lockX + 16, state.lockY + 16)
+            val key = at(state.lockX, state.lockY)
             drawLine(link, centre, key, strokeWidth = 2f)
             drawRect(link, key - Offset(6f, 6f), Size(12f, 12f), style = Stroke(width = 2f))
         }

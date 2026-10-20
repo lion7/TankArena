@@ -1,16 +1,9 @@
 package nl.tankarena.render
 
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.RenderEffect
 import nl.tankarena.ui.compose.legacy.LegacyFonts
 import kotlin.random.Random
-import org.jetbrains.skia.ColorAlphaType
-import org.jetbrains.skia.ColorType
-import org.jetbrains.skia.FilterTileMode
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.ImageFilter
-import org.jetbrains.skia.ImageInfo
-import org.jetbrains.skia.RuntimeEffect
-import org.jetbrains.skia.RuntimeShaderBuilder
-import org.jetbrains.skia.SamplingMode
 
 /**
  * Legacy palette_effects() (src/graph/palette.c): by day the game rotates five ranges of the
@@ -45,9 +38,8 @@ internal class PaletteCycling(seed: Long = 0) {
         private set
 
     private var lastTick = -1L
-    private var colourImage: Image? = null
     private var colourImageVersion = -1
-    private val effect: RuntimeEffect = RuntimeEffect.makeForShader(SKSL)
+    private val shader = LayerShader(SKSL).also { it.image("slots", slotTable) }
 
     /** Legacy `tdone(x)` / `x = tinit(n)`, one server tick at a time (100 per second). */
     fun advanceTo(tick: Long) {
@@ -71,30 +63,21 @@ internal class PaletteCycling(seed: Long = 0) {
         colours[last - FIRST] = saved
     }
 
-    /** The render effect for the current colours. */
-    fun filter(): ImageFilter {
-        val image = colourImage?.takeIf { colourImageVersion == version } ?: buildColourImage().also {
-            colourImage = it
+    /** The shader with the current colours. */
+    internal fun shader(): LayerShader {
+        if (colourImageVersion != version) {
+            shader.image("colours", buildColourImage())
             colourImageVersion = version
         }
-        val builder = RuntimeShaderBuilder(effect)
-        builder.child("slots", slotTable.makeShader(FilterTileMode.CLAMP, FilterTileMode.CLAMP, SamplingMode.DEFAULT, null))
-        builder.child("colours", image.makeShader(FilterTileMode.CLAMP, FilterTileMode.CLAMP, SamplingMode.DEFAULT, null))
-        return ImageFilter.makeRuntimeShader(builder, "content", null)
+        return shader
     }
 
+    /** The render effect for the current colours (null where the platform has no runtime shaders). */
+    fun filter(): RenderEffect? = shader().effect()
+
     /** Slot s (1-based) holds the current colour of entry FIRST + s − 1. */
-    private fun buildColourImage(): Image {
-        val bytes = ByteArray(SLOTS * 4)
-        for (slot in 1..colours.size) {
-            val rgb = colours[slot - 1]
-            bytes[slot * 4] = rgb.toByte()
-            bytes[slot * 4 + 1] = (rgb ushr 8).toByte()
-            bytes[slot * 4 + 2] = (rgb ushr 16).toByte()
-            bytes[slot * 4 + 3] = 0xFF.toByte()
-        }
-        return Image.makeRaster(ImageInfo(SLOTS, 1, ColorType.BGRA_8888, ColorAlphaType.OPAQUE), bytes, SLOTS * 4)
-    }
+    private fun buildColourImage(): ImageBitmap =
+        imageFromArgb(SLOTS, 1, IntArray(SLOTS) { slot -> OPAQUE or if (slot in 1..colours.size) colours[slot - 1] else 0 })
 
     companion object {
         const val FIRST = 144
@@ -108,9 +91,11 @@ internal class PaletteCycling(seed: Long = 0) {
          * 8 per row. Where two cycled entries share a colour, the first wins, as the pictures
          * were extracted with it.
          */
-        private val slotTable: Image by lazy {
+        private const val OPAQUE = 0xFF shl 24
+
+        private val slotTable: ImageBitmap by lazy {
             val size = 8 * SLICE
-            val bytes = ByteArray(size * size * 4)
+            val argb = IntArray(size * size) { OPAQUE }
             for (index in LAST downTo FIRST) {
                 val rgb = LegacyFonts.gamePalette[index]
                 val r = (rgb ushr 16 and 0xFF) ushr 2
@@ -118,11 +103,9 @@ internal class PaletteCycling(seed: Long = 0) {
                 val b = (rgb and 0xFF) ushr 2
                 val x = (b % 8) * SLICE + r
                 val y = (b / 8) * SLICE + g
-                val at = (x + y * size) * 4
-                bytes[at + 2] = (index - FIRST + 1).toByte()
-                bytes[at + 3] = 0xFF.toByte()
+                argb[x + y * size] = OPAQUE or ((index - FIRST + 1) shl 16)
             }
-            Image.makeRaster(ImageInfo(size, size, ColorType.BGRA_8888, ColorAlphaType.OPAQUE), bytes, size * 4)
+            imageFromArgb(size, size, argb)
         }
 
         internal const val SKSL = """

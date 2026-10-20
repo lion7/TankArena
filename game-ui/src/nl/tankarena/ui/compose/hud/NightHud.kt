@@ -1,20 +1,13 @@
 package nl.tankarena.ui.compose.hud
 
+import nl.tankarena.render.LayerShader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.asSkiaBitmap
 import nl.tankarena.ui.resources.Res
 import nl.tankarena.ui.resources.allDrawableResources
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.imageResource
-import org.jetbrains.skia.FilterTileMode
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.ImageFilter
-import org.jetbrains.skia.RuntimeEffect
-import org.jetbrains.skia.RuntimeShaderBuilder
-import org.jetbrains.skia.SamplingMode
 
 /**
  * The status display of a night mission (legacy load_pictures() at night, src/game/init.c): every
@@ -31,20 +24,15 @@ internal fun rememberNightHudEffect(lit: Boolean): RenderEffect? {
     val resource = Res.allDrawableResources["night_lut"] ?: return null
     val lut = imageResource(resource)
     return remember(lut, lit) {
-        val builder = RuntimeShaderBuilder(effect)
-        builder.uniform("lit", if (lit) 1f else 0f)
-        builder.child(
-            "lut",
-            Image.makeFromBitmap(lut.asSkiaBitmap()).makeShader(FilterTileMode.CLAMP, FilterTileMode.CLAMP, SamplingMode.DEFAULT, null),
-        )
-        ImageFilter.makeRuntimeShader(builder, "content", null).asComposeRenderEffect()
+        LayerShader(NIGHT_HUD_SKSL).apply {
+            uniform("lit", if (lit) 1f else 0f)
+            image("lut", lut)
+        }.effect()
     }
 }
 
-private val effect: RuntimeEffect by lazy { RuntimeEffect.makeForShader(SKSL) }
-
 /** NightLighting's lookup with one switch for the whole layer instead of a light mask. */
-private const val SKSL = """
+internal const val NIGHT_HUD_SKSL = """
     uniform shader content;
     uniform shader lut;
     uniform float lit;

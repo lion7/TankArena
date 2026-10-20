@@ -5,8 +5,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.asSkiaBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.graphics.RenderEffect
 import nl.tankarena.content.LEGACY_TILE_SIZE
 import nl.tankarena.content.MapSceneSidecar
 import nl.tankarena.content.PictureCatalog
@@ -19,12 +18,6 @@ import nl.tankarena.ui.resources.allDrawableResources
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.getDrawableResourceBytes
 import org.jetbrains.compose.resources.getSystemResourceEnvironment
-import org.jetbrains.skia.FilterTileMode
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.ImageFilter
-import org.jetbrains.skia.RuntimeEffect
-import org.jetbrains.skia.RuntimeShaderBuilder
-import org.jetbrains.skia.SamplingMode
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -43,10 +36,10 @@ internal class NightLighting(
 ) {
     private val lutResource: DrawableResource? = Res.allDrawableResources["night_lut"]
     private val coneResources: List<DrawableResource?> = CONE_NAMES.map { Res.allDrawableResources["light_${it.lowercase()}"] }
-    private val effect: RuntimeEffect = RuntimeEffect.makeForShader(SKSL)
+    private val shader = LayerShader(SKSL)
     private var mask: ImageBitmap? = null
-    private var maskImage: Image? = null
-    private var lutImage: Image? = null
+    private var masked = false
+    private var lutLoaded = false
 
     /** Draw this frame's lights into the mask (scene pixels of the visible area). */
     fun update(world: WorldSnapshot, snapshot: RuntimeSnapshot, playfieldWidth: Int, playfieldHeight: Int, extra: MutableSet<DrawableResource>) {
@@ -66,19 +59,23 @@ internal class NightLighting(
                 else -> Unit
             }
         }
-        maskImage = Image.makeFromBitmap(bitmap.asSkiaBitmap())
+        shader.image("lights", bitmap, decal = true)
+        masked = true
     }
 
     /**
      * The render effect for a layer of [width]×[height] pixels showing the [playfieldWidth]×
      * [playfieldHeight] scene, or null while the colour table is still loading.
      */
-    fun filter(width: Float, height: Float, playfieldWidth: Int, playfieldHeight: Int): ImageFilter? {
-        val lut = lutImage ?: lutResource?.let(::image)?.let { Image.makeFromBitmap(it.asSkiaBitmap()) }?.also { lutImage = it }
-            ?: return null
-        val lights = maskImage ?: return null
-        if (width <= 0f || height <= 0f) return null
-        return nightFilter(effect, lights, lut, playfieldWidth / width, playfieldHeight / height)
+    fun filter(width: Float, height: Float, playfieldWidth: Int, playfieldHeight: Int): RenderEffect? {
+        if (!lutLoaded) {
+            val lut = lutResource?.let(::image) ?: return null
+            shader.image("lut", lut)
+            lutLoaded = true
+        }
+        if (!masked || width <= 0f || height <= 0f) return null
+        shader.uniform("maskScale", playfieldWidth / width, playfieldHeight / height)
+        return shader.effect()
     }
 
     /** Legacy top_layer(): a standing lamp (LIGHT_SRC) lights the mask with its third picture. */
@@ -125,7 +122,7 @@ internal class NightLighting(
     private fun image(resource: DrawableResource): ImageBitmap? = images.getOrPut(resource) {
         runCatching {
             val bytes = runBlocking { getDrawableResourceBytes(getSystemResourceEnvironment(), resource) }
-            Image.makeFromEncoded(bytes).toComposeImageBitmap()
+            decodeImage(bytes)
         }.getOrNull()
     }
 
@@ -168,14 +165,13 @@ internal class NightLighting(
     }
 
     companion object {
-        /** The night filter for a light mask and colour table; the mask is [scaleX]×[scaleY] of the layer. */
-        internal fun nightFilter(effect: RuntimeEffect, lights: Image, lut: Image, scaleX: Float, scaleY: Float): ImageFilter {
-            val builder = RuntimeShaderBuilder(effect)
-            builder.uniform("maskScale", scaleX, scaleY)
-            builder.child("lights", lights.makeShader(FilterTileMode.DECAL, FilterTileMode.DECAL, SamplingMode.DEFAULT, null))
-            builder.child("lut", lut.makeShader(FilterTileMode.CLAMP, FilterTileMode.CLAMP, SamplingMode.DEFAULT, null))
-            return ImageFilter.makeRuntimeShader(builder, "content", null)
-        }
+        /** The night shader for a light mask and colour table; the mask is [scaleX]×[scaleY] of the layer. */
+        internal fun nightShader(lights: ImageBitmap, lut: ImageBitmap, scaleX: Float, scaleY: Float): LayerShader =
+            LayerShader(SKSL).apply {
+                uniform("maskScale", scaleX, scaleY)
+                image("lights", lights, decal = true)
+                image("lut", lut)
+            }
 
         private val CONE_NAMES = listOf("LLIGHT", "MLIGHT", "SLIGHT").flatMap { size -> (1..5).map { "$size$it" } }
 

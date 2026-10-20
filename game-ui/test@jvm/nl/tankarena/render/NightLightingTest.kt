@@ -1,5 +1,6 @@
 package nl.tankarena.render
 
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +11,6 @@ import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
-import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.Surface
 
 /** The night shader against the original palettes: DATA/PALETTE.DAT, NIGHT.PAL and NIGHT.LNK. */
@@ -41,7 +41,7 @@ class NightLightingTest {
         content.canvas.clear(argb(day[index]))
         val mask = Surface.makeRasterN32Premul(4, 1)
         mask.canvas.drawRect(Rect.makeXYWH(2f, 0f, 2f, 1f), Paint().apply { color = Color.WHITE })
-        val filter = NightLighting.nightFilter(RuntimeEffect.makeForShader(NightLighting.SKSL), mask.makeImageSnapshot(), lut, 1f, 1f)
+        val filter = NightLighting.nightShader(mask.makeImageSnapshot().toComposeImageBitmap(), lut.toComposeImageBitmap(), 1f, 1f).imageFilter()
 
         val out = Surface.makeRasterN32Premul(4, 1)
         out.canvas.drawImage(content.makeImageSnapshot(), 0f, 0f, Paint().apply { imageFilter = filter })

@@ -33,7 +33,7 @@ object StructureLibrary {
     fun forWorld(world: TankArenaWorld): List<Structure> = synchronized(cache) {
         cache.getOrPut(world) {
             val bytes = StructureLibrary::class.java.classLoader
-                .getResourceAsStream("structures/map_${world.ordinal}.dat")
+                ?.getResourceAsStream("structures/map_${world.ordinal}.dat")
                 ?.use { it.readBytes() }
                 ?: return@getOrPut emptyList()
             parse(bytes)

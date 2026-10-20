@@ -1,5 +1,6 @@
 package nl.tankarena.ui.compose.menu
 
+import nl.tankarena.render.decodeImage
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -7,14 +8,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import nl.tankarena.ui.compose.LegacyScreenScope
 import nl.tankarena.ui.compose.legacy.readBackground
 import java.io.File
 import kotlin.math.roundToInt
-import org.jetbrains.skia.Image
 
 /**
  * The panel pattern across a whole [LegacyScreen]: legacy `write_panel()` (src/game/prompt.c)
@@ -62,6 +61,6 @@ internal fun loadUnpackedBackground(fileName: String, override: String? = null):
         ?: readBackground(fileName)
         ?: return null
     return runCatching {
-        Image.makeFromEncoded(bytes).toComposeImageBitmap()
+        decodeImage(bytes)
     }.getOrNull()
 }

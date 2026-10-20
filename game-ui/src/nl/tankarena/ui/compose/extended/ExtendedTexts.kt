@@ -25,6 +25,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import nl.tankarena.input.keyName
 import nl.tankarena.sim.Ruleset
 import nl.tankarena.ui.compose.menu.ControlAction
 import nl.tankarena.ui.compose.menu.ControlDevice
@@ -37,7 +39,6 @@ import nl.tankarena.ui.compose.menu.withJoystickButtons
 import nl.tankarena.ui.compose.menu.withKey
 import nl.tankarena.ui.compose.menu.withMode
 import nl.tankarena.ui.compose.menu.withSensitivity
-import kotlinx.coroutines.launch
 
 /**
  * A mission's briefing, or its success or failure text, in the Extended look. Enter, Space or ESC
@@ -205,7 +206,7 @@ fun ExtendedControlsPage(
                             ControlRow.Steering -> "Steering" to if (c.mode == ControlMode.RELATIVE) "turn and drive" else "direct"
                             ControlRow.Device -> "Steer with" to if (c.device == ControlDevice.KEYBOARD) "the keyboard" else "keyboard and a gamepad"
                             is ControlRow.KeyRow -> item.action.label.lowercase().replaceFirstChar { it.uppercase() } to
-                                (if (selected && waiting) "press a key…" else c.key(item.action)?.let { java.awt.event.KeyEvent.getKeyText(it.nativeKeyCode) } ?: "—")
+                                (if (selected && waiting) "press a key…" else c.key(item.action)?.let { keyName(it) } ?: "—")
                             is ControlRow.Buttons -> "Pad: ${item.action.label.lowercase()}" to
                                 (if (selected && waiting) "press…" else padButtonsText(c.buttons(item.action)))
                             ControlRow.Sensitivity -> "Pad: stick sensitivity" to "${100 - c.sensitivity}"

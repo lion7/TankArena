@@ -1,17 +1,18 @@
 package nl.tankarena.ui.compose.menu
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
+import nl.tankarena.input.keyName
 import nl.tankarena.ui.compose.legacy.LegacyColors
 import nl.tankarena.ui.compose.legacy.Mode13View
 
@@ -134,7 +135,7 @@ fun ControlsSetupScreen(
                         0 -> "CONTROL" to c.device.name
                         1 -> "MODE" to c.mode.name
                         else -> ControlAction.entries[r - 2].label to
-                            if (selected && waitingForKey) "PRESS.." else c.key(ControlAction.entries[r - 2])?.let(::keyName) ?: "-"
+                            if (selected && waitingForKey) "PRESS.." else c.key(ControlAction.entries[r - 2])?.let(::legacyKeyName) ?: "-"
                     }
                 }
                 val color = if (selected) LegacyColors.HIGH else LegacyColors.NORMAL
@@ -160,4 +161,4 @@ fun ControlsSetupScreen(
 }
 
 /** A key's name as the setup program would print it, at most 8 characters. */
-private fun keyName(key: Key): String = java.awt.event.KeyEvent.getKeyText(key.nativeKeyCode).uppercase().take(8)
+private fun legacyKeyName(key: Key): String = keyName(key).uppercase().take(8)

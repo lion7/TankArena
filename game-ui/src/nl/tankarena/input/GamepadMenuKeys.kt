@@ -1,33 +1,33 @@
 package nl.tankarena.input
 
-import java.awt.event.KeyEvent
+import androidx.compose.ui.input.key.Key
 
 /**
  * Menus with a gamepad (ADR 0026): outside a game, every pad works the menus as the keyboard does.
  * The stick or D-pad give the arrow keys (held: again after [FIRST_REPEAT_NANOS], then every
  * [REPEAT_NANOS]), A and START give ENTER, B and BACK give ESC, LB and RB PAGE UP and PAGE DOWN.
- * [step] returns the AWT key codes to press this frame.
+ * [step] returns the keys to press this frame.
  */
 class GamepadMenuKeys {
-    private var direction = 0
+    private var direction: Key? = null
     private var nextRepeat = 0L
     private var lastButtons = 0
 
-    fun step(now: Long, pads: List<PadReading>): List<Int> {
-        val keys = mutableListOf<Int>()
+    fun step(now: Long, pads: List<PadReading>): List<Key> {
+        val keys = mutableListOf<Key>()
         val pushed = pads.firstOrNull { kotlin.math.abs(it.stickX) > DEAD_ZONE || kotlin.math.abs(it.stickY) > DEAD_ZONE }
         val wanted = when {
-            pushed == null -> 0
-            kotlin.math.abs(pushed.stickY) >= kotlin.math.abs(pushed.stickX) -> if (pushed.stickY < 0) KeyEvent.VK_UP else KeyEvent.VK_DOWN
-            else -> if (pushed.stickX < 0) KeyEvent.VK_LEFT else KeyEvent.VK_RIGHT
+            pushed == null -> null
+            kotlin.math.abs(pushed.stickY) >= kotlin.math.abs(pushed.stickX) -> if (pushed.stickY < 0) Key.DirectionUp else Key.DirectionDown
+            else -> if (pushed.stickX < 0) Key.DirectionLeft else Key.DirectionRight
         }
         if (wanted != direction) {
             direction = wanted
-            if (wanted != 0) {
+            if (wanted != null) {
                 keys += wanted
                 nextRepeat = now + FIRST_REPEAT_NANOS
             }
-        } else if (wanted != 0 && now >= nextRepeat) {
+        } else if (wanted != null && now >= nextRepeat) {
             keys += wanted
             nextRepeat = now + REPEAT_NANOS
         }
@@ -45,12 +45,12 @@ class GamepadMenuKeys {
 
         /** Pad button bits (A B X Y LB RB BACK START) and the keys they give. */
         private val BUTTON_KEYS = listOf(
-            0 to KeyEvent.VK_ENTER,
-            1 to KeyEvent.VK_ESCAPE,
-            4 to KeyEvent.VK_PAGE_UP,
-            5 to KeyEvent.VK_PAGE_DOWN,
-            6 to KeyEvent.VK_ESCAPE,
-            7 to KeyEvent.VK_ENTER,
+            0 to Key.Enter,
+            1 to Key.Escape,
+            4 to Key.PageUp,
+            5 to Key.PageDown,
+            6 to Key.Escape,
+            7 to Key.Enter,
         )
     }
 }

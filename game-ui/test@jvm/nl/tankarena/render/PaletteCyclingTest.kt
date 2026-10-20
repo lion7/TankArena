@@ -39,7 +39,7 @@ class PaletteCyclingTest {
         content.canvas.drawRect(Rect.makeXYWH(1f, 0f, 1f, 1f), Paint().apply { color = argb(31) })
 
         val out = Surface.makeRasterN32Premul(2, 1)
-        out.canvas.drawImage(content.makeImageSnapshot(), 0f, 0f, Paint().apply { imageFilter = cycling.filter() })
+        out.canvas.drawImage(content.makeImageSnapshot(), 0f, 0f, Paint().apply { imageFilter = cycling.shader().imageFilter() })
         val bitmap = Bitmap().apply { allocPixels(ImageInfo.makeN32Premul(2, 1)) }
         out.readPixels(bitmap, 0, 0)
 

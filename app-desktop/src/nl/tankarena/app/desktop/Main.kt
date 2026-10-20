@@ -19,6 +19,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
@@ -200,7 +201,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
             val menuKeys = GamepadMenuKeys()
             while (true) {
                 val keys = withFrameNanos { now -> menuKeys.step(now, Gamepads.read()) }
-                for (key in keys) pressKey(window, key)
+                for (key in keys) pressKey(window, key.nativeKeyCode)
             }
         }
         MaterialTheme {
@@ -501,11 +502,11 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         padActions = remember(current) {
                             val pads = List(MAX_PLAYERS) { GamepadMenuKeys() }
                             val actions = mapOf(
-                                java.awt.event.KeyEvent.VK_UP to SelectionKey.UP,
-                                java.awt.event.KeyEvent.VK_DOWN to SelectionKey.DOWN,
-                                java.awt.event.KeyEvent.VK_LEFT to SelectionKey.LEFT,
-                                java.awt.event.KeyEvent.VK_RIGHT to SelectionKey.RIGHT,
-                                java.awt.event.KeyEvent.VK_ENTER to SelectionKey.FIRE,
+                                Key.DirectionUp to SelectionKey.UP,
+                                Key.DirectionDown to SelectionKey.DOWN,
+                                Key.DirectionLeft to SelectionKey.LEFT,
+                                Key.DirectionRight to SelectionKey.RIGHT,
+                                Key.Enter to SelectionKey.FIRE,
                             );
                             {
                                 val now = System.nanoTime()

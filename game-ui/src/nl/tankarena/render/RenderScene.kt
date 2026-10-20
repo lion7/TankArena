@@ -5,14 +5,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.InternalResourceApi
 import org.jetbrains.compose.resources.getDrawableResourceBytes
 import org.jetbrains.compose.resources.getSystemResourceEnvironment
-import org.jetbrains.skia.Image
 
 /**
  * Where something is drawn, in scene pixels: a box of [size] placed so that its [pivot] (by default
@@ -110,7 +108,7 @@ class PictureCache private constructor() {
         images.getOrPut(resource) {
             runCatching {
                 val bytes = runBlocking { getDrawableResourceBytes(getSystemResourceEnvironment(), resource) }
-                Image.makeFromEncoded(bytes).toComposeImageBitmap()
+                decodeImage(bytes)
             }.getOrNull()
         }
     }

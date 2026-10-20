@@ -12,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import nl.tankarena.content.MapSceneSidecar
 import nl.tankarena.protocol.snapshot.GameEvent
@@ -83,12 +82,12 @@ private fun viewportEffects(modifier: Modifier, sidecar: MapSceneSidecar?, runti
     if (sidecar?.metadata?.night == true) {
         modifier.graphicsLayer {
             runtime.nightVersion.value
-            renderEffect = runtime.nightFilter(size.width, size.height)?.asComposeRenderEffect()
+            renderEffect = runtime.nightFilter(size.width, size.height)
         }
     } else {
         modifier.graphicsLayer {
             runtime.cyclingVersion.value
-            renderEffect = runtime.cyclingFilter().asComposeRenderEffect()
+            renderEffect = runtime.cyclingFilter()
         }
     }
 
@@ -130,9 +129,9 @@ private class ViewportRuntime(
     /** Bumped whenever a cycled palette range rotated. */
     val cyclingVersion = mutableIntStateOf(0)
 
-    fun cyclingFilter(): org.jetbrains.skia.ImageFilter = paletteCycling.filter()
+    fun cyclingFilter(): androidx.compose.ui.graphics.RenderEffect? = paletteCycling.filter()
 
-    fun nightFilter(width: Float, height: Float): org.jetbrains.skia.ImageFilter? =
+    fun nightFilter(width: Float, height: Float): androidx.compose.ui.graphics.RenderEffect? =
         nightLighting.filter(width, height, playfieldWidth, playfieldHeight)
 
     private val clientScene = ClientScene(

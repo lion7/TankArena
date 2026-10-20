@@ -23,6 +23,7 @@ import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.tankarena.input.Seat
+import nl.tankarena.input.keyName
 import nl.tankarena.ui.compose.menu.ControlAction
 import nl.tankarena.ui.compose.menu.PlayerControls
 
@@ -122,7 +123,7 @@ fun JoinScreen(
                     val text = when {
                         seat == null -> if (place < minPlayers) "waiting…" else "free"
                         seat.pad != null -> "gamepad ${seat.pad + 1}"
-                        else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { java.awt.event.KeyEvent.getKeyText(it.nativeKeyCode) } ?: "-"})"
+                        else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { keyName(it) } ?: "-"})"
                     }
                     Text(text, color = if (seat != null) ExtendedColors.text else ExtendedColors.dim, fontSize = 16.sp)
                 }

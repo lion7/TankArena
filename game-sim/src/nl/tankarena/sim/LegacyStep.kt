@@ -5,7 +5,7 @@ package nl.tankarena.sim
  * the timer passes `np = tinit(2)` (src/game/mainloop.c). Every rule runs once per step, movement
  * covers the time of a step, and timers (`tdone(t)`, `timer >= t`) are only looked at on a step.
  */
-internal const val STEP_TICKS: Int = 3
+const val STEP_TICKS: Int = 3
 
 /** The time one step covers. */
 internal const val STEP_SECONDS: Float = STEP_TICKS / 100f

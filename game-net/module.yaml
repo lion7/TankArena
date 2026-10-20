@@ -1,0 +1,17 @@
+# Networked play (ADR 0024): the messages, the match server with its lobby, and the client that
+# shows a match played on another machine. Shared by the desktop and Android apps and app-server.
+product:
+  type: kmp/lib
+  platforms: [jvm, android]
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-protocol: exported
+  - ../game-sim: exported
+  - io.ktor:ktor-server-cio:3.6.0
+  - io.ktor:ktor-server-websockets:3.6.0
+  - io.ktor:ktor-client-cio:3.6.0
+  - io.ktor:ktor-client-websockets:3.6.0
+  - org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.11.0

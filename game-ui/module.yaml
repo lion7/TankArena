@@ -16,6 +16,8 @@ dependencies:
   - $compose.components.resources: exported
 
 settings:
+  kotlin:
+    freeCompilerArgs: [-Xexpect-actual-classes]
   compose:
     enabled: true
     resources:

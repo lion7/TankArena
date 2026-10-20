@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import androidx.compose.ui.input.key.Key
 import nl.tankarena.input.ControlMapping

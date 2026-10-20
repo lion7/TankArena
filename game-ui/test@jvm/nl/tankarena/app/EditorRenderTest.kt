@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.ImageComposeScene

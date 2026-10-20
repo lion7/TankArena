@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import nl.tankarena.protocol.snapshot.ActorState
 import nl.tankarena.protocol.snapshot.B52State

@@ -1,5 +1,6 @@
 package nl.tankarena.audio
 
+import nl.tankarena.app.Music
 import javax.sound.midi.MidiSystem
 import javax.sound.midi.Sequencer
 import javax.sound.midi.SysexMessage
@@ -9,13 +10,13 @@ import javax.sound.midi.Synthesizer
  * Legacy init_player() and Allegro's MIDI volume (src/hardware/sound.c): one tune at a time,
  * looping, played by Java's software synthesizer. Without a MIDI device it stays silent.
  */
-class MusicPlayer {
+class MusicPlayer : Music {
     private var sequencer: Sequencer? = null
     private var synthesizer: Synthesizer? = null
     private var current: String? = null
 
     /** Allegro set_volume(-1, music): 0..255. */
-    var volume: Int = 255
+    override var volume: Int = 255
         set(value) {
             field = value.coerceIn(0, 255)
             applyVolume()
@@ -23,7 +24,7 @@ class MusicPlayer {
 
     /** Legacy init_player(): starts [tune] (a file in `music/`) unless it is already playing. */
     @Synchronized
-    fun play(tune: String) {
+    override fun play(tune: String) {
         if (tune.equals(current, ignoreCase = true)) return
         runCatching {
             val bytes = javaClass.classLoader.getResourceAsStream("music/$tune")?.use { it.readBytes() } ?: return
@@ -39,7 +40,7 @@ class MusicPlayer {
     }
 
     @Synchronized
-    fun dispose() {
+    override fun dispose() {
         sequencer?.close()
         synthesizer?.close()
         sequencer = null

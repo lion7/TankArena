@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -40,7 +40,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.tankarena.audio.AudioManager
-import nl.tankarena.audio.DesktopAudioBackend
 import nl.tankarena.protocol.snapshot.GameEvent
 import nl.tankarena.protocol.snapshot.ServerFrame
 import nl.tankarena.render.ViewportEventQueue
@@ -272,7 +271,8 @@ internal fun ReplayScreen(
     var run by remember { mutableIntStateOf(0) }
     val host = remember(recording, run) { ReplayMatchClient(recording, mission.document) }
     val control = remember(host) { ReplayControl() }
-    val audio = remember { AudioManager(DesktopAudioBackend()) }
+    val platform = LocalGamePlatform.current
+    val audio = remember { AudioManager(platform.audioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
     val eventQueues = remember(host) { List(MAX_PLAYERS) { ViewportEventQueue() } }

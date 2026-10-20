@@ -146,7 +146,7 @@ class MissionCodesTest {
     @Test
     fun `the gate remembers typed codes and moves on to the next code after a win`() {
         val dir = Files.createTempDirectory("tankarena-gate")
-        val store = PasswordStore(dir.resolve("passwd.json"))
+        val store = PasswordStore(dir.resolve("passwd.json").toFile())
         val gate = MissionGate(store, GameSettings().apply { update(options.copy(ruleset = Ruleset.EXTENDED)) })
         val mode = GameMode.SINGLE_PLAYER_VS_COMPUTER
         assertEquals("BEGIN1", gate.currentCode(mode))
@@ -172,8 +172,8 @@ class MissionCodesTest {
     @Test
     fun `the last code of each mode survives a restart`() {
         val dir = Files.createTempDirectory("tankarena-gate")
-        val passwords = PasswordStore(dir.resolve("passwd.json"))
-        val settingsFile = dir.resolve("settings.json")
+        val passwords = PasswordStore(dir.resolve("passwd.json").toFile())
+        val settingsFile = dir.resolve("settings.json").toFile()
         val mode = GameMode.SINGLE_PLAYER_VS_COMPUTER
         val gate = MissionGate(passwords, GameSettings(GameOptionsStore(settingsFile)))
         gate.submit(all, "BEGIN1", mode)
@@ -189,7 +189,7 @@ class MissionCodesTest {
     @Test
     fun `a mission without briefing starts right away`() {
         val silent = mission("silent", "SILENT", briefing = "")
-        val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json")))
+        val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json").toFile()))
         assertEquals(
             DesktopShellScreen.Playing(silent, GameMode.SINGLE_PLAYER_VS_COMPUTER),
             gate.submit(listOf(silent), "SILENT", GameMode.SINGLE_PLAYER_VS_COMPUTER),

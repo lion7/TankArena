@@ -67,15 +67,15 @@ class GameOptionsTest {
 
     @Test
     fun `the options survive a restart`() {
-        val file = Files.createTempDirectory("tankarena-settings").resolve("settings.json")
+        val file = Files.createTempDirectory("tankarena-settings").resolve("settings.json").toFile()
         GameSettings(GameOptionsStore(file)).update(GameOptions(raceLaps = 5, rounds = GameOptions.ENDLESS, losersTank = 2))
         assertEquals(GameOptions(raceLaps = 5, rounds = GameOptions.ENDLESS, losersTank = 2), GameSettings(GameOptionsStore(file)).options)
     }
 
     @Test
     fun `the ruleset is unchosen in old settings and kept once chosen`() {
-        val file = Files.createTempDirectory("settings").resolve("settings.json")
-        Files.writeString(file, """{"raceLaps":4}""")
+        val file = Files.createTempDirectory("settings").resolve("settings.json").toFile()
+        file.writeText("""{"raceLaps":4}""")
         assertNull(GameSettings(GameOptionsStore(file)).options.ruleset)
         GameSettings(GameOptionsStore(file)).let { it.update(it.options.copy(ruleset = Ruleset.EXTENDED)) }
         assertEquals(GameOptions(raceLaps = 4, ruleset = Ruleset.EXTENDED), GameSettings(GameOptionsStore(file)).options)
@@ -92,7 +92,7 @@ class GameOptionsTest {
             testMap(),
         )
         val settings = GameSettings()
-        val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json")), settings)
+        val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json").toFile()), settings)
         val mode = GameMode.SINGLE_PLAYER_VS_COMPUTER
         repeat(4) { assertEquals(DesktopShellScreen.AfterMission("WELL DONE"), gate.missionEnded(mission, mode, MissionOutcome.WON)) }
         assertEquals(DesktopShellScreen.AfterMission("TOO BAD", won = false), gate.missionEnded(mission, mode, MissionOutcome.LOST))
@@ -107,7 +107,7 @@ class GameOptionsTest {
     fun `a decided match plays VICTORY, and its rounds come from the options`() {
         val mission = MissionEntry("FLAGISLE", "flagisle", "", MapSceneSidecar(metadata = MapMetadata("FLAGISLE", 10, 10, "DUAL")), testMap())
         val settings = GameSettings().apply { update(GameOptions(rounds = 1)) }
-        val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json")), settings)
+        val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json").toFile()), settings)
         val select = assertIs<DesktopShellScreen.TankSelect>(gate.afterBriefing(mission, GameMode.PLAYER_VS_PLAYER))
         assertEquals(1, select.match.options.rounds)
         assertEquals(

@@ -10,7 +10,7 @@ enum class HelpFile(val resourceName: String) {
     ;
 
     fun load(): String = try {
-        HelpFile::class.java.classLoader.getResourceAsStream("help/$resourceName")
+        HelpFile::class.java.classLoader?.getResourceAsStream("help/$resourceName")
             ?.use { it.readBytes().decodeToString() }
             .orEmpty()
     } catch (e: Exception) {

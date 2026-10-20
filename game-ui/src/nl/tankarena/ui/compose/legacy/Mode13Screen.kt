@@ -173,4 +173,4 @@ class Mode13Screen {
 
 /** The bytes of a picture bundled under `backgrounds/` (see [IndexedBitmap.loadBackground]), or null. */
 internal fun readBackground(fileName: String): ByteArray? =
-    IndexedBitmap::class.java.classLoader.getResourceAsStream("backgrounds/$fileName")?.use { it.readBytes() }
+    IndexedBitmap::class.java.classLoader?.getResourceAsStream("backgrounds/$fileName")?.use { it.readBytes() }

@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

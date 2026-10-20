@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -7,7 +7,6 @@ import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import nl.tankarena.input.ControlMapping
-import nl.tankarena.input.Gamepads
 import nl.tankarena.input.PadReading
 import nl.tankarena.input.Seat
 import nl.tankarena.ui.compose.menu.ControlDevice
@@ -209,7 +208,11 @@ internal class DesktopControls {
      * The gamepad of a player who steers with a joystick (legacy `key_or_joy`): the pads go, in the
      * order they are numbered, to the players who chose one.
      */
-    private fun padFor(playerId: Int): PadReading? = padIndex(playerId)?.let { Gamepads.read().getOrNull(it) }
+    private fun padFor(playerId: Int): PadReading? = padIndex(playerId)?.let { pads().getOrNull(it) }
+
+    /** The connected gamepads (the platform's), read when the players' inputs are made. */
+    @Volatile
+    var pads: () -> List<PadReading> = { emptyList() }
 
     /** Which pad a player has: their seat's, or with a JOYSTICK in the settings the next one in order. */
     fun padIndex(playerId: Int): Int? {

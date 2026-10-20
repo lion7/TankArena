@@ -1,5 +1,6 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
+import nl.tankarena.render.imageFromArgb
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -11,7 +12,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,9 +21,6 @@ import nl.tankarena.content.LEGACY_TILE_SIZE
 import nl.tankarena.protocol.snapshot.PlayerView
 import nl.tankarena.ui.compose.hud.HudOverlay
 import nl.tankarena.ui.compose.legacy.LegacyFonts
-import org.jetbrains.skia.Bitmap
-import org.jetbrains.skia.ColorAlphaType
-import org.jetbrains.skia.ImageInfo
 import kotlin.random.Random
 
 /**
@@ -62,20 +59,10 @@ internal fun StaticNoise(playfieldWidth: Int, modifier: Modifier = Modifier) {
     }
 }
 
-private fun noiseTile(random: Random): ImageBitmap {
-    val pixels = ByteArray(LEGACY_TILE_SIZE * LEGACY_TILE_SIZE * 4)
-    for (i in 0 until LEGACY_TILE_SIZE * LEGACY_TILE_SIZE) {
-        val rgb = LegacyFonts.gamePalette[random.nextInt(16)]
-        pixels[i * 4] = (rgb and 0xFF).toByte()
-        pixels[i * 4 + 1] = (rgb shr 8 and 0xFF).toByte()
-        pixels[i * 4 + 2] = (rgb shr 16 and 0xFF).toByte()
-        pixels[i * 4 + 3] = 0xFF.toByte()
-    }
-    val bitmap = Bitmap()
-    bitmap.allocPixels(ImageInfo.makeN32(LEGACY_TILE_SIZE, LEGACY_TILE_SIZE, ColorAlphaType.OPAQUE))
-    bitmap.installPixels(pixels)
-    return bitmap.asComposeImageBitmap()
-}
+private fun noiseTile(random: Random): ImageBitmap =
+    imageFromArgb(LEGACY_TILE_SIZE, LEGACY_TILE_SIZE, IntArray(LEGACY_TILE_SIZE * LEGACY_TILE_SIZE) {
+        (0xFF shl 24) or LegacyFonts.gamePalette[random.nextInt(16)]
+    })
 
 /** Legacy write_status() without a vehicle: only write_1p_info() (goal counters and the picked id). */
 @Composable

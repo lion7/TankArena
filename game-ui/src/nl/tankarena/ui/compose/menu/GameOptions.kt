@@ -9,14 +9,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
-import nl.tankarena.sim.Ruleset
-import nl.tankarena.ui.compose.legacy.Mode13View
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import nl.tankarena.app.AppDirs
+import nl.tankarena.sim.Ruleset
+import nl.tankarena.ui.compose.legacy.Mode13View
 
 /**
  * The game options of legacy menu.c and the other settings TANK.CFG keeps (src/game/settings.c):
@@ -151,9 +151,9 @@ private const val CONTROLS_SETUP = "Controls setup"
  * The settings in the user's config directory (`settings.json` next to the known passwords).
  * Like [PasswordStore], IO failures fall back to the defaults or leave the file as it was.
  */
-class GameOptionsStore(private val file: Path = PasswordStore.defaultFile().resolveSibling("settings.json")) {
+class GameOptionsStore(private val file: File = File(AppDirs.config, "settings.json")) {
     fun load(): GameOptions = try {
-        if (Files.isRegularFile(file)) json.decodeFromString(GameOptions.serializer(), Files.readString(file)) else GameOptions()
+        if (file.isFile) json.decodeFromString(GameOptions.serializer(), file.readText()) else GameOptions()
     } catch (e: Exception) {
         System.err.println("Cannot read settings from $file: ${e.message}")
         GameOptions()
@@ -162,8 +162,8 @@ class GameOptionsStore(private val file: Path = PasswordStore.defaultFile().reso
     /** Legacy save_settings(). */
     fun save(options: GameOptions) {
         try {
-            file.parent?.let { Files.createDirectories(it) }
-            Files.writeString(file, json.encodeToString(GameOptions.serializer(), options))
+            file.parentFile?.mkdirs()
+            file.writeText(json.encodeToString(GameOptions.serializer(), options))
         } catch (e: Exception) {
             System.err.println("Cannot save settings to $file: ${e.message}")
         }

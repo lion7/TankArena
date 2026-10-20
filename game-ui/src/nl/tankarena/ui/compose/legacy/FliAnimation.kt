@@ -200,7 +200,7 @@ class FliAnimation(private val bytes: ByteArray) {
 
         /** An animation from the game's `FLI/` directory (bundled as `fli/`), or null when it is not there. */
         fun load(fileName: String): FliAnimation? {
-            val bytes = FliAnimation::class.java.classLoader.getResourceAsStream("fli/$fileName")?.use { it.readBytes() }
+            val bytes = FliAnimation::class.java.classLoader?.getResourceAsStream("fli/$fileName")?.use { it.readBytes() }
                 ?: return null
             return runCatching { FliAnimation(bytes) }.getOrNull()
         }

@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import nl.tankarena.sim.map.LegacyMapExport
 import nl.tankarena.sim.map.MAP_FILE_EXTENSION
@@ -7,16 +7,12 @@ import nl.tankarena.sim.map.MapFile
 import java.io.File
 
 /**
- * Maps made or changed in the editor, under `$XDG_DATA_HOME/tankarena/maps` (default
+ * Maps made or changed in the editor, under `maps` in the data folder ([AppDirs]; on the desktop
  * `~/.local/share/tankarena/maps`), one `.tamap` per map. A changed shipped map is saved here under
  * its own name; the shipped file is never written.
  */
 internal object UserMapStore {
-    fun directory(): File {
-        val base = System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }
-            ?: (System.getProperty("user.home") + "/.local/share")
-        return File(base, "tankarena/maps")
-    }
+    fun directory(): File = File(AppDirs.data, "maps")
 
     /** The saved maps' base names, sorted. */
     fun baseNames(): List<String> = directory()
@@ -37,7 +33,7 @@ internal object UserMapStore {
     /** Writes the map; returns the file, or throws when it cannot be written. */
     fun save(baseName: String, document: MapDocument): File {
         val file = file(baseName)
-        file.parentFile.mkdirs()
+        file.parentFile?.mkdirs()
         val temp = File(file.parentFile, "${file.name}.tmp")
         temp.writeText(MapFile.write(document))
         if (!temp.renameTo(file)) {
@@ -53,7 +49,7 @@ internal object UserMapStore {
      */
     fun exportLegacy(baseName: String, document: MapDocument): File {
         val file = File(File(directory(), "export"), baseName.uppercase().take(8) + ".MAP")
-        file.parentFile.mkdirs()
+        file.parentFile?.mkdirs()
         file.writeBytes(LegacyMapExport.export(document))
         return file
     }

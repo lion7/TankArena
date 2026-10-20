@@ -1,4 +1,4 @@
-package nl.tankarena.app.desktop
+package nl.tankarena.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background

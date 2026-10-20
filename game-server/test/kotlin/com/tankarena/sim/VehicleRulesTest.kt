@@ -43,6 +43,16 @@ class VehicleRulesTest {
     }
 
     @Test
+    fun `computer tanks refire after their own fire delay`() {
+        val match = start(tileX = 5, extraTank = true, aiFireDelay = 250)
+        val computer = match.tanksForTest().single { it.computer }
+        computer.enforce(WEAPON_MAIN, fire = true, keep = true)
+        assertEquals(250, computer.primaryCooldownTicks)
+        val defaultDelay = start(tileX = 5, extraTank = true).tanksForTest().single { it.computer }
+        assertEquals(defaultDelay.spec.refireTicks[defaultDelay.spec.initialWeapon], defaultDelay.aiFireDelay)
+    }
+
+    @Test
     fun `the start shield does not protect below ground`() {
         val match = start(tileX = 5)
         val tank = match.playerTankForTest(0)!!
@@ -57,13 +67,16 @@ class VehicleRulesTest {
         assertEquals(armor - 5, tank.armor, "below ground it does not")
     }
 
-    private fun start(tileX: Int, extraTank: Boolean = false): Match {
+    private fun start(tileX: Int, extraTank: Boolean = false, aiFireDelay: Int? = null): Match {
         val width = 12
         val height = 5
         val cells = width * height
         val objects = buildList {
             add(tank("p1", ObjectKinds.PLAYER_START, tileX, mapOf("direction" to "4", "lives" to "3")))
-            if (extraTank) add(tank("ai", ObjectKinds.AI_TANK, tileX + 4, mapOf("activationRadius" to "1")))
+            if (extraTank) {
+                val delay = aiFireDelay?.let { mapOf("fireDelay" to it.toString()) }.orEmpty()
+                add(tank("ai", ObjectKinds.AI_TANK, tileX + 4, mapOf("activationRadius" to "1") + delay))
+            }
         }
         val match = Match.fromCanonicalMap(
             CanonicalMapDefinition(

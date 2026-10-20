@@ -200,6 +200,12 @@ class Tank(state: State) :
     val aiAttackGoals: Int = state.aiAttackGoals
     /** Legacy `computer.wave_delay`: how long an aircraft flies on after a pass (ticks). */
     val aiWaveDelay: Int = state.aiWaveDelay.takeIf { it >= 0 } ?: spec.waveDelay
+    /**
+     * Legacy `computer.fire_delay`: how long a computer-driven vehicle waits between shots, whatever
+     * the weapon (tank_fire(); make_tank() starts it at the first weapon's `weap.speed`).
+     */
+    val aiFireDelay: Int = state.aiFireDelay.takeIf { it >= 0 } ?: spec.refireTicks.getOrElse(spec.initialWeapon) { 50 }
+    private val authoredFireDelay: Int = state.aiFireDelay
     /** Legacy `way.type` (WAY_INACTIVE, WAY_ACTIVE, WAY_CIRCULAR), `way.current` and `way.point[10]`. */
     internal val wayPoints: IntArray = IntArray(2 * WAYPOINTS) { i -> state.wayPoints.getOrElse(i) { -1 } }
     /** Legacy prepare_tank(): the route starts at the first filled slot, and without one it is off. */
@@ -860,6 +866,7 @@ class Tank(state: State) :
         aiAttackAt = aiAttackAt,
         aiAttackGoals = aiAttackGoals,
         aiWaveDelay = aiWaveDelay,
+        aiFireDelay = authoredFireDelay,
         wayType = wayType,
         wayCurrent = wayCurrent,
         wayPoints = wayPoints.toList(),
@@ -1207,8 +1214,9 @@ class Tank(state: State) :
     }
 
     /**
-     * Legacy tank_fire(): one refire timer for all weapons (`weap.speed[w]` ticks). Human tanks
-     * spend ammo and click when a weapon is empty; computer tanks fire without ammo.
+     * Legacy tank_fire(): one refire timer for all weapons (`weap.speed[w]` ticks, for the computer
+     * `computer.fire_delay`). Human tanks spend ammo and click when a weapon is empty; computer
+     * tanks fire without ammo.
      */
     private fun stepFire() {
         stepCooldowns()
@@ -1255,7 +1263,8 @@ class Tank(state: State) :
     }
 
     private fun fireWeapon(weapon: Int) {
-        primaryCooldownTicks = spec.refireTicks.getOrElse(weapon) { 50 }
+        // Legacy tank_fire(): `weap.speed[w]` for players, `computer.fire_delay` for the computer.
+        primaryCooldownTicks = if (computer) aiFireDelay else spec.refireTicks.getOrElse(weapon) { 50 }
         when (weapon) {
             WEAPON_MAIN -> fireMainCannon()
             WEAPON_CHAIN -> fireChainGun()
@@ -1726,6 +1735,7 @@ class Tank(state: State) :
         @SerialName("aiAttackGoals") val aiAttackGoals: Int = 60,
         /** -1: the vehicle table's `computer.wave_delay`. */
         @SerialName("aiWaveDelay") val aiWaveDelay: Int = -1,
+        @SerialName("aiFireDelay") val aiFireDelay: Int = -1,
         @SerialName("wayType") val wayType: Int = 0,
         @SerialName("wayCurrent") val wayCurrent: Int = 0,
         /** Ten x, y pairs (top-left corners, as the original stores them); x = -1 is an empty slot. */

@@ -98,6 +98,7 @@ object CanonicalSceneBuilder {
                         aiAttackAt = props.int("attackAt") ?: -1,
                         aiAttackGoals = props.int("attackGoals") ?: 60,
                         aiWaveDelay = props.int("waveDelay") ?: -1,
+                        aiFireDelay = props.int("fireDelay") ?: -1,
                         wayType = props.int("wayType") ?: 0,
                         wayCurrent = props.int("wayCurrent") ?: 0,
                         wayPoints = props["waypoints"].orEmpty().split(';').filter { it.isNotBlank() }
@@ -270,6 +271,7 @@ object CanonicalSceneBuilder {
         aiAttackAt: Int = -1,
         aiAttackGoals: Int = 60,
         aiWaveDelay: Int = -1,
+        aiFireDelay: Int = -1,
         wayType: Int = 0,
         wayCurrent: Int = 0,
         wayPoints: List<Int> = emptyList(),
@@ -304,6 +306,7 @@ object CanonicalSceneBuilder {
             aiAttackAt = aiAttackAt,
             aiAttackGoals = aiAttackGoals,
             aiWaveDelay = aiWaveDelay,
+            aiFireDelay = aiFireDelay,
             wayType = wayType,
             wayCurrent = wayCurrent,
             wayPoints = wayPoints,

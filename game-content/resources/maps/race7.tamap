@@ -591,6 +591,7 @@
       "aiActivationRadius": 250,
       "aiAttackAt": 150,
       "aiWaveDelay": 0,
+      "aiFireDelay": 50,
       "wayPoints": [-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0],
       "tankType": 16,
       "team": 1,

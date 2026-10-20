@@ -15,6 +15,7 @@ internal object LegacyObjectParser {
     private const val TANK_ATTACK_AT = 108
     private const val TANK_ATTACK_TANKS = 112
     private const val TANK_ATTACK_GOALS = 116
+    private const val TANK_FIRE_DELAY = 120
     private const val TANK_WAVE_DELAY = 124
     private const val TANK_ACTIVATOR = 132
     private const val TANK_ACTIVE = 136
@@ -379,6 +380,7 @@ internal object LegacyObjectParser {
             put("attackAt", reader.readInt(OFFSET_UNION + TANK_ATTACK_AT).toString())
             put("attackTanks", reader.readInt(OFFSET_UNION + TANK_ATTACK_TANKS).toString())
             put("attackGoals", reader.readInt(OFFSET_UNION + TANK_ATTACK_GOALS).toString())
+            put("fireDelay", reader.readInt(OFFSET_UNION + TANK_FIRE_DELAY).toString())
             put("waveDelay", reader.readInt(OFFSET_UNION + TANK_WAVE_DELAY).toString())
             put("activator", reader.readInt(OFFSET_UNION + TANK_ACTIVATOR).toString())
             put("active", reader.readInt(OFFSET_UNION + TANK_ACTIVE).toString())

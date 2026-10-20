@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.Window
@@ -27,42 +26,35 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.tankarena.audio.AudioManager
 import com.tankarena.audio.DesktopAudioBackend
+import com.tankarena.audio.MusicPlayer
+import com.tankarena.content.GameModeCompatibility
+import com.tankarena.content.TankArenaWorld
 import com.tankarena.core.FixedStepClock
-import com.tankarena.protocol.InputFrame
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.ViewportEventQueue
+import com.tankarena.sim.Cheats
 import com.tankarena.sim.DualSetup
 import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode
-import com.tankarena.content.GameModeCompatibility
-import com.tankarena.sim.Cheats
-import com.tankarena.protocol.snapshot.TankState
-import com.tankarena.protocol.snapshot.LockMarkerState
-import com.tankarena.ui.compose.menu.PlayerControls
-import com.tankarena.ui.compose.menu.DEFAULT_CONTROLS
-import com.tankarena.ui.compose.menu.ControlMode
-import com.tankarena.ui.compose.menu.ControlAction
 import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
-import com.tankarena.ui.compose.extended.CampaignScreen
-import com.tankarena.ui.compose.extended.ExtendedHomeActions
-import com.tankarena.ui.compose.extended.ExtendedControlsPage
-import com.tankarena.ui.compose.extended.ExtendedHelpPage
-import com.tankarena.ui.compose.extended.ExtendedTextPage
-import com.tankarena.ui.compose.extended.RulesetChoicePage
-import com.tankarena.ui.compose.extended.ExtendedHomeScreen
-import com.tankarena.ui.compose.extended.ExtendedSettingsPage
-import com.tankarena.ui.compose.extended.LocalGameScreen
-import com.tankarena.ui.compose.menu.RulesetChoiceScreen
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GAME_FADE_MILLIS
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
-import com.tankarena.audio.MusicPlayer
-import com.tankarena.content.TankArenaWorld
+import com.tankarena.ui.compose.extended.CampaignScreen
+import com.tankarena.ui.compose.extended.ExtendedControlsPage
+import com.tankarena.ui.compose.extended.ExtendedHelpPage
+import com.tankarena.ui.compose.extended.ExtendedHomeActions
+import com.tankarena.ui.compose.extended.ExtendedHomeScreen
+import com.tankarena.ui.compose.extended.ExtendedSettingsPage
+import com.tankarena.ui.compose.extended.ExtendedTextPage
+import com.tankarena.ui.compose.extended.LocalGameScreen
+import com.tankarena.ui.compose.extended.RulesetChoicePage
 import com.tankarena.ui.compose.gammaCorrection
+import com.tankarena.ui.compose.menu.ControlsSetupScreen
 import com.tankarena.ui.compose.menu.Credits
 import com.tankarena.ui.compose.menu.CreditsScreen
 import com.tankarena.ui.compose.menu.FliScreen
@@ -70,11 +62,11 @@ import com.tankarena.ui.compose.menu.GameModeMenuScreen
 import com.tankarena.ui.compose.menu.GameOptionsScreen
 import com.tankarena.ui.compose.menu.GameOptionsStore
 import com.tankarena.ui.compose.menu.GameSettings
-import com.tankarena.ui.compose.menu.IntroStep
 import com.tankarena.ui.compose.menu.HelpFile
+import com.tankarena.ui.compose.menu.IntroStep
+import com.tankarena.ui.compose.menu.MISSION_END_BANNER_MILLIS
 import com.tankarena.ui.compose.menu.MainMenuScreen
 import com.tankarena.ui.compose.menu.MessageBarScreen
-import com.tankarena.ui.compose.menu.MISSION_END_BANNER_MILLIS
 import com.tankarena.ui.compose.menu.MissionCatalog
 import com.tankarena.ui.compose.menu.MissionCodes
 import com.tankarena.ui.compose.menu.MissionEntry
@@ -82,12 +74,12 @@ import com.tankarena.ui.compose.menu.MissionGate
 import com.tankarena.ui.compose.menu.PasswordStore
 import com.tankarena.ui.compose.menu.PickListLayout
 import com.tankarena.ui.compose.menu.PickListScreen
+import com.tankarena.ui.compose.menu.PlayerControls
 import com.tankarena.ui.compose.menu.PromptBarScreen
+import com.tankarena.ui.compose.menu.SelectionKey
 import com.tankarena.ui.compose.menu.TankSelectScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
-import com.tankarena.ui.compose.menu.ControlsSetupScreen
 import com.tankarena.ui.compose.menu.YesNoScreen
-import com.tankarena.ui.compose.menu.SelectionKey
 import game_client.generated.resources.Res
 import game_client.generated.resources.pic_tankico
 import java.util.concurrent.atomic.AtomicReference
@@ -810,233 +802,3 @@ private fun selectionKeyFor(key: Key, controls: List<PlayerControls>): Pair<Int,
 }
 
 /** One player's keys, in the order of the legacy setup program's key list; null for an empty slot. */
-private class KeyBinding(
-    val forward: Key?,
-    val reverse: Key?,
-    val turnLeft: Key?,
-    val turnRight: Key?,
-    val aimLeft: Key?,
-    val aimRight: Key?,
-    val fire: Key?,
-    val shield: Key?,
-    val weaponLeft: Key?,
-    val weaponRight: Key?,
-) {
-    companion object {
-        fun of(controls: PlayerControls) = KeyBinding(
-            forward = controls.key(ControlAction.UP),
-            reverse = controls.key(ControlAction.DOWN),
-            turnLeft = controls.key(ControlAction.LEFT),
-            turnRight = controls.key(ControlAction.RIGHT),
-            aimLeft = controls.key(ControlAction.AIM_LEFT),
-            aimRight = controls.key(ControlAction.AIM_RIGHT),
-            fire = controls.key(ControlAction.FIRE),
-            shield = controls.key(ControlAction.SHIELD),
-            weaponLeft = controls.key(ControlAction.WEAPON_LEFT),
-            weaponRight = controls.key(ControlAction.WEAPON_RIGHT),
-        )
-
-        /** Extended only: a WASD layout for one player, kept from earlier builds. */
-        val WASD = KeyBinding(
-            forward = Key.W, reverse = Key.S, turnLeft = Key.A, turnRight = Key.D,
-            aimLeft = Key.Q, aimRight = Key.E, fire = Key.CtrlLeft, shield = Key.ShiftLeft,
-            weaponLeft = Key.R, weaponRight = Key.F,
-        )
-    }
-}
-
-private class HeldKeys {
-    var forward = false
-    var reverse = false
-    var turnLeft = false
-    var turnRight = false
-    var aimLeft = false
-    var aimRight = false
-    var fire = false
-    var shield = false
-    var weaponLeft = false
-    var weaponRight = false
-    /** One-shot F1–F10 request; cleared once sent. */
-    var selectTankId = 0
-
-    fun apply(binding: KeyBinding, key: Key, pressed: Boolean): Boolean {
-        when (key) {
-            binding.forward -> forward = pressed
-            binding.reverse -> reverse = pressed
-            binding.turnLeft -> turnLeft = pressed
-            binding.turnRight -> turnRight = pressed
-            binding.aimLeft -> aimLeft = pressed
-            binding.aimRight -> aimRight = pressed
-            binding.fire -> fire = pressed
-            binding.shield -> shield = pressed
-            binding.weaponLeft -> weaponLeft = pressed
-            binding.weaponRight -> weaponRight = pressed
-            else -> return false
-        }
-        return true
-    }
-}
-
-/** Legacy msg_control(): 29 steps of tinit(10), 12 ticks each on legacy steps. */
-private const val MESSAGE_STEPS = 29
-private const val MESSAGE_STEP_NANOS = 120_000_000L
-
-private val TANK_SELECT_KEYS: List<Key> = listOf(
-    Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10,
-)
-
-/** The keys held down; written on the UI thread, read by the simulation thread. */
-private class DesktopControls {
-    var mode: GameMode = GameMode.SINGLE_PLAYER_VS_COMPUTER
-    /** ESC during a game (legacy `game.exit_game`); read by the simulation thread. */
-    @Volatile
-    var exitRequested = false
-
-    /** Legacy `game_pause` (P): the game stands still until the next key. */
-    @Volatile
-    var paused = false
-
-    @Volatile
-    private var message: Pair<HudMessage, Long>? = null
-
-    /** Legacy create_message() on player one's window, for keys the shell handles (F11). */
-    fun showPlayerOneMessage(line1: String, line2: String) {
-        message = HudMessage(line1, line2, MESSAGE_STEPS) to System.nanoTime()
-    }
-
-    /** The shell's message as it counts down: one step every 12 ticks (legacy msg_control()). */
-    fun playerOneMessage(): HudMessage? {
-        val (shown, since) = message ?: return null
-        val steps = MESSAGE_STEPS - ((System.nanoTime() - since) / MESSAGE_STEP_NANOS).toInt()
-        return if (steps > 0) shown.copy(steps = steps) else null
-    }
-    private val players = List(2) { HeldKeys() }
-
-    /** The players' keys and modes (legacy TANK.CFG), set by the shell. */
-    @Volatile
-    var settings: List<PlayerControls> = DEFAULT_CONTROLS
-
-    /** Extended also takes WASD for a single player. */
-    @Volatile
-    var extended: Boolean = false
-
-    /**
-     * Legacy `keys[]`: a single player uses player two's keys (KEYS.HLP: "player two, or player for
-     * single player game"); two players have their own.
-     */
-    private fun controlsFor(playerId: Int): PlayerControls? = when {
-        mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) settings.getOrNull(1) else null
-        else -> settings.getOrNull(playerId)
-    }
-
-    private fun bindingsFor(playerId: Int): List<KeyBinding> {
-        val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
-        return if (extended && mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(own, KeyBinding.WASD) else listOf(own)
-    }
-
-    @Synchronized
-    fun handle(event: KeyEvent): Boolean {
-        val pressed = event.type == KeyEventType.KeyDown
-        val tankId = TANK_SELECT_KEYS.indexOf(event.key) + 1
-        if (tankId > 0) {
-            // Legacy read_controls(): F1–F10 pick a tank for `game.id[id_select]`. In two players vs
-            // computer `id_select` is 1 (the keypad player) and 0 while Alt is held.
-            if (pressed && mode != GameMode.PLAYER_VS_PLAYER) {
-                val player = when {
-                    mode != GameMode.DUAL_PLAYER_VS_COMPUTER -> 0
-                    event.isAltPressed -> 0
-                    else -> 1
-                }
-                players[player].selectTankId = tankId
-            }
-            return true
-        }
-        var handled = false
-        for (playerId in players.indices) {
-            for (binding in bindingsFor(playerId)) {
-                if (players[playerId].apply(binding, event.key, pressed)) handled = true
-            }
-        }
-        return handled
-    }
-
-    @Synchronized
-    fun toInputFrame(playerId: Int, inputSequence: Long, frame: ServerFrame? = null): InputFrame {
-        val p = players[playerId]
-        val selectTankId = p.selectTankId
-        p.selectTankId = 0
-        val relative = InputFrame(
-            playerId = playerId,
-            inputSequence = inputSequence,
-            forward = p.forward,
-            reverse = p.reverse,
-            turnLeft = p.turnLeft,
-            turnRight = p.turnRight,
-            aimLeft = p.aimLeft,
-            aimRight = p.aimRight,
-            firePrimary = p.fire,
-            shield = p.shield,
-            cycleWeaponLeft = p.weaponLeft,
-            cycleWeaponRight = p.weaponRight,
-            selectTankId = selectTankId,
-        )
-        if (controlsFor(playerId)?.mode != ControlMode.DIRECT || frame == null) return relative
-        val view = frame.playerViews.firstOrNull { it.playerId == playerId } ?: return relative
-        // Legacy control_tank(): while the rocket marker is out the keys always steer it as usual.
-        val markerOut = view.lockMarker?.let { it.state != LockMarkerState.LAUNCHED } == true
-        val tank = frame.world.actors.firstOrNull { it is TankState && it.actorId == view.controlledActorId } as TankState?
-        if (markerOut || tank == null) return relative
-        return directControls(relative, tank.bodyDirection, tank.turretDirection)
-    }
-
-    @Synchronized
-    fun resetAll() {
-        players.forEach { p ->
-            p.forward = false
-            p.reverse = false
-            p.turnLeft = false
-            p.turnRight = false
-            p.aimLeft = false
-            p.aimRight = false
-            p.fire = false
-            p.shield = false
-            p.weaponLeft = false
-            p.weaponRight = false
-            p.selectTankId = 0
-        }
-    }
-}
-
-/**
- * Legacy copy_controls_direct() (src/game/controls.c:339-402): the drive keys point the way to go.
- * The vehicle turns the short way towards it and drives forward (never in reverse); with nothing
- * pressed it stops. With an aim key held the keys point the turret instead, and the drive is left
- * as it was.
- */
-internal fun directControls(keys: InputFrame, bodyDirection: Int, turretDirection: Int): InputFrame {
-    val x = (if (keys.turnRight) 100 else 0) - (if (keys.turnLeft) 100 else 0)
-    val y = (if (keys.reverse) 100 else 0) - (if (keys.forward) 100 else 0)
-    val aiming = keys.aimLeft || keys.aimRight
-    if (x == 0 && y == 0) {
-        return keys.copy(forward = false, reverse = false, turnLeft = false, turnRight = false, aimLeft = false, aimRight = false)
-    }
-    val wanted = com.tankarena.core.LegacyDirections.fromAngle(x, y)
-    // Legacy go_left_or_right(): left when the other way round is shorter.
-    fun turnLeft(actual: Int) = ((actual - wanted) and 15) < 8
-    return if (aiming) {
-        val turn = wanted != turretDirection
-        keys.copy(
-            forward = false, reverse = false, turnLeft = false, turnRight = false,
-            aimLeft = turn && turnLeft(turretDirection),
-            aimRight = turn && !turnLeft(turretDirection),
-        )
-    } else {
-        val turn = wanted != bodyDirection
-        keys.copy(
-            forward = true, reverse = false,
-            turnLeft = turn && turnLeft(bodyDirection),
-            turnRight = turn && !turnLeft(bodyDirection),
-        )
-    }
-}
-

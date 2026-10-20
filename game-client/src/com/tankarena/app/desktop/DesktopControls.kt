@@ -1,0 +1,211 @@
+package com.tankarena.app.desktop
+
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import com.tankarena.input.ControlMapping
+import com.tankarena.input.Heading
+import com.tankarena.input.InputState
+import com.tankarena.protocol.InputFrame
+import com.tankarena.protocol.snapshot.LockMarkerState
+import com.tankarena.protocol.snapshot.ServerFrame
+import com.tankarena.protocol.snapshot.TankState
+import com.tankarena.ui.compose.GameMode
+import com.tankarena.ui.compose.menu.ControlAction
+import com.tankarena.ui.compose.menu.ControlMode
+import com.tankarena.ui.compose.menu.DEFAULT_CONTROLS
+import com.tankarena.ui.compose.menu.PlayerControls
+
+internal class KeyBinding(
+    val forward: Key?,
+    val reverse: Key?,
+    val turnLeft: Key?,
+    val turnRight: Key?,
+    val aimLeft: Key?,
+    val aimRight: Key?,
+    val fire: Key?,
+    val shield: Key?,
+    val weaponLeft: Key?,
+    val weaponRight: Key?,
+) {
+    companion object {
+        fun of(controls: PlayerControls) = KeyBinding(
+            forward = controls.key(ControlAction.UP),
+            reverse = controls.key(ControlAction.DOWN),
+            turnLeft = controls.key(ControlAction.LEFT),
+            turnRight = controls.key(ControlAction.RIGHT),
+            aimLeft = controls.key(ControlAction.AIM_LEFT),
+            aimRight = controls.key(ControlAction.AIM_RIGHT),
+            fire = controls.key(ControlAction.FIRE),
+            shield = controls.key(ControlAction.SHIELD),
+            weaponLeft = controls.key(ControlAction.WEAPON_LEFT),
+            weaponRight = controls.key(ControlAction.WEAPON_RIGHT),
+        )
+
+        /** Extended only: a WASD layout for one player, kept from earlier builds. */
+        val WASD = KeyBinding(
+            forward = Key.W, reverse = Key.S, turnLeft = Key.A, turnRight = Key.D,
+            aimLeft = Key.Q, aimRight = Key.E, fire = Key.CtrlLeft, shield = Key.ShiftLeft,
+            weaponLeft = Key.R, weaponRight = Key.F,
+        )
+    }
+}
+
+internal class HeldKeys {
+    var forward = false
+    var reverse = false
+    var turnLeft = false
+    var turnRight = false
+    var aimLeft = false
+    var aimRight = false
+    var fire = false
+    var shield = false
+    var weaponLeft = false
+    var weaponRight = false
+    /** One-shot F1–F10 request; cleared once sent. */
+    var selectTankId = 0
+
+    fun state() = InputState(
+        up = forward, down = reverse, left = turnLeft, right = turnRight, aimLeft = aimLeft, aimRight = aimRight,
+        fire = fire, shield = shield, weaponLeft = weaponLeft, weaponRight = weaponRight,
+    )
+
+    fun apply(binding: KeyBinding, key: Key, pressed: Boolean): Boolean {
+        when (key) {
+            binding.forward -> forward = pressed
+            binding.reverse -> reverse = pressed
+            binding.turnLeft -> turnLeft = pressed
+            binding.turnRight -> turnRight = pressed
+            binding.aimLeft -> aimLeft = pressed
+            binding.aimRight -> aimRight = pressed
+            binding.fire -> fire = pressed
+            binding.shield -> shield = pressed
+            binding.weaponLeft -> weaponLeft = pressed
+            binding.weaponRight -> weaponRight = pressed
+            else -> return false
+        }
+        return true
+    }
+}
+
+/** Legacy msg_control(): 29 steps of tinit(10), 12 ticks each on legacy steps. */
+private const val MESSAGE_STEPS = 29
+private const val MESSAGE_STEP_NANOS = 120_000_000L
+
+private val TANK_SELECT_KEYS: List<Key> = listOf(
+    Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10,
+)
+
+/** The keys held down; written on the UI thread, read by the simulation thread. */
+internal class DesktopControls {
+    var mode: GameMode = GameMode.SINGLE_PLAYER_VS_COMPUTER
+    /** ESC during a game (legacy `game.exit_game`); read by the simulation thread. */
+    @Volatile
+    var exitRequested = false
+
+    /** Legacy `game_pause` (P): the game stands still until the next key. */
+    @Volatile
+    var paused = false
+
+    @Volatile
+    private var message: Pair<HudMessage, Long>? = null
+
+    /** Legacy create_message() on player one's window, for keys the shell handles (F11). */
+    fun showPlayerOneMessage(line1: String, line2: String) {
+        message = HudMessage(line1, line2, MESSAGE_STEPS) to System.nanoTime()
+    }
+
+    /** The shell's message as it counts down: one step every 12 ticks (legacy msg_control()). */
+    fun playerOneMessage(): HudMessage? {
+        val (shown, since) = message ?: return null
+        val steps = MESSAGE_STEPS - ((System.nanoTime() - since) / MESSAGE_STEP_NANOS).toInt()
+        return if (steps > 0) shown.copy(steps = steps) else null
+    }
+    private val players = List(2) { HeldKeys() }
+
+    /** The players' keys and modes (legacy TANK.CFG), set by the shell. */
+    @Volatile
+    var settings: List<PlayerControls> = DEFAULT_CONTROLS
+
+    /** Extended also takes WASD for a single player. */
+    @Volatile
+    var extended: Boolean = false
+
+    /**
+     * Legacy `keys[]`: a single player uses player two's keys (KEYS.HLP: "player two, or player for
+     * single player game"); two players have their own.
+     */
+    private fun controlsFor(playerId: Int): PlayerControls? = when {
+        mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) settings.getOrNull(1) else null
+        else -> settings.getOrNull(playerId)
+    }
+
+    private fun bindingsFor(playerId: Int): List<KeyBinding> {
+        val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
+        return if (extended && mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(own, KeyBinding.WASD) else listOf(own)
+    }
+
+    @Synchronized
+    fun handle(event: KeyEvent): Boolean {
+        val pressed = event.type == KeyEventType.KeyDown
+        val tankId = TANK_SELECT_KEYS.indexOf(event.key) + 1
+        if (tankId > 0) {
+            // Legacy read_controls(): F1–F10 pick a tank for `game.id[id_select]`. In two players vs
+            // computer `id_select` is 1 (the keypad player) and 0 while Alt is held.
+            if (pressed && mode != GameMode.PLAYER_VS_PLAYER) {
+                val player = when {
+                    mode != GameMode.DUAL_PLAYER_VS_COMPUTER -> 0
+                    event.isAltPressed -> 0
+                    else -> 1
+                }
+                players[player].selectTankId = tankId
+            }
+            return true
+        }
+        var handled = false
+        for (playerId in players.indices) {
+            for (binding in bindingsFor(playerId)) {
+                if (players[playerId].apply(binding, event.key, pressed)) handled = true
+            }
+        }
+        return handled
+    }
+
+    @Synchronized
+    fun toInputFrame(playerId: Int, inputSequence: Long, frame: ServerFrame? = null): InputFrame {
+        val p = players[playerId]
+        val selectTankId = p.selectTankId
+        p.selectTankId = 0
+        val mode = controlsFor(playerId)?.mode ?: ControlMode.RELATIVE
+        return ControlMapping.frame(p.state(), playerId, inputSequence, mode, heading(playerId, frame), selectTankId = selectTankId)
+    }
+
+    /** The player's vehicle's heading for direct steering; null while the rocket marker is out. */
+    private fun heading(playerId: Int, frame: ServerFrame?): Heading? {
+        val view = frame?.playerViews?.firstOrNull { it.playerId == playerId } ?: return null
+        // Legacy control_tank(): while the rocket marker is out the keys always steer it as usual.
+        if (view.lockMarker?.let { it.state != LockMarkerState.LAUNCHED } == true) return null
+        val tank = frame.world.actors.firstOrNull { it is TankState && it.actorId == view.controlledActorId } as TankState? ?: return null
+        return Heading(tank.bodyDirection, tank.turretDirection)
+    }
+
+    @Synchronized
+    fun resetAll() {
+        players.forEach { p ->
+            p.forward = false
+            p.reverse = false
+            p.turnLeft = false
+            p.turnRight = false
+            p.aimLeft = false
+            p.aimRight = false
+            p.fire = false
+            p.shield = false
+            p.weaponLeft = false
+            p.weaponRight = false
+            p.selectTankId = 0
+        }
+    }
+}

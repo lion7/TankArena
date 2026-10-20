@@ -49,6 +49,7 @@ import com.tankarena.ui.compose.menu.ExtendedHelpScreen
 import com.tankarena.ui.compose.extended.CampaignScreen
 import com.tankarena.ui.compose.extended.ExtendedHomeActions
 import com.tankarena.ui.compose.extended.ExtendedHomeScreen
+import com.tankarena.ui.compose.extended.LocalGameScreen
 import com.tankarena.ui.compose.menu.ExtendedSettingsScreen
 import com.tankarena.ui.compose.menu.RulesetChoiceScreen
 import com.tankarena.ui.compose.DesktopShellScreen
@@ -229,10 +230,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         ExtendedHomeScreen(
                             ExtendedHomeActions(
                                 campaign = { screen = DesktopShellScreen.Campaign(GameMode.SINGLE_PLAYER_VS_COMPUTER).also { extendedReturn = it } },
-                                localGame = {
-                                    lastMode = GameMode.PLAYER_VS_PLAYER
-                                    screen = DesktopShellScreen.CodePrompt(GameMode.PLAYER_VS_PLAYER)
-                                },
+                                localGame = { screen = DesktopShellScreen.LocalGame.also { extendedReturn = it } },
                                 replays = { screen = DesktopShellScreen.Replays },
                                 mapEditor = { screen = DesktopShellScreen.EditorOpen },
                                 settings = { screen = DesktopShellScreen.ExtendedSettings },
@@ -240,6 +238,29 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                                 quit = ::exitApplication,
                             ),
                         )
+                    }
+
+                    DesktopShellScreen.LocalGame -> {
+                        LaunchedEffect(Unit) {
+                            if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
+                        }
+                        missions?.let { all ->
+                            LocalGameScreen(
+                                missions = all,
+                                options = options,
+                                lastMap = missionGate.currentCode(GameMode.PLAYER_VS_PLAYER),
+                                onOptions = settings::update,
+                                onTogether = { screen = DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER) },
+                                onVersus = { map ->
+                                    lastMode = GameMode.PLAYER_VS_PLAYER
+                                    screen = missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER)
+                                },
+                                onBack = {
+                                    extendedReturn = null
+                                    screen = DesktopShellScreen.MainMenu
+                                },
+                            )
+                        }
                     }
 
                     is DesktopShellScreen.Campaign -> {
@@ -258,8 +279,12 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                                     screen = missionGate.submit(all, code, current.mode)
                                 },
                                 onBack = {
-                                    extendedReturn = null
-                                    screen = DesktopShellScreen.MainMenu
+                                    if (current.mode == GameMode.DUAL_PLAYER_VS_COMPUTER) {
+                                        screen = DesktopShellScreen.LocalGame.also { extendedReturn = it }
+                                    } else {
+                                        extendedReturn = null
+                                        screen = DesktopShellScreen.MainMenu
+                                    }
                                 },
                             )
                         }

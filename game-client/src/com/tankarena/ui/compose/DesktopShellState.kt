@@ -105,6 +105,9 @@ sealed interface DesktopShellScreen {
     /** Extended: the main menu, shown wherever Classic shows its main or game mode menu. */
     data object ExtendedMenu : DesktopShellScreen
 
+    /** Extended: two players at one keyboard, together or against each other. */
+    data object LocalGame : DesktopShellScreen
+
     /** Extended: the missions reached in [mode] (one player, or two against the computer). */
     data class Campaign(val mode: GameMode) : DesktopShellScreen
 

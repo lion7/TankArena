@@ -39,6 +39,19 @@ class EditorRenderTest {
     }
 
     @Test
+    fun `the objects tool shows a selected vehicle with its waypoints and settings`() {
+        val choice = EditorMapChoice("air", userMap = false)
+        ImageComposeScene(1280, 800) {
+            EditorScreen(choice, MapEditor(choice.load()), onPlayTest = {}, onClose = {}, initialTool = EditorTool.OBJECTS, initialSelection = 4)
+        }.use { scene ->
+            var time = 0L
+            repeat(5) { scene.render(time); time += 16_000_000L; Thread.sleep(50) }
+            File("build").mkdirs()
+            File("build/editor-objects.png").writeBytes(scene.render(time).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+    }
+
+    @Test
     fun `the editor draws a shipped map`() {
         val choice = EditorMapChoice("begin1", userMap = false)
         ImageComposeScene(1280, 800) {

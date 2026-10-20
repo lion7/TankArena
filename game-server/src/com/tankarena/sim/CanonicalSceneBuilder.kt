@@ -1,6 +1,10 @@
 package com.tankarena.sim
 
 import com.tankarena.content.LEGACY_TILE_SIZE
+import com.tankarena.content.MapMetadata
+import com.tankarena.content.MissionText
+import com.tankarena.content.TileLayers
+import com.tankarena.sim.legacy.AuthoredObject
 import com.tankarena.sim.legacy.CanonicalMapDefinition
 import com.tankarena.sim.legacy.ObjectKinds
 
@@ -21,6 +25,14 @@ object CanonicalSceneBuilder {
     }
 
     fun buildSceneJson(map: CanonicalMapDefinition): String = SceneFile.write(buildActors(map))
+
+    /** One object as the import builds it (the map editor's new objects); null for kinds without one. */
+    fun buildObject(obj: AuthoredObject): SceneObject<*>? = mutableListOf<SceneObject<*>>().also { sink ->
+        appendAuthoredObjects(CanonicalMapDefinition(EDITOR_METADATA, EDITOR_LAYERS, MissionText(), listOf(obj)), sink)
+    }.singleOrNull()
+
+    private val EDITOR_METADATA = MapMetadata(name = "editor", widthTiles = 1, heightTiles = 1, missionCode = "")
+    private val EDITOR_LAYERS = TileLayers(listOf(-1), listOf(-1), listOf(-1), listOf(0), listOf(255), listOf(0), listOf(0))
 
     private fun appendAuthoredObjects(map: CanonicalMapDefinition, sink: MutableList<SceneObject<*>>) {
         var nextPlayerIndex = 0

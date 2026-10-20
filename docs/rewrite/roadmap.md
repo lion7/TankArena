@@ -116,7 +116,13 @@ Goal: everything the original editor can do, inside the game, plus validation, u
       (`DATA/MAP_0..3.DAT` as `structures/map_N.dat`, `StructureLibrary`): place, remove the building
       or else the floor, Shift-drag fills or clears a region. Goal (±10, Shift ±1), bonus and men
       layers, drawn on their cells. Tools on keys 1–7; every change can be undone.
-- [ ] Every object type with its properties; links; computer-tank settings and waypoints; pad weapons.
+- [x] Objects (key 8, `MapObjects`): every kind the original editor adds (player and computer
+      vehicles, start pads and flags, turrets, trains and wagons with the turret wagon, B52, mines,
+      warp, lock, goal, destroyer, enforcer, product) with its `make_*()` defaults; select, drag, turn,
+      clone, remove; the settings of the original's menus with their ranges; warp exits, lock keys,
+      waypoints, the object a goal waits for and turret forbidden directions set by clicking; one undo
+      history with the cells. Opening and saving keeps every shipped map's objects exactly; new train
+      cars are placed exactly as the original's (both tested).
 - [ ] Header and mission texts; export `.MAP` (ADR 0022, option C); validation; overview.
 
 Depends on: phases 1 and 2.

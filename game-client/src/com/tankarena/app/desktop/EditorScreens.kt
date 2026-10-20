@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -78,14 +79,12 @@ import com.tankarena.render.backgroundTileName
 import com.tankarena.sim.map.MapDocument
 import com.tankarena.sim.map.MapEditor
 import com.tankarena.sim.map.MapLayer
+import com.tankarena.sim.map.MapObjects
 import com.tankarena.sim.map.MenWeapon
 import com.tankarena.sim.map.NewMapStart
 import com.tankarena.sim.map.ShippedMaps
 import com.tankarena.ui.compose.menu.PickListLayout
 import com.tankarena.ui.compose.menu.PickListScreen
-import kotlinx.serialization.json.double
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.floor
 
 /** A map the editor can open: a shipped one, or one saved by the player (which wins on a name clash). */
@@ -216,6 +215,7 @@ internal enum class EditorTool(val label: String) {
     GOALS("goals"),
     BONUSES("bonuses"),
     MEN("men"),
+    OBJECTS("objects"),
 }
 
 /** Short names of the bonus kinds, drawn on their cells. */
@@ -226,7 +226,8 @@ private val BONUS_SHORT = listOf("GR", "MG", "FU", "MI", "RO", "MO", "AB", "CG",
  * picks up the picture under the cursor); structures from the world's library (left places, right
  * removes the building or else the floor, Shift and drag fills or clears a region); goals (left +10,
  * right −10, with Shift ±1); bonuses (left puts the chosen one, right removes); men (left adds one with
- * the chosen weapon, right removes one). Middle button or the arrow keys scroll, the wheel zooms.
+ * the chosen weapon, right removes one); objects (key 8: select, drag, add, turn, settings and points;
+ * Delete removes, C clones at the cursor). Middle button or the arrow keys scroll, the wheel zooms.
  * Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, F5 play-tests the map as it is, ESC leaves (twice with
  * unsaved changes).
  */
@@ -238,8 +239,9 @@ internal fun EditorScreen(
     onPlayTest: (MapDocument) -> Unit,
     onClose: () -> Unit,
     initialTool: EditorTool = EditorTool.PICTURES,
+    initialSelection: Int? = null,
 ) {
-    MaterialTheme(colorScheme = darkColorScheme()) { EditorContent(choice, editor, onPlayTest, onClose, initialTool) }
+    MaterialTheme(colorScheme = darkColorScheme()) { EditorContent(choice, editor, onPlayTest, onClose, initialTool, initialSelection) }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -250,6 +252,7 @@ private fun EditorContent(
     onPlayTest: (MapDocument) -> Unit,
     onClose: () -> Unit,
     initialTool: EditorTool,
+    initialSelection: Int?,
 ) {
     val pictures = PictureCache.shared
     val sprites = LegacySpriteCatalog.shared
@@ -267,8 +270,10 @@ private fun EditorContent(
     var lastCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val textMeasurer = rememberTextMeasurer()
     var zoom by remember { mutableFloatStateOf(1f) }
-    var scrollX by remember { mutableFloatStateOf(0f) }
-    var scrollY by remember { mutableFloatStateOf(0f) }
+    // Opened with a selection: that object near the middle.
+    val selectedCentre = initialSelection?.let { editor.objects.getOrNull(it) }?.let(MapObjects::centre)
+    var scrollX by remember { mutableFloatStateOf(((selectedCentre?.first ?: 0) - 450f).coerceAtLeast(0f)) }
+    var scrollY by remember { mutableFloatStateOf(((selectedCentre?.second ?: 0) - 300f).coerceAtLeast(0f)) }
     var showObjects by remember { mutableStateOf(true) }
     var hover by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     // Bumped on every change so the canvas redraws (the editor itself is not observable).
@@ -277,20 +282,9 @@ private fun EditorContent(
     var leaveArmed by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
 
-    val objectBoxes = remember(editor) {
-        editor.toDocument().objects.mapNotNull { record ->
-            val at = record["at"]?.jsonArray ?: return@mapNotNull null
-            val size = record["size"]?.jsonArray
-            val type = record["type"]?.jsonPrimitive?.content ?: "?"
-            ObjectBox(
-                type = type,
-                x = at[0].jsonPrimitive.double.toFloat(),
-                y = at[1].jsonPrimitive.double.toFloat(),
-                width = size?.get(0)?.jsonPrimitive?.double?.toFloat() ?: 8f,
-                height = size?.get(1)?.jsonPrimitive?.double?.toFloat() ?: 8f,
-            )
-        }
-    }
+    val objectTool = remember(editor) { ObjectToolState().apply { this.selected = initialSelection } }
+    var dragging by remember { mutableStateOf(false) }
+    var hoverPixel by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     fun save() {
         status = runCatching {
@@ -316,6 +310,32 @@ private fun EditorContent(
             EditorTool.GOALS -> editor.changeGoal(x, y, (if (fine) 1 else 10) * (if (primary) 1 else -1))
             EditorTool.BONUSES -> editor.setBonus(x, y, if (primary) bonus else null)
             EditorTool.MEN -> if (primary) editor.addMan(x, y, menWeapon) else editor.removeMan(x, y)
+            // Objects work in map pixels: objectClick().
+            EditorTool.OBJECTS -> Unit
+        }
+        revision++
+    }
+
+    fun pixelAt(position: Offset): Pair<Int, Int> =
+        floor((position.x + scrollX) / zoom).toInt() to floor((position.y + scrollY) / zoom).toInt()
+
+    /** The objects tool's click: set a point, turn, add, or select (and start dragging). */
+    fun objectClick(position: Offset, primary: Boolean, shift: Boolean) {
+        val (px, py) = pixelAt(position)
+        val selected = objectTool.selected
+        val point = objectTool.point
+        when {
+            point != null && selected != null -> editor.setPoint(selected, point, px, py, objectTool.waypointSlot, clear = !primary)
+            !primary -> selected?.let(editor::turnObject)
+            else -> {
+                val hit = if (shift) null else editor.objectAt(px, py)
+                if (hit != null) {
+                    objectTool.selected = hit
+                    dragging = true
+                } else {
+                    objectTool.selected = objectTool.template?.let { editor.addObject(it, px, py) }
+                }
+            }
         }
         revision++
     }
@@ -348,6 +368,25 @@ private fun EditorContent(
                     event.key == Key.Five -> tool = EditorTool.GOALS
                     event.key == Key.Six -> tool = EditorTool.BONUSES
                     event.key == Key.Seven -> tool = EditorTool.MEN
+                    event.key == Key.Eight -> tool = EditorTool.OBJECTS
+                    tool == EditorTool.OBJECTS && event.key == Key.Delete -> objectTool.selected?.let {
+                        editor.removeObject(it)
+                        objectTool.selected = null
+                        objectTool.point = null
+                        revision++
+                    }
+                    tool == EditorTool.OBJECTS && event.key == Key.C -> {
+                        val at = hoverPixel
+                        val selected = objectTool.selected
+                        if (at != null && selected != null) {
+                            objectTool.selected = editor.cloneObject(selected, at.first, at.second)
+                            revision++
+                        }
+                    }
+                    tool == EditorTool.OBJECTS && event.key == Key.Escape && (objectTool.point != null || objectTool.selected != null) -> {
+                        if (objectTool.point != null) objectTool.point = null else objectTool.selected = null
+                        revision++
+                    }
                     event.key == Key.DirectionLeft -> scrollX -= step
                     event.key == Key.DirectionRight -> scrollX += step
                     event.key == Key.DirectionUp -> scrollY -= step
@@ -400,13 +439,14 @@ private fun EditorContent(
             for ((index, entry) in EditorTool.entries.drop(1).withIndex()) {
                 FilterChip(selected = tool == entry, onClick = { tool = entry }, label = { Text("${index + 4} ${entry.label}") })
             }
-            FilterChip(selected = showObjects, onClick = { showObjects = !showObjects }, label = { Text("objects") })
+            FilterChip(selected = showObjects, onClick = { showObjects = !showObjects }, label = { Text("show objects") })
         }
         Row(modifier = Modifier.fillMaxSize()) {
             Canvas(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .clipToBounds()
                     .pointerInput(editor) {
                         awaitPointerEventScope {
                             var last: Offset? = null
@@ -430,7 +470,10 @@ private fun EditorContent(
                                         if (primary || event.buttons.isSecondaryPressed) {
                                             val cell = cellAt(position)
                                             lastCell = cell
-                                            if (tool == EditorTool.STRUCTURES && shift) {
+                                            if (tool == EditorTool.OBJECTS) {
+                                                editor.beginStroke()
+                                                objectClick(position, primary, shift)
+                                            } else if (tool == EditorTool.STRUCTURES && shift) {
                                                 regionStart = cell
                                                 regionFill = primary
                                             } else {
@@ -443,6 +486,14 @@ private fun EditorContent(
                                     PointerEventType.Move -> {
                                         val cell = cellAt(position)
                                         hover = cell
+                                        hoverPixel = pixelAt(position)
+                                        if (dragging && event.buttons.isPrimaryPressed) {
+                                            objectTool.selected?.let { selected ->
+                                                val (px, py) = pixelAt(position)
+                                                editor.moveObject(selected, px, py)
+                                                revision++
+                                            }
+                                        }
                                         val held = event.buttons.isPrimaryPressed || event.buttons.isSecondaryPressed
                                         when {
                                             held && regionStart == null && dragsAlong() && cell != lastCell &&
@@ -470,6 +521,7 @@ private fun EditorContent(
                                             }
                                         }
                                         regionStart = null
+                                        dragging = false
                                         lastCell = null
                                         editor.endStroke()
                                         revision++
@@ -483,22 +535,15 @@ private fun EditorContent(
                 // Reading the revision redraws the canvas after every edit.
                 revision.let { }
                 drawEditorMap(editor, world, if (tool == EditorTool.PICTURES) layer else MapLayer.TOP, zoom, scrollX, scrollY, pictures, sprites)
-                if (showObjects) {
-                    for (box in objectBoxes) {
-                        drawRect(
-                            color = Color(0xFFFFD040),
-                            topLeft = Offset(box.x * zoom - scrollX, box.y * zoom - scrollY),
-                            size = Size(box.width * zoom, box.height * zoom),
-                            style = Stroke(width = 1f),
-                        )
-                    }
+                if (showObjects || tool == EditorTool.OBJECTS) {
+                    drawObjects(editor, objectTool.takeIf { tool == EditorTool.OBJECTS }, zoom, scrollX, scrollY, textMeasurer)
                 }
                 if (tool == EditorTool.GOALS || tool == EditorTool.BONUSES || tool == EditorTool.MEN) {
                     drawCellLabels(editor, tool, zoom, scrollX, scrollY, textMeasurer)
                 }
                 val tile = LEGACY_TILE_SIZE * zoom
                 val start = regionStart
-                hover?.let { (x, y) ->
+                hover?.takeIf { tool != EditorTool.OBJECTS }?.let { (x, y) ->
                     val footprint = if (tool == EditorTool.STRUCTURES && start == null) structures.getOrNull(structure) else null
                     val (x0, y0) = start ?: (x to y)
                     val left = minOf(x0, x)
@@ -531,6 +576,7 @@ private fun EditorContent(
                             FilterChip(selected = bonus == index, onClick = { bonus = index }, label = { Text("${BONUS_SHORT[index]}  $name") })
                         }
                     }
+                    EditorTool.OBJECTS -> ObjectPanel(editor, objectTool, revision) { revision++ }
                     EditorTool.MEN -> Column(modifier = Modifier.weight(1f)) {
                         Text("Paratroopers in a building, at most 50. Left adds one, right removes one.", color = Color.White, fontSize = 13.sp)
                         for (weapon in MenWeapon.entries) {
@@ -657,8 +703,6 @@ private fun DrawScope.drawCellLabels(editor: MapEditor, tool: EditorTool, zoom: 
         drawText(measurer, label, at, style)
     }
 }
-
-private data class ObjectBox(val type: String, val x: Float, val y: Float, val width: Float, val height: Float)
 
 /** A picture's name and terrain type, e.g. `12 WAT1 (WATER)`. */
 private fun pictureLabel(world: TankArenaWorld, index: Int): String {

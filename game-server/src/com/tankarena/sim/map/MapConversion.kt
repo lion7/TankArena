@@ -114,7 +114,7 @@ object MapConversion {
     }
 
     /** `{"type": "tank", "at": [x, y], "size": [w, h], ...the object's other fields}`. */
-    private fun objectRecord(obj: SceneObject<*>): JsonObject? {
+    internal fun objectRecord(obj: SceneObject<*>): JsonObject? {
         val typeId = SceneFile.typeIdOf(obj) ?: return null
         val state = json.parseToJsonElement(obj.save().serialize()).jsonObject
         val body = state["body"]?.jsonObject
@@ -129,7 +129,7 @@ object MapConversion {
         }
     }
 
-    private fun restoreObject(record: JsonObject): SceneObject<*> {
+    internal fun restoreObject(record: JsonObject): SceneObject<*> {
         val type = requireNotNull(record["type"]?.jsonPrimitive?.content) { "object without a type: $record" }
         val typeId = TYPE_PREFIX + type.replaceFirstChar { it.uppercaseChar() }
         val state = buildJsonObject {

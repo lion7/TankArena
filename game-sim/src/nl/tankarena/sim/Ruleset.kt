@@ -27,7 +27,7 @@ enum class Ruleset {
     val flags: RuleFlags
         get() = when (this) {
             CLASSIC -> RuleFlags()
-            EXTENDED -> RuleFlags(stackedComputerVehiclesSurvive = true, oneVehiclePerPlayer = true, teams = true)
+            EXTENDED -> RuleFlags(stackedComputerVehiclesSurvive = true, oneVehiclePerPlayer = true, teams = true, pointerMarker = true)
         }
 }
 
@@ -52,6 +52,12 @@ data class RuleFlags(
      * two's. A side is out of lives when all its players are.
      */
     val teams: Boolean = false,
+    /**
+     * The rocket marker goes where the player points (a mouse, Extended): while fire is held it
+     * jumps to the pointed position, as far as its range allows. The keys steer it as before when
+     * nothing is pointed at.
+     */
+    val pointerMarker: Boolean = false,
 )
 
 /**
@@ -63,5 +69,6 @@ data class RuleFlags(
  * 4: Classic v14 (rockets and mines can be hit).
  * 5: the first flags: stacked computer vehicles survive, one vehicle per player in player vs player.
  * 6: four players as two teams.
+ * 7: the rocket marker follows the mouse.
  */
-const val EXTENDED_RULES_VERSION: Int = 6
+const val EXTENDED_RULES_VERSION: Int = 7

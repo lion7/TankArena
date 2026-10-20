@@ -187,6 +187,10 @@ Depends on: phase 1 (renderer for the replay viewer).
 - [x] Extra pads for players 3 and 4 in map files: start pads with `padPlayer` 2 or 3 (editor:
       "Tank P3" … "Race P4"); a player starts on their own pad first, then their side's; Classic and
       the `.MAP` export leave them out.
+- [x] Extended controls ([ADR 0029](adrs/0029-extended-controls.md)): player one with keyboard and
+      mouse (WASD the way you press, the turret to the pointer, the rocket marker following it:
+      Extended rules v7), players two to four with twin-stick gamepads, a second keyboard player as a
+      setting; Extended's controls page and keys help made for it.
 
 Depends on: phase 5.
 

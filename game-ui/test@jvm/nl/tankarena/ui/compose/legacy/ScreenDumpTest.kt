@@ -38,6 +38,12 @@ class ScreenDumpTest {
         still(out, "options.png") { GameOptionsScreen(GameOptions(rounds = GameOptions.ENDLESS, losersTank = 1), {}, {}) }
         still(out, "credits.png") { CreditsScreen("credits.bmp", 70, 40, Credits.CREDITS, {}) }
         still(out, "thanks.png") { CreditsScreen("credits2.bmp", 160, 100, Credits.THANKS, {}) }
+        // Extended's controls and keys help.
+        val withSecond = nl.tankarena.ui.compose.menu.GameOptions(keyboardSecond = true)
+        still(out, "ext-controls.png") { nl.tankarena.ui.compose.extended.ExtendedControlsPage(withSecond, {}, {}) }
+        still(out, "ext-keys.png") {
+            nl.tankarena.ui.compose.extended.ExtendedTextPage("Keys", nl.tankarena.ui.compose.extended.extendedKeysText(withSecond), {})
+        }
         // The network game's screens.
         val round = nl.tankarena.net.ServerMessage.RoundOver(round = 2, winner = 1, wins = listOf(1, 1), missionWon = null, matchOver = false)
         still(out, "net-result.png") { nl.tankarena.ui.compose.extended.NetworkResultScreen(round, mySide = 1, hosting = false, {}, {}) }

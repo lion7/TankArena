@@ -14,7 +14,7 @@ import nl.tankarena.sim.Ruleset
  * Version of the messages below. The frames inside carry [nl.tankarena.protocol.snapshot.PROTOCOL_VERSION];
  * the handshake compares both, and the rules version, and refuses a mismatch (ADR 0024).
  */
-const val NET_VERSION: Int = 3
+const val NET_VERSION: Int = 4
 
 /** The port a game listens on unless told otherwise. */
 const val DEFAULT_PORT: Int = 47_300

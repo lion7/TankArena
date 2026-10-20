@@ -1,5 +1,6 @@
 package nl.tankarena.app
 
+import nl.tankarena.ui.compose.extended.extendedKeysText
 import nl.tankarena.ui.compose.extended.RelaySettingScreen
 import nl.tankarena.net.GameCodes
 import nl.tankarena.net.RelayDirectory
@@ -166,6 +167,8 @@ fun TankArenaApp(
     SideEffect {
         controls.settings = options.controls
         controls.extended = extended
+        controls.mouseControls = options.mouseControls
+        controls.twinSticks = options.twinSticks
     }
     val missionGate = remember { MissionGate(PasswordStore(), settings) }
 
@@ -202,23 +205,26 @@ fun TankArenaApp(
         platform.quit()
     }
 
-    /** Extended local games ask who plays with what first, when there is a gamepad to choose. */
-    fun joinFirst(next: DesktopShellScreen): DesktopShellScreen =
-        if (platform.gamepads().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS)
+    /**
+     * Extended local games ask who plays first: player one has the keyboard and mouse, the others
+     * join with a gamepad (or as the second keyboard player, when that is switched on).
+     */
+    fun joinFirst(next: DesktopShellScreen): DesktopShellScreen = DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS)
 
     /**
      * The players at this machine for a network game: those who joined on the join screen, else one
      * with the single player's keys and the first gamepad if there is one. Returns how many.
      */
     fun useNetworkSeats(): Int {
-        if (controls.seats == null) controls.seats = listOf(Seat(keys = 1, pad = 0.takeIf { platform.gamepads().isNotEmpty() }))
+        if (controls.seats == null) controls.seats = listOf(Seat(keys = null, pad = 0.takeIf { platform.gamepads().isNotEmpty() }, mouse = true))
         return controls.seats!!.size
     }
 
     /** With gamepads connected, who plays at this machine is asked first (up to three; one place stays for the others). */
     fun netJoinFirst(next: DesktopShellScreen, back: DesktopShellScreen): DesktopShellScreen {
         controls.seats = null
-        return if (platform.gamepads().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 1, maxPlayers = MAX_NET_PLAYERS - 1, back = back)
+        val others = platform.gamepads().isNotEmpty() || options.keyboardSecond
+        return if (!others) next else DesktopShellScreen.Join(next, minPlayers = 1, maxPlayers = MAX_NET_PLAYERS - 1, back = back)
     }
 
     /** The host starts the series' next round; its screen shows it. */
@@ -317,6 +323,8 @@ fun TankArenaApp(
                         minPlayers = current.minPlayers,
                         maxPlayers = current.maxPlayers,
                         keySets = options.controls,
+                        first = Seat(keys = null, pad = null, mouse = true),
+                        keyboardSets = if (options.keyboardSecond) setOf(SECOND_KEYBOARD_SET) else emptySet(),
                         readPadButtons = { platform.gamepads().map { it.buttons } },
                         onStart = { seats ->
                             controls.seats = seats
@@ -659,7 +667,7 @@ fun TankArenaApp(
 
                     DesktopShellScreen.ExtendedHelp -> ExtendedHelpPage(
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
-                        onKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
+                        onKeys = { screen = DesktopShellScreen.ExtendedKeys },
                         onBack = { screen = DesktopShellScreen.MainMenu },
                     )
 
@@ -702,9 +710,8 @@ fun TankArenaApp(
 
                     is DesktopShellScreen.ControlsSetup -> if (extended) {
                         ExtendedControlsPage(
-                            controls = options.controls,
-                            readPadButtons = { platform.gamepads().map { it.buttons } },
-                            onChange = { settings.update(settings.options.copy(controls = it)) },
+                            options = options,
+                            onChange = settings::update,
                             onBack = { screen = current.next },
                         )
                     } else {
@@ -735,6 +742,12 @@ fun TankArenaApp(
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
                         onExtended = { settings.update(options.copy(ruleset = Ruleset.EXTENDED)) },
+                    )
+
+                    DesktopShellScreen.ExtendedKeys -> ExtendedTextPage(
+                        title = "Keys",
+                        text = extendedKeysText(options),
+                        onClose = { screen = DesktopShellScreen.ExtendedHelp },
                     )
 
                     is DesktopShellScreen.Help -> TextViewerScreen(
@@ -984,6 +997,9 @@ fun TankArenaApp(
     }
 }
 
+/** The second keyboard player plays with player two's keys (the cursor block by default). */
+private const val SECOND_KEYBOARD_SET = 1
+
 private fun MatchMode.toGameMode(): GameMode = when (this) {
     MatchMode.SINGLE -> GameMode.SINGLE_PLAYER_VS_COMPUTER
     MatchMode.DUAL -> GameMode.PLAYER_VS_PLAYER
@@ -1028,17 +1044,23 @@ private fun GameplayScreen(
      */
     onMissionEnd: (MissionOutcome?) -> Unit,
 ) {
+    val platform = LocalGamePlatform.current
     val host: MatchClient = remember(mission.baseName, mode, dual, players, network) {
         // One player at a network machine plays with the single player's keys.
         controls.mode = if (network != null && players == 1) GameMode.SINGLE_PLAYER_VS_COMPUTER else mode
         controls.exitRequested = false
         controls.paused = false
+        // Extended: player one has the keyboard and mouse (and the first gamepad when alone); the
+        // arrow keys are theirs too unless a second player is on the keyboard.
+        if (controls.extended && controls.seats == null) {
+            controls.seats = listOf(Seat(keys = null, pad = 0.takeIf { platform.gamepads().isNotEmpty() }, mouse = true))
+        }
+        controls.mouseArrows = controls.seats?.none { it.keys != null } ?: true
         network ?: LocalMatchClient.fromMap(
             mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(),
             ruleset = ruleset, cheats = cheats, players = players,
         )
     }
-    val platform = LocalGamePlatform.current
     val audio = remember { AudioManager(platform.audioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
@@ -1084,7 +1106,7 @@ private fun GameplayScreen(
     val touchPad = remember { TouchPad() }
     val touchControls = platform.touchScreen && platform.gamepads().isEmpty()
     SideEffect { controls.touch = touchPad.takeIf { touchControls } }
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().then(if (controls.extended) Modifier.mouseInput(controls.mouse) else Modifier)) {
     GameplayFrame(
         mission = mission,
         mode = mode,
@@ -1098,6 +1120,8 @@ private fun GameplayScreen(
         playerOneMessage = controls.playerOneMessage(),
         fill = fill,
         wide = wide,
+        mouse = controls.mouse.takeIf { controls.extended },
+        mousePlayerId = controls.seats?.indexOfFirst { it.mouse }?.let { playerIds.getOrNull(it) },
     )
     if (touchControls) {
         TouchControls(

@@ -167,6 +167,9 @@ sealed interface DesktopShellScreen {
     data object ExtendedSettings : DesktopShellScreen
     data object ExtendedHelp : DesktopShellScreen
 
+    /** Extended's keys, from the current settings. */
+    data object ExtendedKeys : DesktopShellScreen
+
     /** Extended: the saved recordings, and one of them being watched. */
     data object Replays : DesktopShellScreen
     data class Replay(val file: java.io.File) : DesktopShellScreen

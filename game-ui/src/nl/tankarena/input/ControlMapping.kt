@@ -30,6 +30,9 @@ data class InputState(
     val aimY: Int = 0,
     /** The stick steers directly whatever the player's setting (a touch screen's stick). */
     val directStick: Boolean = false,
+    /** The map position pointed at with a mouse (the rocket marker), world pixels; -1 for none. */
+    val pointX: Int = -1,
+    val pointY: Int = -1,
 ) {
     val hasStick: Boolean get() = stickX != 0 || stickY != 0 || aimHeld || weaponHeld
 
@@ -52,6 +55,8 @@ data class InputState(
         aimX = if (kotlin.math.abs(other.aimX) > kotlin.math.abs(aimX)) other.aimX else aimX,
         aimY = if (kotlin.math.abs(other.aimY) > kotlin.math.abs(aimY)) other.aimY else aimY,
         directStick = directStick || other.directStick,
+        pointX = if (other.pointX >= 0) other.pointX else pointX,
+        pointY = if (other.pointX >= 0) other.pointY else pointY,
     )
 }
 
@@ -86,6 +91,8 @@ object ControlMapping {
             aimLeft = state.aimLeft,
             aimRight = state.aimRight,
             selectTankId = selectTankId,
+            pointX = state.pointX,
+            pointY = state.pointY,
         )
         val steered = if ((mode == ControlMode.DIRECT || state.directStick) && heading != null) {
             direct(state, base, heading, sensitivity)
@@ -152,5 +159,8 @@ object ControlMapping {
     }
 }
 
-/** One player's devices for a session (ADR 0026): a key set (index into the controls settings) and a pad. */
-data class Seat(val keys: Int?, val pad: Int?)
+/**
+ * One player's devices for a session (ADR 0026): a key set (index into the controls settings) and a
+ * pad; Extended's player one has the [mouse] and its own keys instead of a key set.
+ */
+data class Seat(val keys: Int?, val pad: Int?, val mouse: Boolean = false)

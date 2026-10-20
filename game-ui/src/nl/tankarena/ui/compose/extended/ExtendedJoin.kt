@@ -31,13 +31,17 @@ import nl.tankarena.ui.compose.menu.PlayerControls
  * "Press to join" (ADR 0026): players take the free places in order, each with a key set (by pressing
  * its fire key) or a gamepad (by pressing A). A key set or pad joins once.
  */
-class JoinState(val maxPlayers: Int) {
-    var seats: List<Seat> = emptyList()
+class JoinState(
+    val maxPlayers: Int,
+    /** A place taken from the start (Extended's keyboard-and-mouse player one), never left. */
+    private val first: Seat? = null,
+) {
+    var seats: List<Seat> = listOfNotNull(first)
         private set
 
-    /** The key set whose fire key is [key] joins; true when it did. */
-    fun key(key: Key, keySets: List<PlayerControls>): Boolean {
-        val set = keySets.indexOfFirst { it.key(ControlAction.FIRE) == key }.takeIf { it >= 0 } ?: return false
+    /** The key set whose fire key is [key] joins, if it is one of [allowed]; true when it did. */
+    fun key(key: Key, keySets: List<PlayerControls>, allowed: Set<Int> = keySets.indices.toSet()): Boolean {
+        val set = keySets.indexOfFirst { it.key(ControlAction.FIRE) == key }.takeIf { it >= 0 && it in allowed } ?: return false
         return join(Seat(keys = set, pad = null)) { it.keys == set }
     }
 
@@ -46,7 +50,7 @@ class JoinState(val maxPlayers: Int) {
 
     /** The last one to join leaves again. */
     fun leave() {
-        seats = seats.dropLast(1)
+        if (seats.size > (if (first != null) 1 else 0)) seats = seats.dropLast(1)
     }
 
     private fun join(seat: Seat, taken: (Seat) -> Boolean): Boolean {
@@ -70,8 +74,12 @@ fun JoinScreen(
     readPadButtons: () -> List<Int>,
     onStart: (List<Seat>) -> Unit,
     onBack: () -> Unit,
+    /** Player one's place, taken from the start (Extended: keyboard and mouse). */
+    first: Seat? = null,
+    /** The key sets that may join with their fire key. */
+    keyboardSets: Set<Int> = keySets.indices.toSet(),
 ) {
-    val state = remember { JoinState(maxPlayers) }
+    val state = remember { JoinState(maxPlayers, first) }
     var seats by remember { mutableStateOf(state.seats) }
     fun begin() {
         if (seats.size >= minPlayers) onStart(seats)
@@ -95,14 +103,18 @@ fun JoinScreen(
     }
     ExtendedPage(
         title = title,
-        subtitle = "Press fire on your keys or A on a gamepad to join",
+        subtitle = when {
+            keyboardSets.isEmpty() -> "Press A on a gamepad to join"
+            first != null -> "Press A on a gamepad to join, or ${keySets.getOrNull(keyboardSets.first())?.key(ControlAction.FIRE)?.let { keyName(it) } ?: "fire"} for the second keyboard player"
+            else -> "Press fire on your keys or A on a gamepad to join"
+        },
         onBack = onBack,
         footer = if (seats.size >= minPlayers) "Enter or START begins · Delete or B takes the last one out" else "At least $minPlayers players",
         onKey = { event ->
             when (event.key) {
                 Key.Enter, Key.NumPadEnter -> begin()
                 Key.Delete, Key.Backspace -> state.leave()
-                else -> if (!state.key(event.key, keySets)) return@ExtendedPage false
+                else -> if (!state.key(event.key, keySets, keyboardSets)) return@ExtendedPage false
             }
             seats = state.seats
             true
@@ -122,6 +134,7 @@ fun JoinScreen(
                     Text("Player ${place + 1}", color = ExtendedColors.accent, fontSize = 20.sp)
                     val text = when {
                         seat == null -> if (place < minPlayers) "waiting…" else "free"
+                        seat.mouse -> "keyboard and mouse"
                         seat.pad != null -> "gamepad ${seat.pad + 1}"
                         else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { keyName(it) } ?: "-"})"
                     }

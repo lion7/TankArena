@@ -1,5 +1,6 @@
 package nl.tankarena.app
 
+import nl.tankarena.ui.compose.menu.MOUSE_PLAYER_CONTROLS
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -48,11 +49,10 @@ internal class KeyBinding(
             weaponRight = controls.key(ControlAction.WEAPON_RIGHT),
         )
 
-        /** Extended only: a WASD layout for one player, kept from earlier builds. */
-        val WASD = KeyBinding(
-            forward = Key.W, reverse = Key.S, turnLeft = Key.A, turnRight = Key.D,
-            aimLeft = Key.Q, aimRight = Key.E, fire = Key.CtrlLeft, shield = Key.ShiftLeft,
-            weaponLeft = Key.R, weaponRight = Key.F,
+        /** Extended: the arrow keys also drive player one when no second player is on the keyboard. */
+        val ARROWS = KeyBinding(
+            forward = Key.DirectionUp, reverse = Key.DirectionDown, turnLeft = Key.DirectionLeft, turnRight = Key.DirectionRight,
+            aimLeft = null, aimRight = null, fire = null, shield = null, weaponLeft = null, weaponRight = null,
         )
     }
 }
@@ -93,6 +93,13 @@ internal class HeldKeys {
         return true
     }
 }
+
+/** A mouse this close to its vehicle does not turn the turret. */
+private const val MOUSE_DEAD_ZONE_PX = 8.0
+
+/** A wheel notch: weapon switch held this many ticks, out of [WHEEL_CYCLE_TICKS] (past the 15-tick switch cooldown). */
+private const val WHEEL_HOLD_TICKS = 6
+private const val WHEEL_CYCLE_TICKS = 18
 
 /** Legacy msg_control(): 29 steps of tinit(10), 12 ticks each on legacy steps. */
 private const val MESSAGE_STEPS = 29
@@ -140,9 +147,27 @@ internal class DesktopControls {
     @Volatile
     var settings: List<PlayerControls> = DEFAULT_CONTROLS
 
-    /** Extended also takes WASD for a single player. */
     @Volatile
     var extended: Boolean = false
+
+    /** Extended's player one's keys and steering ([Seat.mouse]). */
+    @Volatile
+    var mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS
+
+    /** Extended: the arrow keys drive player one too (nobody else is on the keyboard). */
+    @Volatile
+    var mouseArrows: Boolean = true
+
+    /** Extended: gamepads are twin sticks, not the original's joystick. */
+    @Volatile
+    var twinSticks: Boolean = true
+
+    /** Extended's player one's mouse, fed by their view. */
+    val mouse = MousePointer()
+
+    // A wheel notch holds a weapon switch for a few ticks, then waits out the switch's cooldown.
+    private var wheelTicks = 0
+    private var wheelStep = 0
 
     /**
      * Legacy `keys[]`: a single player uses player two's keys (KEYS.HLP: "player two, or player for
@@ -150,17 +175,19 @@ internal class DesktopControls {
      */
     private fun controlsFor(playerId: Int): PlayerControls? = seats?.let { seats ->
         val seat = seats.getOrNull(playerId) ?: return null
-        settings.getOrNull(seat.keys ?: playerId.coerceAtMost(1))
+        if (seat.mouse) mouseControls else settings.getOrNull(seat.keys ?: playerId.coerceAtMost(1))
     } ?: when {
         mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) settings.getOrNull(1) else null
         else -> settings.getOrNull(playerId)
     }
 
     private fun bindingsFor(playerId: Int): List<KeyBinding> {
+        val seat = seats?.getOrNull(playerId)
+        if (seat?.mouse == true) return listOfNotNull(KeyBinding.of(mouseControls), KeyBinding.ARROWS.takeIf { mouseArrows })
         // A seat without keys plays with its pad only.
-        if (seats?.getOrNull(playerId)?.let { it.keys == null } == true) return emptyList()
+        if (seat != null && seat.keys == null) return emptyList()
         val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
-        return if (extended && mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(own, KeyBinding.WASD) else listOf(own)
+        return listOf(own)
     }
 
     @Synchronized
@@ -199,10 +226,12 @@ internal class DesktopControls {
         val selectTankId = p.selectTankId
         p.selectTankId = 0
         val controls = controlsFor(playerId)
-        val pad = padFor(playerId)?.inputState(controls!!)
+        val devices = seats?.getOrNull(playerId)
+        val pad = padFor(playerId)?.let { reading -> if (extended && twinSticks && devices != null) reading.twinStick() else reading.inputState(controls!!) }
         var state = pad?.let { p.state().and(it) } ?: p.state()
         // A touch screen's controller is player one's.
         if (playerId == 0) touch?.state()?.let { state = state.and(it) }
+        if (devices?.mouse == true) state = withMouse(state, ownTank(seat, frame))
         return ControlMapping.frame(
             state, seat, inputSequence, controls?.mode ?: ControlMode.RELATIVE, heading(seat, frame),
             sensitivity = controls?.sensitivity ?: ControlMapping.DEFAULT_SENSITIVITY,
@@ -230,6 +259,49 @@ internal class DesktopControls {
         if (controlsFor(playerId)?.device != ControlDevice.JOYSTICK) return null
         val joystickPlayers = (0..1).filter { controlsFor(it)?.device == ControlDevice.JOYSTICK }
         return joystickPlayers.indexOf(playerId)
+    }
+
+    /** The vehicle the player in the match's seat [seat] drives, if any. */
+    private fun ownTank(seat: Int, frame: ServerFrame?): TankState? {
+        val view = frame?.playerViews?.firstOrNull { it.playerId == seat } ?: return null
+        return frame.world.actors.firstOrNull { it is TankState && it.actorId == view.controlledActorId } as TankState?
+    }
+
+    /**
+     * The mouse added to player one's [state]: the turret turns towards where it points, the
+     * buttons fire and shield, the wheel switches weapons, and while fire is held the rocket marker
+     * goes where it points.
+     */
+    private fun withMouse(state: InputState, tank: TankState?): InputState {
+        var aimX = 0
+        var aimY = 0
+        if (mouse.pointing && tank != null) {
+            val dx = (mouse.worldX - tank.x).toDouble()
+            val dy = (mouse.worldY - tank.y).toDouble()
+            val distance = kotlin.math.hypot(dx, dy)
+            if (distance > MOUSE_DEAD_ZONE_PX) {
+                aimX = (dx * 100 / distance).toInt()
+                aimY = (dy * 100 / distance).toInt()
+            }
+        }
+        if (wheelTicks > 0) {
+            wheelTicks--
+        } else {
+            wheelStep = mouse.takeWheel()
+            if (wheelStep != 0) wheelTicks = WHEEL_CYCLE_TICKS
+        }
+        val holding = wheelTicks > WHEEL_CYCLE_TICKS - WHEEL_HOLD_TICKS
+        val fire = state.fire || mouse.primary
+        return state.copy(
+            fire = fire,
+            shield = state.shield || mouse.secondary,
+            aimX = aimX,
+            aimY = aimY,
+            weaponLeft = state.weaponLeft || (holding && wheelStep < 0),
+            weaponRight = state.weaponRight || (holding && wheelStep > 0),
+            pointX = if (fire && mouse.pointing) mouse.worldX else -1,
+            pointY = if (fire && mouse.pointing) mouse.worldY else -1,
+        )
     }
 
     /** The player's vehicle's heading for direct steering; null while the rocket marker is out. */

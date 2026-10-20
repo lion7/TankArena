@@ -171,6 +171,7 @@ class Match private constructor(
                 dual = mode == MatchMode.DUAL,
                 night = mapMetadata.night,
                 cheats = cheats,
+                pointerMarker = ruleset.flags.pointerMarker,
             )
             tank.surroundings = tankSurroundings
         }
@@ -247,6 +248,9 @@ class Match private constructor(
         cycleWeaponLeft = cycleWeaponLeft || next.cycleWeaponLeft,
         cycleWeaponRight = cycleWeaponRight || next.cycleWeaponRight,
         selectTankId = if (next.selectTankId > 0) next.selectTankId else selectTankId,
+        // The latest place pointed at counts.
+        pointX = if (next.pointX >= 0) next.pointX else pointX,
+        pointY = if (next.pointX >= 0) next.pointY else pointY,
     )
 
     /** Legacy game_control(): one step of the game. */

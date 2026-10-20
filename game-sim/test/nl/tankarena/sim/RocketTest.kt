@@ -51,6 +51,38 @@ class RocketTest {
     }
 
     @Test
+    fun `Extended - the marker goes where the mouse points, within its range`() {
+        val prototype = Match.fromCanonicalMap(twoTankMap(), ruleset = Ruleset.EXTENDED)
+        prototype.initialize()
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
+        val shooter = prototype.playerTankForTest(0)!!
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true, pointX = shooter.positionX + 100, pointY = shooter.positionY + 40)))
+        assertEquals(shooter.positionX + 100, shooter.lockX, "at once where it points")
+        assertEquals(shooter.positionY + 40, shooter.lockY)
+        // Far away: as far as the range reaches, in that direction (the map is small, so point left of it).
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true, pointX = 0, pointY = shooter.positionY)))
+        assertEquals(0, shooter.lockX, "inside the map, which is smaller than the range")
+        // Without a point the keys steer it as before.
+        val before = shooter.lockY
+        repeat(10) { prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true, reverse = true))) }
+        assertTrue(shooter.lockY > before, "the keys still steer the marker")
+        prototype.dispose()
+    }
+
+    @Test
+    fun `Classic ignores a pointed position`() {
+        val prototype = Match.fromCanonicalMap(twoTankMap())
+        prototype.initialize()
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
+        val shooter = prototype.playerTankForTest(0)!!
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true, pointX = shooter.positionX + 100, pointY = shooter.positionY)))
+        assertEquals(shooter.positionX, shooter.lockX, "the original's marker only moves with the keys")
+        prototype.dispose()
+    }
+
+    @Test
     fun `releasing fire launches a rocket that homes on the tank under the marker`() {
         val prototype = Match.fromCanonicalMap(twoTankMap())
         prototype.initialize()

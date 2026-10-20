@@ -35,3 +35,4 @@ implemented is in the [roadmap](../roadmap.md).
 | [0026](0026-input-and-gamepads.md) | Input layer, remapping and gamepads | Accepted, built |
 | [0027](0027-four-players-two-teams.md) | Four players means two teams of two | Accepted, built |
 | [0028](0028-internet-relay-and-lobby.md) | Internet play through a relay and lobby server | Accepted, built |
+| [0029](0029-extended-controls.md) | Extended controls: keyboard and mouse, twin-stick gamepads | Accepted, built |

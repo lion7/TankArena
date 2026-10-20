@@ -121,7 +121,17 @@ class AndroidMusic(private val activity: Activity) : Music {
  * were first used.
  */
 class AndroidPads {
-    private class Pad(var stickX: Int = 0, var stickY: Int = 0, var hatX: Int = 0, var hatY: Int = 0, var buttons: Int = 0)
+    private class Pad(
+        var stickX: Int = 0,
+        var stickY: Int = 0,
+        var hatX: Int = 0,
+        var hatY: Int = 0,
+        var buttons: Int = 0,
+        var rightX: Int = 0,
+        var rightY: Int = 0,
+        var leftTrigger: Int = 0,
+        var rightTrigger: Int = 0,
+    )
 
     private val pads = LinkedHashMap<Int, Pad>()
 
@@ -131,6 +141,10 @@ class AndroidPads {
             stickX = if (pad.hatX != 0) pad.hatX * 100 else pad.stickX,
             stickY = if (pad.hatY != 0) pad.hatY * 100 else pad.stickY,
             buttons = pad.buttons,
+            rightX = pad.rightX,
+            rightY = pad.rightY,
+            leftTrigger = pad.leftTrigger,
+            rightTrigger = pad.rightTrigger,
         )
     }
 
@@ -158,6 +172,11 @@ class AndroidPads {
         val pad = pads.getOrPut(event.deviceId) { Pad() }
         pad.stickX = (event.getAxisValue(MotionEvent.AXIS_X) * 100).roundToInt().coerceIn(-100, 100)
         pad.stickY = (event.getAxisValue(MotionEvent.AXIS_Y) * 100).roundToInt().coerceIn(-100, 100)
+        // The right stick and the triggers (some pads report the triggers as brake and gas).
+        pad.rightX = (event.getAxisValue(MotionEvent.AXIS_Z) * 100).roundToInt().coerceIn(-100, 100)
+        pad.rightY = (event.getAxisValue(MotionEvent.AXIS_RZ) * 100).roundToInt().coerceIn(-100, 100)
+        pad.leftTrigger = (maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)) * 100).roundToInt().coerceIn(0, 100)
+        pad.rightTrigger = (maxOf(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS)) * 100).roundToInt().coerceIn(0, 100)
         pad.hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X).roundToInt()
         pad.hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y).roundToInt()
         return true

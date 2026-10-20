@@ -638,13 +638,24 @@ class Tank(state: State) :
     fun powerFor(weapon: Int): Int = power.getOrElse(weapon) { 0 }
 
     /** Map limits for the rocket marker and the player-vs-player rules (legacy `game.mode == DUAL`). */
-    internal fun configureForMatch(maxX: Int, maxY: Int, dual: Boolean, night: Boolean = false, cheats: Cheats = Cheats()) {
+    internal fun configureForMatch(
+        maxX: Int,
+        maxY: Int,
+        dual: Boolean,
+        night: Boolean = false,
+        cheats: Cheats = Cheats(),
+        pointerMarker: Boolean = false,
+    ) {
         lockMaxX = maxX
         lockMaxY = maxY
         dualMode = dual
         this.night = night
         this.cheats = cheats
+        this.pointerMarker = pointerMarker
     }
+
+    /** [RuleFlags.pointerMarker]: the marker goes where the player points. */
+    private var pointerMarker: Boolean = false
 
     private var cheats: Cheats = Cheats()
 
@@ -1537,6 +1548,10 @@ class Tank(state: State) :
             fireLocked(lockX, lockY)
             return
         }
+        if (pointerMarker && pendingIntent.pointX >= 0 && pendingIntent.pointY >= 0) {
+            pointMarker(pendingIntent.pointX, pendingIntent.pointY)
+            return
+        }
         lockStepCooldownTicks = lockStepCooldownTicks.afterStep()
         if (lockStepCooldownTicks > 0) return
         lockVelocityY = markerVelocity(lockVelocityY, negative = pendingIntent.forward, positive = pendingIntent.reverse)
@@ -1553,6 +1568,27 @@ class Tank(state: State) :
             lockVelocityY = 0
         }
         lockStepCooldownTicks = LOCK_STEP_TICKS
+    }
+
+    /**
+     * Extended: the marker at the pointed position, inside the map and, unless the range does not
+     * count (player vs player, the cheat), no further from the tank than its range.
+     */
+    private fun pointMarker(x: Int, y: Int) {
+        var targetX = x.coerceIn(0, lockMaxX)
+        var targetY = y.coerceIn(0, lockMaxY)
+        val dx = (targetX - positionX).toDouble()
+        val dy = (targetY - positionY).toDouble()
+        val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+        val range = LOCK_MAX_RANGE_PX - 1.0
+        if (!dualMode && !cheats.noLockLimit && distance > range) {
+            targetX = (positionX + dx * range / distance).toInt().coerceIn(0, lockMaxX)
+            targetY = (positionY + dy * range / distance).toInt().coerceIn(0, lockMaxY)
+        }
+        lockX = targetX
+        lockY = targetY
+        lockVelocityX = 0
+        lockVelocityY = 0
     }
 
     /** One axis of the legacy marker: jump to 5 px per step in the pressed direction, then speed up to 20. */

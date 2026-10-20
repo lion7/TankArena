@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -100,6 +101,8 @@ internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Uni
                         var knob: Pair<Offset, Offset>? = null
                         var aimAt = Offset.Zero
                         for (change in event.changes) {
+                            // A mouse is player one's own (read by the game screen); only fingers here.
+                            if (change.type == PointerType.Mouse) continue
                             val id = change.id
                             if (change.pressed && id !in fingers) {
                                 val at = change.position

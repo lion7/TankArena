@@ -81,6 +81,15 @@ val DEFAULT_CONTROLS: List<PlayerControls> = listOf(
 )
 
 /**
+ * Extended's player one (keyboard and mouse): WASD drives the way it is pressed, Space fires, Shift
+ * shields, Q and E switch weapons, Z and C turn the turret for those without a mouse.
+ */
+val MOUSE_PLAYER_CONTROLS: PlayerControls = PlayerControls(
+    keys = listOf(Key.W, Key.S, Key.A, Key.D, Key.Spacebar, Key.Z, Key.C, Key.Q, Key.E, Key.ShiftLeft).map { it.keyCode },
+    mode = ControlMode.DIRECT,
+)
+
+/**
  * Legacy setup.c "Configurate Keys": [key] goes to [player]'s [action] and is taken from every other
  * slot of both players; null clears the slot (DEL).
  */

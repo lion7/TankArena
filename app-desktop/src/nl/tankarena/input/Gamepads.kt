@@ -47,6 +47,13 @@ object Gamepads {
             state.dpadDown -> 100
             else -> -axis(state.leftStickY)
         }
-        return PadReading(x, y, buttons)
+        fun trigger(value: Float) = (value * 100).roundToInt().coerceIn(0, 100)
+        return PadReading(
+            x, y, buttons,
+            rightX = axis(state.rightStickX),
+            rightY = -axis(state.rightStickY),
+            leftTrigger = trigger(state.leftTrigger),
+            rightTrigger = trigger(state.rightTrigger),
+        )
     }
 }

@@ -60,6 +60,12 @@ data class GameOptions(
     val wideView: Boolean = true,
     /** Extended network games: the internet relay's address (ADR 0028); empty for none. */
     val relay: String = "",
+    /** Extended: player one's keys and steering (with the mouse). */
+    val mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS,
+    /** Extended: a second player on the keyboard (player two's keys), for those without a gamepad. */
+    val keyboardSecond: Boolean = false,
+    /** Extended: gamepads as twin sticks; off: as the original's joystick (player two's pad buttons). */
+    val twinSticks: Boolean = true,
 ) {
     /** Legacy read_controls(): `=` makes the window bigger, `-` smaller. */
     fun biggerWindow(): GameOptions = copy(windowSize = (windowSize - 1).coerceAtLeast(0))

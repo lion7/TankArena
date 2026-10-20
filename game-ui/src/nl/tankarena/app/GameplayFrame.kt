@@ -1,5 +1,8 @@
 package nl.tankarena.app
 
+import androidx.compose.ui.layout.positionInRoot
+import kotlin.math.roundToInt
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -75,6 +78,9 @@ internal fun GameplayFrame(
     /** Extended: fill the window, and widen the screen on a wide window. */
     fill: Boolean = false,
     wide: Boolean = false,
+    /** Extended's keyboard-and-mouse player: their mouse, fed by their view ([mousePlayerId]). */
+    mouse: MousePointer? = null,
+    mousePlayerId: Int? = null,
 ) {
     val worldWidth = mission.sidecar.metadata.widthTiles * LEGACY_TILE_SIZE
     val worldHeight = mission.sidecar.metadata.heightTiles * LEGACY_TILE_SIZE
@@ -118,6 +124,7 @@ internal fun GameplayFrame(
                         playfieldHeight = window.height,
                         playerVsPlayer = mode == GameMode.PLAYER_VS_PLAYER,
                         showRadar = showRadar,
+                        mouse = mouse?.takeIf { view.playerId == mousePlayerId },
                         // Legacy write_arrow(): only player-vs-player points at the other player.
                         // With teams (ADR 0027) the nearest player of the other side.
                         opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
@@ -159,6 +166,7 @@ private fun PlayerPane(
     modifier: Modifier,
     opponent: TankState? = null,
     showRadar: Boolean = true,
+    mouse: MousePointer? = null,
 ) {
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
@@ -199,6 +207,7 @@ private fun PlayerPane(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        if (mouse != null) MouseLayer(mouse, viewportGeometry, viewportRect, playfieldWidth)
         if (showDebugOverlay) {
             ViewportDebugOverlay(
                 playerView = playerView,
@@ -395,3 +404,38 @@ internal fun FreeCameraView(
 }
 
 private const val LEGACY_SCREEN_HEIGHT = 480f
+
+/**
+ * Extended's keyboard-and-mouse player's view: the map position under the cursor (again whenever
+ * the view moves) goes to [mouse], and a crosshair is drawn there. The cursor itself comes from the
+ * game screen ([mouseInput]).
+ */
+@Composable
+private fun MouseLayer(mouse: MousePointer, geometry: ViewportGeometry?, viewportRect: Rect, playfieldWidth: Int) {
+    var origin by remember { mutableStateOf<Offset?>(null) }
+    val at = origin?.let { o -> mouse.cursor?.minus(o) }
+    SideEffect {
+        if (at == null || geometry == null || viewportRect == Rect.Zero || !viewportRect.contains(at)) {
+            mouse.away()
+        } else {
+            val scale = viewportRect.width / playfieldWidth
+            val sceneX = geometry.cameraCenterX + (at.x - viewportRect.center.x) / scale
+            val sceneY = geometry.cameraCenterY + (at.y - viewportRect.center.y) / scale
+            mouse.pointAt(
+                (sceneX - geometry.renderOffsetX).roundToInt().coerceIn(0, geometry.worldWidth - 1),
+                (sceneY - geometry.renderOffsetY).roundToInt().coerceIn(0, geometry.worldHeight - 1),
+            )
+        }
+    }
+    DisposableEffect(mouse) { onDispose { mouse.away() } }
+    Canvas(modifier = Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInRoot() }) {
+        if (at == null || !viewportRect.contains(at)) return@Canvas
+        val color = Color(0xFFE8C04A)
+        val r = size.minDimension * 0.012f + 4f
+        drawCircle(color, radius = r, center = at, style = Stroke(width = 2f))
+        drawLine(color, at.copy(x = at.x - r * 1.8f), at.copy(x = at.x - r * 0.5f), strokeWidth = 2f)
+        drawLine(color, at.copy(x = at.x + r * 0.5f), at.copy(x = at.x + r * 1.8f), strokeWidth = 2f)
+        drawLine(color, at.copy(y = at.y - r * 1.8f), at.copy(y = at.y - r * 0.5f), strokeWidth = 2f)
+        drawLine(color, at.copy(y = at.y + r * 0.5f), at.copy(y = at.y + r * 1.8f), strokeWidth = 2f)
+    }
+}

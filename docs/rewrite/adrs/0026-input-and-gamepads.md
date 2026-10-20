@@ -1,5 +1,7 @@
 # ADR 0026: Input Layer, Remapping and Gamepads
 
+- **Note (2026-10-21):** Extended's controls moved on: keyboard and mouse for player one, twin-stick
+  gamepads for the others ([ADR 0029](0029-extended-controls.md)); Classic keeps what is below.
 - **Status:** Accepted (2026-10-19). Built 2026-10-20: the input layer (`nl.tankarena.input`:
   `InputState`, `ControlMapping` for relative and direct steering with keys and sticks) and gamepads
   through Jamepad 2.30.0.0 as the original's joysticks; press to join (`JoinState`, session `Seat`s)

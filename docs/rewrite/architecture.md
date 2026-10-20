@@ -134,7 +134,7 @@ All under `nl.tankarena.sim`.
 | `ui/compose` | `LegacyScreen` (640×480 and 320×200 screens, fades), `GammaCorrection`, the shell's screen states |
 | `ui/compose/hud` | `HudOverlay` (status display, radar, pilot face and messages, banners, arrow), `NightHud` |
 | `render` | `TankArenaViewport` (one player window), `RenderScene`, `PictureCache`, `ClientScene`, terrain and top-layer drawing, sprite catalog, `NightLighting`, `PaletteCycling`, map window layout |
-| `input` | `InputState`, `ControlMapping` (relative and direct steering), `PadReading`, `GamepadMenuKeys`, `Seat` |
+| `input` | `InputState`, `ControlMapping` (relative and direct steering, aim direction), `PadReading` (also twin sticks), `GamepadMenuKeys`, `Seat` |
 | `audio` | `AudioBackend`, `AudioManager` (the software mixer's logic) |
 
 ### `:app-desktop`

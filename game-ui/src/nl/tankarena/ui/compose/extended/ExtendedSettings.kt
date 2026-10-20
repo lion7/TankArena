@@ -1,5 +1,9 @@
 package nl.tankarena.ui.compose.extended
 
+import nl.tankarena.input.keyName
+import nl.tankarena.ui.compose.menu.ControlMode
+import nl.tankarena.ui.compose.menu.ControlAction
+import nl.tankarena.ui.compose.menu.PlayerControls
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import nl.tankarena.ui.compose.menu.GameOptions
@@ -45,7 +49,7 @@ fun ExtendedSettingsPage(
     val keys = remember { KeyRouter() }
     val entries: List<Pair<ListEntry, () -> Unit>> = ExtendedSetting.entries.map { setting ->
         when (setting) {
-            ExtendedSetting.CONTROLS -> ListEntry("Controls", "keys and steering for both players") to onControls
+            ExtendedSetting.CONTROLS -> ListEntry("Controls", "keyboard and mouse, gamepads, a second keyboard player") to onControls
             ExtendedSetting.WINDOW_SIZE -> ListEntry("Window size", "${100 - options.windowSize * 5}%") to {
                 onChange(if (options.windowSize >= GameOptions.MAX_WINDOW_SIZE) options.copy(windowSize = 0) else options.smallerWindow())
             }
@@ -92,5 +96,52 @@ fun ExtendedHelpPage(onArenaInfo: () -> Unit, onKeys: () -> Unit, onBack: () -> 
     )
     ExtendedPage(title = "Help", onBack = onBack, onKey = keys::handle) {
         ExtendedList(entries.map { it.first }, onPick = { entries[it].second() }, keys = keys)
+    }
+}
+
+/** Extended's keys help, from the current settings (the original's KEYS.HLP describes Classic). */
+fun extendedKeysText(options: GameOptions): String {
+    fun keys(controls: PlayerControls, vararg actions: ControlAction) =
+        actions.joinToString(" ") { action -> controls.key(action)?.let { keyName(it) } ?: "-" }
+    val one = options.mouseControls
+    val two = options.controls[1]
+    return buildString {
+        appendLine("PLAYER ONE: KEYBOARD AND MOUSE")
+        appendLine()
+        appendLine("Drive: ${keys(one, ControlAction.UP, ControlAction.LEFT, ControlAction.DOWN, ControlAction.RIGHT)}" +
+            if (options.keyboardSecond) "" else "  (or the arrow keys)")
+        appendLine("Steering: " + if (one.mode == ControlMode.DIRECT) "the vehicle drives the way you press" else "turn and drive, as the original")
+        appendLine("Aim: the turret turns to the mouse pointer (${keys(one, ControlAction.AIM_LEFT, ControlAction.AIM_RIGHT)} without a mouse)")
+        appendLine("Fire: left mouse button or ${keys(one, ControlAction.FIRE)}")
+        appendLine("Shield: right mouse button or ${keys(one, ControlAction.SHIELD)}")
+        appendLine("Weapons: mouse wheel or ${keys(one, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}")
+        appendLine("Rocket marker: while fire is held it follows the pointer; let go to launch")
+        appendLine()
+        appendLine("Vehicles without a turret of their own fire straight ahead: aim by driving.")
+        appendLine()
+        appendLine("GAMEPADS: PLAYERS TWO TO FOUR (press A on the join screen)")
+        appendLine()
+        if (options.twinSticks) {
+            appendLine("Left stick: drive the way it points")
+            appendLine("Right stick: aim")
+            appendLine("Right trigger: fire (or A)")
+            appendLine("Left trigger: shield (or X)")
+            appendLine("LB / RB: weapons")
+        } else {
+            appendLine("As the original's joystick: the stick steers, with the buttons set in the controls.")
+        }
+        if (options.keyboardSecond) {
+            appendLine()
+            appendLine("SECOND KEYBOARD PLAYER (joins with ${keys(two, ControlAction.FIRE)})")
+            appendLine()
+            appendLine("Drive ${keys(two, ControlAction.UP, ControlAction.LEFT, ControlAction.DOWN, ControlAction.RIGHT)}, " +
+                "fire ${keys(two, ControlAction.FIRE)}, aim ${keys(two, ControlAction.AIM_LEFT, ControlAction.AIM_RIGHT)}, " +
+                "weapons ${keys(two, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}, shield ${keys(two, ControlAction.SHIELD)}")
+        }
+        appendLine()
+        appendLine("IN A GAME")
+        appendLine()
+        appendLine("F1-F10 take over a friendly tank, P pauses (not in a network game), ESC leaves,")
+        appendLine("F11 gamma, F12 radar, - and = window size, PrtScr saves a screenshot.")
     }
 }

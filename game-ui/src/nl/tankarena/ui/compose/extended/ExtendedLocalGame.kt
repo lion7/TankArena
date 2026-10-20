@@ -57,7 +57,7 @@ fun LocalGameScreen(
     var selected by remember { mutableIntStateOf(initial) }
     ExtendedPage(
         title = "Local game",
-        subtitle = "Two players at one keyboard",
+        subtitle = "Player one with keyboard and mouse, the others with gamepads",
         onBack = onBack,
         footer = "Enter picks; on the options Left/Right change them",
         onKey = keys::handle,

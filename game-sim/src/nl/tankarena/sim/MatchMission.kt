@@ -62,6 +62,7 @@ internal fun Match.manageWrecks() {
             dual = mode == MatchMode.DUAL,
             night = mapMetadata.night,
             cheats = cheats,
+            pointerMarker = ruleset.flags.pointerMarker,
         )
         wreck.surroundings = tank.surroundings
         objects.add(listOf(wreck))

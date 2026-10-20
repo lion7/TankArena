@@ -73,6 +73,12 @@ class DesktopAudioBackend(
             SoundKind.INCOMING to "incoming",
             SoundKind.BEEP to "beep",
             SoundKind.TELEPORT to "teleport",
+            SoundKind.RICOCHET1 to "ricoc1",
+            SoundKind.RICOCHET2 to "ricoc2",
+            SoundKind.RICOCHET3 to "ricoc3",
+            SoundKind.RICOCHET4 to "ricoc4",
+            SoundKind.RICOCHET5 to "ricoc5",
+            SoundKind.RICOCHET6 to "ricoc6",
         )
     }
 

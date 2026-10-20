@@ -221,10 +221,11 @@ music with the night tune and in-game volume ([ADR 0018](adrs/0018-audio-and-mus
 
 Open:
 
-- **done** — `SND_SPLASH` on entering or leaving water. **missing** — ricochet sounds
-  (`ricoc1`–`6`) and the teleport sound are bundled but never played.
+- **done** — `SND_SPLASH` on entering or leaving water; ricochets (`ricoc1`–`6`) for one chain-gun round
+  in ten on walls and one in twenty on vehicles; the teleport sound.
 - **done** — mortar impact plays SND_NUKE.
-- **differs** — distance is measured from the window's camera instead of the player's tank.
+- **done** — sound distance from the player's vehicle (612 without one), volume above 32 only, pan by
+  the two players' distances, pitch 900..1099 (`src/hardware/sound.c:62-109`).
 
 ## Map editor
 

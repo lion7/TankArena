@@ -1,174 +1,80 @@
 package com.tankarena.audio
 
+import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.HudState
+import com.tankarena.protocol.snapshot.PlayerView
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
- * Unit tests for audio distance attenuation and panning calculations.
- * 
- * Verifies the formulas from docs/game/mechanics.md §"Sound System":
- * - Max range: 612 pixels
- * - Volume: full at d<100, linear falloff 100-612, silent at d>=612
- * - Pan: stereo panning based on relative player distances
- * - Pitch: 900-1100 range
+ * Legacy create_sound_absolute() (src/hardware/sound.c): the distance to the player's vehicle sets
+ * the volume (full nearer than 100, then (612 - d) / 2, not played at 32 or less), two players pan by
+ * their distances, and the pitch is 900 + rnd(200).
  */
 class AudioMathTest {
-
-    @Test
-    fun `volume is full at near field distance`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        // Use reflection to access private computeVolume method
-        val volume = computeVolumeViaReflection(manager, 50f)
-        assertEquals(255, volume, "Volume should be 255 at distance 50")
-    }
-
-    @Test
-    fun `volume is full at exactly near field threshold`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val volume = computeVolumeViaReflection(manager, 99f)
-        assertEquals(255, volume, "Volume should be 255 at distance 99")
-    }
-
-    @Test
-    fun `volume starts falloff at 100 pixels`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val volume = computeVolumeViaReflection(manager, 100f)
-        // (612 - 100) / 2 = 256, clamped to 255
-        assertEquals(255, volume, "Volume should be 255 at distance 100")
-    }
-
-    @Test
-    fun `volume falls off linearly at mid range`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val volume = computeVolumeViaReflection(manager, 356f)
-        // (612 - 356) / 2 = 128
-        assertEquals(128, volume, "Volume should be 128 at distance 356")
-    }
-
-    @Test
-    fun `volume is zero at max range`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val volume = computeVolumeViaReflection(manager, 612f)
-        assertEquals(0, volume, "Volume should be 0 at distance 612")
-    }
-
-    @Test
-    fun `volume is zero beyond max range`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val volume = computeVolumeViaReflection(manager, 700f)
-        assertEquals(0, volume, "Volume should be 0 at distance 700")
-    }
-
-    @Test
-    fun `pan is centered when equidistant from both players`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val pan = computePanViaReflection(manager, 200f, 200f, 500, 500)
-        // -(612 - 200) / 4 + (612 - 200) / 4 + 128 = 128
-        assertEquals(128, pan, "Pan should be centered (128) when equidistant")
-    }
-
-    @Test
-    fun `pan shifts left when closer to player 1`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val pan = computePanViaReflection(manager, 100f, 400f, 500, 500)
-        // -(612 - 100) / 4 + (612 - 400) / 4 + 128 = -128 + 53 + 128 = 53
-        assertEquals(53, pan, "Pan should shift left when closer to player 1")
-    }
-
-    @Test
-    fun `pan shifts right when closer to player 2`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        val pan = computePanViaReflection(manager, 400f, 100f, 500, 500)
-        // -(612 - 400) / 4 + (612 - 100) / 4 + 128 = -53 + 128 + 128 = 203
-        assertEquals(203, pan, "Pan should shift right when closer to player 2")
-    }
-
-    @Test
-    fun `pan is clamped to valid range`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        // Extreme case that would produce pan < 0
-        val panLeft = computePanViaReflection(manager, 0f, 612f, 500, 500)
-        // -(612 - 0) / 4 + (612 - 612) / 4 + 128 = -153 + 0 + 128 = -25 -> clamped to 0
-        assertEquals(0, panLeft, "Pan should be clamped to minimum 0")
-        
-        // Extreme case that would produce pan > 255
-        val panRight = computePanViaReflection(manager, 612f, 0f, 500, 500)
-        // -(612 - 612) / 4 + (612 - 0) / 4 + 128 = 0 + 153 + 128 = 281 -> clamped to 255
-        assertEquals(255, panRight, "Pan should be clamped to maximum 255")
-    }
-
-    @Test
-    fun `pitch is within valid range`() {
-        val backend = StubAudioBackend()
-        val manager = AudioManager(backend)
-        
-        // Test multiple times to verify range
-        repeat(100) {
-            val pitch = computePitchViaReflection(manager)
-            assertTrue(pitch in 900..1100, "Pitch $pitch should be in range 900-1100")
+    private class Recorder : AudioBackend {
+        val plays = mutableListOf<Triple<Int, Int, Int>>()
+        override fun play(kind: SoundKind, volume: Int, pan: Int, pitch: Int) {
+            plays += Triple(volume, pan, pitch)
         }
+        override fun stopAll() = Unit
+        override var masterVolume: Int = 255
+        override fun dispose() = Unit
+    }
+
+    private fun view(playerId: Int, x: Int, y: Int, hasVehicle: Boolean = true, cameraX: Int = x) = PlayerView(
+        playerId = playerId,
+        controlledActorId = if (hasVehicle) 1L + playerId else null,
+        cameraCenterX = cameraX,
+        cameraCenterY = y,
+        hud = HudState(),
+        viewerX = x,
+        viewerY = y,
+    )
+
+    private fun play(views: List<PlayerView>, x: Int, y: Int = 0): Triple<Int, Int, Int>? {
+        val recorder = Recorder()
+        AudioManager(recorder).processEvents(listOf(GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, x, y)), views)
+        return recorder.plays.singleOrNull()
+    }
+
+    @Test
+    fun `the volume follows the distance to the vehicle, not the camera`() {
+        assertEquals(255, play(listOf(view(0, 0, 0, cameraX = 5000)), 50)?.first)
+        assertEquals(255, play(listOf(view(0, 0, 0)), 100)?.first, "(612 - 100) / 2 = 256, at most 255")
+        assertEquals(128, play(listOf(view(0, 0, 0)), 356)?.first)
+        assertEquals(33, play(listOf(view(0, 0, 0)), 546)?.first)
+    }
+
+    @Test
+    fun `quiet and far sounds are not played, nor without a vehicle`() {
+        assertEquals(null, play(listOf(view(0, 0, 0)), 548), "volume 32 is not played")
+        assertEquals(null, play(listOf(view(0, 0, 0)), 700))
+        assertEquals(null, play(listOf(view(0, 0, 0, hasVehicle = false)), 10))
     }
 
     @Test
     fun `a single player hears every sound in the centre`() {
-        // Legacy create_sound_absolute(): pan stays 128 outside the two-player modes.
-        val manager = AudioManager(StubAudioBackend())
-        for (soundX in listOf(200, 500, 800)) {
-            assertEquals(128, computePanViaReflection(manager, 200f, Float.POSITIVE_INFINITY, soundX, 500))
-        }
+        for (x in listOf(-200, 0, 200)) assertEquals(128, play(listOf(view(0, 0, 0)), x)?.second)
     }
 
-    private fun computeVolumeViaReflection(manager: AudioManager, distance: Float): Int {
-        val method = AudioManager::class.java.getDeclaredMethod("computeVolume", Float::class.javaPrimitiveType)
-        method.isAccessible = true
-        return method.invoke(manager, distance) as Int
+    @Test
+    fun `two players pan by the difference of their distances`() {
+        val players = listOf(view(0, 0, 0), view(1, 500, 0))
+        assertEquals(128, play(players, 250)?.second, "equally far")
+        // -(612 - 100) / 4 + (612 - 400) / 4 + 128 = 53
+        assertEquals(53, play(players, 100)?.second)
+        assertEquals(203, play(players, 400)?.second)
+        // Distances count up to 612: player two far away pans fully to player one's side.
+        assertEquals(0, play(listOf(view(0, 0, 0), view(1, 5000, 0)), 10)?.second)
     }
 
-    private fun computePanViaReflection(
-        manager: AudioManager,
-        d1: Float,
-        d2: Float,
-        soundX: Int,
-        cameraX: Int
-    ): Int {
-        val method = AudioManager::class.java.getDeclaredMethod(
-            "computePan",
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-            Int::class.javaPrimitiveType,
-            Int::class.javaPrimitiveType
-        )
-        method.isAccessible = true
-        return method.invoke(manager, d1, d2, soundX, cameraX) as Int
-    }
-
-    private fun computePitchViaReflection(manager: AudioManager): Int {
-        val method = AudioManager::class.java.getDeclaredMethod("computePitch")
-        method.isAccessible = true
-        return method.invoke(manager) as Int
-    }
-
-    private fun assertTrue(condition: Boolean, message: String) {
-        if (!condition) throw AssertionError(message)
+    @Test
+    fun `the pitch is 900 to 1099`() {
+        val recorder = Recorder()
+        val manager = AudioManager(recorder)
+        repeat(200) { manager.processEvents(listOf(GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, 0, 0)), listOf(view(0, 0, 0))) }
+        assertTrue(recorder.plays.all { it.third in 900..1099 })
     }
 }

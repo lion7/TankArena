@@ -55,6 +55,13 @@ enum class SoundKind {
     BEEP,
     /** Legacy SND_TELEPORT: something went through a warp. */
     TELEPORT,
+    /** Legacy SND_RICOCHETS + rnd(6): a chain-gun round glancing off. */
+    RICOCHET1,
+    RICOCHET2,
+    RICOCHET3,
+    RICOCHET4,
+    RICOCHET5,
+    RICOCHET6,
 }
 
 /**

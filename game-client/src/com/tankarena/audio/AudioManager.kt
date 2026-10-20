@@ -20,8 +20,10 @@ class AudioManager(
     private val backend: AudioBackend,
 ) {
     companion object {
-        private const val MAX_RANGE = 612
-        private const val NEAR_FIELD = 100
+        private const val MAX_RANGE = 612f
+        private const val NEAR_FIELD = 100f
+        /** Legacy create_sound_absolute(): `if (vol > 32)`. */
+        private const val MIN_VOLUME = 32
     }
 
     /** The game options' sound volume (legacy `sound_volume`), 0..255, over every sound. */
@@ -42,9 +44,9 @@ class AudioManager(
      * @param playerViews Per-player views containing camera positions
      */
     fun processEvents(events: List<GameEvent>, playerViews: List<PlayerView>) {
-        // Update player views for distance calculations
         player1View = playerViews.firstOrNull { it.playerId == 0 }
         player2View = playerViews.firstOrNull { it.playerId == 1 }
+        twoPlayers = playerViews.size > 1
 
         for (event in events) {
             if (event is GameEvent.Sound) {
@@ -53,76 +55,37 @@ class AudioManager(
         }
     }
 
-    private fun handleSoundEvent(event: GameEvent.Sound) {
-        val soundX = event.x
-        val soundY = event.y
-
-        // Calculate distances to each player's camera
-        val d1 = if (player1View != null) {
-            distanceToCamera(soundX, soundY, player1View!!)
-        } else {
-            Float.POSITIVE_INFINITY
-        }
-
-        val d2 = if (player2View != null) {
-            distanceToCamera(soundX, soundY, player2View!!)
-        } else {
-            Float.POSITIVE_INFINITY
-        }
-
-        // Use minimum distance for volume calculation
-        val minDistance = minOf(d1, d2)
-        val volume = computeVolume(minDistance)
-
-        // Calculate pan position
-        val cameraX = player1View?.cameraCenterX ?: soundX
-        val pan = computePan(d1, d2, soundX, cameraX)
-
-        // Calculate pitch variation
-        val pitch = computePitch()
-
-        // Convert protocol SoundKind to client SoundKind
-        val clientKind = convertSoundKind(event.kind)
-
-        // Play the sound
-        backend.play(clientKind, volume, pan, pitch)
-    }
+    private var twoPlayers = false
 
     /**
-     * Compute volume based on distance from sound source to listener.
-     * Per legacy formula: full volume at d<100, linear falloff to 0 at d>=612.
+     * Legacy create_sound_absolute() (src/hardware/sound.c): the distance to the player's vehicle
+     * (the nearer of two), at most 612 (also without a vehicle), sets the volume; with two players the
+     * difference pans the sound; quieter than 33 it is not played.
      */
+    private fun handleSoundEvent(event: GameEvent.Sound) {
+        val d1 = distanceToVehicle(event.x, event.y, player1View)
+        val d2 = distanceToVehicle(event.x, event.y, player2View)
+        val volume = computeVolume(if (twoPlayers) minOf(d1, d2) else d1)
+        if (volume <= MIN_VOLUME) return
+        val pan = if (twoPlayers) (-(MAX_RANGE - d1) / 4 + (MAX_RANGE - d2) / 4 + 128).toInt().coerceIn(0, 255) else 128
+        backend.play(convertSoundKind(event.kind), volume, pan, computePitch())
+    }
+
+    /** Legacy: full volume nearer than 100, then (612 - d) / 2. */
     private fun computeVolume(distance: Float): Int {
         if (distance < NEAR_FIELD) return 255
         if (distance >= MAX_RANGE) return 0
         return ((MAX_RANGE - distance) / 2).toInt().coerceIn(0, 255)
     }
 
-    /**
-     * Compute stereo pan position based on distances to two players.
-     * For single player, uses sound position relative to camera center.
-     */
-    private fun computePan(d1: Float, d2: Float, soundX: Int, cameraX: Int): Int {
-        // Legacy create_sound_absolute(): a single player hears every sound in the centre.
-        if (d2 == Float.POSITIVE_INFINITY) return 128
+    /** Legacy `900 + rnd(200)`. */
+    private fun computePitch(): Int = 900 + random.nextInt(200)
 
-
-        // Dual player mode: legacy formula
-        val pan = -(MAX_RANGE - d1) / 4 + (MAX_RANGE - d2) / 4 + 128
-        return pan.toInt().coerceIn(0, 255)
-    }
-
-    /**
-     * Compute pitch variation: 900-1100 range.
-     */
-    private fun computePitch(): Int {
-        return 900 + random.nextInt(201)
-    }
-
-    private fun distanceToCamera(soundX: Int, soundY: Int, view: PlayerView): Float {
-        val dx = (soundX - view.cameraCenterX).toFloat()
-        val dy = (soundY - view.cameraCenterY).toFloat()
-        return kotlin.math.sqrt(dx * dx + dy * dy)
+    private fun distanceToVehicle(soundX: Int, soundY: Int, view: PlayerView?): Float {
+        if (view == null || view.controlledActorId == null) return MAX_RANGE
+        val dx = (soundX - view.viewerX).toFloat()
+        val dy = (soundY - view.viewerY).toFloat()
+        return kotlin.math.sqrt(dx * dx + dy * dy).coerceAtMost(MAX_RANGE)
     }
 
     private fun convertSoundKind(protocolKind: com.tankarena.protocol.snapshot.SoundKind): SoundKind {
@@ -149,6 +112,12 @@ class AudioManager(
             com.tankarena.protocol.snapshot.SoundKind.INCOMING -> SoundKind.INCOMING
             com.tankarena.protocol.snapshot.SoundKind.BEEP -> SoundKind.BEEP
             com.tankarena.protocol.snapshot.SoundKind.TELEPORT -> SoundKind.TELEPORT
+            com.tankarena.protocol.snapshot.SoundKind.RICOCHET1 -> SoundKind.RICOCHET1
+            com.tankarena.protocol.snapshot.SoundKind.RICOCHET2 -> SoundKind.RICOCHET2
+            com.tankarena.protocol.snapshot.SoundKind.RICOCHET3 -> SoundKind.RICOCHET3
+            com.tankarena.protocol.snapshot.SoundKind.RICOCHET4 -> SoundKind.RICOCHET4
+            com.tankarena.protocol.snapshot.SoundKind.RICOCHET5 -> SoundKind.RICOCHET5
+            com.tankarena.protocol.snapshot.SoundKind.RICOCHET6 -> SoundKind.RICOCHET6
         }
     }
 

@@ -117,6 +117,8 @@ internal fun Match.checkProjectileStructureHits() {
             val tileX = Math.floorDiv(x, LEGACY_TILE_SIZE)
             val tileY = Math.floorDiv(y, LEGACY_TILE_SIZE)
             hitStructure(tileX, tileY, layer, kind, projectile.damage, effect, by = projectile.ownerRef)
+            // Legacy hit_wall(): one chain-gun round in ten ricochets off a wall.
+            if (projectile.weaponKind == WEAPON_CHAIN && objectRandom.nextInt(10) == 0) ricochet(x, y)
             // Legacy control_bullets(): a shot (not a flame) that hits a force field still
             // standing bounces off it.
             val bounce = if (projectile.weaponKind != WEAPON_FLAME && structures.isStanding(tileX, tileY)) {
@@ -161,11 +163,23 @@ internal fun Match.checkProjectileVehicleHits() {
                 if (tank.bodyCovers(x, y)) hit = true
             }
             if (hit) {
+                // Legacy hit_obj_for(): one chain-gun round in twenty ricochets off a vehicle.
+                if (projectile.weaponKind == WEAPON_CHAIN && objectRandom.nextInt(20) == 0) ricochet(tank.positionX, tank.positionY)
                 projectile.hitVehicle(tank, x, y)
                 break
             }
         }
     }
+}
+
+/** Legacy SND_RICOCHETS + rnd(6). */
+internal fun Match.ricochet(x: Int, y: Int) {
+    val kinds = listOf(
+        com.tankarena.protocol.snapshot.SoundKind.RICOCHET1, com.tankarena.protocol.snapshot.SoundKind.RICOCHET2,
+        com.tankarena.protocol.snapshot.SoundKind.RICOCHET3, com.tankarena.protocol.snapshot.SoundKind.RICOCHET4,
+        com.tankarena.protocol.snapshot.SoundKind.RICOCHET5, com.tankarena.protocol.snapshot.SoundKind.RICOCHET6,
+    )
+    pendingEvents += GameEvent.Sound(kinds[objectRandom.nextInt(kinds.size)], x, y)
 }
 
 /** The 16-step direction a projectile flies in. */

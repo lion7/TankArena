@@ -53,6 +53,8 @@ enum class SoundKind {
     INCOMING,
     /** Legacy SND_BEEP: a race checkpoint passed. */
     BEEP,
+    /** Legacy SND_TELEPORT: something went through a warp. */
+    TELEPORT,
 }
 
 /**
@@ -95,6 +97,14 @@ enum class EffectKind {
     BLOOD,
     /** EXHAUST2: the smoke trail of a small rocket. */
     EXHAUST,
+    /** EXHAUST1, EXHAUST2: the smoke trail of a guided rocket. */
+    ROCKET_EXHAUST,
+    /** TEL1..6, TEL2..6, TEL3..6: warp sparks (legacy `TELEPORT_SPARK + rnd(3)`). */
+    TELEPORT_SPARK1,
+    TELEPORT_SPARK2,
+    TELEPORT_SPARK3,
+    /** DUST1..3: dust behind a vehicle on bare desert ground. */
+    DUST,
 }
 
 @Serializable

@@ -131,19 +131,12 @@ Open:
   5 → 60 px, each hitting what it reaches for 5 (vehicles above ground including the shooter,
   soldiers, mines, low bombers, trains, bonuses, A-bombs) and the structures under it with five
   explosions around it; the shell's power plays no part.
-- **differs** — rocket target: only live tanks other than the owner; the original takes any object
-  with `r > 0` within 15 px of the marker (`nearest_target`).
-- **missing** — rocket exhaust trail.
-
-## Terrain and structures
-
-Done: material and speed per picture from `src/data/pictures.c`; water (slow, weapons, hidden hull,
-men drown); lava; runways and helipads; rails; bushes; structure strengths for normal, crash and
-flame hits with linked pieces, ruins, the signed goal layer, bonuses and paratroopers from destroyed
-buildings; bridges turning into water; A-bomb boxes; force fields; shelters; night maps.
-
-Open:
-
+- **done** — rocket target (`src/objects/objects.c:189-204`, `rocket.c:32-34`): the nearest object
+  with a radius within 15 px of the marker (the shooter's own vehicle, wrecks, soldiers, bombers,
+  trains, mines, bonuses, A-bombs, flags, products, the zeppelin, rockets); on arrival everything within
+  10 px of it is hit through the shield key, the shooter too; without a target, or out of range, the
+  structure at the target point.
+- **done** — rocket exhaust trail: EXHAUST1/2 11 px behind every 10–29 ticks.
 - **missing** — conveyor belts (`T_LEFT/RIGHT/UP/DOWN`) and rotating platforms (`ROTATE_L/R`)
   moving vehicles (`src/world/transp.c`); only their colour cycling is done.
 - **missing** — debris (`src/world/parts.c`: tank parts, wall parts, pixels, flames). Without it,
@@ -171,9 +164,8 @@ Open:
   180 s limit, −100 when cash or time runs out, the way out (goal `who = 0`) closed while products
   remain, pickup by human vehicles on the ground, the products/time/cash display, product strip and
   message line, no radar and no start shield (2026-10-20).
-- **differs** — warps teleport only live tanks and add a 30-tick cooldown; the original also warps men,
-  B52s, rockets and wrecks, has no cooldown, and shows `TELEPORT_SPARK` with `SND_TELEPORT`
-  (`src/objects/warp.c:28-31`).
+- **done** — warps move vehicles (wrecks too, at any height), soldiers, bombers and rockets within
+  15 px, without a pause, with three sparks and SND_TELEPORT at each end (`src/objects/warp.c`).
 - **done** — placed soldier and bonus objects are skipped with a note: the original refuses such maps.
 - **done** — computer vehicles refire after their imported `computer.fire_delay` (`src/tanks/fire.c:171`).
 - **done** — the radar as `write_radar()` draws it: no cloaked vehicles or wrecks, bombers and trains,

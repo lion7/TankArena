@@ -45,10 +45,13 @@ class PilotAndNightTest {
         // Hold fire and steer the marker east until it locks onto the other player's tank, then let go.
         var incoming = false
         var ticks = 0
+        // The marker starts on the shooter, which is a target too (nearest_target()); steer it off first.
+        val shooter = match.playerTankForTest(0)!!
         do {
             match.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true, turnRight = true)))
             val marker = match.buildPlayerViews().single { it.playerId == 0 }.lockMarker
-        } while (marker?.state != com.tankarena.protocol.snapshot.LockMarkerState.ON_TARGET && ++ticks < 200)
+            val offShooter = shooter.lockX - shooter.positionX > ROCKET_TARGET_RADIUS_PX
+        } while ((!offShooter || marker?.state != com.tankarena.protocol.snapshot.LockMarkerState.ON_TARGET) && ++ticks < 300)
         repeat(3) {
             val frame = match.tick()
             incoming = incoming || frame.events.any { it is GameEvent.Sound && it.kind == SoundKind.INCOMING }

@@ -172,7 +172,6 @@ data class WarpState(
     val targetY: Int = 0,
     val x: Int,
     val y: Int,
-    val cooldownTicks: Int = 0,
 ) : ActorState
 
 @Serializable

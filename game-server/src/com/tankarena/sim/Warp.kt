@@ -4,8 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 /**
- * Teleport warp point. Pairs input and output locations.
- * Radius: 15 pixels. Cooldown prevents teleport loops.
+ * Legacy WARP_TYPE (src/objects/warp.c): whatever comes within 15 px is put down at the exit
+ * ([targetX], [targetY]).
  */
 class Warp internal constructor(state: State) : SceneObject<Warp>, Placed {
 
@@ -13,13 +13,11 @@ class Warp internal constructor(state: State) : SceneObject<Warp>, Placed {
 
     val targetX: Int = state.targetX
     val targetY: Int = state.targetY
-    var cooldownTicks: Int = state.cooldownTicks
 
     override fun save(): State = State(
         body = body,
         targetX = targetX,
         targetY = targetY,
-        cooldownTicks = cooldownTicks,
     )
 
     @kotlinx.serialization.Serializable
@@ -27,7 +25,6 @@ class Warp internal constructor(state: State) : SceneObject<Warp>, Placed {
         @SerialName("body") val body: BoxBody = BoxBody(),
         @SerialName("targetX") val targetX: Int = 0,
         @SerialName("targetY") val targetY: Int = 0,
-        @SerialName("cooldownTicks") val cooldownTicks: Int = 0,
     ) : SceneObject.State<Warp> {
         override fun restore(): Warp = Warp(this)
         override fun serialize(): String = Json.encodeToString(this)

@@ -59,6 +59,12 @@ internal class Soldier(
     /** One shot: where it leaves, in which direction. */
     data class Shot(val x: Int, val y: Int, val direction: Int)
 
+    /** Legacy control_warp(): put down somewhere else. */
+    fun teleportTo(x: Int, y: Int) {
+        exactX = x.toFloat()
+        exactY = y.toFloat()
+    }
+
     /** Legacy control_man(), first half: walk towards the target and face it. */
     fun move() {
         target?.let {

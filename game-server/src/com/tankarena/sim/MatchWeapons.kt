@@ -80,27 +80,38 @@ internal fun Match.flushOutOfBoundsRockets() {
 }
 
 /**
- * Legacy nearest_target(): the closest live tank within 15 px of ([x], [y]), other than
- * [owner]. Turrets have no hit radius in the original, so a rocket cannot lock onto one.
+ * Legacy nearest_target() (src/objects/objects.c): the closest object with a hit radius within
+ * 15 px of ([x], [y]) — any vehicle (the shooter's own and wrecks too), soldier, bomber, train car,
+ * mine, bonus, A-bomb, flag, product, the zeppelin or another rocket. Turrets, warps and goals have
+ * no radius. The rocket follows it until it is gone from the map.
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun Match.rocketTargetAt(x: Int, y: Int, owner: Tank?): RocketTarget? {
-    var best: RocketTarget? = null
-    var bestDistSq = ROCKET_TARGET_RADIUS_PX.toLong() * ROCKET_TARGET_RADIUS_PX
-    for (actor in objects.all) {
-        val (ax, ay, target) = when {
-            actor is Tank && actor !== owner && actor.armor > 0 ->
-                Triple(actor.positionX, actor.positionY, RocketTarget { actor.takeIf { it.armor > 0 }?.let { it.positionX to it.positionY } })
-            else -> continue
-        }
-        val dx = (ax - x).toLong()
-        val dy = (ay - y).toLong()
-        val distSq = dx * dx + dy * dy
-        if (distSq < bestDistSq) {
-            best = target
-            bestDistSq = distSq
+    val candidates = buildList<Triple<Int, Int, RocketTarget>> {
+        fun add(ax: Int, ay: Int, target: RocketTarget) = add(Triple(ax, ay, target))
+        for (tank in allTanks) if (!tank.wreckGone) add(tank.positionX, tank.positionY) { tank.takeIf { !it.wreckGone && it in allTanks }?.let { it.positionX to it.positionY } }
+        for (soldier in soldiers) if (!soldier.removed) add(soldier.x, soldier.y) { soldier.takeIf { !it.removed }?.let { it.x to it.y } }
+        for (b52 in b52s) if (b52.alive) add(b52.positionX, b52.positionY) { b52.takeIf { it.alive }?.let { it.positionX to it.positionY } }
+        for (car in trains) if (car.alive) add(car.positionX, car.positionY) { car.takeIf { it.alive }?.let { it.positionX to it.positionY } }
+        for (bonus in bonuses) if (!bonus.removed) add(bonus.x, bonus.y) { bonus.takeIf { !it.removed }?.let { it.x to it.y } }
+        for (bomb in abombs) if (!bomb.removed) add(bomb.x, bomb.y) { bomb.takeIf { !it.removed }?.let { it.x to it.y } }
+        for (actor in objects.all) {
+            when (actor) {
+                is Mine -> if (!actor.isDead) add(actor.positionX, actor.positionY) { actor.takeIf { !it.isDead }?.let { it.positionX to it.positionY } }
+                is Rocket -> if (!actor.isDead) add(actor.positionX.toInt(), actor.positionY.toInt()) { actor.takeIf { !it.isDead }?.let { it.positionX.toInt() to it.positionY.toInt() } }
+                is Zeppelin -> if (actor.alive) add(actor.positionX, actor.positionY) { actor.takeIf { it.alive }?.let { it.positionX to it.positionY } }
+                is Flag, is Product -> {
+                    val centre = centreOf(actor) ?: continue
+                    if (actor !is Product || !actor.isCollected) add(centre.first, centre.second) { centre.takeIf { actor in objects.all } }
+                }
+                else -> Unit
+            }
         }
     }
-    return best
+    return candidates
+        .filter { (ax, ay) -> withinRadius(ax, ay, x, y, ROCKET_TARGET_RADIUS_PX) }
+        .minByOrNull { (ax, ay) -> (ax - x).toLong() * (ax - x) + (ay - y).toLong() * (ay - y) }
+        ?.third
 }
 
 /** Legacy create_rocket(): the vehicle a rocket is launched at hears it coming. */
@@ -117,26 +128,33 @@ internal fun Match.drainRocketExplosions() {
     val tanks = objects.all.filterIsInstance<Tank>()
     for (actor in objects.all) {
         if (actor !is Rocket) continue
+        actor.drainTrail()?.let { (x, y) -> pendingEvents += GameEvent.Effect(EffectKind.ROCKET_EXHAUST, x, y) }
         val explosion = actor.drainExplosion() ?: continue
-        // Legacy control_rocket(): a rocket without a target hits the structure at the marker.
-        if (actor.target?.position() == null) {
+        pendingEvents += GameEvent.Explosion(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, ExplosionKind.ROCKET)
+        // Legacy control_rocket(): without a target, or out of range, it hits the structure at the
+        // target point (the marker).
+        if (actor.target?.position() == null || !explosion.onTarget) {
             blastStructureAt(explosion.x, explosion.y, actor.damage, EffectKind.LEXPLOSION, by = actor.ownerRef)
-            pendingEvents += GameEvent.Explosion(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, ExplosionKind.ROCKET)
             continue
         }
-        pendingEvents.addAll(AreaDamageResolver.resolve(
-            tanks = tanks,
-            x = explosion.x,
-            y = explosion.y,
-            radius = ROCKET_BLAST_RADIUS_PX,
-            damage = actor.damage,
-            kind = ExplosionKind.ROCKET,
-            falloff = false,
-            owner = actor.ownerRef,
-            ownerImmune = true,
-            unshieldable = true,
-        ))
+        // Otherwise everything within 10 px of the target (or its own radius) is hit — the shooter
+        // too, and through the shield key (HT_ROCKET) — with a big explosion and a bang each.
+        for (tank in tanks) {
+            if ((tank.armor <= 0 && !tank.isWreck) || tank.wreckGone) continue
+            if (!withinRadius(tank.positionX, tank.positionY, explosion.x, explosion.y, maxOf(ROCKET_BLAST_RADIUS_PX, tank.spec.radius))) continue
+            tank.queueUnshieldableDamage(actor.damage)
+            pendingEvents += GameEvent.Effect(EffectKind.LEXPLOSION, explosion.x, explosion.y)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, explosion.x, explosion.y)
+        }
         blastSmallObjects(explosion.x, explosion.y, ROCKET_BLAST_RADIUS_PX, power = actor.damage, rocket = true)
+        // Legacy hit_rocket(): other rockets in the blast are gone.
+        for (other in objects.all.filterIsInstance<Rocket>()) {
+            if (other !== actor && !other.isDead &&
+                withinRadius(other.positionX.toInt(), other.positionY.toInt(), explosion.x, explosion.y, maxOf(ROCKET_BLAST_RADIUS_PX, ROCKET_RADIUS_PX))
+            ) {
+                other.removeQuietly()
+            }
+        }
     }
 }
 

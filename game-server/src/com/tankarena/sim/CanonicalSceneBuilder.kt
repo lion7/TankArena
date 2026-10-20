@@ -434,7 +434,6 @@ object CanonicalSceneBuilder {
                 ),
                 targetX = targetX,
                 targetY = targetY,
-                cooldownTicks = 0,
             ),
         )
 

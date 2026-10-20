@@ -310,7 +310,6 @@ internal fun Match.projectToWireState(actor: SceneObject<*>, id: Long): ActorSta
                 targetY = actor.targetY,
                 x = (position.x + size.width / 2f).toInt(),
                 y = (position.y + size.height / 2f).toInt(),
-                cooldownTicks = actor.cooldownTicks,
             )
         }
 

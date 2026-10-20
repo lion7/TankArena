@@ -65,6 +65,11 @@ private val EFFECT_FRAMES: Map<EffectKind, List<Pair<String, Int>>> = mapOf(
         listOf("SMOKES4" to 50, "SMOKES3" to 50, "SMOKES2" to 50, "SMOKES1" to 50),
     EffectKind.BLOOD to listOf("BLOOD1" to 50, "BLOOD2" to 50, "BLOOD3" to 50),
     EffectKind.EXHAUST to listOf("EXHAUST2" to 25),
+    EffectKind.ROCKET_EXHAUST to listOf("EXHAUST1" to 100, "EXHAUST2" to 25),
+    EffectKind.TELEPORT_SPARK1 to (1..6).map { "TEL$it" to 30 },
+    EffectKind.TELEPORT_SPARK2 to (2..6).map { "TEL$it" to 30 },
+    EffectKind.TELEPORT_SPARK3 to (3..6).map { "TEL$it" to 30 },
+    EffectKind.DUST to listOf("DUST1" to 25, "DUST2" to 25, "DUST3" to 25),
 )
 private const val LOCK_MARKER_ID = Long.MIN_VALUE
 

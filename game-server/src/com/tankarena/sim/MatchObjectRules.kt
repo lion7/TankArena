@@ -8,27 +8,51 @@ import com.tankarena.sim.Match.MissionStatus
 
 // Warps, locks, destroyers and enforcers (src/objects/warp.c, lock.c, destroy.c, enforce.c).
 
+/**
+ * Legacy control_warp() (src/objects/warp.c): every vehicle (wrecks too, at any height), soldier,
+ * bomber and rocket within 15 px of a warp is put down at its exit, with three sparks and the
+ * teleport sound at each end. There is no pause: an exit inside another warp sends it on at once.
+ */
 internal fun Match.stepWarps() {
-    if (missionStatus != MissionStatus.IN_PROGRESS) return
-    val tanks = objects.all.filterIsInstance<Tank>()
     for (warp in objects.all.filterIsInstance<Warp>()) {
-        if (warp.cooldownTicks > 0) {
-            warp.cooldownTicks = warp.cooldownTicks.afterStep()
-            continue
+        val (wx, wy) = centreOf(warp) ?: continue
+        fun warps(x: Int, y: Int) = withinRadius(x, y, wx, wy, WARP_RADIUS_PX)
+        fun sparks(x: Int, y: Int) = repeat(3) {
+            val kind = when (objectRandom.nextInt(3)) {
+                0 -> EffectKind.TELEPORT_SPARK1
+                1 -> EffectKind.TELEPORT_SPARK2
+                else -> EffectKind.TELEPORT_SPARK3
+            }
+            pendingEvents += GameEvent.Effect(kind, x - 7 + objectRandom.nextInt(16), y - 7 + objectRandom.nextInt(16))
         }
-        val size = warp.body.size
-        val pos = warp.body.position
-        val wx = (pos.x + size.width / 2f).toInt()
-        val wy = (pos.y + size.height / 2f).toInt()
-        val warpRadius = 15
-        val trigger = tanks.firstOrNull { tank ->
-            tank.armor > 0 && withinRadius(tank.positionX, tank.positionY, wx, wy, warpRadius)
-        } ?: continue
-        // Teleport tank
-        trigger.teleportTo(warp.targetX, warp.targetY)
-        warp.cooldownTicks = 30 // Prevent teleport loops
+        fun teleport(fromX: Int, fromY: Int, move: () -> Unit) {
+            sparks(fromX, fromY)
+            sparks(warp.targetX, warp.targetY)
+            move()
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.TELEPORT, wx, wy)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.TELEPORT, warp.targetX, warp.targetY)
+        }
+        for (tank in allTanks) {
+            if (!tank.wreckGone && warps(tank.positionX, tank.positionY)) {
+                teleport(tank.positionX, tank.positionY) { tank.teleportTo(warp.targetX, warp.targetY) }
+            }
+        }
+        for (soldier in soldiers) {
+            if (!soldier.removed && warps(soldier.x, soldier.y)) teleport(soldier.x, soldier.y) { soldier.teleportTo(warp.targetX, warp.targetY) }
+        }
+        for (b52 in b52s) {
+            if (b52.alive && warps(b52.positionX, b52.positionY)) {
+                teleport(b52.positionX, b52.positionY) { b52.moveTo(warp.targetX.toFloat(), warp.targetY.toFloat()) }
+            }
+        }
+        for (rocket in objects.all.filterIsInstance<Rocket>()) {
+            val (rx, ry) = rocket.positionX.toInt() to rocket.positionY.toInt()
+            if (!rocket.isDead && warps(rx, ry)) teleport(rx, ry) { rocket.teleportTo(warp.targetX, warp.targetY) }
+        }
     }
 }
+
+private const val WARP_RADIUS_PX = 15
 
 /** Centre of any scene object, for legacy nearest_object(). */
 internal fun Match.centreOf(actor: SceneObject<*>): Pair<Int, Int>? = when (actor) {

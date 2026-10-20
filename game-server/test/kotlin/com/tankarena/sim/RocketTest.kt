@@ -114,6 +114,23 @@ class RocketTest {
     }
 
     /** Hold fire and steer the marker until it is within a few pixels of ([x], [y]), which may move. */
+    @Test
+    fun `a guided rocket leaves a puff of exhaust 11 px behind it, every 10 to 29 ticks`() {
+        val prototype = Match.fromCanonicalMap(twoTankMap())
+        prototype.initialize()
+        prototype.selectWeaponForTest(WEAPON_ROCKET)
+        val victim = prototype.tanksForTest().single { it.playerIndex < 0 }
+        steerMarkerTo(prototype, { victim.positionX }, { victim.positionY })
+        prototype.stepForTest(mapOf(0 to PlayerIntentFrame()))
+        val puffs = mutableListOf<Long>()
+        repeat(60) { step ->
+            val frame = prototype.stepForTest()
+            if (frame.events.any { it is GameEvent.Effect && it.kind == com.tankarena.protocol.snapshot.EffectKind.ROCKET_EXHAUST }) puffs += step.toLong()
+        }
+        assertTrue(puffs.size >= 3, "puffs at steps $puffs")
+        assertTrue(puffs.zipWithNext { a, b -> (b - a) * STEP_TICKS }.all { it in 12..30 }, "puffs at steps $puffs")
+    }
+
     private fun steerMarkerTo(prototype: Match, x: () -> Int, y: () -> Int) {
         val shooter = prototype.playerTankForTest(0)!!
         prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))

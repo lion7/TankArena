@@ -46,7 +46,9 @@ import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
 import com.tankarena.ui.compose.menu.ExtendedHelpScreen
-import com.tankarena.ui.compose.menu.ExtendedMenuScreen
+import com.tankarena.ui.compose.extended.CampaignScreen
+import com.tankarena.ui.compose.extended.ExtendedHomeActions
+import com.tankarena.ui.compose.extended.ExtendedHomeScreen
 import com.tankarena.ui.compose.menu.ExtendedSettingsScreen
 import com.tankarena.ui.compose.menu.RulesetChoiceScreen
 import com.tankarena.ui.compose.DesktopShellScreen
@@ -111,6 +113,8 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
     // Legacy `pl_tanks`: the vehicles last picked on the selection screen.
     var playerTanks by remember { mutableStateOf(listOf(0, 0)) }
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
+    // Extended: the screen a game was started from, shown again when it ends.
+    var extendedReturn by remember { mutableStateOf<DesktopShellScreen?>(null) }
     // Legacy TANK.CFG: the game options, saved whenever they change.
     val settings = remember {
         GameSettings(GameOptionsStore()).also { settings ->
@@ -181,7 +185,8 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                 val atMenu = screen == DesktopShellScreen.MainMenu || screen == DesktopShellScreen.GameModeSelect
                 val shown = when {
                     atMenu && options.ruleset == null -> DesktopShellScreen.RulesetChoice
-                    atMenu && extended -> DesktopShellScreen.ExtendedMenu
+                    // After a game, Extended goes back to where it was started from.
+                    atMenu && extended -> if (screen == DesktopShellScreen.GameModeSelect) extendedReturn ?: DesktopShellScreen.ExtendedMenu else DesktopShellScreen.ExtendedMenu
                     else -> screen
                 }
                 when (val current = shown) {
@@ -221,20 +226,43 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         LaunchedEffect(Unit) {
                             if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
                         }
-                        val play: (GameMode) -> Unit = { mode ->
-                            lastMode = mode
-                            screen = DesktopShellScreen.CodePrompt(mode)
-                        }
-                        ExtendedMenuScreen(
-                            onCampaign = { play(GameMode.SINGLE_PLAYER_VS_COMPUTER) },
-                            onTwoVsComputer = { play(GameMode.DUAL_PLAYER_VS_COMPUTER) },
-                            onPlayerVsPlayer = { play(GameMode.PLAYER_VS_PLAYER) },
-                            onReplays = { screen = DesktopShellScreen.Replays },
-                            onMapEditor = { screen = DesktopShellScreen.EditorOpen },
-                            onSettings = { screen = DesktopShellScreen.ExtendedSettings },
-                            onHelp = { screen = DesktopShellScreen.ExtendedHelp },
-                            onQuit = ::exitApplication,
+                        ExtendedHomeScreen(
+                            ExtendedHomeActions(
+                                campaign = { screen = DesktopShellScreen.Campaign(GameMode.SINGLE_PLAYER_VS_COMPUTER).also { extendedReturn = it } },
+                                localGame = {
+                                    lastMode = GameMode.PLAYER_VS_PLAYER
+                                    screen = DesktopShellScreen.CodePrompt(GameMode.PLAYER_VS_PLAYER)
+                                },
+                                replays = { screen = DesktopShellScreen.Replays },
+                                mapEditor = { screen = DesktopShellScreen.EditorOpen },
+                                settings = { screen = DesktopShellScreen.ExtendedSettings },
+                                help = { screen = DesktopShellScreen.ExtendedHelp },
+                                quit = ::exitApplication,
+                            ),
                         )
+                    }
+
+                    is DesktopShellScreen.Campaign -> {
+                        LaunchedEffect(Unit) {
+                            if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
+                        }
+                        missions?.let { all ->
+                            CampaignScreen(
+                                missions = all,
+                                codes = remember(all, current.mode) { missionGate.listEntries(all, current.mode) },
+                                lastCode = missionGate.currentCode(current.mode),
+                                mode = current.mode,
+                                title = if (current.mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) "Campaign" else "Two against the computer",
+                                onStart = { code ->
+                                    lastMode = current.mode
+                                    screen = missionGate.submit(all, code, current.mode)
+                                },
+                                onBack = {
+                                    extendedReturn = null
+                                    screen = DesktopShellScreen.MainMenu
+                                },
+                            )
+                        }
                     }
 
                     DesktopShellScreen.ExtendedSettings -> ExtendedSettingsScreen(

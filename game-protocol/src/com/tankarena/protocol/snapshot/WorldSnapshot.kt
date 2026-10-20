@@ -54,6 +54,9 @@ data class PlayerView(
     val cameraWidth: Int = 640,
     val cameraHeight: Int = 400,
     val hud: HudState,
+    /** Where the player's vehicle is: the radar's centre (and the listener for sounds). */
+    val viewerX: Int = cameraCenterX,
+    val viewerY: Int = cameraCenterY,
     val radar: List<RadarContact> = emptyList(),
     /** Rocket lock-on marker while it is being steered or just after launch; null otherwise. */
     val lockMarker: LockMarker? = null,
@@ -142,7 +145,13 @@ data class RadarContact(
     val approximateY: Int,
     val kind: RadarContactKind,
     val team: com.tankarena.protocol.Team = com.tankarena.protocol.Team.NEUTRAL,
+    /** The blip's colour for the viewer (legacy write_radar()). */
+    val color: RadarColor = RadarColor.FRIEND,
 )
+
+/** Legacy write_radar() colours: the viewer black, friends white, enemies red, rockets yellow. */
+@Serializable
+enum class RadarColor { SELF, FRIEND, ENEMY, ROCKET }
 
 @Serializable
 enum class RadarContactKind { TANK, TURRET, PROJECTILE, GOAL }

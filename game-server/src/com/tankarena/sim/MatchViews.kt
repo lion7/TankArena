@@ -24,6 +24,7 @@ import com.tankarena.protocol.snapshot.LockMarkerState
 import com.tankarena.protocol.snapshot.MineState
 import com.tankarena.protocol.snapshot.ProjectileKind
 import com.tankarena.protocol.snapshot.ProjectileState
+import com.tankarena.protocol.snapshot.RadarColor
 import com.tankarena.protocol.snapshot.RadarContact
 import com.tankarena.protocol.snapshot.RadarContactKind
 import com.tankarena.protocol.snapshot.TankState
@@ -37,6 +38,11 @@ import kotlin.math.roundToInt
  * Legacy write_radar() (src/game/radar.c): every live tank including the player's own, every
  * turret and every rocket; the client keeps those within 15 tiles of the player.
  */
+/**
+ * Legacy write_radar() (src/game/radar.c): the vehicles (not wrecks, not cloaked ones — the viewer's
+ * own included), bombers, trains, turrets and rockets, coloured for the viewer. The client shows those
+ * within 15 tiles.
+ */
 internal fun Match.buildRadar(
     self: Tank,
     tanks: List<Tank>,
@@ -44,37 +50,42 @@ internal fun Match.buildRadar(
     @Suppress("UNUSED_PARAMETER") goals: List<Goal>,
 ): List<RadarContact> {
     val contacts = mutableListOf<RadarContact>()
-    for (tank in tanks) {
-        if (tank.armor <= 0) continue
-        val id = actorIds[tank] ?: continue
-        contacts += RadarContact(
-            actorId = id,
-            approximateX = tank.positionX,
-            approximateY = tank.positionY,
-            kind = RadarContactKind.TANK,
-            team = tank.team.toProtocolTeam(),
-        )
+    fun add(actor: Any, x: Int, y: Int, kind: RadarContactKind, color: RadarColor) {
+        val id = actorIds[actor] ?: return
+        contacts += RadarContact(actorId = id, approximateX = x, approximateY = y, kind = kind, color = color)
     }
+    val dual = mode == MatchMode.DUAL
+    for (tank in tanks) {
+        if (tank.armor <= 0 || tank.cloaked) continue
+        val color = when {
+            tank === self -> RadarColor.SELF
+            dual -> if (tank.team == self.team) RadarColor.FRIEND else RadarColor.ENEMY
+            tank.computer && tank.team != 0 -> RadarColor.ENEMY
+            else -> RadarColor.FRIEND
+        }
+        add(tank, tank.positionX, tank.positionY, RadarContactKind.TANK, color)
+    }
+    for (b52 in b52s) {
+        if (b52.alive && b52.armor > 0) add(b52, b52.positionX, b52.positionY, RadarContactKind.TANK, RadarColor.ENEMY)
+    }
+    for (car in trains) {
+        if (car.alive) add(car, car.positionX, car.positionY, RadarContactKind.TANK, RadarColor.ENEMY)
+    }
+    // A turret is white when it shoots at the other side than the viewer's.
+    val viewerGood = self.team == 0
     for (turret in turrets) {
         if (!turret.isAlive) continue
-        val id = actorIds[turret] ?: continue
-        contacts += RadarContact(
-            actorId = id,
-            approximateX = turret.positionX,
-            approximateY = turret.positionY,
-            kind = RadarContactKind.TURRET,
-            team = turret.team.toProtocolTeam(),
-        )
+        val friendly = when (turret.shootAt) {
+            1 -> !viewerGood
+            2 -> viewerGood
+            3 -> dual && self.playerIndex == 0
+            4 -> dual && self.playerIndex == 1
+            else -> false
+        }
+        add(turret, turret.positionX, turret.positionY, RadarContactKind.TURRET, if (friendly) RadarColor.FRIEND else RadarColor.ENEMY)
     }
     for (rocket in objects.all.filterIsInstance<Rocket>()) {
-        if (rocket.isDead) continue
-        val id = actorIds[rocket] ?: continue
-        contacts += RadarContact(
-            actorId = id,
-            approximateX = rocket.positionX.toInt(),
-            approximateY = rocket.positionY.toInt(),
-            kind = RadarContactKind.PROJECTILE,
-        )
+        if (!rocket.isDead) add(rocket, rocket.positionX.toInt(), rocket.positionY.toInt(), RadarContactKind.PROJECTILE, RadarColor.ROCKET)
     }
     return contacts
 }

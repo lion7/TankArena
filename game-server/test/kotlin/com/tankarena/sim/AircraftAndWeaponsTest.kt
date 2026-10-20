@@ -212,6 +212,8 @@ class AircraftAndWeaponsTest {
         match.selectWeaponForTest(WEAPON_CLOAK)
         match.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         assertTrue(match.snapshot().actors.filterIsInstance<TankState>().single().cloaked)
+        // Legacy write_radar(): cloaked vehicles are not on the radar, the viewer's own neither.
+        assertTrue(match.buildPlayerViews().single().radar.none { it.color == com.tankarena.protocol.snapshot.RadarColor.SELF })
 
         val normalTop = topSpeed(match, ticks = 300)
         match.selectWeaponForTest(WEAPON_SPEEDUP)

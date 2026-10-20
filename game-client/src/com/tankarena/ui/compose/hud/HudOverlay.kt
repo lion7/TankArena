@@ -19,6 +19,7 @@ import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.HudState
 import com.tankarena.protocol.snapshot.MayhemHud
 import com.tankarena.protocol.snapshot.PlayerView
+import com.tankarena.protocol.snapshot.RadarColor
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.RadarContactKind
 import com.tankarena.render.LegacySpriteCatalog
@@ -319,19 +320,18 @@ private class HudPainter(
     /** Legacy write_radar(): blips for everything within 15 tiles, centred near the bottom-right corner. */
     fun radar(view: PlayerView, width: Float, height: Float) {
         if (!lit) return
-        val self = view.radar.firstOrNull { it.actorId == view.controlledActorId } ?: return
         val centreX = width - RADAR_BLIP - RADAR_RADIUS
         val centreY = height - RADAR_BLIP - RADAR_RADIUS
         val range = RADAR_RANGE_TILES * LEGACY_TILE_SIZE
         for (contact in view.radar) {
-            val dx = contact.approximateX - self.approximateX
-            val dy = contact.approximateY - self.approximateY
+            val dx = contact.approximateX - view.viewerX
+            val dy = contact.approximateY - view.viewerY
             if (dx.toLong() * dx + dy.toLong() * dy >= range.toLong() * range) continue
-            val color = when {
-                contact === self -> RADAR_BLACK
-                contact.kind == RadarContactKind.PROJECTILE -> RADAR_YELLOW
-                contact.team == Team.ENEMY -> RADAR_RED
-                else -> WHITE
+            val color = when (contact.color) {
+                RadarColor.SELF -> RADAR_BLACK
+                RadarColor.ROCKET -> RADAR_YELLOW
+                RadarColor.ENEMY -> RADAR_RED
+                RadarColor.FRIEND -> WHITE
             }
             val origin = point(centreX + dx * RADAR_RADIUS / range.toFloat(), centreY + dy * RADAR_RADIUS / range.toFloat())
             scope.drawRect(color, topLeft = origin, size = Size(RADAR_BLIP * scale, RADAR_BLIP * scale))

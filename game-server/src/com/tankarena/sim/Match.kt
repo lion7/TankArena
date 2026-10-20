@@ -419,6 +419,8 @@ class Match private constructor(
                     // Legacy write_screen(): no radar in supermarket mayhem.
                     radarHidden = mayhem,
                 ),
+                viewerX = tank.positionX,
+                viewerY = tank.positionY,
                 radar = buildRadar(tank, tanks, turrets, goals),
                 lockMarker = lockMarkerFor(tank),
             )

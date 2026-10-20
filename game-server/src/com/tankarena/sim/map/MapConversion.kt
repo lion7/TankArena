@@ -25,7 +25,7 @@ class LoadedMap(val sidecar: MapSceneSidecar, val objects: List<SceneObject<*>>)
 /** Converts between [MapDocument] (the file) and [LoadedMap] (what a match is built from). */
 object MapConversion {
     /** Legacy `mapm.b` read unsigned: 255 is "no bonus". */
-    private const val NO_BONUS = 255
+    internal const val NO_BONUS = 255
     private const val TYPE_PREFIX = "tankArena"
     private val json = Json { ignoreUnknownKeys = true }
 

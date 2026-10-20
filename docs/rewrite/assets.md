@@ -56,7 +56,7 @@ See [ADR 0020](adrs/0020-user-data-as-json.md). Neither original file is in the 
 
 | Original | Why | Needed for |
 |---|---|---|
-| `DATA/MAP_0.DAT` … `MAP_3.DAT` | World templates for new maps in the original editor | Editor parity ("new map from a world") |
+| `DATA/MAP_0.DAT` … `MAP_3.DAT` | The editor's structure library per world (50×50 linked cells) | Copied to `game-content/resources/structures/map_N.dat`; read by `StructureLibrary` |
 | `SETSOUND.DAT`: `BACKGROUND`, `SETUP_PAL`, `TEST_SAMPLE` | Belong to the DOS sound setup program | Nothing (sound setup is not ported; the JDK picks the output) |
 | `Tutorial/` (editor tutorial pages and pictures) | Documentation of the original editor | Possibly the editor's help |
 | `readme.txt`, `cheat.txt`, `*.BAT`, `bat/`, `src/utils/code.dat` | DOS distribution and build files | Nothing at runtime; `cheat.txt` documents the switches to port |
@@ -90,7 +90,6 @@ All converters run through `:tools-mapconv`:
 - Add an `extract-sounds` command (from `SOUND.DAT`) and an `extract-bitmaps` command (from
   `bitmaps.dat`) so that sounds and backgrounds are generated like everything else instead of copied
   from hand extractions.
-- Convert `MAP_0..3.DAT` when the editor gets "new map from a world template".
 - Delete `unpacked/` once nothing refers to it (only the copies above came from it).
 - Rename `TankArenaWorld.NIGHT`: background 3 is the original's fourth world ("MARKET" in the
   editor's menu); night is a separate map flag.

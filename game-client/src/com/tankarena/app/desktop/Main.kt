@@ -531,7 +531,13 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
 
                     DesktopShellScreen.EditorOpen -> EditorOpenScreen(
                         onOpen = { choice -> screen = DesktopShellScreen.Editor(choice) },
+                        onNew = { screen = DesktopShellScreen.EditorNew },
                         onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    DesktopShellScreen.EditorNew -> NewMapScreen(
+                        onCreate = { choice, document -> screen = DesktopShellScreen.Editor(choice, editor = com.tankarena.sim.map.MapEditor(document, unsaved = true)) },
+                        onBack = { screen = DesktopShellScreen.EditorOpen },
                     )
 
                     is DesktopShellScreen.Editor -> EditorScreen(

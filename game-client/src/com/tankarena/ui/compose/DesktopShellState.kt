@@ -90,6 +90,8 @@ sealed interface DesktopShellScreen {
     data class AfterMission(val text: String, val won: Boolean = true) : DesktopShellScreen
     /** The map editor (ADR 0021): choosing a map, then editing it. */
     data object EditorOpen : DesktopShellScreen
+    /** A new map: name, world, size and start. */
+    data object EditorNew : DesktopShellScreen
     data class Editor(
         val map: com.tankarena.app.desktop.EditorMapChoice,
         /** Kept here so that the edits and their undo history outlive a play-test. */

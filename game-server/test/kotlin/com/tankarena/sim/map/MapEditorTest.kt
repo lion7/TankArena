@@ -1,5 +1,8 @@
 package com.tankarena.sim.map
 
+import com.tankarena.content.PictureCatalog
+import com.tankarena.content.StructureLibrary
+import com.tankarena.content.TankArenaWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -55,5 +58,88 @@ class MapEditorTest {
     fun `a picture outside the world's table is refused`() {
         val editor = MapEditor(begin1())
         assertFailsWith<IllegalArgumentException> { editor.paint(MapLayer.FLOOR, 0, 0, editor.pictureCount) }
+    }
+}
+
+class MapEditorLayersTest {
+    private fun newEditor(start: NewMapStart = NewMapStart.EMPTY, world: TankArenaWorld = TankArenaWorld.DESERT) =
+        MapEditor(MapEditor.newDocument("fresh", world, 10, 9, start))
+
+    @Test
+    fun `a new map is rounded to whole blocks of four and can start with a border`() {
+        val editor = newEditor(NewMapStart.BORDER)
+        assertEquals(12 to 12, editor.width to editor.height)
+        val corner = editor.picture(MapLayer.SOLID, 0, 0)
+        assertEquals("BARRIER_TL", PictureCatalog.legacyRow(editor.world, corner)?.type)
+        assertEquals(corner, editor.picture(MapLayer.TOP, 0, 0))
+        assertEquals("BARRIER_B", PictureCatalog.legacyRow(editor.world, editor.picture(MapLayer.SOLID, 5, 11))?.type)
+        assertEquals(-1, editor.picture(MapLayer.SOLID, 5, 5))
+        val big = MapEditor(MapEditor.newDocument("big", TankArenaWorld.DESERT, 400, 400))
+        assertEquals(200 to 200, big.width to big.height)
+    }
+
+    @Test
+    fun `a water start floods the floor, with pits in the city`() {
+        val water = newEditor(NewMapStart.WATER)
+        assertEquals("WATER", PictureCatalog.legacyRow(water.world, water.picture(MapLayer.FLOOR, 3, 3))?.type)
+        val city = newEditor(NewMapStart.WATER, TankArenaWorld.CITY)
+        assertEquals("PIT_C", PictureCatalog.legacyRow(city.world, city.picture(MapLayer.FLOOR, 3, 3))?.type)
+    }
+
+    @Test
+    fun `a structure goes down in one step and remove clears the building before the floor`() {
+        val editor = newEditor()
+        val structure = StructureLibrary.forWorld(editor.world).first { it.width > 1 && it.cells.any { c -> c.pictures[1] >= 0 } }
+        editor.placeStructure(structure, 2, 2)
+        for (cell in structure.cells) for (layer in MapLayer.entries) {
+            val picture = cell.pictures[layer.ordinal]
+            if (picture >= 0) assertEquals(picture, editor.picture(layer, 2 + cell.dx, 2 + cell.dy))
+        }
+        val built = structure.cells.first { it.pictures[1] >= 0 }
+        val (x, y) = 2 + built.dx to 2 + built.dy
+        val floor = editor.picture(MapLayer.FLOOR, x, y)
+        editor.removeAt(x, y)
+        assertEquals(-1, editor.picture(MapLayer.SOLID, x, y))
+        assertEquals(floor, editor.picture(MapLayer.FLOOR, x, y))
+        editor.undo()
+        editor.undo()
+        assertEquals(-1, editor.picture(MapLayer.SOLID, x, y))
+        assertFalse(editor.canUndo)
+    }
+
+    @Test
+    fun `regions fill and clear in one step each`() {
+        val editor = newEditor()
+        val floor = StructureLibrary.forWorld(editor.world).first { it.cells.size == 1 && it.cells[0].pictures[0] >= 0 }
+        editor.fillRegion(floor, 4, 5, 1, 2)
+        assertEquals(floor.cells[0].pictures[0], editor.picture(MapLayer.FLOOR, 3, 4))
+        editor.clearRegion(1, 2, 4, 5)
+        assertEquals(-1, editor.picture(MapLayer.FLOOR, 3, 4))
+        editor.undo()
+        assertEquals(floor.cells[0].pictures[0], editor.picture(MapLayer.FLOOR, 1, 2))
+    }
+
+    @Test
+    fun `goal, bonus and men layers edit like the original and survive saving`() {
+        val editor = newEditor()
+        repeat(11) { editor.changeGoal(1, 1, 10) }
+        assertEquals(100, editor.goal(1, 1))
+        repeat(25) { editor.changeGoal(1, 1, -10) }
+        assertEquals(-100, editor.goal(1, 1))
+        editor.changeGoal(2, 1, 7)
+        editor.setBonus(3, 3, 13)
+        repeat(3) { editor.addMan(4, 4, MenWeapon.CHAIN_GUN) }
+        editor.addMan(4, 4, MenWeapon.FLAME_THROWER)
+        assertEquals(MenWeapon.FLAME_THROWER to 3, editor.men(4, 4), "another kind changes the men, adds none")
+        editor.removeMan(4, 4)
+
+        val reopened = MapEditor(MapFile.read(MapFile.write(editor.toDocument())))
+        assertEquals(-100, reopened.goal(1, 1))
+        assertEquals(7, reopened.goal(2, 1))
+        assertEquals(13, reopened.bonus(3, 3))
+        assertEquals(null, reopened.bonus(3, 4))
+        assertEquals(MenWeapon.FLAME_THROWER to 2, reopened.men(4, 4))
+        editor.undo()
+        assertEquals(MenWeapon.FLAME_THROWER to 3, editor.men(4, 4))
     }
 }

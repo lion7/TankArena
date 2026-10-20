@@ -293,11 +293,10 @@ Missing:
 - Every object type editable with its properties (pads with loadouts, computer tanks with activation,
   attack weights and waypoints, turrets, mines, bonuses, men, trains and wagons, flags, locks, goals,
   warps, destroyers, enforcers, products, B52s).
-- The original's structure library and links (painting single pictures works).
-- Editing the goal, bonus and men layers.
 - Editing the header ("SPECIAL" menu): map type and contents, mission codes, public flag, world,
   day/night, random bonuses; and the mission texts.
-- New map from a world template (`DATA/MAP_0..3.DAT`); whole-map overview.
+- Whole-map overview. (The original's structure-library editor under F12, "not supposed to be used
+  by other people", is left out on purpose: the libraries are shipped as they are.)
 - Validation.
 - `.MAP` export
   ([ADR 0022](adrs/0022-native-map-format.md)).

@@ -111,8 +111,11 @@ Goal: everything the original editor can do, inside the game, plus validation, u
 - [x] Saved maps in the game's map lists (a saved map replaces the shipped one of the same name,
       as saving over a file in the original's `MAPS` did); play-test from the editor (Play or F5) in
       the map's mode, unrecorded, back to the editor with its undo history.
-- [ ] New map from world templates (convert `DATA/MAP_0..3.DAT`) and size; the structure library
-      and links; goal, bonus and men layers.
+- [x] New map ("- NEW MAP -" when opening): name, world, size (blocks of 4, at most 200 × 200
+      cells), empty, barriers all round or all water. The structure library of each world
+      (`DATA/MAP_0..3.DAT` as `structures/map_N.dat`, `StructureLibrary`): place, remove the building
+      or else the floor, Shift-drag fills or clears a region. Goal (±10, Shift ±1), bonus and men
+      layers, drawn on their cells. Tools on keys 1–7; every change can be undone.
 - [ ] Every object type with its properties; links; computer-tank settings and waypoints; pad weapons.
 - [ ] Header and mission texts; export `.MAP` (ADR 0022, option C); validation; overview.
 
@@ -125,7 +128,7 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
 - [x] `Ruleset` (`com.tankarena.sim`): Classic and Extended, a rules version each
       (`GAME_RULES_VERSION`, `EXTENDED_RULES_VERSION`); stored in recordings (old ones read as Classic)
       and in `settings.json`; first-start choice, `--classic` / `--extended`, and "Switch to Classic"
-      in Extended's settings. Named flags come with the first Extended rule change.
+      in Extended's settings. Rule changes are named flags (`RuleFlags`).
 - [x] Extended's own look (dark, sand accent; `ui.compose.extended`), keyboard or mouse: home
       (campaign, local game, network game later, replays, map editor, settings, help, quit).
 - [x] Campaign: the codes reached with each mission's world, size and briefing, a code field, starting
@@ -136,8 +139,6 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
       deleting; the viewer with pause, 1/4×–8× speed and a free camera (C, arrow keys).
 - [x] Settings on one page: controls, window size, gamma, radar, music, sound, match rules, switch to
       Classic. Help: how to play, the keys.
-- [ ] Still in the original's look: the controls setup, the briefing and mission texts, the tank
-      selection and the first-start choice.
 - [x] Extended presentation (each a setting, on by default): the picture fills the window; on a wide
       window the screen grows to up to 1280 legacy pixels across, so the map windows show more of the
       map; smooth motion draws vehicles, shots and the cameras between the 33 steps a second, one step

@@ -35,8 +35,12 @@ import kotlinx.serialization.json.Json
  * 12: the game moves in legacy steps of 3 ticks: timers run out on the first step at or after their
  *     length (turning, refire, lava, shields ...), per-step rules run once per step, the start
  *     shield is 15 blinks after 200 ticks.
+ * 13: the rest of Classic parity (phase 3): the step in game_control()'s order with keys latched
+ *     between steps; wrecks, map wrap, fuel and fire_delay; heavy mines, the growing mortar blast,
+ *     rockets at any object, warps for every kind; conveyors, turntables, burning fuel-dump pieces,
+ *     ground effects; supermarket mayhem; linked goals; cheats.
  */
-const val GAME_RULES_VERSION: Int = 12
+const val GAME_RULES_VERSION: Int = 13
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

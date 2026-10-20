@@ -38,7 +38,12 @@ internal class TankActor(
     private var distanceSinceToggle: Int = 0
 
     /** [ownVehicle]: this viewport's player drives it (legacy `o == game.tk[game.tn]`). */
+    /** Legacy write_objects() draws objects by height, lowest first; things on the ground are at 0. */
+    private var drawHeight: Int = 0
+    override val drawingOrder: Float get() = -drawHeight.toFloat()
+
     fun sync(state: TankState, ownVehicle: Boolean = false) {
+        drawHeight = state.height
         // Legacy write_tank(): a cloaked vehicle is only drawn for its own driver, blinking.
         visible = (!state.cloaked || ownVehicle) && state.cloakFlash
         chopper = state.chopper

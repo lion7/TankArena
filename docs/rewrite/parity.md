@@ -1,7 +1,7 @@
 # Feature Parity
 
 What the rewrite does and does not yet do compared with the original game, checked against the code
-and the C source on 2026-10-19. The original is described in [`docs/game/`](../game/); where that
+and the C source on 2026-10-20 (Classic parity, roadmap phase 3, finished). The original is described in [`docs/game/`](../game/); where that
 text and `src/` disagree, `src/` wins ([ADR 0010](adrs/0010-port-the-original-rules.md)).
 
 **Parity** means: the 69 original maps play as in the original, in every mode, with the original's
@@ -10,24 +10,25 @@ exclusions listed below. Parity is the goal of the **Classic** ruleset; the Exte
 it with named, documented changes ([ADR 0023](adrs/0023-classic-and-extended-rulesets.md)). The order
 of the open work is in the [roadmap](roadmap.md) (phase 3 for rules, phase 4 for the editor).
 
-Legend for the open items: **missing** (not built), **partial** (built, something missing),
-**differs** (built, behaves differently from the original and must be fixed).
+Legend: **done** (matches the original), **missing** (not built), **partial** (built, something
+missing), **differs** (built, behaves differently from the original and must be fixed), **unverified**
+(believed right, not yet compared with the original running).
 
 ## Summary
 
 | Area | State |
 |---|---|
-| Engine, tick, game loop | Done |
-| Vehicles and movement | Done, 4 differences |
-| Weapons | Done except mine and mortar details |
-| Terrain and structures | Done except conveyors, rotating platforms, debris and terrain effects |
-| Map objects | Done except supermarket rules, goal who=3, warp details |
-| Computer AI | Done (port of `computer.c`), one field not imported |
-| Modes | Done except supermarket mayhem |
-| Shell, menus, options | Done except in-game keys, controls setup, command-line switches |
-| Status display, radar, presentation | Done, 2 differences |
-| Audio and music | Done, 3 sound differences |
-| Map editor | Mostly missing |
+| Engine, tick, game loop | Done (legacy step, `game_control()` order); one detail unverified |
+| Vehicles and movement | Done |
+| Weapons | Done |
+| Terrain and structures | Done |
+| Map objects | Done |
+| Computer AI | Done (port of `computer.c`) |
+| Modes | Done, supermarket mayhem included |
+| Shell, menus, options | Done; joysticks in phase 6 |
+| Status display, radar, presentation | Done |
+| Audio and music | Done |
+| Map editor | First version (paint picture layers, undo, save, play-test); the rest is phase 4 |
 | Content and import | Done for the game; editor-only data not converted |
 
 ## Intentional deviations
@@ -88,8 +89,8 @@ Open:
   step), then vehicles on top of each other, then every object's control; shots fired in a step move
   from the next one. Within the objects the rewrite groups by kind instead of the original's list
   order by height.
-- **partial** — draw order: objects are bucketed (below / above the top layer at height 4) rather
-  than sorted by height `h = -4..24` as in `write_objects()`.
+- **done** — draw order: below and above the top layer (height 4) as in `write_objects()`, and within
+  each, vehicles by height, lowest first; effects keep the order they were made in.
 
 ## Vehicles
 
@@ -137,6 +138,16 @@ Open:
   10 px of it is hit through the shield key, the shooter too; without a target, or out of range, the
   structure at the target point.
 - **done** — rocket exhaust trail: EXHAUST1/2 11 px behind every 10–29 ticks.
+
+## Terrain and structures
+
+Done: material and speed per picture from `src/data/pictures.c`; water (slow, weapons, hidden hull,
+men drown); lava; runways and helipads; rails; bushes; structure strengths for normal, crash and
+flame hits with linked pieces, ruins, the signed goal layer, bonuses and paratroopers from destroyed
+buildings; bridges turning into water; A-bomb boxes; force fields; shelters; night maps.
+
+Open:
+
 - **done** — conveyors (`T_LEFT/RIGHT/UP/DOWN`, 60 px/s) and turntables (`ROTATE_L/R`, a turn a second
   around the tile, heading unchanged) carry vehicles and soldiers below height 2; a vehicle that would
   end up in another stays (`src/world/transp.c`). Mines, bonuses and other small objects are not
@@ -150,6 +161,19 @@ Open:
   moving or flying a splash on water, an oil splash on oil, dust on bare desert ground.
 - **done** — plain `BRIDGE` tiles: no picture has that type, so `hit_wall`'s case for it is never
   reached.
+
+## Map objects
+
+Done: goal counter (good/bad, 100 % decides, ignored in player vs player, −100 for the last human
+tank) with contributions from tanks, turrets, locks, destroyers, trains, B52s and the goal layer; goal
+objects for `who` 0–2; flags and flag hunt; locks (all activations and targets); destroyers;
+enforcers; trains with rails, curves, bridges, wagons, the turret wagon and the A-bomb wagon; B52s
+(take-off, salvos, craters, crashes, wrecks); zeppelin movement; soldiers and paratroopers; bonuses;
+authored mines; start pads; turrets (nine kinds, side selection, forbidden directions, barrels,
+falling with their building); computer tanks.
+
+Open:
+
 - **done** — goal `who = 3`: the importer links the goal to its vehicle (WEAPON's five goals).
 - **done** — supermarket mayhem (`src/objects/product.c`, `src/world/status.c:162-232`,
   `src/objects/goal.c:22`, `src/tanks/tank.c:293`): cash 40, price per product, 20 products needed,
@@ -159,6 +183,15 @@ Open:
 - **done** — warps move vehicles (wrecks too, at any height), soldiers, bombers and rockets within
   15 px, without a pause, with three sparks and SND_TELEPORT at each end (`src/objects/warp.c`).
 - **done** — placed soldier and bonus objects are skipped with a note: the original refuses such maps.
+
+## AI
+
+Done: `ComputerTankAi` ports `control_computer_tank()`: activation, target choice weighted by
+`attack_tanks` / `attack_goals`, waypoints, attack waves, dangers, crash panic, fire and speed rules
+([ADR 0012](adrs/0012-port-the-computer-ai.md)).
+
+Open:
+
 - **done** — computer vehicles refire after their imported `computer.fire_delay` (`src/tanks/fire.c:171`).
 - **done** — the radar as `write_radar()` draws it: no cloaked vehicles or wrecks, bombers and trains,
   colours per viewer, turrets by `shootat` (`src/game/radar.c`).
@@ -223,7 +256,7 @@ Open:
 
 - **done** — effects `DUST`, `LAVA_EFFECT`, `SPLASH` on terrain, `TELEPORT_SPARK`, rocket
   `EXHAUST`; dust and oil splashes lie under the vehicles.
-- **done** — radar hidden in supermarket mayhem. **missing** — radar toggle (F12, see shell).
+- **done** — radar hidden in supermarket mayhem; radar toggle (F12).
 
 ## Audio
 
@@ -242,21 +275,21 @@ Open:
 
 Target: an editor screen inside the game, started from the main menu as in the original, that does
 everything the original editor does plus validation, undo and play-test
-([ADR 0021](adrs/0021-editor-in-the-game.md)). There is no editor at the moment: the old
-`:game-editor` (Kubriko's `SceneEditor` on four object types) was deleted on 2026-10-19.
+([ADR 0021](adrs/0021-editor-in-the-game.md)). Built (2026-10-19): open a map from both menus, paint
+the three picture layers with undo, save, play-test. This is roadmap phase 4.
 
 Missing:
 
 - Every object type editable with its properties (pads with loadouts, computer tanks with activation,
   attack weights and waypoints, turrets, mines, bonuses, men, trains and wagons, flags, locks, goals,
   warps, destroyers, enforcers, products, B52s).
-- Painting the base, solid and top layers with the original's structure library and links.
+- The original's structure library and links (painting single pictures works).
 - Editing the goal, bonus and men layers.
 - Editing the header ("SPECIAL" menu): map type and contents, mission codes, public flag, world,
   day/night, random bonuses; and the mission texts.
 - New map from a world template (`DATA/MAP_0..3.DAT`); whole-map overview.
-- Validation, undo, play-testing, and launch from the game's menu.
-- Reading and writing the native map format, with `.MAP` import and export
+- Validation.
+- `.MAP` export
   ([ADR 0022](adrs/0022-native-map-format.md)).
 
 ## Content and import
@@ -275,7 +308,7 @@ Open:
 ## Tooling and delivery
 
 Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
-291 automated tests; recorded-playthrough replays; every map booted in every mode; reference
+322 automated tests; recorded-playthrough replays; every map booted in every mode; reference
 renders; idle scan of every map; tick benchmark; CI on GitHub Actions.
 
 Open: more recordings (BEGIN4, more missions, player vs player) and the other items in the

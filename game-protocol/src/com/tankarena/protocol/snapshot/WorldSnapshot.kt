@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * the snapshot, actor-state, event, or input-frame payloads. Mismatches between client
  * and server versions must fail fast at decode time rather than producing silent drift.
  */
-const val PROTOCOL_VERSION: Int = 8
+const val PROTOCOL_VERSION: Int = 9
 
 /**
  * Full authoritative world snapshot emitted by the server every server tick.

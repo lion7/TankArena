@@ -76,26 +76,27 @@ Goal: one readable file per map, and permanent `.MAP` import and export.
 - [ ] `export` to `.MAP`, round-trip tests through `.MAP`, spot checks in DOSBox — waiting for the
       decision on how to keep the bytes the rewrite does not model (ADR 0022); needed by phase 4.
 
-## Phase 3 — Classic parity (ongoing track)
+## Phase 3 — Classic parity (done 2026-10-20, rules v13)
 
 Goal: Classic matches the original everywhere listed in [parity.md](parity.md). Each item cites the C
 source, gets a test, bumps the Classic rules version when it changes play, and refreshes recordings.
 
-1. ~~**Legacy step:**~~ done 2026-10-19 (rules v12): the game runs one step every third tick, timers
-   run out on steps, per-step rules run once per step ([ADR 0002](adrs/0002-fixed-step-100hz.md)).
-2. **Rule differences:** heavy mines, mine trigger and visibility, mortar blast steps, rocket targets,
-   warps (all object kinds, no cooldown, sparks and sound), respawn leaving the wreck, map wrap, AI
-   `fire_delay` (import it), radar hiding cloaked tanks, F-key mapping in two-vs-computer.
-3. **Missing rules:** supermarket mayhem; goal `who = 3`; conveyors and turntables; debris and
-   fuel-dump flames; terrain effects and their sounds.
-4. **Shell:** ~~remember the last code per mode and the last map across restarts; Classic's
-   known-codes list shows every known code~~ (done 2026-10-19, [ADR 0020](adrs/0020-user-data-as-json.md));
-   in-game keys (pause, F11
-   gamma, F12 radar, screenshot, window size); the original key
-   setup, control modes and joysticks ([ADR 0026](adrs/0026-input-and-gamepads.md)); command-line
-   switches and cheats; Exit confirmation.
+1. [x] **Legacy step** (rules v12): one step every third tick, timers run out on steps, per-step rules
+   once per step, keys latched between steps, the step in `game_control()`'s order
+   ([ADR 0002](adrs/0002-fixed-step-100hz.md)).
+2. [x] **Rule differences:** heavy mines, mine trigger and visibility, the growing mortar blast, rocket
+   targets and exhaust, warps, wrecks and respawns, map wrap, fuel, AI `fire_delay`, the radar,
+   F-keys in two-vs-computer, step order.
+3. [x] **Missing rules:** supermarket mayhem; goal `who = 3`; conveyors and turntables; debris and
+   fuel-dump flames; terrain effects and their sounds; ricochets; sound distance from the vehicle.
+4. [x] **Shell:** known codes and last codes ([ADR 0020](adrs/0020-user-data-as-json.md)); in-game keys
+   (pause, F11 gamma, F12 radar, screenshot, window size); controls setup with RELATIVE/DIRECT modes;
+   command-line cheats and `-CODES`; "EXIT TO DOS? (Y/N)"; the no-vehicle static view.
 
-Depends on: phase 1 for item 1 (cleaner with the new core); the rest can start any time.
+Left, by design or for later phases: joysticks (phase 6, with the gamepad layer); a vehicle pushing
+against another is unverified against footage; developer switches (`-KEYTEST`, `-DEBUG`, `-INFO`,
+`-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`) are not ported. Recordings must be played again under
+rules v13.
 
 ## Phase 4 — In-game editor ([ADR 0021](adrs/0021-editor-in-the-game.md))
 

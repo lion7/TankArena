@@ -1,19 +1,18 @@
 # Tank Arena Rewrite Status
 
-As of **2026-10-19**, branch `rewrite` at `bd6a711` (code) plus the documentation and recordings of
-branch `docs/rewrite-docs`. This page states the current status only and
+As of **2026-10-20**, branch `rewrite`. This page states the current status only and
 points to the documents that hold the detail. It is updated whenever a milestone lands.
 
 ## In one paragraph
 
 The Kotlin rewrite plays all 69 maps of the original release in every mode, with the original's
 rules ported from the C source, its screen layout, pictures, fonts, night lighting, sounds and music,
-and it ships as self-contained Linux and Windows packages. What is left for full parity: most of the map editor
-(painting the picture layers works), supermarket mayhem, conveyors and rotating platforms, debris, terrain
-effects, the original's in-game keys, controls setup and command-line switches, and a list of smaller
-rule differences. Since 2026-10-19 it is plain Kotlin and Compose, with no game engine. All 302
-automated tests pass, including a boot test of
-every map in every mode and eight reference renders; CI is set up on GitHub Actions.
+and it ships as self-contained Linux and Windows packages. Classic parity (roadmap phase 3) was finished on
+2026-10-20: the original's game step and timing, every listed rule difference and missing rule,
+supermarket mayhem, and the shell's keys, controls setup, cheats and exit question. What is left for
+full parity is the map editor (painting the picture layers works) and joysticks. It is plain Kotlin
+and Compose, with no game engine. All 322 automated tests pass, including a boot test of every map
+in every mode and nine reference renders; CI runs on GitHub Actions.
 
 The direction beyond parity was decided on 2026-10-19: plain Kotlin with no Kubriko, a readable
 native map format, the editor inside the game, and two rulesets — **Classic** (the original) and
@@ -25,20 +24,20 @@ choice with a first Extended menu and a replay viewer, and a first version of th
 
 | Area | Status | Detail |
 |---|---|---|
-| Rules: vehicles, weapons, structures, objects, AI | Done, with listed differences | [parity.md](rewrite/parity.md) |
-| Modes: one player, two vs computer, player vs player (deathmatch, flags, race, rounds) | Done; supermarket mayhem partial | [parity.md → Modes](rewrite/parity.md#modes) |
-| Presentation: screen, HUD, radar, night, effects | Done; some effects missing | [ADR 0013](rewrite/adrs/0013-original-presentation.md) |
-| Audio and music | Done; a few sounds missing | [ADR 0018](rewrite/adrs/0018-audio-and-music.md) |
-| Shell: intro, menus, codes, options, help | Done; in-game keys, controls setup, switches missing | [parity.md → Shell](rewrite/parity.md#shell-and-meta-game) |
+| Rules: vehicles, weapons, structures, objects, AI | Done (rules v13); one detail unverified | [parity.md](rewrite/parity.md) |
+| Modes: one player, two vs computer, player vs player (deathmatch, flags, race, rounds), supermarket mayhem | Done | [parity.md → Modes](rewrite/parity.md#modes) |
+| Presentation: screen, HUD, radar, night, effects, debris | Done | [ADR 0013](rewrite/adrs/0013-original-presentation.md) |
+| Audio and music | Done | [ADR 0018](rewrite/adrs/0018-audio-and-music.md) |
+| Shell: intro, menus, codes, options, help, in-game keys, controls setup, cheats | Done; joysticks in phase 6 | [parity.md → Shell](rewrite/parity.md#shell-and-meta-game) |
 | Map editor | Open, paint picture layers, undo, save, play-test; the rest missing | [roadmap phase 4](rewrite/roadmap.md) |
 | Rulesets and Extended menu | Ruleset choice, Extended menu, replay viewer; Extended plays like Classic | [roadmap phase 5](rewrite/roadmap.md) |
 | Assets | All runtime assets converted and bundled | [assets.md](rewrite/assets.md) |
 | Content | 69 maps as `.tamap` (2.3 MB), imported from `.MAP` without notes | [content-format.md](rewrite/content-format.md) |
-| Tests | 302 green (server 225, client 68, content 9); recordings to be played again (rules v12); every map boots; 8 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
+| Tests | 322 green (server 248, client 65, content 9); recordings to be played again (rules v13); every map boots; 9 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
 | Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](rewrite/build.md), [ADR 0017](rewrite/adrs/0017-desktop-packaging.md) |
 | CI | GitHub Actions on every push (green), nightly idle scan and tick benchmark | [testing-strategy.md](rewrite/testing-strategy.md#continuous-integration) |
 
-Versions: `GAME_RULES_VERSION` 12 (Classic), `EXTENDED_RULES_VERSION` 2, `PROTOCOL_VERSION` 8,
+Versions: `GAME_RULES_VERSION` 13 (Classic), `EXTENDED_RULES_VERSION` 3, `PROTOCOL_VERSION` 9,
 `MAP_FORMAT_VERSION` 1.
 
 ## Open decisions
@@ -51,16 +50,15 @@ option C of [ADR 0022](rewrite/adrs/0022-native-map-format.md).
 
 The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
 
-1. **Phase 0, safety net:** done except for recordings: rules v12 (the legacy step) made the six v11
-   recordings obsolete; BEGIN1–4 and more missions and player-vs-player matches need playing.
-2. **Phase 1, plain-Kotlin core:** done on 2026-10-19 — no module uses Kubriko any more, the game
-   draws itself, and every recording and reference render is unchanged
-   ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)).
-3. **Phase 2, native map format:** done except `.MAP` export, which moves to phase 4
-   ([ADR 0022](rewrite/adrs/0022-native-map-format.md)).
-4. **Side by side now:** Classic parity (legacy step and known codes done), the in-game editor (first version done; objects, other layers, header, new maps, export
-   next), and the Extended menu (first version done; campaign list, multiplayer setup, replay
-   management and settings next).
+1. **Phase 0, safety net:** done except for recordings: the rules changed to v13, so BEGIN1–4, more
+   missions and player-vs-player matches need playing (the v11 ones are in `recordings/v11`).
+2. **Phases 1 to 3:** done — plain Kotlin ([ADR 0019](rewrite/adrs/0019-plain-kotlin-no-kubriko.md)),
+   the native map format ([ADR 0022](rewrite/adrs/0022-native-map-format.md); `.MAP` export moves to
+   phase 4) and Classic parity ([parity.md](rewrite/parity.md)).
+3. **Now, side by side:** the in-game editor (phase 4: objects, the other layers, header and texts,
+   new maps, `.MAP` export, validation) and the Extended menu (phase 5: campaign list, multiplayer
+   setup, replay management, settings, a new look, the first Extended rules).
+4. **Then:** input layer, gamepads and four players (phase 6), Android (7), networked play (8).
 
 ## Documents
 

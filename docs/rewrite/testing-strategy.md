@@ -20,7 +20,7 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## What exists (2026-10-19)
 
-`./kotlin test` runs 291 tests, all green: 220 in `:game-server`, 62 in `:game-client`, 9 in
+`./kotlin test` runs 322 tests, all green: 248 in `:game-server`, 65 in `:game-client`, 9 in
 `:game-content`. `:game-protocol` and `:tools-mapconv` have none.
 
 ### Continuous integration
@@ -71,8 +71,8 @@ the identical result; a second test records and replays a scripted BEGIN2 match.
 normal play (the client saves every mission) and are tied to `GAME_RULES_VERSION`
 ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
 
-**No recordings at the moment.** Rules v12 (the legacy step, 2026-10-19) changed how every match
-plays out; the six v11 recordings (BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1 lost) replay to
+**No recordings at the moment.** Rules v12 (the legacy step, 2026-10-19) and v13 (the rest of Classic
+parity, 2026-10-20) changed how every match plays out; the six v11 recordings (BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1 lost) replay to
 different results and were moved to `recordings/v11/`, where only the reference renders use them as
 input. Until new ones are played, the scripted BEGIN2 recording and the replay-client test are the
 only replay checks.

@@ -199,9 +199,8 @@ losers tank option, and the tank selection arena (`SELECT.MAP` running live).
 Open:
 
 - **done** — supermarket mayhem (see map objects).
-- **differs** — F1–F10 in two players vs computer: the rewrite selects for player one without Alt and
-  player two with Alt; the original selects for `id_select = 1` without Alt and 0 with Alt
-  (`src/game/controls.c:38,163-168`).
+- **done** — F1–F10 in two players vs computer select for player two (`id_select = 1`), Alt+F-key
+  for player one (`src/game/controls.c:38,163-168`).
 - **done** — known codes ([ADR 0020](adrs/0020-user-data-as-json.md)): Classic lists every known
   code like the original, Extended only the mode's; the last code per mode and the last
   player-vs-player map are kept in `settings.json` like `TANK.CFG`. Public codes are added on the fly,

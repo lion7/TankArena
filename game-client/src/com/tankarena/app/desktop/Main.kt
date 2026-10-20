@@ -699,9 +699,14 @@ private class DesktopControls {
         val pressed = event.type == KeyEventType.KeyDown
         val tankId = TANK_SELECT_KEYS.indexOf(event.key) + 1
         if (tankId > 0) {
-            // Legacy controls.c: F1–F10 switch player one's tank, Alt+F-key player two's in co-op.
+            // Legacy read_controls(): F1–F10 pick a tank for `game.id[id_select]`. In two players vs
+            // computer `id_select` is 1 (the keypad player) and 0 while Alt is held.
             if (pressed && mode != GameMode.PLAYER_VS_PLAYER) {
-                val player = if (event.isAltPressed && mode == GameMode.DUAL_PLAYER_VS_COMPUTER) 1 else 0
+                val player = when {
+                    mode != GameMode.DUAL_PLAYER_VS_COMPUTER -> 0
+                    event.isAltPressed -> 0
+                    else -> 1
+                }
                 players[player].selectTankId = tankId
             }
             return true

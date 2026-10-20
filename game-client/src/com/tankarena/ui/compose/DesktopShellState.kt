@@ -38,6 +38,9 @@ sealed interface DesktopShellScreen {
 
     data object MainMenu : DesktopShellScreen
 
+    /** Legacy main(): "EXIT TO DOS? (Y/N)" after the main menu is left. */
+    data object ExitConfirm : DesktopShellScreen
+
     /** Legacy game_options(). */
     data object Options : DesktopShellScreen
 

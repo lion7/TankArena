@@ -137,3 +137,33 @@ fun PickListScreen(
         }
     }
 }
+
+/**
+ * Legacy `message()` + `wait_yesno()` (src/game/prompt.c): a question in the message band that only
+ * Y or N answer.
+ */
+@Composable
+fun YesNoScreen(
+    question: String,
+    onYes: () -> Unit,
+    onNo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Mode13View(
+        modifier = modifier,
+        onKey = { event ->
+            when (event.key) {
+                Key.Y -> onYes()
+                Key.N -> onNo()
+                else -> return@Mode13View false
+            }
+            true
+        },
+    ) {
+        val length = question.length * 6
+        panel()
+        addBar((300 - length) / 2, 85, length + 20, 30, LegacyColors.BAR_ADD)
+        writeText((320 - length) / 2, 98, LegacyColors.HIGH, question)
+    }
+}
+

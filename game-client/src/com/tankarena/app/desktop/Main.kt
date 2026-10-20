@@ -71,6 +71,7 @@ import com.tankarena.ui.compose.menu.PickListScreen
 import com.tankarena.ui.compose.menu.PromptBarScreen
 import com.tankarena.ui.compose.menu.TankSelectScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
+import com.tankarena.ui.compose.menu.YesNoScreen
 import com.tankarena.ui.compose.menu.SelectionKey
 import game_client.generated.resources.Res
 import game_client.generated.resources.pic_tankico
@@ -263,12 +264,18 @@ fun main(args: Array<String>) = application {
                         )
                     }
 
+                    DesktopShellScreen.ExitConfirm -> YesNoScreen(
+                        question = "EXIT TO DOS? (Y/N)",
+                        onYes = ::exitApplication,
+                        onNo = { screen = DesktopShellScreen.MainMenu },
+                    )
+
                     DesktopShellScreen.MainMenu -> MainMenuScreen(
                         onStartNewGame = {
                             lastMode = null
                             screen = DesktopShellScreen.GameModeSelect
                         },
-                        onExit = ::exitApplication,
+                        onExit = { screen = DesktopShellScreen.ExitConfirm },
                         onGameOptions = { screen = DesktopShellScreen.Options },
                         onMapEditor = { screen = DesktopShellScreen.EditorOpen },
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },

@@ -200,7 +200,7 @@ Open (in scope by decision of 2026-10-19):
 - **missing** — command-line switches and cheats (`src/game/main.c:52-97`, `cheat.txt`): `-GOD`,
   `-NOFAIL`, `-CODES`, `-UNLOCK`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT`, `-AUTOLOCK`, `-MISSING`,
   `-UNUSED`, `-KEYTEST`, `-DEBUG`, `-INFO` (`-SETUP`/`-SETSOUND` belong to the out-of-scope setup).
-- **missing** — "EXIT TO DOS? (Y/N)" style confirmation on Exit.
+- **done** — "EXIT TO DOS? (Y/N)" after leaving the Classic main menu (Exit or ESC); only Y or N answer.
 - **done** — the main menu's "Map editor" entry opens the in-game editor (2026-10-19).
 
 ## Status display, radar and presentation

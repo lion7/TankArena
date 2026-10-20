@@ -336,9 +336,10 @@ internal fun Match.endMission(won: Boolean, reason: String) {
     }
 }
 
+/** Legacy in_radius(): strictly closer than [radius] (`dx*dx + dy*dy < r*r`). */
 internal fun Match.withinRadius(ax: Int, ay: Int, bx: Int, by: Int, radius: Int): Boolean {
     val dx = (ax - bx).toLong()
     val dy = (ay - by).toLong()
     val r = radius.toLong()
-    return dx * dx + dy * dy <= r * r
+    return dx * dx + dy * dy < r * r
 }

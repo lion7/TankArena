@@ -351,12 +351,12 @@
     "..................................................................................................i2..hQ"
   ],
   "objects": [
-    {"type": "mine", "at": [157, 534], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [325, 573], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [361, 761], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [223, 928], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [91, 951], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [178, 675], "damage": 20, "activationTicksRemaining": 0},
+    {"type": "mine", "at": [157, 534], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [325, 573], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [361, 761], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [223, 928], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [91, 951], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [178, 675], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
     {
       "type": "tank",
       "at": [1394, 1474],

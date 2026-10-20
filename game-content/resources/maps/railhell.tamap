@@ -154,11 +154,11 @@
     "..........................................................hq..........................................hq..............ho..hn..............hq..........n1n6n7n7n8"
   ],
   "objects": [
-    {"type": "mine", "at": [1373, 20], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1437, 20], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1798, 115], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1897, 16], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1996, 379], "damage": 20, "activationTicksRemaining": 0},
+    {"type": "mine", "at": [1373, 20], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1437, 20], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1798, 115], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1897, 16], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1996, 379], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
     {
       "type": "tank",
       "at": [2327, 301],

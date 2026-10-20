@@ -182,7 +182,8 @@ internal class ClientScene(
                 is AbombState -> if (!state.exploding && !state.hidden) {
                     syncObject(objectIds, state.actorId, state.x, state.y, "ABOMB${(4 - state.countdown).coerceIn(1, 4)}")
                 }
-                is MineState -> syncObject(objectIds, state.actorId, state.x, state.y, "MINE")
+                // Legacy write_mine(): only heavy mines show, and not on water.
+                is MineState -> if (state.heavy && !state.hidden) syncObject(objectIds, state.actorId, state.x, state.y, "RMINE")
                 // Legacy write_flag(): a carried flag is not drawn (its carrier shows a flag icon).
                 is FlagState -> if (!state.isCarried) {
                     syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")

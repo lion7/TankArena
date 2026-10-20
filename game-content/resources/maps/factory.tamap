@@ -557,14 +557,14 @@
     {"at": [2, 64], "type": 11, "count": 2}
   ],
   "objects": [
-    {"type": "mine", "at": [2331, 576], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [2264, 609], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1716, 428], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1749, 394], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1783, 430], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1749, 460], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1724, 626], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1896, 114], "damage": 20, "activationTicksRemaining": 0},
+    {"type": "mine", "at": [2331, 576], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [2264, 609], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1716, 428], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1749, 394], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1783, 430], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1749, 460], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1724, 626], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1896, 114], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
     {
       "type": "tank",
       "at": [659, 923],

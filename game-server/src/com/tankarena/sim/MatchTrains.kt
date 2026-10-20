@@ -228,7 +228,7 @@ internal fun Match.trainCollisions(car: Train) {
     }
     for (mine in objects.all) {
         if (mine !is Mine || !mine.isActive) continue
-        val reach = r + MINE_RADIUS_PX
+        val reach = r + mine.triggerReach
         val dx = mine.positionX - car.positionX
         val dy = mine.positionY - car.positionY
         if (dx * dx + dy * dy < reach * reach) mine.detonateOn(null)

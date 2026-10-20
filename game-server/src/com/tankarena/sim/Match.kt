@@ -362,7 +362,7 @@ class Match private constructor(
         ))
     }
 
-    internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int) {
+    internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int, heavy: Boolean = false): Mine {
         val mine = Mine(
             Mine.State(
                 body = PointBody(position = ScenePoint(x.toFloat(), y.toFloat())),
@@ -370,10 +370,12 @@ class Match private constructor(
                 damage = damage,
                 radius = radius,
                 activationTicksRemaining = 0,
+                heavy = heavy,
             ),
         )
         objects.add(listOf(mine))
         actorIds.getOrPut(mine) { nextActorId++ }
+        return mine
     }
 
     fun buildPlayerViews(): List<PlayerView> {

@@ -106,7 +106,7 @@ internal fun Match.rocketTargetAt(x: Int, y: Int, owner: Tank?): RocketTarget? {
 /** Legacy create_rocket(): the vehicle a rocket is launched at hears it coming. */
 internal fun Match.warnIncoming(x: Int, y: Int, owner: Tank?) {
     val target = allTanks
-        .filter { it !== owner && it.armor > 0 && withinRadius(it.positionX, it.positionY, x, y, ROCKET_TARGET_RADIUS_PX - 1) }
+        .filter { it !== owner && it.armor > 0 && withinRadius(it.positionX, it.positionY, x, y, ROCKET_TARGET_RADIUS_PX) }
         .minByOrNull { (it.positionX - x).toLong() * (it.positionX - x) + (it.positionY - y).toLong() * (it.positionY - y) }
         ?: return
     target.showMessage("INCOMING", "MISSILE!")
@@ -280,14 +280,17 @@ internal fun Match.mortarFromRequest(
     return mortar
 }
 
+/**
+ * Legacy check_obj_collide(): a vehicle on or near the ground (height -1..1) whose radius plus the
+ * mine's reach covers an armed mine sets it off — its own layer too.
+ */
 internal fun Match.triggerMineContacts() {
     val mines = objects.all.filterIsInstance<Mine>().filter { it.isActive && !it.isDead }
     if (mines.isEmpty()) return
-    val tanks = objects.all.filterIsInstance<Tank>().filter { it.armor > 0 }
+    val tanks = objects.all.filterIsInstance<Tank>().filter { it.armor > 0 && it.height in -1..1 }
     for (mine in mines) {
-        val triggerRadius = mine.radius + SERVER_TANK_HALF
         val victim = tanks.firstOrNull { tank ->
-            withinRadius(tank.positionX, tank.positionY, mine.positionX, mine.positionY, triggerRadius)
+            withinRadius(tank.positionX, tank.positionY, mine.positionX, mine.positionY, tank.spec.radius + mine.triggerReach)
         } ?: continue
         mine.detonateOn(victim)
     }
@@ -298,6 +301,12 @@ internal fun Match.drainMineDetonations() {
     for (actor in objects.all) {
         if (actor !is Mine) continue
         val det = actor.drainDetonation() ?: continue
+        // Legacy remove_mine(): a big explosion either way.
+        pendingEvents += GameEvent.Effect(EffectKind.LEXPLOSION, det.x, det.y)
+        if (actor.heavy) {
+            fireHeavyMine(det.x, det.y)
+            continue
+        }
         pendingEvents.addAll(AreaDamageResolver.resolve(
             tanks = tanks,
             x = det.x,
@@ -312,6 +321,37 @@ internal fun Match.drainMineDetonations() {
         blastSmallObjects(det.x, det.y, actor.radius, power = actor.damage)
     }
 }
+
+/**
+ * Legacy blowup_mine() for a heavy mine: eight small rockets, one every second direction, at
+ * 200 px/s for 100 px with power 10. They belong to nobody, so they hit anyone.
+ */
+private fun Match.fireHeavyMine(x: Int, y: Int) {
+    val rockets = (0 until 16 step 2).map { direction ->
+        val (fx, fy) = com.tankarena.core.LegacyDirections.unitVector(direction)
+        Projectile(
+            Projectile.State(
+                body = PointBody(position = ScenePoint(x.toFloat(), y.toFloat())),
+                ownerActorId = 0L,
+                damage = HEAVY_MINE_ROCKET_POWER,
+                velocityX = fx * HEAVY_MINE_ROCKET_SPEED,
+                velocityY = fy * HEAVY_MINE_ROCKET_SPEED,
+                ttlTicks = (HEAVY_MINE_ROCKET_RANGE_PX / HEAVY_MINE_ROCKET_SPEED).toInt(),
+                weaponKind = SHOT_SMALL_ROCKET,
+            ),
+        )
+    }
+    objects.add(rockets)
+    for (rocket in rockets) {
+        actorIds.getOrPut(rocket) { nextActorId++ }
+        pendingEvents += GameEvent.Sound(kind = com.tankarena.protocol.snapshot.SoundKind.SROCKET, x = x, y = y)
+    }
+}
+
+private const val HEAVY_MINE_ROCKET_POWER = 10
+/** 200 px/s, in pixels per tick. */
+private const val HEAVY_MINE_ROCKET_SPEED = 2f
+private const val HEAVY_MINE_ROCKET_RANGE_PX = 100f
 
 internal fun Match.removeDeadMines() {
     val doomed = objects.all

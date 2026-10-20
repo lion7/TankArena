@@ -134,6 +134,35 @@ class MineTest {
         )
     }
 
+    @Test
+    fun `a heavy mine fires eight small rockets that belong to nobody`() {
+        val prototype = Match.fromCanonicalMap(soloTankMap(direction = 4))
+        prototype.initialize()
+        val tank = prototype.playerTankForTest(0)!!
+        val mine = prototype.injectArmedMineForTest(x = tank.positionX + 40, y = tank.positionY, damage = 7, radius = LIGHT_MINE_RADIUS_PX, heavy = true)
+        // 40 px is beyond a light mine's reach but within a heavy mine's (radius + 50).
+        prototype.stepForTest()
+        assertTrue(mine.isDead)
+        prototype.stepForTest()
+        val rockets = prototype.objects.all.filterIsInstance<Projectile>().filter { it.weaponKind == SHOT_SMALL_ROCKET }
+        assertEquals(8, rockets.size)
+        assertEquals(8, rockets.map { com.tankarena.core.LegacyDirections.fromAngle((it.velocityX * 100).toInt(), (it.velocityY * 100).toInt()) }.toSet().size)
+        assertTrue(rockets.all { it.ownerRef == null })
+    }
+
+    @Test
+    fun `a light mine goes off only within a vehicle's radius plus 3`() {
+        val prototype = Match.fromCanonicalMap(soloTankMap(direction = 4))
+        prototype.initialize()
+        val tank = prototype.playerTankForTest(0)!!
+        val far = prototype.injectArmedMineForTest(x = tank.positionX + tank.spec.radius + 3, y = tank.positionY, damage = 7, radius = LIGHT_MINE_RADIUS_PX)
+        prototype.stepForTest()
+        assertTrue(!far.isDead, "just out of reach")
+        val near = prototype.injectArmedMineForTest(x = tank.positionX, y = tank.positionY + tank.spec.radius + 2, damage = 7, radius = LIGHT_MINE_RADIUS_PX)
+        prototype.stepForTest()
+        assertTrue(near.isDead)
+    }
+
     private fun canonicalMap(
         widthTiles: Int,
         heightTiles: Int,

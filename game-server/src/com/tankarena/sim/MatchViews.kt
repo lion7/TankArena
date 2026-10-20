@@ -258,6 +258,8 @@ internal fun Match.projectToWireState(actor: SceneObject<*>, id: Long): ActorSta
             x = actor.positionX,
             y = actor.positionY,
             armed = actor.isActive,
+            heavy = actor.heavy,
+            hidden = terrainGrid.at(actor.positionX / LEGACY_TILE_SIZE, actor.positionY / LEGACY_TILE_SIZE).material == TerrainMaterial.WATER,
         )
 
         is Flag -> {

@@ -120,6 +120,10 @@ data class MineState(
     val x: Int,
     val y: Int,
     val armed: Boolean = false,
+    /** Legacy HEAVY_MINE: the only kind drawn in a game (light mines are invisible). */
+    val heavy: Boolean = false,
+    /** Legacy write_mine(): not drawn on water. */
+    val hidden: Boolean = false,
 ) : ActorState
 
 @Serializable

@@ -101,28 +101,28 @@ internal fun Match.controlB52(b52: B52) {
     }
     for (tank in allTanks) {
         if (kotlin.math.abs(tank.height - b52.height) >= 2) continue
-        if (!withinRadius(tank.positionX, tank.positionY, x, y, r + tank.spec.radius - 1)) continue
+        if (!withinRadius(tank.positionX, tank.positionY, x, y, r + tank.spec.radius)) continue
         tank.queueDestroy()
         crash(tank.positionX, tank.positionY)
     }
     if (kotlin.math.abs(1 - b52.height) < 2) {
         for (car in trains) {
-            if (!car.alive || !withinRadius(car.positionX, car.positionY, x, y, r + Train.RADIUS - 1)) continue
+            if (!car.alive || !withinRadius(car.positionX, car.positionY, x, y, r + Train.RADIUS)) continue
             hitTrain(car, StructureGrid.INDESTRUCTIBLE)
             crash(car.positionX, car.positionY)
         }
     }
     for (other in b52s) {
         if (other === b52 || !other.alive || kotlin.math.abs(other.height - b52.height) >= 2) continue
-        if (!withinRadius(other.positionX, other.positionY, x, y, 2 * r - 1)) continue
+        if (!withinRadius(other.positionX, other.positionY, x, y, 2 * r)) continue
         hitB52(other, StructureGrid.INDESTRUCTIBLE)
         crash(other.positionX, other.positionY)
     }
     if (b52.height <= 1) {
-        for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, r + SOLDIER_RADIUS_PX - 1)) removeSoldier(soldier)
+        for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, r + SOLDIER_RADIUS_PX)) removeSoldier(soldier)
         soldiers.removeAll { it.removed }
         for (mine in objects.all) {
-            if (mine is Mine && mine.isActive && withinRadius(mine.positionX, mine.positionY, x, y, r + MINE_RADIUS_PX - 1)) mine.detonateOn(null)
+            if (mine is Mine && mine.isActive && withinRadius(mine.positionX, mine.positionY, x, y, r + mine.triggerReach)) mine.detonateOn(null)
         }
     }
     if (b52.height <= 3) {
@@ -199,16 +199,16 @@ internal fun Match.bombObjects(bomber: B52, x: Int, y: Int): Boolean {
         tank.queueDamage(B52_BOMB_POWER)
         return true
     }
-    for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, SOLDIER_RADIUS_PX - 1)) {
+    for (soldier in soldiers) if (!soldier.removed && withinRadius(soldier.x, soldier.y, x, y, SOLDIER_RADIUS_PX)) {
         hitAt(x, y)
         removeSoldier(soldier)
     }
-    for (bonus in bonuses) if (!bonus.removed && withinRadius(bonus.x, bonus.y, x, y, BONUS_RADIUS_PX - 1)) destroyBonus(bonus)
-    for (car in trains) if (car.alive && withinRadius(car.positionX, car.positionY, x, y, Train.RADIUS - 1)) {
+    for (bonus in bonuses) if (!bonus.removed && withinRadius(bonus.x, bonus.y, x, y, BONUS_RADIUS_PX)) destroyBonus(bonus)
+    for (car in trains) if (car.alive && withinRadius(car.positionX, car.positionY, x, y, Train.RADIUS)) {
         hitAt(x, y)
         hitTrain(car, B52_BOMB_POWER)
     }
-    for (other in b52s) if (other !== bomber && other.alive && other.height < 8 && withinRadius(other.positionX, other.positionY, x, y, B52.RADIUS - 1)) {
+    for (other in b52s) if (other !== bomber && other.alive && other.height < 8 && withinRadius(other.positionX, other.positionY, x, y, B52.RADIUS)) {
         hitAt(x, y)
         hitB52(other, B52_BOMB_POWER)
     }

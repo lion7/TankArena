@@ -122,12 +122,11 @@ flamers and paratroopers; smoke screen; cloak; speed-up; light; all 14 bonuses.
 
 Open:
 
-- **differs** — heavy mines are imported as light mines with damage 20; the original fires 8 small
-  rockets (power 10, range 100) (`src/objects/mine.c`). Map mine power is ignored (fixed 7/20).
-- **differs** — mine trigger: the rewrite uses 30 + 14 px with no height check; the original triggers
-  on contact (`o->r + 3`) when the height difference is below 2 (`src/check/collide.c:36`).
-- **differs** — mine visibility: all mines are drawn; the original draws only heavy mines, and not on
-  water.
+- **done** — heavy mines fire eight small rockets (power 10, 100 px) that belong to nobody; light
+  mines blow up with their imported power (`src/objects/mine.c:12-28`).
+- **done** — mine trigger: a vehicle, train or bomber at height −1..1 whose radius plus 3 (light) or
+  50 (heavy) covers the mine (`src/check/collide.c:25-40`).
+- **done** — mine visibility: only heavy mines are drawn (RMINE), not on water (`src/objects/mine.c:7-10`).
 - **differs** — mortar blast: applied in one tick with a linear falloff; the original grows 5 → 60 px
   in steps of 5 every 3 ticks at power 5 per step (`src/objects/mortar.c`).
 - **differs** — rocket target: only live tanks other than the owner; the original takes any object

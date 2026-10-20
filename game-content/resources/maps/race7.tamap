@@ -415,12 +415,12 @@
     "n6n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n7n8"
   ],
   "objects": [
-    {"type": "mine", "at": [1272, 651], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [274, 49], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [821, 40], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1102, 1001], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1304, 875], "damage": 20, "activationTicksRemaining": 0},
-    {"type": "mine", "at": [1107, 738], "damage": 20, "activationTicksRemaining": 0},
+    {"type": "mine", "at": [1272, 651], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [274, 49], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [821, 40], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1102, 1001], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1304, 875], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
+    {"type": "mine", "at": [1107, 738], "damage": 7, "activationTicksRemaining": 0, "heavy": true},
     {"type": "b52", "at": [59, 802], "size": [32, 32], "x": 75, "y": 818, "heading": 1},
     {"type": "b52", "at": [432, 1057], "size": [32, 32], "x": 448, "y": 1073, "heading": 1},
     {

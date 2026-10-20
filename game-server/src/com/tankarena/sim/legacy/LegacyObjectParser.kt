@@ -195,6 +195,7 @@ internal object LegacyObjectParser {
                 y = y,
                 properties = mapOf(
                     "mineType" to reader.readInt(OFFSET_UNION).toString(),
+                    "minePower" to reader.readInt(OFFSET_UNION + 8).toString(),
                     "goalContribution" to goalContribution.toString(),
                 ),
             )

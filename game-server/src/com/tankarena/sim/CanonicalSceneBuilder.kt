@@ -11,7 +11,6 @@ private const val DEFAULT_ARMOR: Int = Tank.DEFAULT_TANK_ARMOR
 /** `make_player()` in src/objects/player.c gives dual-mode pads four lives. */
 internal const val LEGACY_PAD_LIVES: Int = 4
 private const val LIGHT_MINE_DAMAGE: Int = 7
-private const val HEAVY_MINE_DAMAGE: Int = 20
 
 object CanonicalSceneBuilder {
 
@@ -205,14 +204,16 @@ object CanonicalSceneBuilder {
                 }
 
                 ObjectKinds.MINE -> {
-                    val heavy = props.int("mineType") == 1
+                    // Legacy prepare_mine(): map mines are armed from the start; `mi.power` is the
+                    // light mine's blast (the editor writes 7).
                     sink += Mine(
                         Mine.State(
                             body = PointBody(position = ScenePoint(obj.x.toFloat(), obj.y.toFloat())),
                             ownerActorId = 0L,
-                            damage = if (heavy) HEAVY_MINE_DAMAGE else LIGHT_MINE_DAMAGE,
+                            damage = props.int("minePower") ?: LIGHT_MINE_DAMAGE,
                             radius = LIGHT_MINE_RADIUS_PX,
                             activationTicksRemaining = 0,
+                            heavy = props.int("mineType") == 1,
                         ),
                     )
                 }

@@ -92,12 +92,6 @@ import org.jetbrains.compose.resources.painterResource
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
 
 fun main(args: Array<String>) {
-    // Legacy -CODES: the list of maps and their codes, then the game ends.
-    if (args.any { it.trimStart('-').equals("CODES", ignoreCase = true) }) {
-        val missions = kotlinx.coroutines.runBlocking { MissionCatalog.load(UserMapStore::loadAll) }
-        print(codeList(missions))
-        return
-    }
     val cheats = Cheats.fromArgs(args)
     runGame(args, cheats)
 }
@@ -211,6 +205,8 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         options = options,
                         onChange = settings::update,
                         onLeave = { screen = if (extended) DesktopShellScreen.ExtendedSettings else DesktopShellScreen.MainMenu },
+                        // Classic has no other way to the controls than a command-line switch.
+                        onControls = if (extended) null else ({ screen = DesktopShellScreen.ControlsSetup(next = DesktopShellScreen.Options) }),
                     )
 
                     DesktopShellScreen.RulesetChoice -> RulesetChoiceScreen(

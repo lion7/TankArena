@@ -50,6 +50,10 @@ Decided differences from the original. They are not parity bugs.
   ([ADR 0013](adrs/0013-original-presentation.md)).
 - **Java MIDI synthesizer** instead of a sound card's ([ADR 0018](adrs/0018-audio-and-music.md)).
 - **Only the 69 maps of the original release** ([ADR 0015](adrs/0015-ship-the-original-69-maps.md)).
+- **Controls setup inside the game**, as "Controls setup" in the game options menu (decided 2026-10-20):
+  the original had it only in a separate setup program (`TANK -SETUP`), which nobody starts from a
+  shell today. `-SETUP` still opens it.
+- **No `-CODES`** (decided 2026-10-20): it only printed the map list to the console.
 
 ## Out of scope
 
@@ -138,6 +142,10 @@ Open:
   10 px of it is hit through the shield key, the shooter too; without a target, or out of range, the
   structure at the target point.
 - **done** — rocket exhaust trail: EXHAUST1/2 11 px behind every 10–29 ticks.
+- **done** — a rocket in flight can be destroyed (`determine_hit()`, `rocket.c:40-46`): by a flame
+  within 15 px, a shot within 3 px, a blast (mine, mortar ring, A-bomb, destroyer, another rocket), a
+  bomber's bomb or a burning piece; it goes in a big explosion without damage. Shots, flames, bombs and
+  burning pieces set off mines the same way.
 
 ## Terrain and structures
 
@@ -231,16 +239,17 @@ Open (in scope by decision of 2026-10-19):
   with a "GAMMA CORRECTION / LEVEL n" message, F12 shows or hides the radar, = and - make the window
   bigger and smaller in 5% steps, PrtScr saves `TANK<n>.png` (screenshots folder); window size, radar
   and screenshot number are kept in `settings.json`. Taps shorter than a step count once.
-- **done** — controls setup (legacy setup.c, `TANK -SETUP`, and Extended's Settings → Controls): each
+- **done** — controls setup (legacy setup.c; Classic's game options, Extended's Settings → Controls and
+  `-SETUP`): each
   player's mode (RELATIVE, or DIRECT: the vehicle turns the short way to where the keys point and
   drives forward, the turret with an aim key held) and ten keys; a key given to one slot leaves every
   other; DEL clears; "SAVE SETTINGS? (Y/N)". Kept in `settings.json`. A single player uses player
   two's keys (the grey cursor block, as KEYS.HLP shows; `controls.c` itself defaults to the keypad).
   **moved to phase 6** — joysticks: they come with the gamepad layer (ADR 0026).
 - **done** — command-line cheats `-GOD`, `-NOFAIL`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT` (also spelt
-  `--god` ...; kept in recordings) and `-CODES` (the map and code table, then exit)
-  (`src/game/main.c:52-97`, `cheat.txt`). `-SETUP` opens the controls setup; not ported, as
-  developer tools: `-KEYTEST`, `-DEBUG`, `-INFO`, `-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`.
+  `--god` ...; kept in recordings) (`src/game/main.c:52-97`, `cheat.txt`). `-SETUP` opens the controls
+  setup. Not ported: `-CODES` (see intentional deviations) and the developer tools `-KEYTEST`,
+  `-DEBUG`, `-INFO`, `-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`.
 - **done** — "EXIT TO DOS? (Y/N)" after leaving the Classic main menu (Exit or ESC); only Y or N answer.
 - **done** — the main menu's "Map editor" entry opens the in-game editor (2026-10-19).
 
@@ -308,7 +317,7 @@ Open:
 ## Tooling and delivery
 
 Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
-322 automated tests; recorded-playthrough replays; every map booted in every mode; reference
+324 automated tests; recorded-playthrough replays; every map booted in every mode; reference
 renders; idle scan of every map; tick benchmark; CI on GitHub Actions.
 
 Open: more recordings (BEGIN4, more missions, player vs player) and the other items in the

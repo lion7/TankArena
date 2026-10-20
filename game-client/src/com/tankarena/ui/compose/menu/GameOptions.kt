@@ -139,6 +139,8 @@ data class GameOptions(
     }
 }
 
+private const val CONTROLS_SETUP = "Controls setup"
+
 /**
  * The settings in the user's config directory (`settings.json` next to the known passwords).
  * Like [PasswordStore], IO failures fall back to the defaults or leave the file as it was.
@@ -196,9 +198,14 @@ fun GameOptionsScreen(
     onChange: (GameOptions) -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Not in the original, which set the controls in a separate setup program (TANK -SETUP): an entry
+     * that opens the controls setup, above "Leave this menu".
+     */
+    onControls: (() -> Unit)? = null,
 ) {
     var selected by remember { mutableIntStateOf(0) }
-    val labels = options.labels
+    val labels = if (onControls == null) options.labels else options.labels.dropLast(1) + CONTROLS_SETUP + options.labels.last()
     Mode13View(
         modifier = modifier,
         onKey = { event ->
@@ -212,6 +219,7 @@ fun GameOptionsScreen(
                     3 -> onChange(options.nextGamma())
                     4 -> onChange(options.nextMusicVolume())
                     5 -> onChange(options.nextSoundVolume())
+                    6 -> if (onControls != null) onControls() else onLeave()
                     else -> onLeave()
                 }
                 Key.Escape -> onLeave()

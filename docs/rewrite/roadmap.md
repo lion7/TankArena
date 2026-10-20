@@ -76,7 +76,7 @@ Goal: one readable file per map, and permanent `.MAP` import and export.
 - [ ] `export` to `.MAP`, round-trip tests through `.MAP`, spot checks in DOSBox — waiting for the
       decision on how to keep the bytes the rewrite does not model (ADR 0022); needed by phase 4.
 
-## Phase 3 — Classic parity (done 2026-10-20, rules v13)
+## Phase 3 — Classic parity (done 2026-10-20, rules v14)
 
 Goal: Classic matches the original everywhere listed in [parity.md](parity.md). Each item cites the C
 source, gets a test, bumps the Classic rules version when it changes play, and refreshes recordings.
@@ -96,7 +96,7 @@ source, gets a test, bumps the Classic rules version when it changes play, and r
 Left, by design or for later phases: joysticks (phase 6, with the gamepad layer); a vehicle pushing
 against another is unverified against footage; developer switches (`-KEYTEST`, `-DEBUG`, `-INFO`,
 `-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`) are not ported. Recordings must be played again under
-rules v13.
+rules v14.
 
 ## Phase 4 — In-game editor ([ADR 0021](adrs/0021-editor-in-the-game.md))
 

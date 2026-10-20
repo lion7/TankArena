@@ -20,7 +20,7 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
 
 ## What exists (2026-10-19)
 
-`./kotlin test` runs 322 tests, all green: 248 in `:game-server`, 65 in `:game-client`, 9 in
+`./kotlin test` runs 324 tests, all green: 250 in `:game-server`, 65 in `:game-client`, 9 in
 `:game-content`. `:game-protocol` and `:tools-mapconv` have none.
 
 ### Continuous integration

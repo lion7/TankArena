@@ -175,9 +175,18 @@ class MatchObjectList(initial: List<SceneObject<*>>) {
      * what was queued for it.
      */
     fun step(worldWidthPixels: Int, worldHeightPixels: Int) {
-        val objects = all
-        for (obj in objects) if (obj is Steppable) obj.update(TICK_MILLIS)
-        for (obj in objects) if (obj is Resolvable) obj.applyPendingResolutions(worldWidthPixels, worldHeightPixels)
+        stepWhere { true }
+        resolve(worldWidthPixels, worldHeightPixels)
+    }
+
+    /** Updates the steppable objects that match [which], in list order. */
+    fun stepWhere(which: (SceneObject<*>) -> Boolean) {
+        for (obj in all) if (obj is Steppable && which(obj)) obj.update(TICK_MILLIS)
+    }
+
+    /** Applies what was queued on the objects (damage, pushes) since the last call. */
+    fun resolve(worldWidthPixels: Int, worldHeightPixels: Int) {
+        for (obj in all) if (obj is Resolvable) obj.applyPendingResolutions(worldWidthPixels, worldHeightPixels)
     }
 
     private companion object {

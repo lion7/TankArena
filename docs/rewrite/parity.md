@@ -84,9 +84,10 @@ Open:
   [ADR 0002](adrs/0002-fixed-step-100hz.md#the-originals-game-step-is-not-its-timer-tick).
 - **unverified** — a vehicle pushing against another re-collides once per step, as in the original;
   not compared with footage.
-- **differs** — tick order: the server's pipeline is grouped by concern and does not follow
-  `game_control()`'s `transportation → effects → bullets → parts → overlap → objects` order. Only
-  visible in edge cases (who moves first); revisit if a recorded playthrough disagrees with footage.
+- **done** — step order like `game_control()`: shots move and hit first (their damage counts in the same
+  step), then vehicles on top of each other, then every object's control; shots fired in a step move
+  from the next one. Within the objects the rewrite groups by kind instead of the original's list
+  order by height.
 - **partial** — draw order: objects are bucketed (below / above the top layer at height 4) rather
   than sorted by height `h = -4..24` as in `write_objects()`.
 

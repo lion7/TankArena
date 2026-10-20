@@ -636,12 +636,15 @@ class Tank(state: State) :
     fun powerFor(weapon: Int): Int = power.getOrElse(weapon) { 0 }
 
     /** Map limits for the rocket marker and the player-vs-player rules (legacy `game.mode == DUAL`). */
-    internal fun configureForMatch(maxX: Int, maxY: Int, dual: Boolean, night: Boolean = false) {
+    internal fun configureForMatch(maxX: Int, maxY: Int, dual: Boolean, night: Boolean = false, cheats: Cheats = Cheats()) {
         lockMaxX = maxX
         lockMaxY = maxY
         dualMode = dual
         this.night = night
+        this.cheats = cheats
     }
+
+    private var cheats: Cheats = Cheats()
 
     /** Legacy `und.nw`: the ground under the vehicle at its last step (null at first: NOTHING). */
     private var underground: TerrainTile? = null
@@ -932,7 +935,9 @@ class Tank(state: State) :
         // Legacy hit_tank(): the start shield stops everything while on or above the ground, the
         // shield key everything but rockets.
         var incoming = 0
-        if (invulnerableTicks <= 0 || height < 1) {
+        // Legacy hit_tank() with -GOD: good vehicles take nothing but HT_DESTROY.
+        val god = cheats.god && team == 0
+        if (!god && (invulnerableTicks <= 0 || height < 1)) {
             incoming += pendingRocketProofDamage
             if (!shieldActive) incoming += pendingDamageThisTick
         }
@@ -1102,7 +1107,7 @@ class Tank(state: State) :
         val dy = velocityY * STEP_SECONDS
         var nextX = exactX + dx
         var nextY = exactY + dy
-        if (!computer && (dx != 0f || dy != 0f)) {
+        if (!computer && !cheats.god && (dx != 0f || dy != 0f)) {
             fuelDebt += hypot(dx, dy)
             val whole = fuelDebt.toInt()
             if (whole > 0) {
@@ -1348,15 +1353,19 @@ class Tank(state: State) :
         if (!computer) {
             if (weapon == WEAPON_FLAME) {
                 if (!spec.hasFlamer && ammo[WEAPON_FLAME] <= 0) return
-                if (fuel <= FLAME_FUEL_COST) return
-                fuel -= FLAME_FUEL_COST
+                if (!cheats.loadsOfWeapons) {
+                    if (fuel <= FLAME_FUEL_COST) return
+                    fuel -= FLAME_FUEL_COST
+                }
             } else {
                 if (ammoFor(weapon) <= 0) {
                     pendingEffects += GameEvent.Sound(kind = SoundKind.EMPTY, x = positionX, y = positionY)
                     primaryCooldownTicks = EMPTY_WEAPON_DELAY_TICKS
                     return
                 }
-                ammo[weapon] = (ammo[weapon] - if (weapon == WEAPON_CHAIN) CHAIN_ROUNDS_PER_BURST else 1).coerceAtLeast(0)
+                if (!cheats.loadsOfWeapons) {
+                    ammo[weapon] = (ammo[weapon] - if (weapon == WEAPON_CHAIN) CHAIN_ROUNDS_PER_BURST else 1).coerceAtLeast(0)
+                }
             }
         }
         fireWeapon(weapon)
@@ -1533,7 +1542,7 @@ class Tank(state: State) :
         val nextY = (lockY + lockVelocityY).coerceIn(0, lockMaxY)
         val dx = (nextX - positionX).toLong()
         val dy = (nextY - positionY).toLong()
-        if (dualMode || dx * dx + dy * dy < LOCK_MAX_RANGE_PX.toLong() * LOCK_MAX_RANGE_PX) {
+        if (dualMode || cheats.noLockLimit || dx * dx + dy * dy < LOCK_MAX_RANGE_PX.toLong() * LOCK_MAX_RANGE_PX) {
             lockX = nextX
             lockY = nextY
         } else {

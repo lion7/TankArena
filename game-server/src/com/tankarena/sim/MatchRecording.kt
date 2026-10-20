@@ -52,6 +52,8 @@ data class MatchRecording(
     val rulesVersion: Int = 1,
     /** The ruleset the match was played with; recordings without one are Classic. */
     val ruleset: Ruleset = Ruleset.CLASSIC,
+    /** The command-line cheats it was played with. */
+    val cheats: Cheats = Cheats(),
     /** Shipped scene base name, e.g. `begin1`. */
     val mission: String,
     val mode: MatchMode,
@@ -94,6 +96,7 @@ class MatchRecorder(
     private val mode: MatchMode,
     private val dual: DualSetup? = null,
     private val ruleset: Ruleset = Ruleset.CLASSIC,
+    private val cheats: Cheats = Cheats(),
 ) {
     private val inputs = mutableListOf<RecordedInput>()
     private val lastIntent = mutableMapOf<Int, PlayerIntentFrame>()
@@ -125,6 +128,7 @@ class MatchRecorder(
     fun recording(): MatchRecording = MatchRecording(
         rulesVersion = ruleset.rulesVersion,
         ruleset = ruleset,
+        cheats = cheats,
         mission = mission,
         mode = mode,
         dual = dual,
@@ -141,7 +145,7 @@ object MatchReplay {
      * (null if it did not end within the recorded ticks).
      */
     fun play(recording: MatchRecording, map: MapDocument): RecordedResult? {
-        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual, recording.ruleset)
+        val recorder = MatchRecorder(recording.mission, recording.mode, recording.dual, recording.ruleset, recording.cheats)
         drive(recording, map) { match, tick, world ->
             recorder.recordEvents(match, tick, world.events)
             true
@@ -166,7 +170,7 @@ object MatchReplay {
         map: MapDocument,
         step: (Match, Long, WorldSnapshot) -> Boolean,
     ) {
-        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset)
+        val match = Match.fromMap(map, recording.mode, recording.dual ?: DualSetup(), recording.ruleset, recording.cheats)
         match.initialize()
         try {
             val byTick = recording.inputs.groupBy { it.tick }

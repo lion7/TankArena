@@ -61,6 +61,7 @@ internal fun Match.manageWrecks() {
             maxY = worldHeightPixels - com.tankarena.content.LEGACY_TILE_SIZE,
             dual = mode == MatchMode.DUAL,
             night = mapMetadata.night,
+            cheats = cheats,
         )
         wreck.surroundings = tank.surroundings
         objects.add(listOf(wreck))
@@ -214,6 +215,8 @@ internal fun Match.mayhemHud(): com.tankarena.protocol.snapshot.MayhemHud? =
 
 internal fun Match.modifyGoalCounter(percentage: Int) {
     if (mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) return
+    // Legacy modify_goal_counter() with -NOFAIL: nothing counts against the mission.
+    if (cheats.noFail && percentage < 0) return
     when {
         percentage > 0 -> goalGood = (goalGood + percentage).coerceAtMost(100)
         percentage < 0 -> goalBad = (goalBad - percentage).coerceAtMost(100)

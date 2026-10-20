@@ -35,6 +35,7 @@ import com.tankarena.sim.DualSetup
 import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode
 import com.tankarena.content.GameModeCompatibility
+import com.tankarena.sim.Cheats
 import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
@@ -83,7 +84,18 @@ import org.jetbrains.compose.resources.painterResource
 
 /** `-Dtankarena.debugOverlay=true` draws viewport/camera geometry over the playfield. */
 
-fun main(args: Array<String>) = application {
+fun main(args: Array<String>) {
+    // Legacy -CODES: the list of maps and their codes, then the game ends.
+    if (args.any { it.trimStart('-').equals("CODES", ignoreCase = true) }) {
+        val missions = kotlinx.coroutines.runBlocking { MissionCatalog.load(UserMapStore::loadAll) }
+        print(codeList(missions))
+        return
+    }
+    val cheats = Cheats.fromArgs(args)
+    runGame(args, cheats)
+}
+
+private fun runGame(args: Array<String>, cheats: Cheats) = application {
     val controls = remember { DesktopControls() }
     var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.Intro(IntroStep.LOGO)) }
     // Legacy menu(): the game mode menu opens on its first entry, and keeps the chosen one
@@ -370,6 +382,7 @@ fun main(args: Array<String>) = application {
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
                         ruleset = options.ruleset ?: Ruleset.CLASSIC,
+                        cheats = cheats,
                         dual = current.dual?.let { match ->
                             DualSetup(tankTypes = current.tankTypes, raceLaps = match.options.raceLaps, round = match.round, wins = match.wins)
                         },
@@ -393,6 +406,7 @@ fun main(args: Array<String>) = application {
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
                         ruleset = options.ruleset ?: Ruleset.CLASSIC,
+                        cheats = cheats,
                         dual = if (current.mode == GameMode.PLAYER_VS_PLAYER) DualSetup() else null,
                         record = false,
                         onMissionEnd = {
@@ -450,6 +464,7 @@ private fun GameplayScreen(
     /** The game options' sound volume (legacy `sound_volume`). */
     soundVolume: Int,
     ruleset: Ruleset,
+    cheats: Cheats = Cheats(),
     /** Whether the match is saved as a recording when it ends. */
     record: Boolean = true,
     /** Legacy `win_size` and `show_radar`. */
@@ -466,7 +481,7 @@ private fun GameplayScreen(
     val host = remember(mission.baseName, mode, dual) {
         controls.mode = mode
         controls.exitRequested = false
-        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(), ruleset = ruleset)
+        LocalMatchClient.fromMap(mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(), ruleset = ruleset, cheats = cheats)
     }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }

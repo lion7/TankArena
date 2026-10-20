@@ -90,6 +90,8 @@ class Match private constructor(
     val dual: DualSetup = DualSetup(),
     /** Classic or Extended rules (ADR 0023). */
     val ruleset: Ruleset = Ruleset.CLASSIC,
+    /** The original's command-line cheats. */
+    val cheats: Cheats = Cheats(),
 ) {
 
     internal val worldWidthPixels: Int = mapMetadata.widthTiles * LEGACY_TILE_SIZE
@@ -164,6 +166,7 @@ class Match private constructor(
                 maxY = worldHeightPixels - LEGACY_TILE_SIZE,
                 dual = mode == MatchMode.DUAL,
                 night = mapMetadata.night,
+                cheats = cheats,
             )
             tank.surroundings = tankSurroundings
         }
@@ -590,10 +593,11 @@ class Match private constructor(
             mode: MatchMode = MatchMode.SINGLE,
             startShields: Boolean = false,
             dual: DualSetup = DualSetup(),
+            cheats: Cheats = Cheats(),
         ): Match {
             // Round-trip through scene JSON so fixtures exercise the same load path as shipped scenes.
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map)
-            return create(map.metadata, map.layers, SceneFile.read(sceneJson), mode, startShields, dual)
+            return create(map.metadata, map.layers, SceneFile.read(sceneJson), mode, startShields, dual, cheats = cheats)
         }
 
         /** A match on [map] (a shipped or imported map in the native format, ADR 0022), with fresh objects. */
@@ -602,9 +606,10 @@ class Match private constructor(
             mode: MatchMode = MatchMode.SINGLE,
             dual: DualSetup = DualSetup(),
             ruleset: Ruleset = Ruleset.CLASSIC,
+            cheats: Cheats = Cheats(),
         ): Match {
             val sidecar = MapConversion.sidecarOf(map)
-            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual, ruleset = ruleset)
+            return create(sidecar.metadata, sidecar.tileLayers, MapConversion.objectsOf(map), mode, startShields = true, dual = dual, ruleset = ruleset, cheats = cheats)
         }
 
         private fun create(
@@ -615,6 +620,7 @@ class Match private constructor(
             startShields: Boolean,
             dual: DualSetup = DualSetup(),
             ruleset: Ruleset = Ruleset.CLASSIC,
+            cheats: Cheats = Cheats(),
         ): Match {
             val instance = Match(
                 mapMetadata = metadata,
@@ -626,6 +632,7 @@ class Match private constructor(
                 layers = layers,
                 dual = dual,
                 ruleset = ruleset,
+                cheats = cheats,
             )
             return instance
         }

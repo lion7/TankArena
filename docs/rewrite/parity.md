@@ -197,9 +197,10 @@ Open (in scope by decision of 2026-10-19):
   and screenshot number are kept in `settings.json`. Taps shorter than a step count once.
 - **missing** — controls setup: key remapping, RELATIVE/DIRECT control modes, joysticks/gamepads,
   saved in `settings.json`. Bindings are hard-coded in `KeyBinding` (`game-client/.../Main.kt`).
-- **missing** — command-line switches and cheats (`src/game/main.c:52-97`, `cheat.txt`): `-GOD`,
-  `-NOFAIL`, `-CODES`, `-UNLOCK`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT`, `-AUTOLOCK`, `-MISSING`,
-  `-UNUSED`, `-KEYTEST`, `-DEBUG`, `-INFO` (`-SETUP`/`-SETSOUND` belong to the out-of-scope setup).
+- **done** — command-line cheats `-GOD`, `-NOFAIL`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT` (also spelt
+  `--god` ...; kept in recordings) and `-CODES` (the map and code table, then exit)
+  (`src/game/main.c:52-97`, `cheat.txt`). **missing** — `-SETUP` (see controls setup); not ported, as
+  developer tools: `-KEYTEST`, `-DEBUG`, `-INFO`, `-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`.
 - **done** — "EXIT TO DOS? (Y/N)" after leaving the Classic main menu (Exit or ESC); only Y or N answer.
 - **done** — the main menu's "Map editor" entry opens the in-game editor (2026-10-19).
 

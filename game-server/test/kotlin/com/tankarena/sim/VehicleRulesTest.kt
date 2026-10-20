@@ -67,6 +67,22 @@ class VehicleRulesTest {
     }
 
     @Test
+    fun `-GOD keeps good vehicles whole but for HT_DESTROY, -NOFAIL keeps the mission going`() {
+        val match = start(tileX = 5, cheats = Cheats(god = true, noFail = true))
+        val tank = match.playerTankForTest(0)!!
+        val armor = tank.armor
+        match.queueDamageForTest(0, 20)
+        match.stepForTest()
+        assertEquals(armor, tank.armor)
+        match.modifyGoalCounter(-100)
+        assertEquals(0, match.goalBad)
+        tank.queueDestroy()
+        match.stepForTest()
+        assertEquals(0, tank.armor, "falling or crashing still kills")
+        assertEquals(Cheats(god = true, loadsOfWeapons = true), Cheats.fromArgs(arrayOf("-GOD", "--loadsofweapons", "-bogus")))
+    }
+
+    @Test
     fun `the start shield does not protect below ground`() {
         val match = start(tileX = 5)
         val tank = match.playerTankForTest(0)!!
@@ -81,7 +97,7 @@ class VehicleRulesTest {
         assertEquals(armor - 5, tank.armor, "below ground it does not")
     }
 
-    private fun start(tileX: Int, extraTank: Boolean = false, aiFireDelay: Int? = null, bystander: Boolean = false): Match {
+    private fun start(tileX: Int, extraTank: Boolean = false, aiFireDelay: Int? = null, bystander: Boolean = false, cheats: Cheats = Cheats()): Match {
         val width = 12
         val height = 5
         val cells = width * height
@@ -108,6 +124,7 @@ class VehicleRulesTest {
                 missionText = MissionText(),
                 objects = objects,
             ),
+            cheats = cheats,
         )
         match.initialize()
         return match

@@ -180,7 +180,10 @@ Open:
   code like the original, Extended only the mode's; the last code per mode and the last
   player-vs-player map are kept in `settings.json` like `TANK.CFG`. Public codes are added on the fly,
   not saved (intentional).
-- **unverified** — the static-noise view when a player has no tank (`src/game/mainloop.c`).
+- **done** — the static-noise view when a player has no vehicle (an F-key id without one, or the
+  wreck they looked at blew up): random palette colours 0..15 in 33-px tiles every frame, with the
+  goal counters and the picked id (`src/game/mainloop.c:81-91`); F-keys may pick any id, and in two
+  players vs computer not the other player's.
 
 ## Shell and meta-game
 

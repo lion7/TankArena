@@ -159,6 +159,10 @@ class Match private constructor(
                 tanksByPlayerIndex.putIfAbsent(actor.playerIndex, actor)
             }
         }
+        for ((playerIndex, tank) in tanksByPlayerIndex) {
+            players += playerIndex
+            selectedIds[playerIndex] = tank.controllerId
+        }
         allTanks = objects.all.filterIsInstance<Tank>()
         for (tank in allTanks) {
             tank.configureForMatch(
@@ -333,6 +337,42 @@ class Match private constructor(
 
     internal fun playerTankForTest(playerIndex: Int): Tank? = tanksByPlayerIndex[playerIndex]
 
+    /** The players of this match (legacy `game.tk[]` slots). */
+    internal val players: MutableSet<Int> = sortedSetOf()
+
+    /** Legacy `game.id[]`: the F1–F10 id each player last picked, whether or not a vehicle has it. */
+    internal val selectedIds: MutableMap<Int, Int> = mutableMapOf()
+
+    /** Where each player's window last looked, for when there is no vehicle to follow. */
+    private val lastCameras: MutableMap<Int, Pair<Int, Int>> = mutableMapOf()
+
+    /**
+     * Legacy write_screen() with `game.tk[tn] == NULL`: no vehicle to follow (the window shows static
+     * noise), but the goal counters and the picked id still show.
+     */
+    private fun noVehicleView(playerIndex: Int, statusText: String): PlayerView {
+        val (x, y) = lastCameras[playerIndex] ?: (worldWidthPixels / 2 to worldHeightPixels / 2)
+        return PlayerView(
+            playerId = playerIndex,
+            controlledActorId = null,
+            cameraCenterX = x,
+            cameraCenterY = y,
+            hud = HudState(
+                missionProgress = goalGood,
+                missionProgressBad = goalBad,
+                missionCode = missionCode,
+                statusText = statusText,
+                score = missionScore,
+                kills = missionKills,
+                time = currentTick,
+                tankId = selectedIds[playerIndex] ?: -1,
+                alive = false,
+                mayhem = mayhemHud(),
+                radarHidden = true,
+            ),
+        )
+    }
+
     internal fun tanksForTest(): List<Tank> = allTanks
 
     internal fun trainsForTest(): List<Train> = trains
@@ -424,7 +464,13 @@ class Match private constructor(
             MissionStatus.LOST -> "MISSION_LOST"
         }
         val views = mutableListOf<PlayerView>()
-        for ((playerIndex, tank) in tanksByPlayerIndex) {
+        for (playerIndex in players) {
+            val tank = tanksByPlayerIndex[playerIndex]
+            if (tank == null) {
+                views += noVehicleView(playerIndex, statusText)
+                continue
+            }
+            lastCameras[playerIndex] = tank.positionX to tank.positionY
             val actorId = actorIds[tank]
             views += PlayerView(
                 playerId = playerIndex,

@@ -77,6 +77,8 @@ fun HudOverlay(
     viewTop: Float = 0f,
     /** Legacy `show_radar` (F12). */
     showRadar: Boolean = true,
+    /** No vehicle (legacy `game.tk == NULL`): only the goal counters and the picked id. */
+    goalCountersOnly: Boolean = false,
 ) {
     val sprites = LegacySpriteCatalog.shared
     @Composable
@@ -99,6 +101,15 @@ fun HudOverlay(
         val hud = HudPainter(this, playfield, scale, lit = layer != NightLayer.DARK, dark = layer != NightLayer.LIT)
         val width = playfield.width / scale
         val height = playfield.height / scale
+
+        if (goalCountersOnly) {
+            hud.picture(meters[2], width - 2 * LEGACY_TILE_SIZE, 0f)
+            hud.picture(meters[3], width - LEGACY_TILE_SIZE, 0f)
+            hud.number(width - 59, 7f, hudState.missionProgress)
+            hud.number(width - 38, 7f, hudState.missionProgressBad)
+            hud.number(width - 17, 7f, hudState.tankId.coerceAtLeast(0))
+            return@draw
+        }
 
         hudState.mayhem?.let { mayhem ->
             drawMayhemStatus(hud, mayhem, hudState, products, height)

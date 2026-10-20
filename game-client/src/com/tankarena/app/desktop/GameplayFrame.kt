@@ -94,7 +94,12 @@ internal fun GameplayFrame(
                     modifier = with(screen) { Modifier.legacyBounds(window.left, window.top, window.width, window.height) }
                         .grayscale(lost),
                 ) {
-                    PlayerPane(
+                    if (view.controlledActorId == null) {
+                        // Legacy write_screen(): no vehicle, static; one player and two vs computer
+                        // still show the goal counters and the id.
+                        StaticNoise(playfieldWidth = window.width, modifier = Modifier.fillMaxSize())
+                        if (mode != GameMode.PLAYER_VS_PLAYER) NoVehicleStatus(view, window.width)
+                    } else PlayerPane(
                         mission = mission,
                         serverFrame = serverFrame,
                         playerView = view,

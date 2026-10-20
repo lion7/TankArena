@@ -81,11 +81,14 @@ internal fun Match.manageWrecks() {
         }
         pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, tank.positionX, tank.positionY)
         tank.removeWreck()
-        // A player's own vehicle stays (unseen) for its respawn; other wrecks leave the map.
-        if (tank.playerIndex < 0 && tanksByPlayerIndex.values.none { it === tank }) {
-            objects.remove(listOf(tank))
-            allTanks = allTanks - tank
-        }
+        // A player's own vehicle waits (unseen) for its respawn in player vs player; elsewhere a
+        // player who was looking at the wreck has nothing left to see (static, legacy hit_wreck()).
+        val viewers = tanksByPlayerIndex.filterValues { it === tank }.keys
+        if (mode == MatchMode.DUAL && viewers.isNotEmpty()) continue
+        viewers.forEach { tanksByPlayerIndex.remove(it) }
+        if (tank.playerIndex >= 0) tank.playerIndex = -1
+        objects.remove(listOf(tank))
+        allTanks = allTanks - tank
     }
 }
 
@@ -246,16 +249,29 @@ internal fun Match.handOverDeadPlayers() {
     }
 }
 
-/** Legacy F1–F10 in single / co-operative play. */
+/**
+ * Legacy read_controls() F1–F10 in one player and two players vs computer: the player looks at and
+ * drives the human vehicles with that id (a wreck too). With none, the window shows static. In two
+ * players vs computer an id the other player has picked is refused.
+ */
 internal fun Match.switchToTank(playerIndex: Int, controllerId: Int) {
     if (mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) return
-    val current = tanksByPlayerIndex[playerIndex] ?: return
-    if (current.controllerId == controllerId && current.armor > 0) return
-    val tanks = allTanks
-    val available = tanks.any {
-        it.controllerId == controllerId && it.armor > 0 && it.playerIndex < 0 && !it.computer && it.team == 0
+    if (players.any { it != playerIndex && selectedIds[it] == controllerId }) return
+    val current = tanksByPlayerIndex[playerIndex]
+    if (current != null && current.controllerId == controllerId && current.armor > 0) return
+    selectedIds[playerIndex] = controllerId
+    for (tank in allTanks) {
+        if (tank.playerIndex == playerIndex) tank.playerIndex = -1
     }
-    if (available) transferControl(playerIndex, controllerId, tanks)
+    val group = allTanks.filter { it.controllerId == controllerId && it.playerIndex < 0 && !it.computer && it.team == 0 && !it.wreckGone }
+    group.forEach { it.playerIndex = playerIndex }
+    val primary = group.firstOrNull { it.armor > 0 } ?: group.lastOrNull()
+    if (primary == null) {
+        tanksByPlayerIndex.remove(playerIndex)
+        return
+    }
+    tanksByPlayerIndex[playerIndex] = primary
+    pendingEvents += GameEvent.ControlSwitched(playerIndex, actorIds[primary] ?: 0L)
 }
 
 internal fun Match.transferControl(playerIndex: Int, controllerId: Int, tanks: List<Tank>) {
@@ -266,6 +282,7 @@ internal fun Match.transferControl(playerIndex: Int, controllerId: Int, tanks: L
     group.forEach { it.playerIndex = playerIndex }
     val primary = group.firstOrNull { it.armor > 0 } ?: return
     tanksByPlayerIndex[playerIndex] = primary
+    selectedIds[playerIndex] = controllerId
     pendingEvents += GameEvent.ControlSwitched(playerIndex, actorIds[primary] ?: 0L)
 }
 

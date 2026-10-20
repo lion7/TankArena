@@ -45,12 +45,12 @@ import com.tankarena.ui.compose.menu.ControlAction
 import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
-import com.tankarena.ui.compose.menu.ExtendedHelpScreen
 import com.tankarena.ui.compose.extended.CampaignScreen
 import com.tankarena.ui.compose.extended.ExtendedHomeActions
+import com.tankarena.ui.compose.extended.ExtendedHelpPage
 import com.tankarena.ui.compose.extended.ExtendedHomeScreen
+import com.tankarena.ui.compose.extended.ExtendedSettingsPage
 import com.tankarena.ui.compose.extended.LocalGameScreen
-import com.tankarena.ui.compose.menu.ExtendedSettingsScreen
 import com.tankarena.ui.compose.menu.RulesetChoiceScreen
 import com.tankarena.ui.compose.DesktopShellScreen
 import com.tankarena.ui.compose.GAME_FADE_MILLIS
@@ -290,8 +290,9 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         }
                     }
 
-                    DesktopShellScreen.ExtendedSettings -> ExtendedSettingsScreen(
-                        onGameOptions = { screen = DesktopShellScreen.Options },
+                    DesktopShellScreen.ExtendedSettings -> ExtendedSettingsPage(
+                        options = options,
+                        onChange = settings::update,
                         onControls = { screen = DesktopShellScreen.ControlsSetup(next = DesktopShellScreen.ExtendedSettings) },
                         onClassic = {
                             settings.update(options.copy(ruleset = Ruleset.CLASSIC))
@@ -300,7 +301,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         onBack = { screen = DesktopShellScreen.MainMenu },
                     )
 
-                    DesktopShellScreen.ExtendedHelp -> ExtendedHelpScreen(
+                    DesktopShellScreen.ExtendedHelp -> ExtendedHelpPage(
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
                         onBack = { screen = DesktopShellScreen.MainMenu },

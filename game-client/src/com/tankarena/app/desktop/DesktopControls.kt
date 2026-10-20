@@ -9,6 +9,7 @@ import androidx.compose.ui.input.key.type
 import com.tankarena.input.ControlMapping
 import com.tankarena.input.Gamepads
 import com.tankarena.input.PadReading
+import com.tankarena.input.Seat
 import com.tankarena.ui.compose.menu.ControlDevice
 import com.tankarena.input.Heading
 import com.tankarena.input.InputState
@@ -127,7 +128,14 @@ internal class DesktopControls {
         val steps = MESSAGE_STEPS - ((System.nanoTime() - since) / MESSAGE_STEP_NANOS).toInt()
         return if (steps > 0) shown.copy(steps = steps) else null
     }
-    private val players = List(2) { HeldKeys() }
+    private val players = List(MAX_PLAYERS) { HeldKeys() }
+
+    /**
+     * Who plays with what this session (Extended's join screen, ADR 0026): per player a key set
+     * (index into [settings]) and a pad, either may be missing. Null: the settings decide (Classic).
+     */
+    @Volatile
+    var seats: List<Seat>? = null
 
     /** The players' keys and modes (legacy TANK.CFG), set by the shell. */
     @Volatile
@@ -141,12 +149,17 @@ internal class DesktopControls {
      * Legacy `keys[]`: a single player uses player two's keys (KEYS.HLP: "player two, or player for
      * single player game"); two players have their own.
      */
-    private fun controlsFor(playerId: Int): PlayerControls? = when {
+    private fun controlsFor(playerId: Int): PlayerControls? = seats?.let { seats ->
+        val seat = seats.getOrNull(playerId) ?: return null
+        settings.getOrNull(seat.keys ?: playerId.coerceAtMost(1))
+    } ?: when {
         mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) settings.getOrNull(1) else null
         else -> settings.getOrNull(playerId)
     }
 
     private fun bindingsFor(playerId: Int): List<KeyBinding> {
+        // A seat without keys plays with its pad only.
+        if (seats?.getOrNull(playerId)?.let { it.keys == null } == true) return emptyList()
         val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
         return if (extended && mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(own, KeyBinding.WASD) else listOf(own)
     }
@@ -196,10 +209,14 @@ internal class DesktopControls {
      * The gamepad of a player who steers with a joystick (legacy `key_or_joy`): the pads go, in the
      * order they are numbered, to the players who chose one.
      */
-    private fun padFor(playerId: Int): PadReading? {
+    private fun padFor(playerId: Int): PadReading? = padIndex(playerId)?.let { Gamepads.read().getOrNull(it) }
+
+    /** Which pad a player has: their seat's, or with a JOYSTICK in the settings the next one in order. */
+    fun padIndex(playerId: Int): Int? {
+        seats?.let { return it.getOrNull(playerId)?.pad }
         if (controlsFor(playerId)?.device != ControlDevice.JOYSTICK) return null
-        val joystickPlayers = players.indices.filter { controlsFor(it)?.device == ControlDevice.JOYSTICK }
-        return Gamepads.read().getOrNull(joystickPlayers.indexOf(playerId))
+        val joystickPlayers = (0..1).filter { controlsFor(it)?.device == ControlDevice.JOYSTICK }
+        return joystickPlayers.indexOf(playerId)
     }
 
     /** The player's vehicle's heading for direct steering; null while the rocket marker is out. */
@@ -228,3 +245,6 @@ internal class DesktopControls {
         }
     }
 }
+
+/** Local players at most (ADR 0027: two teams of two). */
+internal const val MAX_PLAYERS = 4

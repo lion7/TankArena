@@ -108,6 +108,8 @@ fun TankSelectScreen(
     keyFor: (Key) -> Pair<Int, SelectionKey>?,
     onChosen: (List<Int>) -> Unit,
     onCancel: () -> Unit,
+    /** The players' gamepads this frame, as moves (polled once a frame). */
+    padActions: () -> List<Pair<Int, SelectionKey>> = { emptyList() },
 ) {
     val allowed = remember(match) { allowedTanks(match.mission.sidecar.metadata.mapContents, match.wins, match.options.losersTank) }
     var chosen by remember(match) { mutableStateOf(autoSelect(initial, allowed)) }
@@ -155,6 +157,29 @@ fun TankSelectScreen(
         return allowed[tank] && (tank != CHOICES - 1 || match.wins[player] < match.wins[player xor 1])
     }
 
+    fun act(player: Int, action: SelectionKey) {
+        if (leaving || confirmed and (1 shl player) != 0) return
+        val tank = chosen[player]
+        val next = when (action) {
+            SelectionKey.UP -> tank - 4
+            SelectionKey.DOWN -> tank + 4
+            SelectionKey.LEFT -> tank - 1
+            SelectionKey.RIGHT -> tank + 1
+            SelectionKey.FIRE -> {
+                if (canConfirm(player)) confirmed = confirmed or (1 shl player)
+                tank
+            }
+        }
+        chosen = chosen.toMutableList().also { it[player] = next.coerceIn(0, CHOICES - 1) }
+    }
+
+    LaunchedEffect(match) {
+        while (true) {
+            val actions = withFrameNanos { padActions() }
+            for ((player, action) in actions) if (player in 0..1) act(player, action)
+        }
+    }
+
     Mode13View(
         brightness = brightness.value,
         onKey = { event ->
@@ -164,20 +189,7 @@ fun TankSelectScreen(
                 Key.Escape -> cancelled = true
                 else -> {
                     val (player, action) = keyFor(event.key) ?: return@Mode13View false
-                    if (confirmed and (1 shl player) == 0) {
-                        val tank = chosen[player]
-                        val next = when (action) {
-                            SelectionKey.UP -> tank - 4
-                            SelectionKey.DOWN -> tank + 4
-                            SelectionKey.LEFT -> tank - 1
-                            SelectionKey.RIGHT -> tank + 1
-                            SelectionKey.FIRE -> {
-                                if (canConfirm(player)) confirmed = confirmed or (1 shl player)
-                                tank
-                            }
-                        }
-                        chosen = chosen.toMutableList().also { it[player] = next.coerceIn(0, CHOICES - 1) }
-                    }
+                    act(player, action)
                 }
             }
             true

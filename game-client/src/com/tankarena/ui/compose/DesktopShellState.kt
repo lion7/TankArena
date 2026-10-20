@@ -106,6 +106,8 @@ sealed interface DesktopShellScreen {
 
     /** Extended: the main menu, shown wherever Classic shows its main or game mode menu. */
     data object ExtendedMenu : DesktopShellScreen
+    /** Extended's "press to join" before a local game; then [next]. */
+    data class Join(val next: DesktopShellScreen, val minPlayers: Int, val maxPlayers: Int) : DesktopShellScreen
 
     /** Extended: two players at one keyboard, together or against each other. */
     data object LocalGame : DesktopShellScreen

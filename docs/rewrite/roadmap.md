@@ -176,8 +176,11 @@ Depends on: phase 1 (renderer for the replay viewer).
 - [x] Gamepads on desktop through Jamepad (SDL2), as the original's joysticks: per player keyboard or
       joystick, four buttons (combinations allowed), sensitivity; Classic's controls setup has a
       joystick page (Tab), Extended's controls page the same rows.
-- [ ] "Press to join"; several pads for more players.
-- Menus fully usable with a gamepad in Extended.
+- [x] "Press to join" (Extended, before a local game when a pad is connected): each player takes
+      the next place with a key set's fire key or a pad's A; the seats hold for the session. The tank
+      selection reads each player's pad.
+- [x] Menus with a gamepad (both rulesets, outside games): stick or D-pad are the arrow keys with
+      repeat, A and START Enter, B and BACK Esc, LB and RB Page Up and Down.
 - Four local players as two teams on existing maps; 2 × 2 split screen; per-team scoring; optional
   extra pads per team in map files.
 

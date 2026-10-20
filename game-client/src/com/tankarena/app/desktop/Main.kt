@@ -30,6 +30,7 @@ import com.tankarena.audio.MusicPlayer
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.TankArenaWorld
 import com.tankarena.core.FixedStepClock
+import com.tankarena.input.GamepadMenuKeys
 import com.tankarena.input.Gamepads
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.ServerFrame
@@ -52,6 +53,7 @@ import com.tankarena.ui.compose.extended.ExtendedHomeActions
 import com.tankarena.ui.compose.extended.ExtendedHomeScreen
 import com.tankarena.ui.compose.extended.ExtendedSettingsPage
 import com.tankarena.ui.compose.extended.ExtendedTextPage
+import com.tankarena.ui.compose.extended.JoinScreen
 import com.tankarena.ui.compose.extended.LocalGameScreen
 import com.tankarena.ui.compose.extended.RulesetChoicePage
 import com.tankarena.ui.compose.gammaCorrection
@@ -166,6 +168,10 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
         exitApplication()
     }
 
+    /** Extended local games ask who plays with what first, when there is a gamepad to choose. */
+    fun joinFirst(next: DesktopShellScreen): DesktopShellScreen =
+        if (Gamepads.read().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = 2)
+
     val windowRef = remember { AtomicReference<java.awt.Window?>(null) }
     Window(
         onCloseRequest = ::exitApplication,
@@ -178,6 +184,18 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
         },
     ) {
         SideEffect { windowRef.set(window) }
+        // Outside a game the gamepads work the menus as the keyboard does (ADR 0026).
+        // The join screen and the tank selection read the pads themselves.
+        val inGame = screen is DesktopShellScreen.Playing || screen is DesktopShellScreen.PlayTest ||
+            screen is DesktopShellScreen.TankSelect || screen is DesktopShellScreen.Join
+        LaunchedEffect(inGame) {
+            if (inGame) return@LaunchedEffect
+            val menuKeys = GamepadMenuKeys()
+            while (true) {
+                val keys = withFrameNanos { now -> menuKeys.step(now, Gamepads.read()) }
+                for (key in keys) pressKey(window, key)
+            }
+        }
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize().gammaCorrection(options.gamma), color = Color.Black) {
                 val atMenu = screen == DesktopShellScreen.MainMenu || screen == DesktopShellScreen.GameModeSelect
@@ -221,6 +239,8 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                     )
 
                     DesktopShellScreen.ExtendedMenu -> {
+                        // Back home: the next game asks again who plays with what.
+                        SideEffect { controls.seats = null }
                         LaunchedEffect(Unit) {
                             if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
                         }
@@ -238,6 +258,19 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         )
                     }
 
+                    is DesktopShellScreen.Join -> JoinScreen(
+                        title = "Who plays?",
+                        minPlayers = current.minPlayers,
+                        maxPlayers = current.maxPlayers,
+                        keySets = options.controls,
+                        readPadButtons = { Gamepads.read().map { it.buttons } },
+                        onStart = { seats ->
+                            controls.seats = seats
+                            screen = current.next
+                        },
+                        onBack = { screen = DesktopShellScreen.LocalGame },
+                    )
+
                     DesktopShellScreen.LocalGame -> {
                         LaunchedEffect(Unit) {
                             if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
@@ -248,10 +281,10 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                                 options = options,
                                 lastMap = missionGate.currentCode(GameMode.PLAYER_VS_PLAYER),
                                 onOptions = settings::update,
-                                onTogether = { screen = DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER) },
+                                onTogether = { screen = joinFirst(DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER)) },
                                 onVersus = { map ->
                                     lastMode = GameMode.PLAYER_VS_PLAYER
-                                    screen = missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER)
+                                    screen = joinFirst(missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER))
                                 },
                                 onBack = {
                                     extendedReturn = null
@@ -457,6 +490,24 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         selectMap = missions.orEmpty().firstOrNull { it.baseName.equals("select", ignoreCase = true) },
                         initial = playerTanks,
                         keyFor = { key -> selectionKeyFor(key, settings.options.controls) },
+                        padActions = remember(current) {
+                            val pads = List(2) { GamepadMenuKeys() }
+                            val actions = mapOf(
+                                java.awt.event.KeyEvent.VK_UP to SelectionKey.UP,
+                                java.awt.event.KeyEvent.VK_DOWN to SelectionKey.DOWN,
+                                java.awt.event.KeyEvent.VK_LEFT to SelectionKey.LEFT,
+                                java.awt.event.KeyEvent.VK_RIGHT to SelectionKey.RIGHT,
+                                java.awt.event.KeyEvent.VK_ENTER to SelectionKey.FIRE,
+                            );
+                            {
+                                val now = System.nanoTime()
+                                val readings = Gamepads.read()
+                                (0..1).flatMap { player ->
+                                    val pad = controls.padIndex(player)?.let(readings::getOrNull) ?: return@flatMap emptyList()
+                                    pads[player].step(now, listOf(pad)).mapNotNull { actions[it] }.map { player to it }
+                                }
+                            }
+                        },
                         onChosen = { types ->
                             playerTanks = types
                             controls.resetAll()
@@ -804,4 +855,13 @@ private fun selectionKeyFor(key: Key, controls: List<PlayerControls>): Pair<Int,
     return null
 }
 
-/** One player's keys, in the order of the legacy setup program's key list; null for an empty slot. */
+/** Posts a key press and release to the window's focused component, as if typed. */
+private fun pressKey(window: java.awt.Window, code: Int) {
+    val target = window.focusOwner ?: window
+    val queue = java.awt.Toolkit.getDefaultToolkit().systemEventQueue
+    val time = System.currentTimeMillis()
+    val char = if (code == java.awt.event.KeyEvent.VK_ENTER) '\n' else java.awt.event.KeyEvent.CHAR_UNDEFINED
+    queue.postEvent(java.awt.event.KeyEvent(target, java.awt.event.KeyEvent.KEY_PRESSED, time, 0, code, char))
+    queue.postEvent(java.awt.event.KeyEvent(target, java.awt.event.KeyEvent.KEY_RELEASED, time, 0, code, char))
+}
+

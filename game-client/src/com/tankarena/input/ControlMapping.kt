@@ -125,3 +125,6 @@ object ControlMapping {
         }
     }
 }
+
+/** One player's devices for a session (ADR 0026): a key set (index into the controls settings) and a pad. */
+data class Seat(val keys: Int?, val pad: Int?)

@@ -198,11 +198,15 @@ Open (in scope by decision of 2026-10-19):
   with a "GAMMA CORRECTION / LEVEL n" message, F12 shows or hides the radar, = and - make the window
   bigger and smaller in 5% steps, PrtScr saves `TANK<n>.png` (screenshots folder); window size, radar
   and screenshot number are kept in `settings.json`. Taps shorter than a step count once.
-- **missing** — controls setup: key remapping, RELATIVE/DIRECT control modes, joysticks/gamepads,
-  saved in `settings.json`. Bindings are hard-coded in `KeyBinding` (`game-client/.../Main.kt`).
+- **done** — controls setup (legacy setup.c, `TANK -SETUP`, and Extended's Settings → Controls): each
+  player's mode (RELATIVE, or DIRECT: the vehicle turns the short way to where the keys point and
+  drives forward, the turret with an aim key held) and ten keys; a key given to one slot leaves every
+  other; DEL clears; "SAVE SETTINGS? (Y/N)". Kept in `settings.json`. A single player uses player
+  two's keys (the grey cursor block, as KEYS.HLP shows; `controls.c` itself defaults to the keypad).
+  **moved to phase 6** — joysticks: they come with the gamepad layer (ADR 0026).
 - **done** — command-line cheats `-GOD`, `-NOFAIL`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT` (also spelt
   `--god` ...; kept in recordings) and `-CODES` (the map and code table, then exit)
-  (`src/game/main.c:52-97`, `cheat.txt`). **missing** — `-SETUP` (see controls setup); not ported, as
+  (`src/game/main.c:52-97`, `cheat.txt`). `-SETUP` opens the controls setup; not ported, as
   developer tools: `-KEYTEST`, `-DEBUG`, `-INFO`, `-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`.
 - **done** — "EXIT TO DOS? (Y/N)" after leaving the Classic main menu (Exit or ESC); only Y or N answer.
 - **done** — the main menu's "Map editor" entry opens the in-game editor (2026-10-19).

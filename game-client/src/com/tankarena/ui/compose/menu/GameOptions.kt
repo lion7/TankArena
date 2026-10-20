@@ -50,6 +50,8 @@ data class GameOptions(
     val windowSize: Int = 0,
     /** Legacy `grab_no`: the number of the next screenshot (PrtScr). */
     val screenshotNumber: Int = 0,
+    /** Legacy `plN_mode` and `keyN_*`: each player's control mode and keys. */
+    val controls: List<PlayerControls> = DEFAULT_CONTROLS,
 ) {
     /** Legacy read_controls(): `=` makes the window bigger, `-` smaller. */
     fun biggerWindow(): GameOptions = copy(windowSize = (windowSize - 1).coerceAtLeast(0))

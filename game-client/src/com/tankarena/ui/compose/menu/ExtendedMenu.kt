@@ -64,6 +64,7 @@ fun ExtendedMenuScreen(
 @Composable
 fun ExtendedSettingsScreen(
     onGameOptions: () -> Unit,
+    onControls: () -> Unit,
     onClassic: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -72,6 +73,7 @@ fun ExtendedSettingsScreen(
         title = "SETTINGS",
         items = listOf(
             RetroMenuItem(label = "Game options", onActivate = onGameOptions),
+            RetroMenuItem(label = "Controls", onActivate = onControls),
             RetroMenuItem(label = "Switch to Classic", onActivate = onClassic),
             RetroMenuItem(label = "Back", onActivate = onBack),
         ),

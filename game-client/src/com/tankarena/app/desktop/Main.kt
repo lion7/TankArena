@@ -36,6 +36,12 @@ import com.tankarena.sim.LocalMatchClient
 import com.tankarena.sim.MatchMode
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.sim.Cheats
+import com.tankarena.protocol.snapshot.TankState
+import com.tankarena.protocol.snapshot.LockMarkerState
+import com.tankarena.ui.compose.menu.PlayerControls
+import com.tankarena.ui.compose.menu.DEFAULT_CONTROLS
+import com.tankarena.ui.compose.menu.ControlMode
+import com.tankarena.ui.compose.menu.ControlAction
 import com.tankarena.sim.MatchRecording
 import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
@@ -72,6 +78,7 @@ import com.tankarena.ui.compose.menu.PickListScreen
 import com.tankarena.ui.compose.menu.PromptBarScreen
 import com.tankarena.ui.compose.menu.TankSelectScreen
 import com.tankarena.ui.compose.menu.TextViewerScreen
+import com.tankarena.ui.compose.menu.ControlsSetupScreen
 import com.tankarena.ui.compose.menu.YesNoScreen
 import com.tankarena.ui.compose.menu.SelectionKey
 import game_client.generated.resources.Res
@@ -97,7 +104,13 @@ fun main(args: Array<String>) {
 
 private fun runGame(args: Array<String>, cheats: Cheats) = application {
     val controls = remember { DesktopControls() }
-    var screen by remember { mutableStateOf<DesktopShellScreen>(DesktopShellScreen.Intro(IntroStep.LOGO)) }
+    // Legacy TANK -SETUP: the controls setup first.
+    var screen by remember {
+        val intro = DesktopShellScreen.Intro(IntroStep.LOGO)
+        mutableStateOf<DesktopShellScreen>(
+            if (args.any { it.trimStart('-').equals("SETUP", ignoreCase = true) }) DesktopShellScreen.ControlsSetup(next = intro) else intro,
+        )
+    }
     // Legacy menu(): the game mode menu opens on its first entry, and keeps the chosen one
     // while games are played from it.
     var lastMode by remember { mutableStateOf<GameMode?>(null) }
@@ -118,6 +131,10 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
     }
     val options = settings.options
     val extended = options.ruleset == Ruleset.EXTENDED
+    SideEffect {
+        controls.settings = options.controls
+        controls.extended = extended
+    }
     val missionGate = remember { MissionGate(PasswordStore(), settings) }
 
     // Legacy init_player(): TUNE.MID from the start, BELVED.MID while a night map is played; in
@@ -226,6 +243,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
 
                     DesktopShellScreen.ExtendedSettings -> ExtendedSettingsScreen(
                         onGameOptions = { screen = DesktopShellScreen.Options },
+                        onControls = { screen = DesktopShellScreen.ControlsSetup(next = DesktopShellScreen.ExtendedSettings) },
                         onClassic = {
                             settings.update(options.copy(ruleset = Ruleset.CLASSIC))
                             screen = DesktopShellScreen.MainMenu
@@ -275,6 +293,14 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                             },
                         )
                     }
+
+                    is DesktopShellScreen.ControlsSetup -> ControlsSetupScreen(
+                        initial = options.controls,
+                        onDone = { changed ->
+                            changed?.let { settings.update(settings.options.copy(controls = it)) }
+                            screen = current.next
+                        },
+                    )
 
                     DesktopShellScreen.ExitConfirm -> YesNoScreen(
                         question = "EXIT TO DOS? (Y/N)",
@@ -365,7 +391,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         match = current.match,
                         selectMap = missions.orEmpty().firstOrNull { it.baseName.equals("select", ignoreCase = true) },
                         initial = playerTanks,
-                        keyFor = ::selectionKeyFor,
+                        keyFor = { key -> selectionKeyFor(key, settings.options.controls) },
                         onChosen = { types ->
                             playerTanks = types
                             controls.resetAll()
@@ -569,7 +595,7 @@ private fun gameplayStep(
         // Legacy P: the game stands still (the timer does not count) until a key is pressed.
         if (controls.paused) return@step true
         for (playerId in playerIds) {
-            host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence))
+            host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence, frame = published.get().frame))
         }
         inputSequence++
         val tickStart = System.nanoTime()
@@ -671,8 +697,8 @@ private fun saveScreenshot(window: java.awt.Window?, settings: GameSettings) {
  * Legacy select_tanks(): each player moves their marker with their own drive keys and confirms
  * with fire (`keys[i][PLAYER_UP]` ...). Player 1 uses the left-hand keys, player 2 the cursor block.
  */
-private fun selectionKeyFor(key: Key): Pair<Int, SelectionKey>? {
-    for ((player, binding) in listOf(0 to KeyBinding.PLAYER_ONE, 1 to KeyBinding.CURSOR_BLOCK)) {
+private fun selectionKeyFor(key: Key, controls: List<PlayerControls>): Pair<Int, SelectionKey>? {
+    for ((player, binding) in controls.take(2).map(KeyBinding::of).withIndex()) {
         val action = when (key) {
             binding.forward -> SelectionKey.UP
             binding.reverse -> SelectionKey.DOWN
@@ -686,35 +712,34 @@ private fun selectionKeyFor(key: Key): Pair<Int, SelectionKey>? {
     return null
 }
 
-/** One player's keys, in the order of the legacy setup program's key list. */
+/** One player's keys, in the order of the legacy setup program's key list; null for an empty slot. */
 private class KeyBinding(
-    val forward: Key,
-    val reverse: Key,
-    val turnLeft: Key,
-    val turnRight: Key,
-    val aimLeft: Key,
-    val aimRight: Key,
-    val fire: Key,
-    val shield: Key,
-    val weaponLeft: Key,
-    val weaponRight: Key,
+    val forward: Key?,
+    val reverse: Key?,
+    val turnLeft: Key?,
+    val turnRight: Key?,
+    val aimLeft: Key?,
+    val aimRight: Key?,
+    val fire: Key?,
+    val shield: Key?,
+    val weaponLeft: Key?,
+    val weaponRight: Key?,
 ) {
     companion object {
-        /** DATA/KEYS.HLP "Player one": K , M . drive, Z fire, A shield, S/D weapon, X/C turret. */
-        val PLAYER_ONE = KeyBinding(
-            forward = Key.K, reverse = Key.Comma, turnLeft = Key.M, turnRight = Key.Period,
-            aimLeft = Key.X, aimRight = Key.C, fire = Key.Z, shield = Key.A,
-            weaponLeft = Key.S, weaponRight = Key.D,
+        fun of(controls: PlayerControls) = KeyBinding(
+            forward = controls.key(ControlAction.UP),
+            reverse = controls.key(ControlAction.DOWN),
+            turnLeft = controls.key(ControlAction.LEFT),
+            turnRight = controls.key(ControlAction.RIGHT),
+            aimLeft = controls.key(ControlAction.AIM_LEFT),
+            aimRight = controls.key(ControlAction.AIM_RIGHT),
+            fire = controls.key(ControlAction.FIRE),
+            shield = controls.key(ControlAction.SHIELD),
+            weaponLeft = controls.key(ControlAction.WEAPON_LEFT),
+            weaponRight = controls.key(ControlAction.WEAPON_RIGHT),
         )
 
-        /** DATA/KEYS.HLP "Player two (or player for single player game)": the grey cursor block. */
-        val CURSOR_BLOCK = KeyBinding(
-            forward = Key.DirectionUp, reverse = Key.DirectionDown, turnLeft = Key.DirectionLeft, turnRight = Key.DirectionRight,
-            aimLeft = Key.MoveEnd, aimRight = Key.PageDown, fire = Key.Delete, shield = Key.Insert,
-            weaponLeft = Key.MoveHome, weaponRight = Key.PageUp,
-        )
-
-        /** Modern single-player layout kept from earlier builds. */
+        /** Extended only: a WASD layout for one player, kept from earlier builds. */
         val WASD = KeyBinding(
             forward = Key.W, reverse = Key.S, turnLeft = Key.A, turnRight = Key.D,
             aimLeft = Key.Q, aimRight = Key.E, fire = Key.CtrlLeft, shield = Key.ShiftLeft,
@@ -723,7 +748,7 @@ private class KeyBinding(
     }
 }
 
-private class PlayerControls {
+private class HeldKeys {
     var forward = false
     var reverse = false
     var turnLeft = false
@@ -788,13 +813,28 @@ private class DesktopControls {
         val steps = MESSAGE_STEPS - ((System.nanoTime() - since) / MESSAGE_STEP_NANOS).toInt()
         return if (steps > 0) shown.copy(steps = steps) else null
     }
-    private val players = List(2) { PlayerControls() }
+    private val players = List(2) { HeldKeys() }
 
-    /** Single player uses the legacy cursor block (or WASD); two players split the keyboard. */
-    private fun bindingsFor(playerId: Int): List<KeyBinding> = when {
-        mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) listOf(KeyBinding.CURSOR_BLOCK, KeyBinding.WASD) else emptyList()
-        playerId == 0 -> listOf(KeyBinding.PLAYER_ONE)
-        else -> listOf(KeyBinding.CURSOR_BLOCK)
+    /** The players' keys and modes (legacy TANK.CFG), set by the shell. */
+    @Volatile
+    var settings: List<PlayerControls> = DEFAULT_CONTROLS
+
+    /** Extended also takes WASD for a single player. */
+    @Volatile
+    var extended: Boolean = false
+
+    /**
+     * Legacy `keys[]`: a single player uses player two's keys (KEYS.HLP: "player two, or player for
+     * single player game"); two players have their own.
+     */
+    private fun controlsFor(playerId: Int): PlayerControls? = when {
+        mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) settings.getOrNull(1) else null
+        else -> settings.getOrNull(playerId)
+    }
+
+    private fun bindingsFor(playerId: Int): List<KeyBinding> {
+        val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
+        return if (extended && mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(own, KeyBinding.WASD) else listOf(own)
     }
 
     @Synchronized
@@ -824,11 +864,11 @@ private class DesktopControls {
     }
 
     @Synchronized
-    fun toInputFrame(playerId: Int, inputSequence: Long): InputFrame {
+    fun toInputFrame(playerId: Int, inputSequence: Long, frame: ServerFrame? = null): InputFrame {
         val p = players[playerId]
         val selectTankId = p.selectTankId
         p.selectTankId = 0
-        return InputFrame(
+        val relative = InputFrame(
             playerId = playerId,
             inputSequence = inputSequence,
             forward = p.forward,
@@ -843,6 +883,13 @@ private class DesktopControls {
             cycleWeaponRight = p.weaponRight,
             selectTankId = selectTankId,
         )
+        if (controlsFor(playerId)?.mode != ControlMode.DIRECT || frame == null) return relative
+        val view = frame.playerViews.firstOrNull { it.playerId == playerId } ?: return relative
+        // Legacy control_tank(): while the rocket marker is out the keys always steer it as usual.
+        val markerOut = view.lockMarker?.let { it.state != LockMarkerState.LAUNCHED } == true
+        val tank = frame.world.actors.firstOrNull { it is TankState && it.actorId == view.controlledActorId } as TankState?
+        if (markerOut || tank == null) return relative
+        return directControls(relative, tank.bodyDirection, tank.turretDirection)
     }
 
     @Synchronized
@@ -862,3 +909,37 @@ private class DesktopControls {
         }
     }
 }
+
+/**
+ * Legacy copy_controls_direct() (src/game/controls.c:339-402): the drive keys point the way to go.
+ * The vehicle turns the short way towards it and drives forward (never in reverse); with nothing
+ * pressed it stops. With an aim key held the keys point the turret instead, and the drive is left
+ * as it was.
+ */
+internal fun directControls(keys: InputFrame, bodyDirection: Int, turretDirection: Int): InputFrame {
+    val x = (if (keys.turnRight) 100 else 0) - (if (keys.turnLeft) 100 else 0)
+    val y = (if (keys.reverse) 100 else 0) - (if (keys.forward) 100 else 0)
+    val aiming = keys.aimLeft || keys.aimRight
+    if (x == 0 && y == 0) {
+        return keys.copy(forward = false, reverse = false, turnLeft = false, turnRight = false, aimLeft = false, aimRight = false)
+    }
+    val wanted = com.tankarena.core.LegacyDirections.fromAngle(x, y)
+    // Legacy go_left_or_right(): left when the other way round is shorter.
+    fun turnLeft(actual: Int) = ((actual - wanted) and 15) < 8
+    return if (aiming) {
+        val turn = wanted != turretDirection
+        keys.copy(
+            forward = false, reverse = false, turnLeft = false, turnRight = false,
+            aimLeft = turn && turnLeft(turretDirection),
+            aimRight = turn && !turnLeft(turretDirection),
+        )
+    } else {
+        val turn = wanted != bodyDirection
+        keys.copy(
+            forward = true, reverse = false,
+            turnLeft = turn && turnLeft(bodyDirection),
+            turnRight = turn && !turnLeft(bodyDirection),
+        )
+    }
+}
+

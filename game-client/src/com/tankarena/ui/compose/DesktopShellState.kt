@@ -38,6 +38,9 @@ sealed interface DesktopShellScreen {
 
     data object MainMenu : DesktopShellScreen
 
+    /** Legacy setup.c (TANK -SETUP): the players' control modes and keys; then [next]. */
+    data class ControlsSetup(val next: DesktopShellScreen) : DesktopShellScreen
+
     /** Legacy main(): "EXIT TO DOS? (Y/N)" after the main menu is left. */
     data object ExitConfirm : DesktopShellScreen
 

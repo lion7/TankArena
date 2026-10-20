@@ -123,7 +123,12 @@ Goal: everything the original editor can do, inside the game, plus validation, u
       waypoints, the object a goal waits for and turret forbidden directions set by clicking; one undo
       history with the cells. Opening and saving keeps every shipped map's objects exactly; new train
       cars are placed exactly as the original's (both tested).
-- [ ] Header and mission texts; export `.MAP` (ADR 0022, option C); validation; overview.
+- [x] Map settings and texts (key 9): codes of this and the next mission, the modes it is for, public
+      code, night, random bonuses; the briefing and both texts after a mission, which the original
+      took from separate `MAPS/name.0..2` files (lines over 51 characters are flagged). Saving works
+      out what the pads and flags give room for and warns of a start point conflict, as `save_map()`.
+      Every shipped map comes back unchanged when opened and saved.
+- [ ] Export `.MAP` (ADR 0022, option C); validation; whole-map overview.
 
 Depends on: phases 1 and 2.
 

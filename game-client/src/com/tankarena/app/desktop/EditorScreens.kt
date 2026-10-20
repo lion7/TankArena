@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -216,6 +218,7 @@ internal enum class EditorTool(val label: String) {
     BONUSES("bonuses"),
     MEN("men"),
     OBJECTS("objects"),
+    MAP("map & texts"),
 }
 
 /** Short names of the bonus kinds, drawn on their cells. */
@@ -227,7 +230,7 @@ private val BONUS_SHORT = listOf("GR", "MG", "FU", "MI", "RO", "MO", "AB", "CG",
  * removes the building or else the floor, Shift and drag fills or clears a region); goals (left +10,
  * right −10, with Shift ±1); bonuses (left puts the chosen one, right removes); men (left adds one with
  * the chosen weapon, right removes one); objects (key 8: select, drag, add, turn, settings and points;
- * Delete removes, C clones at the cursor). Middle button or the arrow keys scroll, the wheel zooms.
+ * Delete removes, C clones at the cursor); the map's settings and texts (key 9). Middle button or the arrow keys scroll, the wheel zooms.
  * Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, F5 play-tests the map as it is, ESC leaves (twice with
  * unsaved changes).
  */
@@ -282,6 +285,9 @@ private fun EditorContent(
     var leaveArmed by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
 
+    // A text field has the keyboard: the one-key shortcuts keep out of the way.
+    var typing by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
     val objectTool = remember(editor) { ObjectToolState().apply { this.selected = initialSelection } }
     var dragging by remember { mutableStateOf(false) }
     var hoverPixel by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -310,8 +316,8 @@ private fun EditorContent(
             EditorTool.GOALS -> editor.changeGoal(x, y, (if (fine) 1 else 10) * (if (primary) 1 else -1))
             EditorTool.BONUSES -> editor.setBonus(x, y, if (primary) bonus else null)
             EditorTool.MEN -> if (primary) editor.addMan(x, y, menWeapon) else editor.removeMan(x, y)
-            // Objects work in map pixels: objectClick().
-            EditorTool.OBJECTS -> Unit
+            // Objects work in map pixels: objectClick(); the map page has no map.
+            EditorTool.OBJECTS, EditorTool.MAP -> Unit
         }
         revision++
     }
@@ -354,6 +360,13 @@ private fun EditorContent(
             .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (typing && !event.isCtrlPressed && event.key != Key.F5) {
+                    if (event.key != Key.Escape) return@onPreviewKeyEvent false
+                    // ESC leaves the text field, not the editor.
+                    focusManager.clearFocus()
+                    focusRequester.requestFocus()
+                    return@onPreviewKeyEvent true
+                }
                 val step = LEGACY_TILE_SIZE * zoom * 2
                 when {
                     event.isCtrlPressed && event.key == Key.Z && event.isShiftPressed -> if (editor.redo()) revision++
@@ -369,6 +382,7 @@ private fun EditorContent(
                     event.key == Key.Six -> tool = EditorTool.BONUSES
                     event.key == Key.Seven -> tool = EditorTool.MEN
                     event.key == Key.Eight -> tool = EditorTool.OBJECTS
+                    event.key == Key.Nine -> tool = EditorTool.MAP
                     tool == EditorTool.OBJECTS && event.key == Key.Delete -> objectTool.selected?.let {
                         editor.removeObject(it)
                         objectTool.selected = null
@@ -440,6 +454,10 @@ private fun EditorContent(
                 FilterChip(selected = tool == entry, onClick = { tool = entry }, label = { Text("${index + 4} ${entry.label}") })
             }
             FilterChip(selected = showObjects, onClick = { showObjects = !showObjects }, label = { Text("show objects") })
+        }
+        if (tool == EditorTool.MAP) {
+            EditorMapPage(editor, revision, onChange = { revision++ }, onTyping = { typing = it })
+            return@Column
         }
         Row(modifier = Modifier.fillMaxSize()) {
             Canvas(
@@ -561,7 +579,7 @@ private fun EditorContent(
             // The tool's palette.
             Column(modifier = Modifier.width(300.dp).fillMaxHeight().padding(6.dp)) {
                 when (tool) {
-                    EditorTool.PICTURES -> PicturePalette(editor, world, filter, { filter = it }, selected, { selected = it }, pictures, sprites)
+                    EditorTool.PICTURES -> PicturePalette(editor, world, filter, { filter = it }, selected, { selected = it }, pictures, sprites) { typing = it }
                     EditorTool.STRUCTURES -> StructurePalette(world, structures, structure, { structure = it }, pictures, sprites)
                     EditorTool.GOALS -> Text(
                         "Destroying a building adds its share to the goal counter; at 100 % the mission is won. " +
@@ -577,6 +595,8 @@ private fun EditorContent(
                         }
                     }
                     EditorTool.OBJECTS -> ObjectPanel(editor, objectTool, revision) { revision++ }
+                    // Shown instead of the map (above).
+                    EditorTool.MAP -> Unit
                     EditorTool.MEN -> Column(modifier = Modifier.weight(1f)) {
                         Text("Paratroopers in a building, at most 50. Left adds one, right removes one.", color = Color.White, fontSize = 13.sp)
                         for (weapon in MenWeapon.entries) {
@@ -620,13 +640,14 @@ private fun ColumnScope.PicturePalette(
     onSelect: (Int) -> Unit,
     pictures: PictureCache,
     sprites: LegacySpriteCatalog,
+    onTyping: (Boolean) -> Unit,
 ) {
     OutlinedTextField(
         value = filter,
         onValueChange = onFilter,
         label = { Text("Find picture") },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().onFocusChanged { onTyping(it.isFocused) },
     )
     val indices = remember(world, filter) {
         (-1 until editor.pictureCount).filter { index ->

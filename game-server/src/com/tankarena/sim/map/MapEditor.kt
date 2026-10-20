@@ -1,6 +1,8 @@
 package com.tankarena.sim.map
 
+import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.MapMetadata
+import com.tankarena.content.MissionText
 import com.tankarena.content.MapSceneSidecar
 import com.tankarena.content.PictureCatalog
 import com.tankarena.content.Structure
@@ -27,17 +29,34 @@ enum class NewMapStart {
     WATER,
 }
 
+/** The header settings of the original editor's SPECIAL menu. */
+data class MapSettings(
+    /** Legacy `this_mission_code`, at most 20 characters; empty: the map's name when saved. */
+    val code: String,
+    /** Legacy `next_mission_code`: the mission that follows, if any. */
+    val next: String,
+    val type: GameModeCompatibility,
+    /** Legacy `public_pwd`: the code is listed for everyone. */
+    val publicCode: Boolean,
+    val night: Boolean,
+    val randomBonus: Boolean,
+) {
+    companion object {
+        const val CODE_LENGTH = 20
+    }
+}
+
 /** The paratroopers' weapons a building can hold (legacy HT_CHAIN, HT_FLAME, HT_SROCK). */
 enum class MenWeapon(val legacyType: Int) { CHAIN_GUN(1), FLAME_THROWER(2), SMALL_ROCKETS(10) }
 
 /**
  * A map being edited (ADR 0021): its picture layers, structures, and goal, bonus and men layers can be
  * changed, as can its objects; every stroke can be undone and redone, and [toDocument] gives the map
- * to save or play. The header is kept as it was loaded; editing it comes later.
+ * to save or play, with its header settings and texts.
  */
 /** [unsaved]: a new map, not yet saved anywhere. */
 class MapEditor(document: MapDocument, unsaved: Boolean = false) {
-    private val sidecar = MapConversion.sidecarOf(document)
+    private var sidecar = MapConversion.sidecarOf(document)
     private var objectList: List<MapObject> = document.objects.map { MapConversion.restoreObject(it).save() }
 
     /** Every per-cell layer: the three picture layers first, in [MapLayer] order. */
@@ -58,6 +77,9 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
     private data class CellChange(val grid: Grid, val index: Int, val before: Int, val after: Int) : Change
 
     private data class ObjectsChange(val before: List<MapObject>, val after: List<MapObject>) : Change
+
+    /** The header and texts ([MapSceneSidecar] without its layers, which [CellChange] covers). */
+    private data class SidecarChange(val before: MapSceneSidecar, val after: MapSceneSidecar, val texts: Boolean) : Change
 
     private val undoStack = ArrayDeque<List<Change>>()
     private val redoStack = ArrayDeque<List<Change>>()
@@ -101,6 +123,59 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         val open = stroke
         if (open != null) open += change else undoStack.addLast(listOf(change))
     }
+
+    val settings: MapSettings
+        get() = with(sidecar.metadata) {
+            MapSettings(missionCode, nextMissionCode.orEmpty(), modeCompatibility, publicPassword, night, randomBonus)
+        }
+
+    fun changeSettings(settings: MapSettings) {
+        val metadata = sidecar.metadata.copy(
+            missionCode = settings.code.take(MapSettings.CODE_LENGTH),
+            nextMissionCode = settings.next.take(MapSettings.CODE_LENGTH).ifBlank { null },
+            modeCompatibility = settings.type,
+            publicPassword = settings.publicCode,
+            night = settings.night,
+            randomBonus = settings.randomBonus,
+        )
+        changeSidecar(sidecar.copy(metadata = metadata), texts = false)
+    }
+
+    /** The briefing and the texts after a won and a lost mission (legacy `MAPS/name.0..2`). */
+    val texts: MissionText get() = sidecar.missionText
+
+    /** Changes the texts; typing on in the same text is one undo step. */
+    fun changeTexts(texts: MissionText) = changeSidecar(sidecar.copy(missionText = texts), texts = true)
+
+    private fun changeSidecar(after: MapSceneSidecar, texts: Boolean) {
+        if (after == sidecar) return
+        val last = undoStack.lastOrNull()?.singleOrNull()
+        if (texts && stroke == null && last is SidecarChange && last.texts && redoStack.isEmpty()) {
+            undoStack[undoStack.lastIndex] = listOf(last.copy(after = after))
+            modified = true
+        } else {
+            record(SidecarChange(sidecar, after, texts))
+        }
+        sidecar = after
+    }
+
+    /**
+     * Legacy save_map(): what the start pads and flags give room for (MAPC_TANK 1, MAPC_CHOP 2,
+     * MAPC_PLANE 4, MAPC_RACE 8, MAPC_FLAG 16).
+     */
+    val contents: Int
+        get() = objectList.fold(0) { bits, state ->
+            when {
+                state is com.tankarena.sim.Flag.State -> bits or 16
+                state is Tank.State && state.startPadType in 0 until 6 -> bits or (1 shl (state.startPadType shr 1))
+                state is Tank.State && state.startPadType >= 6 -> bits or 8
+                else -> bits
+            }
+        }
+
+    /** Legacy save_map()'s "STARTING POINT CONFLICT": race pads with other pads or with flags. */
+    val startConflict: Boolean
+        get() = contents.let { it and 8 != 0 && it and (1 or 2 or 4 or 16) != 0 }
 
     /** The map's objects, in the order they are saved. */
     val objects: List<MapObject> get() = objectList
@@ -353,6 +428,7 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         for (change in changes.asReversed()) when (change) {
             is CellChange -> grids.getValue(change.grid)[change.index] = change.before
             is ObjectsChange -> objectList = change.before
+            is SidecarChange -> sidecar = change.before
         }
         redoStack.addLast(changes)
         modified = true
@@ -365,6 +441,7 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         for (change in changes) when (change) {
             is CellChange -> grids.getValue(change.grid)[change.index] = change.after
             is ObjectsChange -> objectList = change.after
+            is SidecarChange -> sidecar = change.after
         }
         undoStack.addLast(changes)
         modified = true
@@ -386,7 +463,9 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
             manTypeLayer = grids.getValue(Grid.MAN_TYPE).toList(),
             manAmountLayer = grids.getValue(Grid.MAN_COUNT).toList(),
         )
-        return MapConversion.documentOf(sidecar.copy(tileLayers = tiles), objectList.mapNotNull { MapConversion.objectRecord(it.restore()) })
+        // Legacy save_map(): the contents follow the pads and flags; no code is the map's name.
+        val metadata = sidecar.metadata.let { it.copy(mapContents = contents, missionCode = it.missionCode.ifBlank { it.name.uppercase() }) }
+        return MapConversion.documentOf(sidecar.copy(metadata = metadata, tileLayers = tiles), objectList.mapNotNull { MapConversion.objectRecord(it.restore()) })
     }
 
     companion object {

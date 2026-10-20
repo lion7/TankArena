@@ -287,13 +287,12 @@ Target: an editor screen inside the game, started from the main menu as in the o
 everything the original editor does plus validation, undo and play-test
 ([ADR 0021](adrs/0021-editor-in-the-game.md)). Built (2026-10-19/20): open a map from both menus or
 make a new one; paint the three picture layers; the structure library; the goal, bonus and men layers;
-every object kind with its settings and points; one undo history; save; play-test. This is roadmap
+every object kind with its settings and points; the map's settings and texts; one undo history; save;
+play-test. This is roadmap
 phase 4.
 
 Missing:
 
-- Editing the header ("SPECIAL" menu): map type and contents, mission codes, public flag, world,
-  day/night, random bonuses; and the mission texts.
 - Whole-map overview. (The original's structure-library editor under F12, "not supposed to be used
   by other people", is left out on purpose: the libraries are shipped as they are.)
 - Validation.

@@ -1,5 +1,6 @@
 package com.tankarena.sim.map
 
+import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.TankArenaWorld
 import com.tankarena.sim.Goal
 import com.tankarena.sim.Tank
@@ -23,10 +24,10 @@ class MapObjectsTest {
     }
 
     @Test
-    fun `every shipped map keeps its objects exactly when opened and saved`() {
+    fun `every shipped map stays exactly the same when opened and saved`() {
         for (name in ShippedMaps.baseNames()) {
             val document = ShippedMaps.load(name)!!.document
-            assertEquals(document.objects, MapEditor(document).toDocument().objects, name)
+            assertEquals(document, MapEditor(document).toDocument(), name)
         }
     }
 
@@ -147,5 +148,35 @@ class MapObjectsTest {
         val shootAt = MapObjects.properties(editor.objects[index]).first { it.label == "Shoots at" }
         editor.replaceObject(index, shootAt.with(2))
         assertEquals(0, (editor.objects[index] as Turret.State).team, "shooting only evil vehicles: on the good side")
+    }
+
+    @Test
+    fun `settings and texts are saved, typing is one undo step`() {
+        val editor = editor()
+        editor.changeSettings(editor.settings.copy(code = "SECRET", next = "OTHER", night = true, type = GameModeCompatibility.DUAL))
+        editor.changeTexts(editor.texts.copy(briefing = "G"))
+        editor.changeTexts(editor.texts.copy(briefing = "GO"))
+        editor.changeTexts(editor.texts.copy(briefing = "GO!"))
+        val saved = MapFile.read(MapFile.write(editor.toDocument()))
+        assertEquals("SECRET" to "OTHER", saved.header.code to saved.header.next)
+        assertEquals(true, saved.header.night)
+        assertEquals("GO!", saved.texts.briefing)
+        editor.undo()
+        assertEquals("", editor.texts.briefing)
+        editor.undo()
+        assertEquals("", editor.settings.code)
+        assertEquals("OBJECTS", editor.toDocument().header.code, "no code: the map's name")
+    }
+
+    @Test
+    fun `the contents follow the start pads and flags, races with others conflict`() {
+        val editor = editor()
+        editor.addObject(template("Chopper P1"), 100, 100)
+        assertEquals(2, editor.contents)
+        editor.addObject(template("Flag P2"), 200, 100)
+        assertEquals(2 or 16, editor.toDocument().header.contents)
+        assertTrue(!editor.startConflict)
+        editor.addObject(template("Race P1"), 300, 100)
+        assertTrue(editor.startConflict)
     }
 }

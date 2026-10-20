@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (2026-10-19).
   First version built 2026-10-19: open, paint the picture layers, undo, save (roadmap phase 4).
-  2026-10-20: new maps, structures, the goal, bonus and men layers.
+  2026-10-20: new maps, structures, the goal, bonus and men layers, objects, settings and texts.
 - **Supersedes:** [ADR 0004](0004-separate-editor-app.md) (separate editor app) and
   [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md) (editor on Kubriko's `SceneEditor`).
 

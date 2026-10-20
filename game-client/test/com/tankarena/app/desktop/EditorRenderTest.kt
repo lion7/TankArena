@@ -52,6 +52,19 @@ class EditorRenderTest {
     }
 
     @Test
+    fun `the map page shows the settings and texts`() {
+        val choice = EditorMapChoice("begin3", userMap = false)
+        ImageComposeScene(1280, 800) {
+            EditorScreen(choice, MapEditor(choice.load()), onPlayTest = {}, onClose = {}, initialTool = EditorTool.MAP)
+        }.use { scene ->
+            var time = 0L
+            repeat(5) { scene.render(time); time += 16_000_000L; Thread.sleep(50) }
+            File("build").mkdirs()
+            File("build/editor-map-page.png").writeBytes(scene.render(time).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+    }
+
+    @Test
     fun `the editor draws a shipped map`() {
         val choice = EditorMapChoice("begin1", userMap = false)
         ImageComposeScene(1280, 800) {

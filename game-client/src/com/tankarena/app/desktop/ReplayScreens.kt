@@ -3,14 +3,20 @@ package com.tankarena.app.desktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,10 +44,13 @@ import com.tankarena.sim.ReplayMatchClient
 import com.tankarena.sim.SimulationLoop
 import com.tankarena.ui.compose.GameMode
 import com.tankarena.ui.compose.MissionOutcome
-import com.tankarena.ui.compose.menu.MessageBarScreen
+import com.tankarena.ui.compose.extended.ExtendedColors
+import com.tankarena.ui.compose.extended.ExtendedList
+import com.tankarena.ui.compose.extended.ExtendedPage
+import com.tankarena.ui.compose.extended.KeyRouter
+import com.tankarena.ui.compose.extended.ListEntry
+import com.tankarena.ui.compose.extended.ListWithDetails
 import com.tankarena.ui.compose.menu.MissionEntry
-import com.tankarena.ui.compose.menu.PickListLayout
-import com.tankarena.ui.compose.menu.PickListScreen
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
@@ -70,24 +79,160 @@ internal data class ReplayEntry(val file: File, val label: String) {
     }
 }
 
-/** Extended: the list of saved recordings; Enter watches one. */
+/** What the replay list shows of a recording, read when it is selected. */
+private data class ReplayDetails(val recording: MatchRecording?, val error: String?)
+
+private fun readDetails(entry: ReplayEntry): ReplayDetails =
+    runCatching { ReplayDetails(MatchRecording.fromJson(entry.file.readText()), null) }
+        .getOrElse { ReplayDetails(null, it.message ?: "unreadable") }
+
+/**
+ * Extended: the saved recordings, newest first, with what each one is beside the list. Enter
+ * watches, F2 names, Delete removes (after Y).
+ */
 @Composable
 internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit) {
-    val entries = remember { ReplayEntry.all() }
-    if (entries.isEmpty()) {
-        MessageBarScreen(message = "No replays yet - play a game first", onDismiss = onBack)
-        return
+    var entries by remember { mutableStateOf(ReplayEntry.all()) }
+    var selected by remember { mutableIntStateOf(0) }
+    var deleting by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    val details = remember(entries, selected) { entries.getOrNull(selected)?.let(::readDetails) }
+    val titles = remember(entries) { entries.map(::readTitle) }
+    val keys = remember { KeyRouter() }
+    val nameFocus = remember { FocusRequester() }
+
+    fun reload() {
+        entries = ReplayEntry.all()
+        selected = selected.coerceAtMost((entries.size - 1).coerceAtLeast(0))
     }
-    // Labels can repeat (two games in the same minute); the index tells them apart.
-    val labels = entries.mapIndexed { i, entry -> "${i + 1}. ${entry.label}" }
-    PickListScreen(
-        title = "REPLAYS",
-        entries = labels,
-        layout = PickListLayout.PASSWORDS,
-        onSelect = { label -> onWatch(entries[labels.indexOf(label)]) },
-        onCancel = onBack,
-    )
+
+    ExtendedPage(
+        title = "Replays",
+        subtitle = "Your recorded games, newest first",
+        onBack = {
+            when {
+                deleting -> deleting = false
+                renaming -> renaming = false
+                else -> onBack()
+            }
+        },
+        footer = when {
+            deleting -> "Delete this replay? Y deletes, N keeps it"
+            renaming -> "Enter keeps the name, ESC cancels"
+            entries.isEmpty() -> "Every game you finish is recorded here"
+            else -> "Enter watches   F2 names   Delete removes"
+        },
+        onKey = { event ->
+            val entry = entries.getOrNull(selected)
+            when {
+                renaming -> false
+                deleting -> {
+                    when (event.key) {
+                        Key.Y -> {
+                            entry?.file?.delete()
+                            deleting = false
+                            reload()
+                        }
+                        Key.N -> deleting = false
+                        else -> return@ExtendedPage false
+                    }
+                    true
+                }
+                entry != null && event.key == Key.Delete -> {
+                    deleting = true
+                    true
+                }
+                entry != null && event.key == Key.F2 -> {
+                    name = details?.recording?.title ?: ""
+                    renaming = true
+                    true
+                }
+                else -> keys.handle(event)
+            }
+        },
+    ) {
+        if (entries.isEmpty()) {
+            Text("No replays yet — play a game first.", color = ExtendedColors.dim, fontSize = 18.sp)
+            return@ExtendedPage
+        }
+        ListWithDetails(
+            list = {
+                ExtendedList(
+                    entries.mapIndexed { index, entry ->
+                        ListEntry(titles[index] ?: entry.label.substringBefore(' '), entry.label.substringAfter(' '))
+                    },
+                    onPick = { onWatch(entries[it]) },
+                    initial = selected,
+                    onSelect = { selected = it },
+                    keys = keys,
+                )
+            },
+            details = {
+                Column {
+                    val recording = details?.recording
+                    if (recording == null) {
+                        Text("This file cannot be read: ${details?.error}", color = ExtendedColors.dim, fontSize = 15.sp)
+                        return@Column
+                    }
+                    if (renaming) {
+                        LaunchedEffect(Unit) { nameFocus.requestFocus() }
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it.take(40) },
+                            label = { Text("Name") },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(nameFocus)
+                                .onPreviewKeyEvent { event ->
+                                    if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
+                                        val entry = entries[selected]
+                                        entry.file.writeText(recording.copy(title = name.trim().ifEmpty { null }).toJson())
+                                        renaming = false
+                                        reload()
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                },
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    Text(recording.title ?: recording.mission.uppercase(), color = ExtendedColors.accent, fontSize = 22.sp)
+                    val mode = when (recording.mode) {
+                        MatchMode.SINGLE -> "one player"
+                        MatchMode.DUAL_VS_COMPUTER -> "two players against the computer"
+                        MatchMode.DUAL -> "player against player"
+                    }
+                    val result = when (recording.result?.won) {
+                        true -> "won"
+                        false -> "lost"
+                        null -> "not finished"
+                    }
+                    val seconds = recording.ticks / 100
+                    Text("${recording.mission.uppercase()} — $mode", color = ExtendedColors.dim, fontSize = 14.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Text("$result after ${seconds / 60}:${"%02d".format(seconds % 60)}", color = ExtendedColors.text, fontSize = 16.sp)
+                    Text("recorded ${entries[selected].label.substringAfter(' ').substringBeforeLast(' ')}", color = ExtendedColors.text, fontSize = 16.sp)
+                    Text("${recording.ruleset.name.lowercase()} rules v${recording.rulesVersion}", color = ExtendedColors.dim, fontSize = 14.sp)
+                    if (recording.rulesVersion != recording.ruleset.rulesVersion) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Played under older rules: it will not play out as it was recorded.",
+                            color = ExtendedColors.accent,
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+            },
+        )
+    }
 }
+
+/** The player's name for a replay, if it has one (read cheaply from the file's start). */
+private fun readTitle(entry: ReplayEntry): String? =
+    runCatching { MatchRecording.fromJson(entry.file.readText()).title }.getOrNull()
 
 /** Replay speeds in quarter ticks per tick of the clock: 1/4×, 1/2×, 1×, 2×, 4×, 8×. */
 private val SPEED_QUARTERS = intArrayOf(1, 2, 4, 8, 16, 32)
@@ -127,6 +272,8 @@ internal fun ReplayScreen(
     var view by remember(host) { mutableStateOf(published.get()) }
     var paused by remember { mutableStateOf(false) }
     var speed by remember { mutableStateOf(NORMAL_SPEED) }
+    // C: a free camera moved with the arrow keys instead of following the players.
+    var freeCamera by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     DisposableEffect(host) {
         var credit = 0
@@ -175,11 +322,23 @@ internal fun ReplayScreen(
             .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (event.key) {
-                    Key.Escape -> onClose()
-                    Key.Spacebar -> paused = !paused
-                    Key.DirectionRight, Key.Plus, Key.Equals -> speed = (speed + 1).coerceAtMost(SPEED_QUARTERS.lastIndex)
-                    Key.DirectionLeft, Key.Minus -> speed = (speed - 1).coerceAtLeast(0)
+                val camera = freeCamera
+                val step = 2 * com.tankarena.content.LEGACY_TILE_SIZE
+                when {
+                    event.key == Key.Escape -> onClose()
+                    event.key == Key.Spacebar -> paused = !paused
+                    event.key == Key.C -> freeCamera = if (camera == null) {
+                        view.frame.playerViews.firstOrNull()?.let { it.cameraCenterX to it.cameraCenterY }
+                    } else {
+                        null
+                    }
+                    camera != null && event.key == Key.DirectionLeft -> freeCamera = camera.first - step to camera.second
+                    camera != null && event.key == Key.DirectionRight -> freeCamera = camera.first + step to camera.second
+                    camera != null && event.key == Key.DirectionUp -> freeCamera = camera.first to camera.second - step
+                    camera != null && event.key == Key.DirectionDown -> freeCamera = camera.first to camera.second + step
+                    event.key == Key.DirectionRight || event.key == Key.Plus || event.key == Key.Equals ->
+                        speed = (speed + 1).coerceAtMost(SPEED_QUARTERS.lastIndex)
+                    event.key == Key.DirectionLeft || event.key == Key.Minus -> speed = (speed - 1).coerceAtLeast(0)
                     else -> return@onPreviewKeyEvent false
                 }
                 control.paused = paused
@@ -187,10 +346,13 @@ internal fun ReplayScreen(
                 true
             },
     ) {
+        val shown = freeCamera?.let { (x, y) ->
+            view.frame.copy(playerViews = view.frame.playerViews.map { it.copy(cameraCenterX = x, cameraCenterY = y) })
+        } ?: view.frame
         GameplayFrame(
             mission = mission,
             mode = mode,
-            serverFrame = view.frame,
+            serverFrame = shown,
             playerIds = playerIds,
             eventQueues = eventQueues,
             missionEndBanner = view.banner,
@@ -203,7 +365,8 @@ internal fun ReplayScreen(
             else -> rate
         }
         Text(
-            text = "REPLAY ${recording.mission.uppercase()}  $state   Space pause  Left/Right speed  Esc back",
+            text = "REPLAY ${recording.title ?: recording.mission.uppercase()}  $state" +
+                (if (freeCamera != null) "  free camera" else "") + "   Space pause  +/- speed  C free camera  Esc back",
             color = Color.White,
             fontSize = 13.sp,
             modifier = Modifier

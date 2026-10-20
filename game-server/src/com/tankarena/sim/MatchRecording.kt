@@ -68,6 +68,8 @@ data class MatchRecording(
     val result: RecordedResult? = null,
     /** Ticks played, including the time under the end-of-mission banner. */
     val ticks: Long = 0,
+    /** A name the player gave the replay; null shows the mission and date. */
+    val title: String? = null,
 ) {
     fun toJson(): String = json.encodeToString(this)
 

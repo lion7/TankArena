@@ -15,6 +15,7 @@ import com.tankarena.protocol.snapshot.LockMarker
 import com.tankarena.protocol.snapshot.LockMarkerState
 import com.tankarena.protocol.snapshot.LockState
 import com.tankarena.protocol.snapshot.MineState
+import com.tankarena.protocol.snapshot.FlamePartState
 import com.tankarena.protocol.snapshot.ProductState
 import com.tankarena.protocol.snapshot.ProjectileKind
 import com.tankarena.protocol.snapshot.ProjectileState
@@ -188,6 +189,8 @@ internal class ClientScene(
                 is AbombState -> if (!state.exploding && !state.hidden) {
                     syncObject(objectIds, state.actorId, state.x, state.y, "ABOMB${(4 - state.countdown).coerceIn(1, 4)}")
                 }
+                // Legacy write_parts(): a burning piece of a fuel dump, FLAME1..5 as it flies on.
+                is FlamePartState -> syncObject(objectIds, state.actorId, state.x, state.y, "FLAME${state.frame + 1}")
                 // Legacy write_mine(): only heavy mines show, and not on water.
                 is MineState -> if (state.heavy && !state.hidden) syncObject(objectIds, state.actorId, state.x, state.y, "RMINE")
                 // Legacy write_flag(): a carried flag is not drawn (its carrier shows a flag icon).

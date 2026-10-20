@@ -92,6 +92,18 @@ class StructureGameplayTest {
         assertTrue(pushed.positionX - pusher.positionX >= 2 * LegacyVehicles.spec(0).radius)
     }
 
+    @Test
+    fun `a burning fuel dump throws pieces that set off the one next to it`() {
+        // Desert picture 105 (FUELD): normal strength 10, so one burning piece (power 10) is enough.
+        val match = start(structures = mapOf(8 to 105, 9 to 105))
+        match.hitStructure(8, row, StructureLayer.SOLID, HitKind.NORMAL, 100, EffectKind.EXPLOSION)
+        assertFalse(match.structures.isStanding(8, row))
+        assertEquals(10, match.flameParts.size, "ten burning pieces")
+        repeat(100) { match.stepForTest() }
+        assertFalse(match.structures.isStanding(9, row), "the neighbour went up too")
+        assertTrue(match.flameParts.isEmpty(), "the pieces burn out")
+    }
+
     private fun start(structures: Map<Int, Int>, goal: Int = 0, secondTankAtTileX: Int? = null): Match {
         val width = 12
         val height = 5

@@ -13,6 +13,7 @@ import com.tankarena.protocol.snapshot.B52State
 import com.tankarena.protocol.snapshot.DestroyerState
 import com.tankarena.protocol.snapshot.EnforcerState
 import com.tankarena.protocol.snapshot.FlagState
+import com.tankarena.protocol.snapshot.FlamePartState
 import com.tankarena.protocol.snapshot.GoalState
 import com.tankarena.protocol.snapshot.LockState
 import com.tankarena.protocol.snapshot.ProductState
@@ -92,8 +93,9 @@ internal fun Match.buildRadar(
 
 /** Bonuses, soldiers and waiting A-bombs as wire states. */
 internal fun Match.smallObjectStates(): List<ActorState> {
-    if (bonuses.isEmpty() && soldiers.isEmpty() && abombs.isEmpty()) return emptyList()
-    val states = ArrayList<ActorState>(bonuses.size + soldiers.size + abombs.size)
+    if (bonuses.isEmpty() && soldiers.isEmpty() && abombs.isEmpty() && flameParts.isEmpty()) return emptyList()
+    val states = ArrayList<ActorState>(bonuses.size + soldiers.size + abombs.size + flameParts.size)
+    for (part in flameParts) states += FlamePartState(part.id, part.x.toInt(), part.y.toInt(), part.frame)
     for (bonus in bonuses) states += BonusState(bonus.id, bonus.x, bonus.y, bonus.type)
     for (soldier in soldiers) states += ManState(soldier.id, soldier.x, soldier.y, soldier.direction, soldier.frame)
     for (bomb in abombs) {

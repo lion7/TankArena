@@ -122,6 +122,9 @@ class Match private constructor(
     /** Runtime-only objects (see MatchObjects.kt). */
     internal val bonuses: MutableList<Bonus> = mutableListOf()
     internal val soldiers: MutableList<Soldier> = mutableListOf()
+    /** Legacy `parts` of type PT_FLAME: burning pieces of fuel dumps. */
+    internal val flameParts: MutableList<FlamePart> = mutableListOf()
+    internal val debrisRandom = kotlin.random.Random(mapMetadata.widthTiles * 131 + mapMetadata.heightTiles * 17)
     internal val abombs: MutableList<Abomb> = mutableListOf()
     internal val pendingSoldierShots: MutableList<Pair<Soldier, Soldier.Shot>> = mutableListOf()
     /** Legacy `nuke_total`: how far every colour is brightened while A-bombs go off. */
@@ -236,6 +239,9 @@ class Match private constructor(
         triggerFlameContacts()
         checkSmallObjectHits()
         removeDeadProjectiles()
+        objects.resolve(worldWidthPixels, worldHeightPixels)
+        // Legacy control_parts(): burning pieces of fuel dumps.
+        stepFlameParts()
         objects.resolve(worldWidthPixels, worldHeightPixels)
         // Legacy check_obj_overlap(): vehicles on top of each other.
         checkVehicleOverlaps()

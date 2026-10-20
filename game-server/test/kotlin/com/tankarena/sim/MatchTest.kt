@@ -162,6 +162,7 @@ class MatchTest {
             is com.tankarena.protocol.snapshot.BonusState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.ManState -> x.isFinite() && y.isFinite()
             is com.tankarena.protocol.snapshot.AbombState -> x.isFinite() && y.isFinite()
+            is com.tankarena.protocol.snapshot.FlamePartState -> x.isFinite() && y.isFinite()
         }
     }
 

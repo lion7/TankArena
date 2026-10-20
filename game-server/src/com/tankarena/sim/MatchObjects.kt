@@ -157,3 +157,39 @@ internal class Abomb(val id: Long, val x: Int, val y: Int, countdown: Int, val o
         const val POWER = 4
     }
 }
+
+/**
+ * Legacy PT_FLAME part (src/world/parts.c): a burning piece of a fuel dump that flies straight on at
+ * 30..49 px/s for 50..69 px. It burns the first vehicle in its path for 7 and the first structure
+ * for 10, which can set off the next fuel dump.
+ */
+internal class FlamePart(val id: Long, x: Float, y: Float, angle: Double, private val speed: Float, private var distLeft: Float) {
+    var x: Float = x
+        private set
+    var y: Float = y
+        private set
+    private val dx = com.tankarena.core.DetMath.cos(angle).toFloat()
+    private val dy = -com.tankarena.core.DetMath.sin(angle).toFloat()
+    var removed: Boolean = false
+
+    /** FLAME1..5 by how far it has left to fly (legacy write_parts()). */
+    val frame: Int get() = (4 - (distLeft * 5 / FLAME_PART_MAX_DISTANCE).toInt()).coerceIn(0, 4)
+
+    /** Moves one step; returns where it was and where it is now, or null when it has burnt out. */
+    fun move(): Pair<Pair<Int, Int>, Pair<Int, Int>>? {
+        val from = x.toInt() to y.toInt()
+        val d = speed * STEP_SECONDS
+        x += dx * d
+        y += dy * d
+        distLeft -= d
+        if (distLeft < 0f) {
+            removed = true
+            return null
+        }
+        return from to (x.toInt() to y.toInt())
+    }
+}
+
+/** Legacy `pp[PT_FLAME]`: min_d + rand_d. */
+internal const val FLAME_PART_MAX_DISTANCE: Float = 70f
+

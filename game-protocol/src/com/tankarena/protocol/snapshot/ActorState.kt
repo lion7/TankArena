@@ -126,6 +126,15 @@ data class MineState(
     val hidden: Boolean = false,
 ) : ActorState
 
+/** Legacy PT_FLAME part: a burning piece of a fuel dump, drawn as FLAME1..5 ([frame] 0..4). */
+@Serializable
+data class FlamePartState(
+    override val actorId: Long,
+    val x: Int,
+    val y: Int,
+    val frame: Int,
+) : ActorState
+
 @Serializable
 data class GoalState(
     override val actorId: Long,

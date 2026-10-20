@@ -64,10 +64,8 @@ internal fun Match.onStructureDestroyed(destroyed: DestroyedStructure, hitExplos
             destroyed.tileY,
             com.tankarena.content.PictureCatalog.resolve(mapMetadata.world, structures.base[destroyed.tileX + destroyed.tileY * mapMetadata.widthTiles]),
         )
-        // Legacy create_parts(PT_FLAME): a fuel dump goes up in flames.
-        "FUEL_DUMP" -> repeat(8) {
-            pendingEvents += GameEvent.Effect(EffectKind.FLAME, centreX - 24 + structureRandom.nextInt(48), centreY - 24 + structureRandom.nextInt(48))
-        }
+        // Legacy create_parts(PT_FLAME): a fuel dump throws out ten burning pieces.
+        "FUEL_DUMP" -> spawnFlameParts(centreX, centreY)
         // Legacy create_abomb(0, x2 + 16, y2 + 16, 0): an A-bomb box goes off at once. The
         // original passes the tile's centre as the bomb's top-left, so the blast centre lies
         // half a tile right of and below the box.
@@ -171,6 +169,57 @@ internal fun Match.checkProjectileVehicleHits() {
         }
     }
 }
+
+/** Legacy create_parts(PT_FLAME, x, y): ten pieces from around ([x], [y]), each its own way. */
+internal fun Match.spawnFlameParts(x: Int, y: Int) {
+    repeat(10) {
+        if (flameParts.size >= MAX_PARTS) return
+        flameParts += FlamePart(
+            id = nextActorId++,
+            x = (x - 5 + debrisRandom.nextInt(10)).toFloat(),
+            y = (y - 5 + debrisRandom.nextInt(10)).toFloat(),
+            angle = 2 * Math.PI * debrisRandom.nextInt(360) / 360,
+            speed = (30 + debrisRandom.nextInt(20)).toFloat(),
+            distLeft = (50 + debrisRandom.nextInt(20)).toFloat(),
+        )
+    }
+}
+
+/**
+ * Legacy control_parts() for PT_FLAME: each piece flies on and stops at the first vehicle on the
+ * ground or above on its path (7, with a push, a chain-gun hit picture and a bang) or the first
+ * structure (10).
+ */
+internal fun Match.stepFlameParts() {
+    for (part in flameParts.toList()) {
+        val (from, to) = part.move() ?: continue
+        val steps = maxOf(kotlin.math.abs(to.first - from.first), kotlin.math.abs(to.second - from.second)).coerceAtLeast(1)
+        for (step in 1..steps) {
+            val x = from.first + (to.first - from.first) * step / steps
+            val y = from.second + (to.second - from.second) * step / steps
+            val tank = allTanks.firstOrNull { (it.armor > 0 || it.isWreck) && it.height >= 1 && it.bodyCovers(x, y) }
+            if (tank != null) {
+                tank.queueDamage(FLAME_PART_POWER_TANK)
+                val length = kotlin.math.hypot((to.first - from.first).toFloat(), (to.second - from.second).toFloat())
+                if (length > 0f) tank.addImpulse((to.first - from.first) / length, (to.second - from.second) / length, FLAME_PART_POWER_TANK)
+                pendingEvents += GameEvent.Effect(EffectKind.CHAIN, x, y)
+                pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.EXPLODE, x, y)
+                part.removed = true
+                break
+            }
+            val layer = structures.hitLayerAt(x, y) ?: continue
+            hitStructure(Math.floorDiv(x, LEGACY_TILE_SIZE), Math.floorDiv(y, LEGACY_TILE_SIZE), layer, HitKind.NORMAL, FLAME_PART_POWER_WALL, EffectKind.EXPLOSION)
+            part.removed = true
+            break
+        }
+    }
+    flameParts.removeAll { it.removed }
+}
+
+private const val FLAME_PART_POWER_TANK = 7
+private const val FLAME_PART_POWER_WALL = 10
+/** Legacy `max_parts`. */
+private const val MAX_PARTS = 1000
 
 /** Legacy SND_RICOCHETS + rnd(6). */
 internal fun Match.ricochet(x: Int, y: Int) {

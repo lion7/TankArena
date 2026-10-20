@@ -76,6 +76,18 @@ class GameServer(
     /** Who is in the game, the host first. */
     val members: StateFlow<List<LobbyMember>> = membersFlow.asStateFlow()
 
+    private val choicesFlow = MutableStateFlow<Map<Int, Int>>(emptyMap())
+
+    /** Against each other: the vehicles picked so far for the coming round, by player id. */
+    val choices: StateFlow<Map<Int, Int>> = choicesFlow.asStateFlow()
+
+    /** The vehicles the coming round allows. */
+    @Volatile
+    private var allowed: List<Boolean> = emptyList()
+
+    /** The players' ids in the game now: the host's and every machine's still connected. */
+    fun seatsInGame(): List<Int> = synchronized(lock) { (0 until hostPlayers).toList() + sessions.flatMap { it.seats } }
+
     /** Starts listening; returns the port (useful when [port] is 0, any free one). */
     fun start(): Int {
         val engine = embeddedServer(CIO, port = port) {
@@ -116,8 +128,42 @@ class GameServer(
     }
 
     /**
-     * Starts the match on [map] with everyone in the lobby; nobody can join any more. The players'
-     * ids are made consecutive (someone may have left), so each machine is told its final seats.
+     * Nobody can join any more; the players' ids are made consecutive (someone may have left), and
+     * each machine learns its final ones with the next message. Returns the number of players.
+     */
+    fun closeLobby(): Int = synchronized(lock) {
+        if (!started) {
+            started = true
+            var next = hostPlayers
+            for (session in sessions) session.seats = List(session.seats.size) { next++ }
+        }
+        hostPlayers + sessions.sumOf { it.seats.size }
+    }.also { publishMembers() }
+
+    /** Against each other: the vehicle choice for [round] begins; [choices] fills as players pick. */
+    fun openChoice(round: Int, wins: List<Int>, allowed: List<Boolean>, seconds: Int) {
+        closeLobby()
+        this.allowed = allowed
+        choicesFlow.value = emptyMap()
+        val all = synchronized(lock) { sessions.toList() }
+        for (session in all) session.outgoing.trySend(ServerMessage.ChooseVehicles(round, wins, allowed, seconds, session.seats))
+    }
+
+    /** Player [seat] picks [vehicle] (the host's own players; the others' come in as messages). */
+    fun choose(seat: Int, vehicle: Int) {
+        if (allowed.getOrNull(vehicle) != true) return
+        choicesFlow.value = choicesFlow.value + (seat to vehicle)
+    }
+
+    /** Tells everyone how the round went. */
+    fun roundOver(result: ServerMessage.RoundOver) {
+        val all = synchronized(lock) { sessions.toList() }
+        for (session in all) session.outgoing.trySend(result)
+    }
+
+    /**
+     * Starts a round on [map] with everyone in the game (the lobby closes with the first). A server
+     * plays as many rounds as its host wants, one after the other.
      */
     fun startMatch(
         baseName: String,
@@ -127,16 +173,11 @@ class GameServer(
         ruleset: Ruleset = Ruleset.EXTENDED,
         recordAs: String? = null,
     ): HostedMatch {
-        val joined = synchronized(lock) {
-            check(!started) { "the match has already started" }
-            started = true
-            var next = hostPlayers
-            for (session in sessions) {
-                session.seats = List(session.seats.size) { next++ }
-            }
-            sessions.toList()
-        }
-        val players = hostPlayers + joined.sumOf { it.seats.size }
+        val players = closeLobby()
+        check(match == null) { "a round is still being played" }
+        val joined = synchronized(lock) { sessions.toList() }
+        // The rounds' frames do not follow on from each other: every round begins with a whole one.
+        for (session in joined) session.frames.reset()
         val local = LocalMatchClient.fromMap(map, mode, recordAs, dual, ruleset, players = players)
         val hosted = HostedMatch(local, this)
         match = hosted
@@ -147,7 +188,6 @@ class GameServer(
                 ServerMessage.MatchStart(baseName, mapText, mode, players, dual, ruleset, first.forSeats(session.seats)),
             )
         }
-        publishMembers()
         return hosted
     }
 
@@ -161,9 +201,9 @@ class GameServer(
         }
     }
 
+    /** The round's match is over; the next may start. */
     internal fun matchEnded() {
         match = null
-        stop("The host left the game.")
     }
 
     private suspend fun serve(socket: DefaultWebSocketSession) {
@@ -189,6 +229,7 @@ class GameServer(
                         val seats = session.seats
                         for (input in message.frames) if (input.playerId in seats) remoteInputs[input.playerId] = input
                     }
+                    is ClientMessage.ChooseVehicle -> if (message.seat in session.seats) choose(message.seat, message.vehicle)
                     ClientMessage.Leave -> break
                     else -> Unit
                 }

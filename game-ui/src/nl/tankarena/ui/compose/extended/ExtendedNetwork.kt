@@ -32,6 +32,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.tankarena.net.LanGame
+import nl.tankarena.net.ServerMessage
+import nl.tankarena.sim.LegacyVehicles
 import nl.tankarena.net.LobbyMember
 import nl.tankarena.net.MAX_NET_PLAYERS
 import nl.tankarena.ui.compose.GameMode
@@ -250,3 +252,102 @@ fun NetworkLobbyScreen(
 }
 
 private const val MAX_ADDRESS_LENGTH = 64
+
+/**
+ * Against each other, before a round (legacy select_tanks() over the network): this machine's
+ * players ([seats]) pick their vehicles one after the other from those [allowed]. [secondsLeft] and
+ * [status] tell how long the others have.
+ */
+@Composable
+fun VehicleChoiceScreen(
+    round: Int,
+    wins: List<Int>,
+    seats: List<Int>,
+    allowed: List<Boolean>,
+    secondsLeft: Int,
+    status: String,
+    onPick: (seat: Int, vehicle: Int) -> Unit,
+    onBack: () -> Unit,
+) {
+    val keys = remember { KeyRouter() }
+    var picking by remember(round) { mutableIntStateOf(0) }
+    val seat = seats.getOrNull(picking)
+    val entries = allowed.indices.map { vehicle ->
+        val spec = LegacyVehicles.spec(vehicle)
+        ListEntry(spec.name, spec.kind.name.lowercase().replace("chopper", "helicopter"), enabled = allowed[vehicle])
+    }
+    ExtendedPage(
+        title = "Round $round",
+        subtitle = "Team 1 ${wins.getOrElse(0) { 0 }} – ${wins.getOrElse(1) { 0 }} Team 2 · $secondsLeft s to pick",
+        onBack = onBack,
+        footer = if (seat != null) "Enter picks · ESC leaves the game" else "ESC leaves the game",
+        onKey = { event -> if (seat != null) keys.handle(event) else false },
+    ) {
+        if (seat != null) {
+            Column {
+                Text("Player ${seat + 1} (team ${seat % 2 + 1}): your vehicle", color = ExtendedColors.accent, fontSize = 20.sp)
+                Spacer(Modifier.height(12.dp))
+                ExtendedList(
+                    entries,
+                    onPick = { vehicle ->
+                        onPick(seat, vehicle)
+                        picking++
+                    },
+                    initial = allowed.indexOfFirst { it }.coerceAtLeast(0),
+                    keys = keys,
+                )
+            }
+        } else {
+            Text("Waiting for the others… $status", color = ExtendedColors.dim, fontSize = 18.sp)
+        }
+    }
+}
+
+/**
+ * How a round of a network game ended, seen by a machine whose players are on [mySide] (null: the
+ * dedicated host's view of nobody). The host goes on with Enter ([onNext]); the others wait.
+ */
+@Composable
+fun NetworkResultScreen(
+    result: ServerMessage.RoundOver,
+    mySide: Int?,
+    hosting: Boolean,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val winner = result.winner
+    val headline = when {
+        result.missionWon != null -> if (result.missionWon == true) "Mission accomplished" else "Mission failed"
+        winner == null -> "Nobody won the round"
+        winner == mySide -> "Your team won the round"
+        else -> "Team ${winner + 1} won the round"
+    }
+    val matchLine = when {
+        result.missionWon != null -> null
+        !result.matchOver -> "Team 1 ${result.wins[0]} – ${result.wins[1]} Team 2"
+        winner == null -> "The match ends: ${result.wins[0]} – ${result.wins[1]}"
+        else -> "Team ${result.wins.indices.maxBy { result.wins[it] } + 1} wins the match, ${result.wins[0]} – ${result.wins[1]}"
+    }
+    ExtendedPage(
+        title = if (result.missionWon != null) "Mission over" else "Round ${result.round}",
+        onBack = onBack,
+        footer = when {
+            result.matchOver -> "Enter goes back to the network menu"
+            hosting -> "Enter: the next round · ESC ends the game"
+            else -> "Waiting for the host to start the next round · ESC leaves"
+        },
+        onKey = { event ->
+            if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && (hosting || result.matchOver)) {
+                onNext()
+                true
+            } else {
+                false
+            }
+        },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(headline, color = ExtendedColors.accent, fontSize = 28.sp)
+            if (matchLine != null) Text(matchLine, color = ExtendedColors.text, fontSize = 20.sp)
+        }
+    }
+}

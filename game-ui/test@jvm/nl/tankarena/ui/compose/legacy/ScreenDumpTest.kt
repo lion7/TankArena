@@ -38,6 +38,22 @@ class ScreenDumpTest {
         still(out, "options.png") { GameOptionsScreen(GameOptions(rounds = GameOptions.ENDLESS, losersTank = 1), {}, {}) }
         still(out, "credits.png") { CreditsScreen("credits.bmp", 70, 40, Credits.CREDITS, {}) }
         still(out, "thanks.png") { CreditsScreen("credits2.bmp", 160, 100, Credits.THANKS, {}) }
+        // The network game's screens.
+        val round = nl.tankarena.net.ServerMessage.RoundOver(round = 2, winner = 1, wins = listOf(1, 1), missionWon = null, matchOver = false)
+        still(out, "net-result.png") { nl.tankarena.ui.compose.extended.NetworkResultScreen(round, mySide = 1, hosting = false, {}, {}) }
+        val decided = round.copy(round = 3, winner = 0, wins = listOf(2, 1), matchOver = true)
+        still(out, "net-result-match.png") { nl.tankarena.ui.compose.extended.NetworkResultScreen(decided, mySide = 1, hosting = true, {}, {}) }
+        val beacon = nl.tankarena.net.LanBeacon(3, 9, 6, "living room", nl.tankarena.net.DEFAULT_PORT, "flagisle", 1, 4)
+        still(out, "net-join.png") {
+            nl.tankarena.ui.compose.extended.NetworkAddressScreen(listOf(nl.tankarena.net.LanGame("192.168.1.20", beacon)), "", false, null, {}, {})
+        }
+        still(out, "net-lobby.png") {
+            nl.tankarena.ui.compose.extended.NetworkLobbyScreen(
+                "FLAGISLE",
+                listOf(nl.tankarena.net.LobbyMember("desktop", listOf(0)), nl.tankarena.net.LobbyMember("Pixel 7", listOf(1, 2))),
+                hosting = true, addresses = listOf("192.168.1.20"), minPlayers = 2, teams = true, onStart = {}, onBack = {},
+            )
+        }
     }
 
     private fun still(out: String, name: String, content: @androidx.compose.runtime.Composable () -> Unit) {

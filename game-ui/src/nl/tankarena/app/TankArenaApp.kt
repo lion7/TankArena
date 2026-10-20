@@ -1,5 +1,10 @@
 package nl.tankarena.app
 
+import androidx.compose.runtime.mutableIntStateOf
+import nl.tankarena.ui.compose.extended.NetworkResultScreen
+import nl.tankarena.ui.compose.extended.VehicleChoiceScreen
+import nl.tankarena.net.MAX_NET_PLAYERS
+import nl.tankarena.net.NetSeries
 import nl.tankarena.protocol.snapshot.PROTOCOL_VERSION
 import nl.tankarena.net.LanFinder
 import kotlinx.coroutines.launch
@@ -196,10 +201,24 @@ fun TankArenaApp(
     fun joinFirst(next: DesktopShellScreen): DesktopShellScreen =
         if (platform.gamepads().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS)
 
-    /** One player at a network machine: the single player's keys, and the first gamepad if there is one. */
-    fun useNetworkSeat() {
-        controls.seats = listOf(Seat(keys = 1, pad = 0.takeIf { platform.gamepads().isNotEmpty() }))
+    /**
+     * The players at this machine for a network game: those who joined on the join screen, else one
+     * with the single player's keys and the first gamepad if there is one. Returns how many.
+     */
+    fun useNetworkSeats(): Int {
+        if (controls.seats == null) controls.seats = listOf(Seat(keys = 1, pad = 0.takeIf { platform.gamepads().isNotEmpty() }))
+        return controls.seats!!.size
     }
+
+    /** With gamepads connected, who plays at this machine is asked first (up to three; one place stays for the others). */
+    fun netJoinFirst(next: DesktopShellScreen, back: DesktopShellScreen): DesktopShellScreen {
+        controls.seats = null
+        return if (platform.gamepads().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 1, maxPlayers = MAX_NET_PLAYERS - 1, back = back)
+    }
+
+    /** The host starts the series' next round; its screen shows it. */
+    fun hostRound(session: NetworkSession.Hosting, series: NetSeries): DesktopShellScreen =
+        DesktopShellScreen.NetworkPlaying(session, series.startRound(), session.mission, session.mode, (0 until session.localPlayers).toList())
 
     /** Players this session: who joined (Extended, ADR 0027), else as many as the mode has. */
     fun sessionPlayers(mode: GameMode): Int {
@@ -298,7 +317,7 @@ fun TankArenaApp(
                             controls.seats = seats
                             screen = current.next
                         },
-                        onBack = { screen = DesktopShellScreen.LocalGame },
+                        onBack = { screen = current.back },
                     )
 
                     DesktopShellScreen.LocalGame -> {
@@ -328,7 +347,7 @@ fun TankArenaApp(
                         onHost = { screen = DesktopShellScreen.NetworkHost },
                         onJoin = {
                             netError = null
-                            screen = DesktopShellScreen.NetworkAddress
+                            screen = netJoinFirst(DesktopShellScreen.NetworkAddress, back = DesktopShellScreen.NetworkMenu)
                         },
                         onBack = { screen = DesktopShellScreen.MainMenu },
                     )
@@ -341,19 +360,23 @@ fun TankArenaApp(
                             NetworkHostScreen(
                                 missions = all,
                                 onPick = { mission, mode ->
-                                    useNetworkSeat()
-                                    val server = GameServer(platform.deviceName, NET_LOCAL_PLAYERS, Ruleset.EXTENDED.rulesVersion)
-                                    server.mapName = mission.baseName
-                                    screen = runCatching { server.start() }.fold(
-                                        onSuccess = { port ->
-                                            DesktopShellScreen.NetworkLobby(NetworkSession.Hosting(server, port, mission, mode, NET_LOCAL_PLAYERS))
-                                        },
-                                        onFailure = { DesktopShellScreen.Message("CANNOT HOST: ${it.message.orEmpty().uppercase()}", DesktopShellScreen.NetworkMenu) },
-                                    )
+                                    screen = netJoinFirst(DesktopShellScreen.NetworkHostStart(mission, mode), back = DesktopShellScreen.NetworkHost)
                                 },
                                 onBack = { screen = DesktopShellScreen.NetworkMenu },
                             )
                         }
+                    }
+
+                    is DesktopShellScreen.NetworkHostStart -> LaunchedEffect(current) {
+                        val local = useNetworkSeats()
+                        val server = GameServer(platform.deviceName, local, Ruleset.EXTENDED.rulesVersion)
+                        server.mapName = current.mission.baseName
+                        screen = runCatching { server.start() }.fold(
+                            onSuccess = { port ->
+                                DesktopShellScreen.NetworkLobby(NetworkSession.Hosting(server, port, current.mission, current.mode, local))
+                            },
+                            onFailure = { DesktopShellScreen.Message("CANNOT HOST: ${it.message.orEmpty().uppercase()}", DesktopShellScreen.NetworkMenu) },
+                        )
                     }
 
                     DesktopShellScreen.NetworkAddress -> {
@@ -378,13 +401,13 @@ fun TankArenaApp(
                             netConnecting = true
                             netError = null
                             val (address, port) = parseAddress(typed)
-                            val client = GameClient(platform.deviceName, NET_LOCAL_PLAYERS, Ruleset.EXTENDED.rulesVersion)
+                            val local = useNetworkSeats()
+                            val client = GameClient(platform.deviceName, local, Ruleset.EXTENDED.rulesVersion)
                             scope.launch {
                                 val joined = client.join(address, port)
                                 netConnecting = false
                                 if (joined) {
-                                    useNetworkSeat()
-                                    screen = DesktopShellScreen.NetworkLobby(NetworkSession.Joined(client, typed, NET_LOCAL_PLAYERS))
+                                    screen = DesktopShellScreen.NetworkLobby(NetworkSession.Joined(client, typed, local))
                                 } else {
                                     netError = (client.state.value as? ClientState.Out)?.reason ?: "Could not join."
                                     client.close()
@@ -407,17 +430,18 @@ fun TankArenaApp(
                                 minPlayers = 2,
                                 teams = session.mode == GameMode.PLAYER_VS_PLAYER,
                                 onStart = {
-                                    val mission = session.mission
-                                    // No vehicle choice over the network yet: everyone gets the map's first.
-                                    val dual = if (session.mode == GameMode.PLAYER_VS_PLAYER) {
-                                        DualVehicles.defaultSetup(mission.sidecar.metadata.mapContents, options.raceLaps)
-                                    } else {
-                                        DualSetup()
-                                    }
-                                    val hosted = session.server.startMatch(
-                                        mission.baseName, mission.document, session.mode.toMatchMode(), dual, Ruleset.EXTENDED, recordAs = mission.baseName,
+                                    val series = NetSeries(
+                                        session.server, session.mission.baseName, session.mission.document, session.mode.toMatchMode(),
+                                        rounds = options.rounds, raceLaps = options.raceLaps, losersTank = options.losersTank,
+                                        recordAs = session.mission.baseName,
                                     )
-                                    screen = DesktopShellScreen.NetworkPlaying(session, hosted, mission, session.mode, (0 until session.localPlayers).toList())
+                                    session.series = series
+                                    screen = if (series.versus) {
+                                        series.openChoice()
+                                        DesktopShellScreen.NetworkChoose(session)
+                                    } else {
+                                        hostRound(session, series)
+                                    }
                                 },
                                 onBack = {
                                     session.close()
@@ -427,6 +451,10 @@ fun TankArenaApp(
                         }
                         is NetworkSession.Joined -> {
                             val state by session.client.state.collectAsState()
+                            val leave = {
+                                session.close()
+                                screen = DesktopShellScreen.NetworkMenu
+                            }
                             when (val now = state) {
                                 is ClientState.InLobby -> NetworkLobbyScreen(
                                     title = "Joined ${now.hostName}",
@@ -436,23 +464,112 @@ fun TankArenaApp(
                                     minPlayers = 2,
                                     teams = false,
                                     onStart = {},
-                                    onBack = {
-                                        session.close()
-                                        screen = DesktopShellScreen.NetworkMenu
-                                    },
+                                    onBack = leave,
                                 )
-                                is ClientState.Playing -> LaunchedEffect(now) {
-                                    val match = now.match
-                                    screen = DesktopShellScreen.NetworkPlaying(
-                                        session, match, MissionEntry.of(match.baseName, match.map), match.mode.toGameMode(), match.seats,
+                                is ClientState.Choosing -> {
+                                    val choice = now.choice
+                                    val deadline = remember(choice) { System.currentTimeMillis() + choice.seconds * 1_000L }
+                                    var secondsLeft by remember(choice) { mutableIntStateOf(choice.seconds) }
+                                    LaunchedEffect(choice) {
+                                        while (secondsLeft > 0) {
+                                            kotlinx.coroutines.delay(250)
+                                            secondsLeft = ((deadline - System.currentTimeMillis() + 999) / 1_000).toInt().coerceAtLeast(0)
+                                        }
+                                    }
+                                    VehicleChoiceScreen(
+                                        round = choice.round,
+                                        wins = choice.wins,
+                                        seats = choice.seats,
+                                        allowed = choice.allowed,
+                                        secondsLeft = secondsLeft,
+                                        status = "",
+                                        onPick = session.client::choose,
+                                        onBack = leave,
                                     )
                                 }
+                                is ClientState.Playing -> if (now.match === current.finished) {
+                                    NetworkLobbyScreen(
+                                        title = "Round over",
+                                        members = emptyList(),
+                                        hosting = false,
+                                        addresses = emptyList(),
+                                        minPlayers = 2,
+                                        teams = false,
+                                        onStart = {},
+                                        onBack = leave,
+                                    )
+                                } else {
+                                    LaunchedEffect(now) {
+                                        val match = now.match
+                                        screen = DesktopShellScreen.NetworkPlaying(
+                                            session, match, MissionEntry.of(match.baseName, match.map), match.mode.toGameMode(), match.seats,
+                                        )
+                                    }
+                                }
+                                is ClientState.RoundResult -> NetworkResultScreen(
+                                    result = now.result,
+                                    mySide = session.client.seatsSide(),
+                                    hosting = false,
+                                    onNext = leave,
+                                    onBack = leave,
+                                )
                                 is ClientState.Out -> LaunchedEffect(now) {
                                     screen = DesktopShellScreen.Message(now.reason.uppercase(), DesktopShellScreen.NetworkMenu)
                                 }
                                 ClientState.Connecting -> Unit
                             }
                         }
+                    }
+
+                    is DesktopShellScreen.NetworkChoose -> {
+                        val session = current.session
+                        val series = session.series!!
+                        val picked by session.server.choices.collectAsState()
+                        var secondsLeft by remember(series.round) { mutableIntStateOf(series.secondsLeft()) }
+                        // Once everyone has picked (or the time is up) the round starts.
+                        LaunchedEffect(series.round) {
+                            while (!series.choiceDone()) {
+                                kotlinx.coroutines.delay(200)
+                                secondsLeft = series.secondsLeft()
+                            }
+                            screen = hostRound(session, series)
+                        }
+                        VehicleChoiceScreen(
+                            round = series.round,
+                            wins = series.wins,
+                            seats = (0 until session.localPlayers).toList(),
+                            allowed = series.allowedVehicles,
+                            secondsLeft = secondsLeft,
+                            status = "${picked.size} of ${session.server.seatsInGame().size} have picked",
+                            onPick = session.server::choose,
+                            onBack = {
+                                session.close()
+                                screen = DesktopShellScreen.NetworkMenu
+                            },
+                        )
+                    }
+
+                    is DesktopShellScreen.NetworkResult -> {
+                        val session = current.session
+                        NetworkResultScreen(
+                            result = current.result,
+                            mySide = 0,
+                            hosting = true,
+                            onNext = {
+                                val series = session.series!!
+                                screen = if (current.result.matchOver) {
+                                    session.close()
+                                    DesktopShellScreen.NetworkMenu
+                                } else {
+                                    series.openChoice()
+                                    DesktopShellScreen.NetworkChoose(session)
+                                }
+                            },
+                            onBack = {
+                                session.close()
+                                screen = DesktopShellScreen.NetworkMenu
+                            },
+                        )
                     }
 
                     is DesktopShellScreen.Campaign -> {
@@ -721,12 +838,28 @@ fun TankArenaApp(
                         ruleset = Ruleset.EXTENDED,
                         onMissionEnd = { outcome ->
                             controls.resetAll()
+                            val session = current.session
                             val lost = (current.match as? RemoteMatchClient)?.endedReason
-                            current.session.close()
-                            screen = if (outcome == null && lost != null) {
-                                DesktopShellScreen.Message(lost.uppercase(), DesktopShellScreen.NetworkMenu)
-                            } else {
-                                DesktopShellScreen.NetworkMenu
+                            screen = when {
+                                // Left with ESC (or the host is gone): the game is over for this machine.
+                                outcome == null && lost != null -> {
+                                    session.close()
+                                    DesktopShellScreen.Message(lost.uppercase(), DesktopShellScreen.NetworkMenu)
+                                }
+                                outcome == null -> {
+                                    session.close()
+                                    DesktopShellScreen.NetworkMenu
+                                }
+                                session is NetworkSession.Hosting -> {
+                                    // In player vs player WON means team 1 won the round.
+                                    val versus = current.mode == GameMode.PLAYER_VS_PLAYER
+                                    val result = session.series!!.roundEnded(
+                                        winner = if (versus) (if (outcome == MissionOutcome.WON) 0 else 1) else null,
+                                        missionWon = if (versus) null else outcome == MissionOutcome.WON,
+                                    )
+                                    DesktopShellScreen.NetworkResult(session, result)
+                                }
+                                else -> DesktopShellScreen.NetworkLobby(session, finished = current.match)
                             }
                         },
                     )
@@ -799,9 +932,6 @@ fun TankArenaApp(
         }
     }
 }
-
-/** One player per machine in a network game for now; more need the join screen first. */
-private const val NET_LOCAL_PLAYERS = 1
 
 private fun MatchMode.toGameMode(): GameMode = when (this) {
     MatchMode.SINGLE -> GameMode.SINGLE_PLAYER_VS_COMPUTER

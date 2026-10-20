@@ -14,7 +14,7 @@ import nl.tankarena.sim.Ruleset
  * Version of the messages below. The frames inside carry [nl.tankarena.protocol.snapshot.PROTOCOL_VERSION];
  * the handshake compares both, and the rules version, and refuses a mismatch (ADR 0024).
  */
-const val NET_VERSION: Int = 2
+const val NET_VERSION: Int = 3
 
 /** The port a game listens on unless told otherwise. */
 const val DEFAULT_PORT: Int = 47_300
@@ -46,6 +46,11 @@ sealed interface ClientMessage {
     @Serializable
     @SerialName("inputs")
     data class Inputs(val frames: List<InputFrame>) : ClientMessage
+
+    /** One of the machine's players picked its vehicle for the round (an index into the eight). */
+    @Serializable
+    @SerialName("choose")
+    data class ChooseVehicle(val seat: Int, val vehicle: Int) : ClientMessage
 
     /** The client leaves the lobby or the match. */
     @Serializable
@@ -96,6 +101,36 @@ sealed interface ServerMessage {
     @Serializable
     @SerialName("delta")
     data class Delta(val delta: DeltaFrame) : ServerMessage
+
+    /**
+     * Against each other: the players pick their vehicles for round [round] (legacy select_tanks()),
+     * from those [allowed]; who has not picked in [seconds] gets the first allowed. [seats] are this
+     * machine's players' ids, final from now on.
+     */
+    @Serializable
+    @SerialName("choose-vehicles")
+    data class ChooseVehicles(
+        val round: Int,
+        val wins: List<Int>,
+        val allowed: List<Boolean>,
+        val seconds: Int,
+        val seats: List<Int>,
+    ) : ServerMessage
+
+    /**
+     * A round is over. Against each other [winner] is the side that won it (0: players 1 and 3,
+     * 1: players 2 and 4) and [wins] the score; together [missionWon] says how the mission went.
+     * [matchOver]: no round follows.
+     */
+    @Serializable
+    @SerialName("round-over")
+    data class RoundOver(
+        val round: Int,
+        val winner: Int?,
+        val wins: List<Int>,
+        val missionWon: Boolean?,
+        val matchOver: Boolean,
+    ) : ServerMessage
 
     /** The match or the lobby is over (the host left or stopped it). */
     @Serializable

@@ -28,8 +28,14 @@ sealed interface ClientState {
     /** In the lobby: [seats] are this machine's players' ids for now. */
     data class InLobby(val hostName: String, val seats: List<Int>, val members: List<LobbyMember>) : ClientState
 
-    /** The match runs; show [match]. */
+    /** Against each other: this machine's players pick their vehicles for the next round. */
+    data class Choosing(val choice: ServerMessage.ChooseVehicles) : ClientState
+
+    /** A round runs; show [match]. */
     data class Playing(val match: RemoteMatchClient) : ClientState
+
+    /** A round is over; the host goes on with the next or ends the game. */
+    data class RoundResult(val result: ServerMessage.RoundOver) : ClientState
 
     /** Not in the game (any more): refused, the host left, or the connection broke; [reason] for the player. */
     data class Out(val reason: String) : ClientState
@@ -54,6 +60,14 @@ class GameClient(
     }
     private val toServer = Channel<ClientMessage>(Channel.UNLIMITED)
     private val stateFlow = MutableStateFlow<ClientState>(ClientState.Connecting)
+
+    /** This machine's players' ids: as welcomed, final once the host closes the lobby. */
+    @Volatile
+    var seats: List<Int> = emptyList()
+        private set
+
+    /** The team this machine's (first) player is on: 0 for players 1 and 3, 1 for 2 and 4. */
+    fun seatsSide(): Int? = seats.firstOrNull()?.let { it and 1 }
 
     /** The frames rebuilt from whole frames and deltas, as they arrive. */
     private val frames = DeltaDecoder()
@@ -105,6 +119,9 @@ class GameClient(
         }
     }
 
+    /** This machine's player [seat] picks [vehicle] for the coming round. */
+    fun choose(seat: Int, vehicle: Int) = send(ClientMessage.ChooseVehicle(seat, vehicle))
+
     internal fun send(message: ClientMessage) {
         toServer.trySend(message)
     }
@@ -113,6 +130,7 @@ class GameClient(
         val current = stateFlow.value
         when (message) {
             is ServerMessage.Welcome -> {
+                seats = message.seats
                 stateFlow.value = ClientState.InLobby(message.hostName, message.seats, emptyList())
                 answered.complete(true)
             }
@@ -121,9 +139,17 @@ class GameClient(
                 answered.complete(false)
             }
             is ServerMessage.Lobby -> if (current is ClientState.InLobby) stateFlow.value = current.copy(members = message.members)
-            is ServerMessage.MatchStart -> stateFlow.value = ClientState.Playing(RemoteMatchClient(message, this))
+            is ServerMessage.MatchStart -> {
+                seats = message.firstFrame.playerViews.map { it.playerId }
+                stateFlow.value = ClientState.Playing(RemoteMatchClient(message, this))
+            }
             is ServerMessage.Frame -> (current as? ClientState.Playing)?.match?.receive(frames.whole(message.frame))
             is ServerMessage.Delta -> (current as? ClientState.Playing)?.match?.receive(frames.apply(message.delta))
+            is ServerMessage.ChooseVehicles -> {
+                seats = message.seats
+                stateFlow.value = ClientState.Choosing(message)
+            }
+            is ServerMessage.RoundOver -> stateFlow.value = ClientState.RoundResult(message)
             is ServerMessage.Ended -> {
                 (current as? ClientState.Playing)?.match?.end(message.reason)
                 stateFlow.value = ClientState.Out(message.reason)

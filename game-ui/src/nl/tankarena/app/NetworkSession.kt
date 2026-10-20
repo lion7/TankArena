@@ -2,6 +2,7 @@ package nl.tankarena.app
 
 import nl.tankarena.net.GameClient
 import nl.tankarena.net.GameServer
+import nl.tankarena.net.NetSeries
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.menu.MissionEntry
 
@@ -21,6 +22,9 @@ sealed interface NetworkSession {
         val mode: GameMode,
         override val localPlayers: Int,
     ) : NetworkSession {
+        /** The rounds, once the host started the game. */
+        var series: NetSeries? = null
+
         override fun close() = server.stop()
     }
 

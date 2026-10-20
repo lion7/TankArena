@@ -107,7 +107,13 @@ sealed interface DesktopShellScreen {
     /** Extended: the main menu, shown wherever Classic shows its main or game mode menu. */
     data object ExtendedMenu : DesktopShellScreen
     /** Extended's "press to join" before a local game; then [next]. */
-    data class Join(val next: DesktopShellScreen, val minPlayers: Int, val maxPlayers: Int) : DesktopShellScreen
+    data class Join(
+        val next: DesktopShellScreen,
+        val minPlayers: Int,
+        val maxPlayers: Int,
+        /** Where ESC goes. */
+        val back: DesktopShellScreen = LocalGame,
+    ) : DesktopShellScreen
 
     /** Extended: two players at one keyboard, together or against each other. */
     data object LocalGame : DesktopShellScreen
@@ -122,11 +128,29 @@ sealed interface DesktopShellScreen {
     /** Picking the map to host. */
     data object NetworkHost : DesktopShellScreen
 
+    /** Hosting [mission] in [mode] begins: the server opens, then the lobby shows. */
+    data class NetworkHostStart(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
+
     /** Typing the address of a game to join. */
     data object NetworkAddress : DesktopShellScreen
 
-    /** Waiting for the players (host) or for the host to start (guest). */
-    data class NetworkLobby(val session: nl.tankarena.app.NetworkSession) : DesktopShellScreen
+    /**
+     * Waiting for the players (host); a guest follows the host from here: lobby, vehicle choice,
+     * round, result. [finished] is the round a guest just played, not to be shown again.
+     */
+    data class NetworkLobby(
+        val session: nl.tankarena.app.NetworkSession,
+        val finished: nl.tankarena.sim.MatchClient? = null,
+    ) : DesktopShellScreen
+
+    /** The host's players pick their vehicles while the others do on their machines. */
+    data class NetworkChoose(val session: nl.tankarena.app.NetworkSession.Hosting) : DesktopShellScreen
+
+    /** The host sees how the round went and goes on with the next. */
+    data class NetworkResult(
+        val session: nl.tankarena.app.NetworkSession.Hosting,
+        val result: nl.tankarena.net.ServerMessage.RoundOver,
+    ) : DesktopShellScreen
 
     /** A network game being played: [match] is hosted here or shown from the host; [seats] are this machine's players. */
     data class NetworkPlaying(

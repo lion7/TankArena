@@ -115,7 +115,9 @@ All under `nl.tankarena.sim`.
   the difference with the one before; the WebSocket deflates them (permessage-deflate).
 - `LanDiscovery.kt`: `LanAnnouncer` (the lobby's beacon on UDP port 47301, once a second, to every
   broadcast address) and `LanFinder` (the games heard lately).
-- `GameClient` (connection and lobby) and `RemoteMatchClient`: a `MatchClient` that sends its players'
+- `NetSeries`: the rounds of a game on the host: vehicle choice with a deadline, rounds until the
+  match is decided, the result to every machine.
+- `GameClient` (connection, lobby, vehicle choice, results) and `RemoteMatchClient`: a `MatchClient` that sends its players'
   controls once a step and plays the frames back about 100 ms behind.
 
 ### `:game-ui`

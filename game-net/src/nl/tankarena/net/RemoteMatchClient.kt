@@ -16,7 +16,8 @@ import nl.tankarena.sim.map.MapFile
  * event reaches the screen exactly once, with the first tick after its step.
  */
 class RemoteMatchClient internal constructor(
-    private val start: ServerMessage.MatchStart,
+    /** How the host started the round. */
+    val start: ServerMessage.MatchStart,
     private val connection: GameClient,
 ) : MatchClient {
     /** The map, sent by the host. */
@@ -83,8 +84,8 @@ class RemoteMatchClient internal constructor(
 
     override fun currentServerFrame(): ServerFrame = shown.withoutEvents()
 
-    /** Leaves the match. */
-    override fun dispose() = connection.close()
+    /** The round's screen is done with it; the connection stays for the next round (the game's session closes it). */
+    override fun dispose() = Unit
 
     private var quiet: Pair<ServerFrame, ServerFrame>? = null
 

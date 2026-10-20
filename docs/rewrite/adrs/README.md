@@ -27,10 +27,11 @@ implemented is in the [roadmap](../roadmap.md).
 | [0018](0018-audio-and-music.md) | Original samples through a software mixer; MIDI music | Accepted |
 | [0019](0019-plain-kotlin-no-kubriko.md) | Plain Kotlin everywhere, no Kubriko | Done (2026-10-19) |
 | [0020](0020-user-data-as-json.md) | Player data as JSON in the user's folders | Accepted |
-| [0021](0021-editor-in-the-game.md) | Map editor inside the game | Accepted, not built |
-| [0022](0022-native-map-format.md) | Native readable map format with `.MAP` converters | Accepted, not built |
-| [0023](0023-classic-and-extended-rulesets.md) | Two rulesets: Classic and Extended | Accepted, not built |
-| [0024](0024-networking.md) | Networked play: authoritative server with snapshots | Accepted, not built |
-| [0025](0025-multiplatform-modules-and-android.md) | Multiplatform module layout and Android | Accepted, not built |
-| [0026](0026-input-and-gamepads.md) | Input layer, remapping and gamepads | Accepted, not built |
-| [0027](0027-four-players-two-teams.md) | Four players means two teams of two | Accepted, not built |
+| [0021](0021-editor-in-the-game.md) | Map editor inside the game | Accepted, built except validation and the whole-map overview |
+| [0022](0022-native-map-format.md) | Native readable map format with `.MAP` converters | Accepted, built |
+| [0023](0023-classic-and-extended-rulesets.md) | Two rulesets: Classic and Extended | Accepted, built |
+| [0024](0024-networking.md) | Networked play: authoritative server with snapshots | Accepted, built for the LAN |
+| [0025](0025-multiplatform-modules-and-android.md) | Multiplatform module layout and Android | Accepted, built (release signing open) |
+| [0026](0026-input-and-gamepads.md) | Input layer, remapping and gamepads | Accepted, built |
+| [0027](0027-four-players-two-teams.md) | Four players means two teams of two | Accepted, built |
+| [0028](0028-internet-relay-and-lobby.md) | Internet play through a relay and lobby server | Proposed, design only |

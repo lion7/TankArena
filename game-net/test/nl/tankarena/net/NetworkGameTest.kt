@@ -88,6 +88,7 @@ class NetworkGameTest {
         )
 
         hosted.dispose()
+        server.stop("The host left the game.")
         waitFor("the end") { guest.state.value is ClientState.Out }
         assertEquals("The host left the game.", remote.endedReason)
     }
@@ -151,5 +152,47 @@ class NetworkGameTest {
         assertEquals("10.0.2.2" to DEFAULT_PORT, parseAddress("10.0.2.2"))
         assertEquals("host" to 5000, parseAddress(" host:5000 "))
         assertEquals("host:x" to DEFAULT_PORT, parseAddress("host:x"))
+    }
+
+    @Test
+    fun `against each other the guest picks a vehicle, rounds are counted, and the match ends`() {
+        val (server, port) = server()
+        val guest = client()
+        assertTrue(runBlocking { guest.join("127.0.0.1", port) })
+        waitFor("the lobby") { server.members.value.size == 2 }
+        val map = ShippedMaps.loadAll().first { it.baseName == "flagisle" }.document
+        val series = NetSeries(server, "flagisle", map, MatchMode.DUAL, rounds = 3)
+
+        for (round in 1..2) {
+            series.openChoice()
+            val choosing = waitForState<ClientState.Choosing>(guest)
+            assertEquals(round, choosing.choice.round)
+            assertEquals(listOf(1), choosing.choice.seats)
+            val vehicle = choosing.choice.allowed.indexOfLast { it }
+            guest.choose(1, vehicle)
+            series.choose(0)
+            waitFor("both picks") { series.choiceDone() }
+            val hosted = series.startRound()
+            val playing = waitForState<ClientState.Playing>(guest)
+            assertEquals(vehicle, playing.match.start.dual.tankTypes[1], "round $round: the guest drives what it picked")
+            repeat(30) { hosted.tick(); playing.match.tick() }
+            hosted.dispose()
+            // Player 1's side wins both rounds: 2 of 3 decides the match.
+            val result = series.roundEnded(winner = 0, missionWon = null)
+            val heard = waitForState<ClientState.RoundResult>(guest).result
+            assertEquals(result, heard)
+            assertEquals(round == 2, heard.matchOver)
+            assertEquals(listOf(round, 0), heard.wins)
+        }
+    }
+
+    private inline fun <reified T : ClientState> waitForState(client: GameClient): T {
+        waitFor(T::class.simpleName!!) { client.state.value is T }
+        return client.state.value as T
+    }
+
+    private fun NetSeries.choose(seat: Int) {
+        val server = this@NetworkGameTest.servers.last()
+        server.choose(seat, allowedVehicles.indexOfFirst { it })
     }
 }

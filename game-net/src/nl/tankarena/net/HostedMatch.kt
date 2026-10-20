@@ -38,7 +38,7 @@ class HostedMatch internal constructor(
 
     override fun currentServerFrame(): ServerFrame = match.currentServerFrame()
 
-    /** The host's game ends: the others are told, and the server stops. */
+    /** The round's match ends; the server stays for the next round (the host stops it at the end). */
     override fun dispose() {
         server.matchEnded()
         match.dispose()

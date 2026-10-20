@@ -238,10 +238,15 @@ Depends on: phases 1 and 6 (the move is mechanical once the core is platform-fre
      deflates with the context of the frames before. Median 99 bytes per frame, SUBURBS 551 (was
      4 KB and 35 KB): about 3 to 18 KB/s per guest, so limiting frames to what is near the views is
      not needed.
-   - [ ] More players per machine (the join screen first), the vehicle choice over the network,
-     several rounds, a result screen.
+   - [x] Up to three players per machine (the join screen first when gamepads are connected).
+   - [x] Against each other: before every round each machine's players pick their vehicles (30 s,
+     then the last or first allowed), rounds are counted until the match is decided (the host's
+     rounds option), and every machine shows the round's result; together: one mission and its
+     result. `NetSeries` keeps the rounds for the host's screens and for `app-server` (`--rounds`).
 2. [x] Dedicated headless `app-server` (`--map`, `--mode`, `--players`, `--port`, `--repeat`).
-3. Internet: join by address, then a small relay/lobby server; own-vehicle prediction only if needed.
+3. Internet: join by address works now (deltas make it light enough); a relay and lobby server for
+   hosts behind NAT is designed in [ADR 0028](adrs/0028-internet-relay-and-lobby.md), not built;
+   own-vehicle prediction only if needed.
 
 Depends on: phases 5 and 6; Android-to-desktop play after phase 7.
 

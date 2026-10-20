@@ -31,6 +31,12 @@ class AndroidPlatform(private val activity: Activity) : GamePlatform {
     /** Android turns pad buttons into keys itself (see MainActivity). */
     override val postKey: ((Key) -> Unit)? = null
 
+    override fun receiveBroadcasts(): AutoCloseable? {
+        val wifi = activity.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as? android.net.wifi.WifiManager ?: return null
+        val lock = runCatching { wifi.createMulticastLock("tankarena-lan").apply { setReferenceCounted(false); acquire() } }.getOrNull() ?: return null
+        return AutoCloseable { lock.release() }
+    }
+
     override val deviceName: String = android.os.Build.MODEL ?: "Android"
 
     override val touchScreen: Boolean = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)

@@ -31,6 +31,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import nl.tankarena.net.LanGame
 import nl.tankarena.net.LobbyMember
 import nl.tankarena.net.MAX_NET_PLAYERS
 import nl.tankarena.ui.compose.GameMode
@@ -116,46 +117,69 @@ fun NetworkHostScreen(missions: List<MissionEntry>, onPick: (MissionEntry, GameM
 }
 
 /**
- * The address of the game to join, typed (a name or an IP address, with `:port` if not the usual
- * one). [connecting] while the answer is awaited; [error] says why the last try failed.
+ * Joining a game: the games heard on the network ([found]) to pick from, or an address to type (a
+ * name or an IP address, with `:port` if not the usual one). [connecting] while the answer is
+ * awaited; [error] says why the last try failed.
  */
 @Composable
 fun NetworkAddressScreen(
+    found: List<LanGame>,
     lastAddress: String,
     connecting: Boolean,
     error: String?,
     onConnect: (String) -> Unit,
     onBack: () -> Unit,
 ) {
+    val keys = remember { KeyRouter() }
+    var typing by remember { mutableStateOf(false) }
     var typed by remember { mutableStateOf(lastAddress) }
     val fieldFocus = remember { FocusRequester() }
+    val entries = (if (found.isEmpty()) listOf(ListEntry("Looking for games on the network…", enabled = false)) else emptyList()) +
+        found.map { ListEntry("${it.beacon.name} — ${it.beacon.map.uppercase()}", "${it.beacon.players} of ${it.beacon.maxPlayers} · ${it.target}") } +
+        ListEntry("Type an address…")
     ExtendedPage(
         title = "Join a game",
-        subtitle = "The address of the machine that hosts; it shows it in its lobby",
-        onBack = onBack,
-        footer = "Enter joins · ESC goes back",
+        subtitle = if (typing) "The address of the machine that hosts; it shows it in its lobby" else "Games on this network, or an address",
+        onBack = { if (typing) typing = false else onBack() },
+        footer = if (typing) "Enter joins · ESC goes back to the list" else "Enter joins · ESC goes back",
+        onKey = { event -> if (typing || connecting) false else keys.handle(event) },
     ) {
-        // Inside the page: the page takes the focus first, then the field takes it over.
-        LaunchedEffect(Unit) { fieldFocus.requestFocus() }
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(
-                value = typed,
-                onValueChange = { typed = it.trim().take(MAX_ADDRESS_LENGTH) },
-                label = { Text("Address") },
-                singleLine = true,
-                enabled = !connecting,
-                modifier = Modifier
-                    .width(420.dp)
-                    .focusRequester(fieldFocus)
-                    .onPreviewKeyEvent { event ->
-                        if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
-                            if (typed.isNotBlank() && !connecting) onConnect(typed)
-                            true
-                        } else {
-                            false
-                        }
-                    },
-            )
+            if (typing) {
+                LaunchedEffect(Unit) { fieldFocus.requestFocus() }
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it.trim().take(MAX_ADDRESS_LENGTH) },
+                    label = { Text("Address") },
+                    singleLine = true,
+                    enabled = !connecting,
+                    modifier = Modifier
+                        .width(420.dp)
+                        .focusRequester(fieldFocus)
+                        .onPreviewKeyEvent { event ->
+                            if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
+                                if (typed.isNotBlank() && !connecting) onConnect(typed)
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+                    ExtendedList(
+                        entries,
+                        onPick = { index ->
+                            when {
+                                connecting -> Unit
+                                index == entries.lastIndex -> typing = true
+                                else -> found.getOrNull(if (found.isEmpty()) -1 else index)?.let { onConnect(it.target) }
+                            }
+                        },
+                        keys = keys,
+                    )
+                }
+            }
             when {
                 connecting -> Text("Connecting…", color = ExtendedColors.dim, fontSize = 16.sp)
                 error != null -> Text(error, color = ExtendedColors.accent, fontSize = 16.sp)

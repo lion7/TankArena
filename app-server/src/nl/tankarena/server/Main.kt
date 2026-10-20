@@ -106,6 +106,7 @@ class DedicatedGame(private val options: ServerOptions, private val baseName: St
     fun run() {
         val mode = options.mode ?: defaultMode(map)
         val server = GameServer(options.name, hostPlayers = 0, rulesVersion = Ruleset.EXTENDED.rulesVersion, port = options.port)
+        server.mapName = baseName
         val port = server.start()
         log("Hosting ${baseName.uppercase()} (${if (mode == MatchMode.DUAL) "versus" else "together"}) for ${options.players} players")
         log("Join at ${(localAddresses().ifEmpty { listOf("this machine") }).joinToString(" or ") { "$it:$port" }}")

@@ -44,7 +44,15 @@ class GameServer(
     /** The rules version of the ruleset the host plays; joining machines must have the same. */
     private val rulesVersion: Int,
     private val port: Int = DEFAULT_PORT,
+    /** Where the lobby announces itself for [LanFinder]s; null not at all. */
+    private val announceTo: List<java.net.InetSocketAddress>? = broadcastTargets(),
 ) {
+    /** The map the lobby announces (a host picks it first). */
+    @Volatile
+    var mapName: String = ""
+
+    private var announcer: LanAnnouncer? = null
+
     private class Session(val name: String, var seats: List<Int>, val socket: DefaultWebSocketSession) {
         /** Messages to send, in order; frames are dropped when a client falls more than this behind. */
         val outgoing = Channel<ServerMessage>(OUTGOING_CAPACITY)
@@ -78,7 +86,14 @@ class GameServer(
         }
         engine.start(wait = false)
         server = engine
-        return runBlocking { engine.engine.resolvedConnectors().first().port }
+        val bound = runBlocking { engine.engine.resolvedConnectors().first().port }
+        announceTo?.let { targets ->
+            announcer = LanAnnouncer(targets) {
+                val joined = synchronized(lock) { if (started) null else hostPlayers + sessions.sumOf { it.seats.size } }
+                joined?.let { LanBeacon(NET_VERSION, PROTOCOL_VERSION, rulesVersion, hostName, bound, mapName, it, MAX_NET_PLAYERS) }
+            }.also { it.start() }
+        }
+        return bound
     }
 
     /** Ends the game for everyone and stops listening. */
@@ -88,6 +103,8 @@ class GameServer(
             session.outgoing.trySend(ServerMessage.Ended(reason))
             session.outgoing.close()
         }
+        announcer?.stop()
+        announcer = null
         server?.stop(gracePeriodMillis = 200, timeoutMillis = 1_000)
         server = null
     }

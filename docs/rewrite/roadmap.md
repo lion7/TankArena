@@ -229,7 +229,10 @@ Depends on: phases 1 and 6 (the move is mechanical once the core is platform-fre
    - [x] Extended's "Network game": host (a mission together or a map against each other), join by
      address, lobby, the game itself; one player per machine; tried with the emulator joining a
      server on this machine.
-   - [ ] Join by LAN list (UDP broadcast).
+   - [x] Join by LAN list: a lobby announces itself once a second by UDP broadcast on port 47301
+     (`LanAnnouncer`, a CBOR `LanBeacon`), the join screen lists what `LanFinder` hears (only games of
+     the same versions) and keeps "Type an address…"; Android holds a Wi-Fi multicast lock meanwhile.
+     Not tried between two real machines yet (the emulator is behind NAT).
    - [ ] Smaller frames: deltas and only what is near the machine's views (median 4 KB, SUBURBS
      35 KB per frame now; fine on a LAN, too much for the internet).
    - [ ] More players per machine (the join screen first), the vehicle choice over the network,

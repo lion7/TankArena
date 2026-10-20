@@ -1,5 +1,7 @@
 package nl.tankarena.app
 
+import nl.tankarena.protocol.snapshot.PROTOCOL_VERSION
+import nl.tankarena.net.LanFinder
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
@@ -341,6 +343,7 @@ fun TankArenaApp(
                                 onPick = { mission, mode ->
                                     useNetworkSeat()
                                     val server = GameServer(platform.deviceName, NET_LOCAL_PLAYERS, Ruleset.EXTENDED.rulesVersion)
+                                    server.mapName = mission.baseName
                                     screen = runCatching { server.start() }.fold(
                                         onSuccess = { port ->
                                             DesktopShellScreen.NetworkLobby(NetworkSession.Hosting(server, port, mission, mode, NET_LOCAL_PLAYERS))
@@ -353,7 +356,20 @@ fun TankArenaApp(
                         }
                     }
 
-                    DesktopShellScreen.NetworkAddress -> NetworkAddressScreen(
+                    DesktopShellScreen.NetworkAddress -> {
+                    // The games announced on the network, while this screen is open.
+                    val finder = remember { LanFinder(protocolVersion = PROTOCOL_VERSION, rulesVersion = Ruleset.EXTENDED.rulesVersion) }
+                    DisposableEffect(finder) {
+                        val broadcasts = platform.receiveBroadcasts()
+                        finder.start()
+                        onDispose {
+                            finder.stop()
+                            broadcasts?.close()
+                        }
+                    }
+                    val found by finder.games.collectAsState()
+                    NetworkAddressScreen(
+                        found = found,
                         lastAddress = netAddress,
                         connecting = netConnecting,
                         error = netError,
@@ -377,6 +393,7 @@ fun TankArenaApp(
                         },
                         onBack = { screen = DesktopShellScreen.NetworkMenu },
                     )
+                    }
 
                     is DesktopShellScreen.NetworkLobby -> when (val session = current.session) {
                         is NetworkSession.Hosting -> {

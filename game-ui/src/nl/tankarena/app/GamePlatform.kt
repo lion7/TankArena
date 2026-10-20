@@ -33,6 +33,12 @@ interface GamePlatform {
     /** This machine's name for the others in a network game. */
     val deviceName: String get() = System.getProperty("user.name")?.takeIf { it.isNotBlank() } ?: "Player"
 
+    /**
+     * Lets broadcasts in while games on the network are looked for (Android's Wi-Fi drops them
+     * otherwise); closing it lets go. Null where nothing is needed.
+     */
+    fun receiveBroadcasts(): AutoCloseable? = null
+
     /** Leaves the game. */
     fun quit()
 

@@ -28,7 +28,7 @@ class NetworkGameTest {
     }
 
     private fun server(hostPlayers: Int = 1): Pair<GameServer, Int> {
-        val server = GameServer("host", hostPlayers, EXTENDED_RULES_VERSION, port = 0).also { servers += it }
+        val server = GameServer("host", hostPlayers, EXTENDED_RULES_VERSION, port = 0, announceTo = null).also { servers += it }
         return server to server.start()
     }
 
@@ -116,5 +116,40 @@ class NetworkGameTest {
         assertEquals(hello, NetCodec.decodeClient(NetCodec.encode(hello)))
         val lobby = ServerMessage.Lobby(listOf(LobbyMember("host", listOf(0)), LobbyMember("me", listOf(1, 2))))
         assertEquals(lobby, NetCodec.decodeServer(NetCodec.encode(lobby)))
+    }
+
+    @Test
+    fun `a lobby announces itself and a finder hears it`() {
+        val finder = LanFinder(port = 0, protocolVersion = nl.tankarena.protocol.snapshot.PROTOCOL_VERSION, rulesVersion = EXTENDED_RULES_VERSION)
+        finder.start()
+        try {
+            finder.openError?.let { throw AssertionError("the finder cannot listen", it) }
+            val target = listOf(java.net.InetSocketAddress("127.0.0.1", finder.boundPort))
+            val server = GameServer("lan host", 1, EXTENDED_RULES_VERSION, port = 0, announceTo = target).also { servers += it }
+            server.mapName = "flagisle"
+            val port = server.start()
+            waitFor("the beacon") { finder.games.value.isNotEmpty() }
+            val game = finder.games.value.single()
+            assertEquals("127.0.0.1", game.address)
+            assertEquals("lan host", game.beacon.name)
+            assertEquals("flagisle", game.beacon.map)
+            assertEquals(port, game.beacon.port)
+            assertEquals(1, game.beacon.players)
+            assertEquals("127.0.0.1:$port", game.target)
+            // Another rules version is not listed.
+            val other = GameServer("old", 1, EXTENDED_RULES_VERSION - 1, port = 0, announceTo = target).also { servers += it }
+            other.start()
+            Thread.sleep(1_500)
+            assertEquals(listOf("lan host"), finder.games.value.map { it.beacon.name })
+        } finally {
+            finder.stop()
+        }
+    }
+
+    @Test
+    fun `addresses are read with or without a port`() {
+        assertEquals("10.0.2.2" to DEFAULT_PORT, parseAddress("10.0.2.2"))
+        assertEquals("host" to 5000, parseAddress(" host:5000 "))
+        assertEquals("host:x" to DEFAULT_PORT, parseAddress("host:x"))
     }
 }

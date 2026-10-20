@@ -76,7 +76,8 @@ internal object AreaDamageResolver {
     private fun soundKindForExplosion(kind: ExplosionKind): SoundKind {
         return when (kind) {
             ExplosionKind.MINE -> SoundKind.MINE
-            ExplosionKind.MORTAR -> SoundKind.MORTAR
+            // Legacy create_mortar(): the impact goes off with SND_NUKE.
+            ExplosionKind.MORTAR -> SoundKind.NUKE
             ExplosionKind.ROCKET -> SoundKind.SROCKET
             ExplosionKind.ABOMB -> SoundKind.EXPLODE
         }

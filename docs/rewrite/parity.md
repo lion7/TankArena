@@ -127,8 +127,10 @@ Open:
 - **done** — mine trigger: a vehicle, train or bomber at height −1..1 whose radius plus 3 (light) or
   50 (heavy) covers the mine (`src/check/collide.c:25-40`).
 - **done** — mine visibility: only heavy mines are drawn (RMINE), not on water (`src/objects/mine.c:7-10`).
-- **differs** — mortar blast: applied in one tick with a linear falloff; the original grows 5 → 60 px
-  in steps of 5 every 3 ticks at power 5 per step (`src/objects/mortar.c`).
+- **done** — mortar blast (`src/objects/mortar.c`): SND_NUKE on impact, then a ring per step growing
+  5 → 60 px, each hitting what it reaches for 5 (vehicles above ground including the shooter,
+  soldiers, mines, low bombers, trains, bonuses, A-bombs) and the structures under it with five
+  explosions around it; the shell's power plays no part.
 - **differs** — rocket target: only live tanks other than the owner; the original takes any object
   with `r > 0` within 15 px of the marker (`nearest_target`).
 - **missing** — rocket exhaust trail.
@@ -238,7 +240,7 @@ Open:
 
 - **missing** — `SND_SPLASH` on entering or leaving water (`src/tanks/control.c:345`); ricochet sounds
   (`ricoc1`–`6`) and the teleport sound are bundled but never played.
-- **differs** — mortar impact plays the mortar sound; the original plays `SND_NUKE`.
+- **done** — mortar impact plays SND_NUKE.
 - **differs** — distance is measured from the window's camera instead of the player's tank.
 
 ## Map editor

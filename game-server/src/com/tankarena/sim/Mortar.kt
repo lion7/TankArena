@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 internal const val MORTAR_TRAVEL_TICKS: Int = 160
 internal const val MORTAR_MIN_RADIUS_PX: Int = 5
 internal const val MORTAR_MAX_RADIUS_PX: Int = 60
+internal const val MORTAR_RING_STEP_PX: Int = 5
 
 class Mortar internal constructor(state: State) : Steppable,
     SceneObject<Mortar>, Placed {
@@ -35,8 +36,13 @@ class Mortar internal constructor(state: State) : Steppable,
     private var explosionPending: Boolean = false
     internal var ownerRef: Tank? = null
 
+    /** Legacy create_mortar(): the shell has landed and its blast grows ring by ring. */
+    private var landed: Boolean = false
+    /** Legacy `m.expl`: the next ring's radius, 0 before landing. */
+    private var blastRadius: Int = 0
+
     override fun update(deltaTimeInMilliseconds: Int) {
-        if (isDead) return
+        if (isDead || landed) return
         // The shell flies in a straight line over walls; the lob arc is only drawn.
         // Velocities are per tick; a step covers STEP_TICKS of them.
         positionX += velocityX * STEP_TICKS
@@ -57,15 +63,29 @@ class Mortar internal constructor(state: State) : Steppable,
     }
 
     internal fun detonate() {
-        if (isDead) return
-        isDead = true
+        if (isDead || landed) return
+        landed = true
+        blastRadius = MORTAR_MIN_RADIUS_PX
         explosionPending = true
     }
 
+    /** The impact, once: where the shell landed. */
     fun drainExplosion(): Explosion? {
         if (!explosionPending) return null
         explosionPending = false
         return Explosion(positionX.toInt(), positionY.toInt(), maxRadius, damage)
+    }
+
+    /**
+     * Legacy control_mortar(): this step's ring of the blast, 5 px wider every step up to 60 px; the
+     * mortar is gone after the last one. Null before landing.
+     */
+    fun nextRing(): Int? {
+        if (!landed || isDead) return null
+        val ring = blastRadius
+        blastRadius += MORTAR_RING_STEP_PX
+        if (blastRadius > MORTAR_MAX_RADIUS_PX) isDead = true
+        return ring
     }
 
     data class Explosion(val x: Int, val y: Int, val radius: Int, val damage: Int)

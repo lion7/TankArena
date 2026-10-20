@@ -206,23 +206,34 @@ internal fun Match.flushOutOfBoundsMortars() {
     }
 }
 
+/**
+ * Legacy create_mortar() and control_mortar() (src/objects/mortar.c): where a shell or a plane's bomb
+ * lands there is a bang (SND_NUKE), then a blast that grows by 5 px a step from 5 to 60 px. Every
+ * ring hits whatever is within it for 5 — vehicles above ground (the shooter too), soldiers, mines,
+ * low bombers, trains, bonuses and A-bombs — and the structures under it. The shell's own power
+ * plays no part.
+ */
 internal fun Match.drainMortarExplosions() {
+    val mortars = objects.all.filterIsInstance<Mortar>()
+    if (mortars.isEmpty()) return
     val tanks = objects.all.filterIsInstance<Tank>()
-    for (actor in objects.all) {
-        if (actor !is Mortar) continue
-        val explosion = actor.drainExplosion() ?: continue
-        pendingEvents.addAll(AreaDamageResolver.resolve(
-            tanks = tanks,
-            x = explosion.x,
-            y = explosion.y,
-            radius = explosion.radius,
-            damage = explosion.damage,
-            kind = ExplosionKind.MORTAR,
-            owner = actor.ownerRef,
-        ))
-        blastStructuresAround(explosion.x, explosion.y, actor.ownerRef)
-        // Legacy create_mortar(): every 5 px growth step hits for 5.
-        blastSmallObjects(explosion.x, explosion.y, explosion.radius, power = MORTAR_STEP_POWER * (explosion.radius / 5))
+    for (mortar in mortars) {
+        mortar.drainExplosion()?.let { impact ->
+            pendingEvents += GameEvent.Explosion(impact.x, impact.y, impact.radius, ExplosionKind.MORTAR)
+            pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.NUKE, impact.x, impact.y)
+        }
+        val ring = mortar.nextRing() ?: continue
+        val x = mortar.positionX.toInt()
+        val y = mortar.positionY.toInt()
+        for (tank in tanks) {
+            if ((tank.armor <= 0 && !tank.isWreck) || tank.height <= 0) continue
+            if (withinRadius(tank.positionX, tank.positionY, x, y, maxOf(ring, tank.spec.radius))) {
+                tank.queueDamage(MORTAR_STEP_POWER)
+                pendingEvents += GameEvent.Effect(EffectKind.EXPLOSION, x, y)
+            }
+        }
+        blastSmallObjects(x, y, ring, power = MORTAR_STEP_POWER)
+        blastStructureRing(x, y, ring, mortar.ownerRef)
     }
 }
 

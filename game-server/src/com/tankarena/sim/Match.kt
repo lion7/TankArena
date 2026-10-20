@@ -350,16 +350,13 @@ class Match private constructor(
     internal fun snapshotMortars(): List<Mortar> =
         objects.all.filterIsInstance<Mortar>()
 
-    internal fun injectMortarExplosionForTest(x: Int, y: Int, radius: Int, damage: Int) {
-        val tanks = objects.all.filterIsInstance<Tank>()
-        pendingEvents.addAll(AreaDamageResolver.resolve(
-            tanks = tanks,
-            x = x,
-            y = y,
-            radius = radius,
-            damage = damage,
-            kind = ExplosionKind.MORTAR,
-        ))
+    /** A shell that has just landed at ([x], [y]); its blast starts on the next step. */
+    internal fun landMortarForTest(x: Int, y: Int): Mortar {
+        val mortar = Mortar(Mortar.State(body = PointBody(position = ScenePoint(x.toFloat(), y.toFloat()))))
+        mortar.detonate()
+        objects.add(listOf(mortar))
+        actorIds.getOrPut(mortar) { nextActorId++ }
+        return mortar
     }
 
     internal fun injectArmedMineForTest(x: Int, y: Int, damage: Int, radius: Int, heavy: Boolean = false): Mine {

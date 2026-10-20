@@ -207,16 +207,26 @@ internal fun Match.blastStructureAt(
  * Legacy create_mortar(): the blast grows from 5 to 60 px, and each step (hit_wall_big())
  * wears 5 off every structure within the radius plus 16.
  */
-internal fun Match.blastStructuresAround(x: Int, y: Int, by: Tank?) {
-    for (radius in MORTAR_MIN_RADIUS_PX..MORTAR_MAX_RADIUS_PX step 5) {
-        var y2 = y - radius
-        while (y2 < y + radius) {
-            var x2 = x - radius
-            while (x2 < x + radius) {
-                if (withinRadius(x2, y2, x, y, radius + 16)) blastStructureAt(x2, y2, MORTAR_STEP_POWER, EffectKind.EXPLOSION, by = by)
-                x2 += LEGACY_TILE_SIZE
-            }
-            y2 += LEGACY_TILE_SIZE
+/**
+ * Legacy hit_wall_big() (src/check/hitwall.c): one ring of a blast hits the structures on a 32 px
+ * grid within [radius] + 16 for [MORTAR_STEP_POWER], with five explosions around the ring.
+ */
+internal fun Match.blastStructureRing(x: Int, y: Int, radius: Int, by: Tank?) {
+    var y2 = y - radius
+    while (y2 < y + radius) {
+        var x2 = x - radius
+        while (x2 < x + radius) {
+            if (withinRadius(x2, y2, x, y, radius + 16)) blastStructureAt(x2, y2, MORTAR_STEP_POWER, EffectKind.EXPLOSION, by = by)
+            x2 += LEGACY_TILE_SIZE
         }
+        y2 += LEGACY_TILE_SIZE
+    }
+    repeat(5) {
+        val angle = objectRandom.nextDouble() * 2 * Math.PI
+        pendingEvents += GameEvent.Effect(
+            EffectKind.EXPLOSION,
+            x + (com.tankarena.core.DetMath.cos(angle) * radius).toInt(),
+            y - (com.tankarena.core.DetMath.sin(angle) * radius).toInt(),
+        )
     }
 }

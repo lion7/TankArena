@@ -8,6 +8,8 @@ import com.tankarena.content.MissionText
 import com.tankarena.sim.legacy.ObjectKinds
 import com.tankarena.content.TileLayers
 import com.tankarena.input.PlayerIntentFrame
+import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.SoundKind
 import com.tankarena.protocol.snapshot.TankState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,42 +29,32 @@ class MortarTest {
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         assertEquals(1, prototype.snapshotMortars().size, "mortar should be in flight")
 
-        repeat(MORTAR_TRAVEL_TICKS + 5) { prototype.tick() }
+        // The flight, then the blast's 12 rings, one per step.
+        repeat(MORTAR_TRAVEL_TICKS + 13 * STEP_TICKS) { prototype.tick() }
         assertTrue(prototype.snapshotMortars().isEmpty(), "mortar should detonate after travel time")
         prototype.dispose()
     }
 
     @Test
-    fun `mortar damage scales with proximity to impact center`() {
-        val nearProto = Match.fromCanonicalMap(twoTankMap(victimDistanceTiles = 4))
-        nearProto.initialize()
-        nearProto.injectMortarExplosionForTest(
-            x = nearProto.snapshot().enemyTank().x,
-            y = nearProto.snapshot().enemyTank().y,
-            radius = MORTAR_MAX_RADIUS_PX,
-            damage = 60,
-        )
-        nearProto.tick()
-        nearProto.tick()
-        val nearDamage = 100 - nearProto.snapshot().enemyTank().armor
-        nearProto.dispose()
+    fun `the blast grows by 5 px a step and hits for 5 with every ring that reaches`() {
+        val centre = Match.fromCanonicalMap(twoTankMap(victimDistanceTiles = 4))
+        centre.initialize()
+        val victim = centre.tanksForTest().single { it.playerIndex < 0 }
+        val armor = victim.armor
+        centre.landMortarForTest(victim.positionX, victim.positionY)
+        val impact = centre.stepForTest()
+        assertTrue(impact.events.any { it is GameEvent.Sound && it.kind == SoundKind.NUKE }, "the impact goes off with SND_NUKE")
+        assertEquals(armor - 5, victim.armor, "the first ring (5 px)")
+        repeat(15) { centre.stepForTest() }
+        assertEquals(armor - 60, victim.armor, "twelve rings at the centre")
 
-        val farProto = Match.fromCanonicalMap(twoTankMap(victimDistanceTiles = 4))
-        farProto.initialize()
-        val enemy = farProto.snapshot().enemyTank()
-        farProto.injectMortarExplosionForTest(
-            x = enemy.x + MORTAR_MAX_RADIUS_PX - 5,
-            y = enemy.y,
-            radius = MORTAR_MAX_RADIUS_PX,
-            damage = 60,
-        )
-        farProto.tick()
-        farProto.tick()
-        val farDamage = 100 - farProto.snapshot().enemyTank().armor
-        farProto.dispose()
-
-        assertTrue(nearDamage > 0, "tank at center should take damage — was $nearDamage")
-        assertTrue(farDamage < nearDamage, "tank at edge should take less damage than center — center=$nearDamage edge=$farDamage")
+        val edge = Match.fromCanonicalMap(twoTankMap(victimDistanceTiles = 4))
+        edge.initialize()
+        val far = edge.tanksForTest().single { it.playerIndex < 0 }
+        val farArmor = far.armor
+        edge.landMortarForTest(far.positionX + 27, far.positionY)
+        repeat(16) { edge.stepForTest() }
+        assertEquals(farArmor - 35, far.armor, "only the rings of 30..60 px reach 27 px")
     }
 
     private fun com.tankarena.protocol.snapshot.WorldSnapshot.enemyTank(): TankState =
@@ -107,7 +99,7 @@ class MortarTest {
                     kind = ObjectKinds.AI_TANK,
                     x = (2 + victimDistanceTiles) * LEGACY_TILE_SIZE,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
-                    properties = mapOf("direction" to "12", "lives" to "3"),
+                    properties = mapOf("direction" to "12", "lives" to "3", "armor" to "100"),
                 ),
             ),
         )

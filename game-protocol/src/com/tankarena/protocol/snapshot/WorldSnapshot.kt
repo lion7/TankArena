@@ -119,6 +119,20 @@ data class HudState(
     /** Player vs player: this player won the round (`game.winner == game.tn`), or lost it. */
     val roundWon: Boolean = false,
     val roundLost: Boolean = false,
+    /** Supermarket mayhem (one player, two vs computer): the shopping status instead of the normal one. */
+    val mayhem: MayhemHud? = null,
+    /** The radar is not shown (supermarket mayhem). */
+    val radarHidden: Boolean = false,
+)
+
+/** Legacy status.c in supermarket mayhem: products still needed, time left, cash and what was bought. */
+@Serializable
+data class MayhemHud(
+    val productsNeeded: Int,
+    val ticksLeft: Long,
+    val cash: Int,
+    /** Legacy `numprod[]`: products bought per type (15 types). */
+    val counts: List<Int>,
 )
 
 @Serializable

@@ -164,10 +164,11 @@ Open:
 
 - **missing** — goal `who = 3` (a linked object reaching the goal); 5 shipped goals use it and never
   complete.
-- **missing** — supermarket mayhem rules (`src/objects/product.c`, `src/world/status.c:162-185`,
-  `src/include/define.h:32-34`): cash 40, price per product, 20 products needed, 180 s limit, −100 when
-  cash or time runs out, goal `who = 0` blocked while products remain (`src/objects/goal.c:22`), the
-  products/time/cash display and product strip, radar hidden. Pickup and the "PICKED UP" message work.
+- **done** — supermarket mayhem (`src/objects/product.c`, `src/world/status.c:162-232`,
+  `src/objects/goal.c:22`, `src/tanks/tank.c:293`): cash 40, price per product, 20 products needed,
+  180 s limit, −100 when cash or time runs out, the way out (goal `who = 0`) closed while products
+  remain, pickup by human vehicles on the ground, the products/time/cash display, product strip and
+  message line, no radar and no start shield (2026-10-20).
 - **differs** — warps teleport only live tanks and add a 30-tick cooldown; the original also warps men,
   B52s, rockets and wrecks, has no cooldown, and shows `TELEPORT_SPARK` with `SND_TELEPORT`
   (`src/objects/warp.c:28-31`).
@@ -197,7 +198,7 @@ losers tank option, and the tank selection arena (`SELECT.MAP` running live).
 
 Open:
 
-- **partial** — supermarket mayhem (see map objects).
+- **done** — supermarket mayhem (see map objects).
 - **differs** — F1–F10 in two players vs computer: the rewrite selects for player one without Alt and
   player two with Alt; the original selects for `id_select = 1` without Alt and 0 with Alt
   (`src/game/controls.c:38,163-168`).
@@ -224,7 +225,7 @@ Open (in scope by decision of 2026-10-19):
   `-NOFAIL`, `-CODES`, `-UNLOCK`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT`, `-AUTOLOCK`, `-MISSING`,
   `-UNUSED`, `-KEYTEST`, `-DEBUG`, `-INFO` (`-SETUP`/`-SETSOUND` belong to the out-of-scope setup).
 - **missing** — "EXIT TO DOS? (Y/N)" style confirmation on Exit.
-- **missing** — the main menu's "Map editor" entry is disabled; it should open the in-game editor.
+- **done** — the main menu's "Map editor" entry opens the in-game editor (2026-10-19).
 
 ## Status display, radar and presentation
 
@@ -238,7 +239,7 @@ Open:
 
 - **missing** — effects `DUST`, `LAVA_EFFECT`, `SPLASH` on terrain, `TELEPORT_SPARK`, rocket
   `EXHAUST` (see terrain, objects, weapons).
-- **missing** — radar hidden in supermarket mayhem; radar toggle (F12).
+- **done** — radar hidden in supermarket mayhem. **missing** — radar toggle (F12, see shell).
 
 ## Audio
 

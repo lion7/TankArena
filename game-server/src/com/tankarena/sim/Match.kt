@@ -43,6 +43,13 @@ internal val B52_BOMBS: List<Pair<Int, Int>> = listOf(
 internal val B52_ENGINES: List<Pair<Int, Int>> = listOf(-16 to 9, -10 to 8, 9 to 8, 15 to 9)
 internal const val B52_BOMB_POWER: Int = 20
 /** Legacy `prodname[]` (src/objects/product.c). */
+/** Legacy `max_mayhem_cash`, `max_mayhem_products` and `max_mayhem_time` (src/include/define.h). */
+internal const val MAYHEM_CASH: Int = 40
+internal const val MAYHEM_PRODUCTS: Int = 20
+internal const val MAYHEM_TICKS: Long = 180L * 100
+/** Legacy `o->r` of a product. */
+internal const val PRODUCT_RADIUS_PX: Int = 4
+
 internal val PRODUCT_NAMES: List<String> = listOf(
     "WASHING POWDER", "CHOCOLATE BAR", "APPLE", "WINE", "M&M'S", "TOILET PAPER", "ONION", "CIGARETTES",
     "COOKIES", "BEER", "COLA", "SAUSAGE", "BAMI", "CAN", "SPAGHETTI",
@@ -99,6 +106,16 @@ class Match private constructor(
     internal var isDisposed: Boolean = false
     internal var goalGood: Int = 0
     internal var goalBad: Int = 0
+
+    /**
+     * Legacy `game.supermarket_mayhem` (src/objects/product.c): a map with products is a shopping
+     * trip — [mayhemProductsNeeded] products to buy with [mayhemCash] before [MAYHEM_TICKS] run out.
+     */
+    internal var mayhem: Boolean = false
+    internal var mayhemCash: Int = MAYHEM_CASH
+    internal var mayhemProductsNeeded: Int = MAYHEM_PRODUCTS
+    /** Legacy `numprod[]`: products bought per type. */
+    internal val productCounts: IntArray = IntArray(PRODUCT_NAMES.size)
     internal var missionStatus: MissionStatus = MissionStatus.IN_PROGRESS
     internal val pendingEvents: MutableList<GameEvent> = mutableListOf()
 
@@ -146,8 +163,13 @@ class Match private constructor(
                 night = mapMetadata.night,
             )
             tank.surroundings = tankSurroundings
-            // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`).
-            if (startShields && !tank.computer) tank.grantInvulnerability(START_SHIELD_HOLD_TICKS)
+        }
+        // Legacy prepare_product(): any product turns the map into supermarket mayhem.
+        mayhem = objects.all.any { it is Product }
+        for (tank in allTanks) {
+            // Legacy make_tank(): human tanks start with a blinking shield (`shield.icount = 15`),
+            // except in supermarket mayhem (prepare_tank(): `shield.icount = 0`).
+            if (startShields && !tank.computer && !mayhem) tank.grantInvulnerability(START_SHIELD_HOLD_TICKS)
         }
         // Legacy prepare_player() / prepare_flag(): pads, races and flags only play in player vs
         // player; elsewhere the flags are removed.
@@ -243,6 +265,7 @@ class Match private constructor(
         stepZeppelins()
         stepB52s()
         collectProducts()
+        checkMayhemTime()
         collectGoals()
         evaluateMission()
     }
@@ -391,6 +414,9 @@ class Match private constructor(
                     flags = tank.flagsPicked,
                     roundWon = dualRules?.winner == playerIndex,
                     roundLost = dualRules?.winner == (playerIndex xor 1),
+                    mayhem = mayhemHud(),
+                    // Legacy write_screen(): no radar in supermarket mayhem.
+                    radarHidden = mayhem,
                 ),
                 radar = buildRadar(tank, tanks, turrets, goals),
                 lockMarker = lockMarkerFor(tank),

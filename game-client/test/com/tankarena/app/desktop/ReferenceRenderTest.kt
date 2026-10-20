@@ -53,6 +53,7 @@ class ReferenceRenderTest {
         Scenario("zulu-night", "zulu", GameMode.SINGLE_PLAYER_VS_COMPUTER, recording = null, tick = 300),
         Scenario("air-two-players", "air", GameMode.DUAL_PLAYER_VS_COMPUTER, recording = null, tick = 300),
         Scenario("flagisle-versus", "flagisle", GameMode.PLAYER_VS_PLAYER, recording = null, tick = 300),
+        Scenario("super-mayhem", "super", GameMode.SINGLE_PLAYER_VS_COMPUTER, recording = null, tick = 300),
     )
 
     @Test

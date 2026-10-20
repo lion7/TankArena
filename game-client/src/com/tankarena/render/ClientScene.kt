@@ -188,7 +188,7 @@ internal class ClientScene(
                     syncObject(objectIds, state.actorId, state.x, state.y, "VLAG${state.flagType.mod(4) + 1}")
                 }
                 is ProductState -> if (!state.isCollected) {
-                    syncObject(objectIds, state.actorId, state.x, state.y, productSprite(state.productType))
+                    syncObject(objectIds, state.actorId, state.x, state.y, productSpriteName(state.productType))
                 }
                 is WarpState -> syncObject(objectIds, state.actorId, state.x, state.y, "WARP1")
                 // Legacy write_train(): WAGO<picture>-1..5, turned to the car's direction.
@@ -352,10 +352,6 @@ internal class ClientScene(
     private val rocketPositions = HashMap<Long, Pair<Int, Int>>()
     private val rocketDirections = HashMap<Long, Int>()
 
-    private fun productSprite(productType: Int): String {
-        val index = productType.mod(15) + 1
-        return if (index < 10) "PRODUCT$index" else "PRODUC$index"
-    }
 
     /** Legacy create_effect()/control_effects(): server effect events play as picture runs. */
     private fun syncEffects(tick: Long, events: List<GameEvent>) {
@@ -407,4 +403,10 @@ internal class ClientScene(
         val staleActors = staleIds.mapNotNull(actorsById::remove)
         scene.remove(staleActors)
     }
+}
+
+/** Legacy `intern[PRODUCTS + type]`: PRODUCT1..9, PRODUC10..15. */
+internal fun productSpriteName(productType: Int): String {
+    val index = productType.mod(15) + 1
+    return if (index < 10) "PRODUCT$index" else "PRODUC$index"
 }

@@ -6,6 +6,10 @@ import com.tankarena.sim.Match.MissionStatus
 // Goals, products, the goal counter, tank losses and control hand-over, and how a mission ends
 // (src/objects/goal.c, product.c, objects.c, src/tanks/tank.c, src/game/controls.c).
 
+/**
+ * Legacy check_obj_collide() and pickup_product() (src/check/collide.c, src/objects/product.c): a
+ * human-driven vehicle on the ground that touches a product buys it. Overspending fails the mission.
+ */
 internal fun Match.collectProducts() {
     if (missionStatus != MissionStatus.IN_PROGRESS) return
     val tanks = objects.all.filterIsInstance<Tank>()
@@ -15,12 +19,18 @@ internal fun Match.collectProducts() {
         val pos = product.body.position
         val pcx = (pos.x + size.width / 2f).toInt()
         val pcy = (pos.y + size.height / 2f).toInt()
-        val pickupRadius = 16
         val pickup = tanks.firstOrNull { tank ->
-            tank.playerIndex >= 0 && tank.armor > 0 &&
-                withinRadius(tank.positionX, tank.positionY, pcx, pcy, pickupRadius)
+            !tank.computer && tank.height < 2 &&
+                withinRadius(tank.positionX, tank.positionY, pcx, pcy, tank.spec.radius + PRODUCT_RADIUS_PX)
         } ?: continue
         product.isCollected = true
+        mayhemCash -= product.price
+        if (mayhemCash < 0) {
+            mayhemCash = 0
+            modifyGoalCounter(-100)
+        }
+        if (mayhemProductsNeeded > 0) mayhemProductsNeeded -= 1
+        productCounts[product.productType.coerceIn(0, productCounts.size - 1)] += 1
         pickup.showMessage("PICKED UP", PRODUCT_NAMES.getOrElse(product.productType) { "" })
         pendingEvents += GameEvent.ProductCollected(
             productActorId = actorIds[product] ?: 0L,
@@ -42,7 +52,8 @@ internal fun Match.collectGoals() {
         // Legacy control_goal(): who=0 is reached by a good tank, who=1 by an evil tank,
         // who=2 by a train; who=3 (a linked object) is not modelled yet.
         val reached = when (actor.who) {
-            0 -> tanks.any { it.team == 0 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+            // Legacy control_goal(): in supermarket mayhem the way out opens once everything is bought.
+            0 -> (!mayhem || mayhemProductsNeeded == 0) && tanks.any { it.team == 0 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
             1 -> tanks.any { it.team == 1 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
             2 -> objects.all.filterIsInstance<Train>()
                 .any { it.alive && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
@@ -130,6 +141,28 @@ internal fun Match.drainTurretDestructions() {
 }
 
 /** Legacy modify_goal_counter(): positive percentages feed the good counter, negative the bad one. */
+/**
+ * Legacy write_timeleft() (src/world/status.c): in one player and two players vs computer, the
+ * shopping time running out fails the mission.
+ */
+internal fun Match.checkMayhemTime() {
+    if (!mayhem || mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) return
+    if (currentTick >= MAYHEM_TICKS) modifyGoalCounter(-100)
+}
+
+/** What the mayhem status display shows (legacy status.c), or null outside supermarket mayhem. */
+internal fun Match.mayhemHud(): com.tankarena.protocol.snapshot.MayhemHud? =
+    if (!mayhem || mode == MatchMode.DUAL) {
+        null
+    } else {
+        com.tankarena.protocol.snapshot.MayhemHud(
+            productsNeeded = mayhemProductsNeeded,
+            ticksLeft = (MAYHEM_TICKS - currentTick).coerceAtLeast(0),
+            cash = mayhemCash,
+            counts = productCounts.toList(),
+        )
+    }
+
 internal fun Match.modifyGoalCounter(percentage: Int) {
     if (mode == MatchMode.DUAL || missionStatus != MissionStatus.IN_PROGRESS) return
     when {

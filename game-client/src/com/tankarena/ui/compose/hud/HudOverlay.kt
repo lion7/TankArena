@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.IntSize
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.Team
 import com.tankarena.protocol.snapshot.HudState
+import com.tankarena.protocol.snapshot.MayhemHud
 import com.tankarena.protocol.snapshot.PlayerView
 import com.tankarena.protocol.snapshot.TankState
 import com.tankarena.protocol.snapshot.RadarContactKind
@@ -73,6 +74,8 @@ fun HudOverlay(
     /** World position of the playfield's top-left corner (legacy `ssx`, `ssy`). */
     viewLeft: Float = 0f,
     viewTop: Float = 0f,
+    /** Legacy `show_radar` (F12). */
+    showRadar: Boolean = true,
 ) {
     val sprites = LegacySpriteCatalog.shared
     @Composable
@@ -87,6 +90,7 @@ fun HudOverlay(
     val flagIcons = listOf(picture("VLAG3"), picture("VLAG4"))
     // Legacy `tank[n].face[0..4]`: FACE<vehicle>-1..5 (5 for a dead pilot).
     val faces = (1..5).map { picture("FACE${hudState.vehicleType + 1}-$it") }
+    val products = (0 until 15).map { picture(com.tankarena.render.productSpriteName(it)) }
 
     // [layer] null draws everything; at night the dark and the lit pictures go to separate layers.
     val draw: DrawScope.(layer: NightLayer?) -> Unit = draw@{ layer ->
@@ -94,6 +98,11 @@ fun HudOverlay(
         val hud = HudPainter(this, playfield, scale, lit = layer != NightLayer.DARK, dark = layer != NightLayer.LIT)
         val width = playfield.width / scale
         val height = playfield.height / scale
+
+        hudState.mayhem?.let { mayhem ->
+            drawMayhemStatus(hud, mayhem, hudState, products, height)
+            return@draw
+        }
 
         // write_bars()
         hud.picture(meters[0], 0f, 0f)
@@ -141,7 +150,7 @@ fun HudOverlay(
             hud.text(width - ammo.length * 6 - 2, height - 8, ammo, WHITE)
         }
 
-        hud.radar(playerView, width, height)
+        if (showRadar && !hudState.radarHidden) hud.radar(playerView, width, height)
 
         // write_arrow(): an arrow at the edge of the view points at the other player.
         if (opponent != null && !ownCloaked) {
@@ -173,6 +182,32 @@ fun HudOverlay(
             Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = litEffect }) { draw(NightLayer.LIT) }
         }
     }
+}
+
+/**
+ * Legacy write_status() in supermarket mayhem (src/world/status.c): products needed, time left and
+ * cash at the top left, what was bought along the bottom, and only the message's second line, with
+ * no face. There is no radar.
+ */
+private fun drawMayhemStatus(
+    hud: HudPainter,
+    mayhem: MayhemHud,
+    hudState: HudState,
+    products: List<ImageBitmap?>,
+    height: Float,
+) {
+    val hundredths = mayhem.ticksLeft
+    hud.text(2f, 2f, "PRODUCTS NEEDED: ${mayhem.productsNeeded}", WHITE)
+    hud.text(2f, 9f, "TIME LEFT: %d:%02d.%02d".format(hundredths / 6000, hundredths / 100 % 60, hundredths % 100), WHITE)
+    hud.text(2f, 16f, "CASH: $${mayhem.cash}", WHITE)
+    // write_products()
+    mayhem.counts.forEachIndexed { type, count ->
+        hud.picture(products.getOrNull(type), type * 20f - 6, height - 33)
+        if (count != 0) hud.text(type * 20f + 8, height - 7, count.toString(), WHITE)
+    }
+    // write_supermarket_message()
+    val steps = hudState.messageSteps
+    if (steps > 16 || steps % 2 == 1) hud.text(5f, height - 35, hudState.messageLine2, WHITE)
 }
 
 /** Legacy load_pictures() at night: pictures without `night_vis` stay in the dark half of NIGHT.PAL. */

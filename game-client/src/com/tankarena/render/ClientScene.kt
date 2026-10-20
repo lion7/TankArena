@@ -36,6 +36,7 @@ import org.jetbrains.compose.resources.DrawableResource
 /** Above vehicles (2) and the top structure layer (3). */
 private const val EFFECT_LAYER = 4
 private const val VEHICLE_LAYER = 2
+private const val GROUND_EFFECT_LAYER = 1
 private const val HIGH_FLIGHT_HEIGHT = 4
 private const val MORTAR_ARC = 15
 /** Legacy make_zeppelin(): it flies at height 20. */
@@ -394,7 +395,9 @@ internal class ClientScene(
 
     private fun spawnEffect(kind: EffectKind, x: Int, y: Int, tick: Long) {
         val frames = EFFECT_FRAMES[kind] ?: return
-        val actor = SpriteActor(nextEffectId--, snapshot, pictures, sprites, layerIndex = EFFECT_LAYER).apply {
+        // Legacy create_effect(..., 0, ...): dust and oil splashes lie on the ground, under the vehicles.
+        val layer = if (kind == EffectKind.DUST || kind == EffectKind.OIL_SPLASH) GROUND_EFFECT_LAYER else EFFECT_LAYER
+        val actor = SpriteActor(nextEffectId--, snapshot, pictures, sprites, layerIndex = layer).apply {
             spriteName = frames.first().first
             moveTo(x, y)
         }

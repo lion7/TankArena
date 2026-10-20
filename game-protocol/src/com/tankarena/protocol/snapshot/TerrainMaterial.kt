@@ -51,7 +51,15 @@ data class TerrainTile(
     val material: TerrainMaterial = TerrainMaterial.NORMAL,
     val speedMultiplier: Float = 1.0f,
     val pitShape: PitShape? = null,
+    /** Legacy `NOTHING`: neither picture has a type (bare ground, where desert vehicles raise dust). */
+    val bare: Boolean = false,
+    /** Legacy `T_*` / `ROTATE_*` base pictures: a conveyor or turntable (src/world/transp.c). */
+    val transport: Transport? = null,
 )
+
+/** Legacy transportation(): which way a conveyor carries things, or which way a turntable turns. */
+@Serializable
+enum class Transport { LEFT, RIGHT, UP, DOWN, ROTATE_LEFT, ROTATE_RIGHT }
 
 /**
  * Terrain grid: O(1) lookup of terrain info at any tile coordinate.

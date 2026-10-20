@@ -226,6 +226,8 @@ class Match private constructor(
                 intents[tank.playerIndex]?.let(tank::applyIntent)
             }
         }
+        // Legacy transportation(): conveyors and turntables carry things along.
+        applyTransport()
         // Legacy control_bullets(): shots move and hit first; their damage counts at once.
         objects.stepWhere { it is Projectile }
         flushOutOfBoundsProjectiles()
@@ -242,6 +244,7 @@ class Match private constructor(
         applyTerrainEffects()
         stepAiTanks()
         objects.stepWhere { it !is Projectile }
+        applyUndergroundEffects()
         objects.resolve(worldWidthPixels, worldHeightPixels)
         flushOutOfBoundsRockets()
         flushOutOfBoundsMortars()

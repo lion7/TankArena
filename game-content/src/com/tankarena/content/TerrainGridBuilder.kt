@@ -42,6 +42,12 @@ object TerrainGridBuilder {
         val typeIdx = if (baseRow == null || PictureCatalog.isNothing(baseRow.type)) solidIdx else baseIdx
         val speed = PictureCatalog.resolve(world, baseIdx).speedMultiplier *
             PictureCatalog.resolve(world, solidIdx).speedMultiplier
-        return PictureCatalog.resolve(world, typeIdx).copy(speedMultiplier = speed)
+        val typeRow = PictureCatalog.legacyRow(world, typeIdx)
+        return PictureCatalog.resolve(world, typeIdx).copy(
+            speedMultiplier = speed,
+            bare = typeRow == null || PictureCatalog.isNothing(typeRow.type),
+            // Legacy transportation() looks at the base picture only.
+            transport = baseRow?.type?.let(PictureCatalog::transportFor),
+        )
     }
 }

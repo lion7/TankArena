@@ -65,6 +65,14 @@ internal class Soldier(
         exactY = y.toFloat()
     }
 
+    internal val exactPosition: Pair<Float, Float> get() = exactX to exactY
+
+    /** Legacy transportation(): carried along by a conveyor or turntable. */
+    internal fun carryTo(x: Float, y: Float) {
+        exactX = x
+        exactY = y
+    }
+
     /** Legacy control_man(), first half: walk towards the target and face it. */
     fun move() {
         target?.let {

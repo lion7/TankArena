@@ -137,27 +137,18 @@ Open:
   10 px of it is hit through the shield key, the shooter too; without a target, or out of range, the
   structure at the target point.
 - **done** — rocket exhaust trail: EXHAUST1/2 11 px behind every 10–29 ticks.
-- **missing** — conveyor belts (`T_LEFT/RIGHT/UP/DOWN`) and rotating platforms (`ROTATE_L/R`)
-  moving vehicles (`src/world/transp.c`); only their colour cycling is done.
+- **done** — conveyors (`T_LEFT/RIGHT/UP/DOWN`, 60 px/s) and turntables (`ROTATE_L/R`, a turn a second
+  around the tile, heading unchanged) carry vehicles and soldiers below height 2; a vehicle that would
+  end up in another stays (`src/world/transp.c`). Mines, bonuses and other small objects are not
+  carried yet.
 - **missing** — debris (`src/world/parts.c`: tank parts, wall parts, pixels, flames). Without it,
   fuel dumps only show flames: their `PT_FLAME` parts should hit tanks for 7 and walls for 10 and can
   set off neighbouring dumps.
-- **missing** — terrain effects from `underground_effects()` (`src/tanks/control.c:342-382`): water
-  splash on entering and driving, lava particles, oil splash, dust on background 0.
-- **partial** — plain `BRIDGE` tiles (base `-1`) are not handled separately; impact unverified.
-
-## Map objects
-
-Done: goal counter (good/bad, 100 % decides, ignored in player vs player, −100 for the last human
-tank) with contributions from tanks, turrets, locks, destroyers, trains, B52s and the goal layer; goal
-objects for `who` 0–2; flags and flag hunt; locks (all activations and targets); destroyers;
-enforcers; trains with rails, curves, bridges, wagons, the turret wagon and the A-bomb wagon; B52s
-(take-off, salvos, craters, crashes, wrecks); zeppelin movement; soldiers and paratroopers; bonuses;
-authored mines; start pads; turrets (nine kinds, side selection, forbidden directions, barrels,
-falling with their building); computer tanks.
-
-Open:
-
+- **done** — `underground_effects()` after the move: five splashes and SND_SPLASH into and out of
+  water, five lava bubbles into and out of lava, lava burning 2 every 10 ticks with a bubble, and while
+  moving or flying a splash on water, an oil splash on oil, dust on bare desert ground.
+- **done** — plain `BRIDGE` tiles: no picture has that type, so `hit_wall`'s case for it is never
+  reached.
 - **done** — goal `who = 3`: the importer links the goal to its vehicle (WEAPON's five goals).
 - **done** — supermarket mayhem (`src/objects/product.c`, `src/world/status.c:162-232`,
   `src/objects/goal.c:22`, `src/tanks/tank.c:293`): cash 40, price per product, 20 products needed,
@@ -219,8 +210,8 @@ flames, explosions, smoke, burning wrecks, blood, smoke screen, ruins).
 
 Open:
 
-- **missing** — effects `DUST`, `LAVA_EFFECT`, `SPLASH` on terrain, `TELEPORT_SPARK`, rocket
-  `EXHAUST` (see terrain, objects, weapons).
+- **done** — effects `DUST`, `LAVA_EFFECT`, `SPLASH` on terrain, `TELEPORT_SPARK`, rocket
+  `EXHAUST`; dust and oil splashes lie under the vehicles.
 - **done** — radar hidden in supermarket mayhem. **missing** — radar toggle (F12, see shell).
 
 ## Audio
@@ -230,7 +221,7 @@ music with the night tune and in-game volume ([ADR 0018](adrs/0018-audio-and-mus
 
 Open:
 
-- **missing** — `SND_SPLASH` on entering or leaving water (`src/tanks/control.c:345`); ricochet sounds
+- **done** — `SND_SPLASH` on entering or leaving water. **missing** — ricochet sounds
   (`ricoc1`–`6`) and the teleport sound are bundled but never played.
 - **done** — mortar impact plays SND_NUKE.
 - **differs** — distance is measured from the window's camera instead of the player's tank.

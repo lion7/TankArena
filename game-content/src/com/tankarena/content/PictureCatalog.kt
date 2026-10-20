@@ -3,6 +3,7 @@ package com.tankarena.content
 import com.tankarena.protocol.snapshot.PitShape
 import com.tankarena.protocol.snapshot.TerrainMaterial
 import com.tankarena.protocol.snapshot.TerrainTile
+import com.tankarena.protocol.snapshot.Transport
 
 /**
  * The gameplay columns of one `pictureinfotype` row (src/include/types.h): its legacy `type`
@@ -67,6 +68,17 @@ object PictureCatalog {
         TankArenaWorld.TEMPERATE -> GeneratedLegacyPictureTerrain.temperate
         TankArenaWorld.CITY -> GeneratedLegacyPictureTerrain.city
         TankArenaWorld.NIGHT -> GeneratedLegacyPictureTerrain.night
+    }
+
+    /** Legacy transportation(): conveyors (`T_LEFT` ...) and turntables (`ROTATE_L`, `ROTATE_R`). */
+    fun transportFor(type: String): Transport? = when (type) {
+        "T_LEFT" -> Transport.LEFT
+        "T_RIGHT" -> Transport.RIGHT
+        "T_UP" -> Transport.UP
+        "T_DOWN" -> Transport.DOWN
+        "ROTATE_L" -> Transport.ROTATE_LEFT
+        "ROTATE_R" -> Transport.ROTATE_RIGHT
+        else -> null
     }
 
     /** True for the legacy `NOTHING` type (-1), which makes `get_type()` fall through to the next layer. */

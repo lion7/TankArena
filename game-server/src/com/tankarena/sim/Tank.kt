@@ -7,6 +7,8 @@ import com.tankarena.core.LegacyDirections
 import com.tankarena.input.PlayerIntentFrame
 import com.tankarena.protocol.snapshot.EffectKind
 import com.tankarena.protocol.snapshot.GameEvent
+import com.tankarena.protocol.snapshot.TerrainMaterial
+import com.tankarena.protocol.snapshot.TerrainTile
 import com.tankarena.protocol.snapshot.SoundKind
 import kotlin.math.abs
 import com.tankarena.core.DetMath.hypot
@@ -641,12 +643,54 @@ class Tank(state: State) :
         this.night = night
     }
 
-    /** Legacy lava contact: [LAVA_DAMAGE] on entering and then every [LAVA_INTERVAL_TICKS] while inside. */
-    internal fun stepLava(inLava: Boolean) {
+    /** Legacy `und.nw`: the ground under the vehicle at its last step (null at first: NOTHING). */
+    private var underground: TerrainTile? = null
+    /** Legacy `und.neffect`: ticks until the next splash, oil splash or dust cloud. */
+    private var undergroundEffectTicks: Int = 0
+
+    /**
+     * Legacy get_underground() and underground_effects() (src/tanks/control.c:331-383), after the
+     * vehicle has moved: low vehicles splash into and out of water and bubble into and out of lava;
+     * lava burns [LAVA_DAMAGE] every [LAVA_INTERVAL_TICKS]; otherwise, moving or flying, water
+     * splashes, oil spatters and bare desert ground raises dust from time to time.
+     */
+    internal fun stepUnderground(tile: TerrainTile, desert: Boolean) {
+        val old = underground
+        underground = tile
+        val low = height < 2
+        fun around(spread: Int) = (positionX - spread / 2 + random.nextInt(spread)) to (positionY - spread / 2 + random.nextInt(spread))
+        fun crossed(material: TerrainMaterial) = (old?.material == material) != (tile.material == material)
+        if (low && crossed(TerrainMaterial.WATER)) {
+            repeat(5) { around(16).let { (x, y) -> pendingEffects += GameEvent.Effect(EffectKind.SPLASH, x, y) } }
+            pendingEffects += GameEvent.Sound(SoundKind.SPLASH, positionX, positionY)
+        }
+        if (low && crossed(TerrainMaterial.LAVA)) {
+            repeat(5) { around(16).let { (x, y) -> pendingEffects += GameEvent.Effect(EffectKind.LAVA, x, y) } }
+        }
         lavaCooldownTicks = lavaCooldownTicks.afterStep()
-        if (!inLava || lavaCooldownTicks > 0) return
-        queueDamage(LAVA_DAMAGE)
-        lavaCooldownTicks = LAVA_INTERVAL_TICKS
+        undergroundEffectTicks = undergroundEffectTicks.afterStep()
+        if (low && tile.material == TerrainMaterial.LAVA && lavaCooldownTicks == 0) {
+            queueDamage(LAVA_DAMAGE)
+            around(8).let { (x, y) -> pendingEffects += GameEvent.Effect(EffectKind.LAVA, x, y) }
+            lavaCooldownTicks = LAVA_INTERVAL_TICKS
+            return
+        }
+        // Legacy `motion.v` is a whole number: a vehicle slower than 1 px/s stands still.
+        if ((height <= 1 && speed < 1f) || undergroundEffectTicks > 0) return
+        when {
+            tile.material == TerrainMaterial.WATER -> {
+                around(16).let { (x, y) -> pendingEffects += GameEvent.Effect(EffectKind.SPLASH, x, y) }
+                undergroundEffectTicks = 30 + random.nextInt(30)
+            }
+            tile.material == TerrainMaterial.OIL -> {
+                around(8).let { (x, y) -> pendingEffects += GameEvent.Effect(EffectKind.OIL_SPLASH, x, y) }
+                undergroundEffectTicks = 30 + random.nextInt(20)
+            }
+            tile.bare && desert -> {
+                around(16).let { (x, y) -> pendingEffects += GameEvent.Effect(EffectKind.DUST, x, y) }
+                undergroundEffectTicks = 10 + random.nextInt(10)
+            }
+        }
     }
 
     /** Legacy new_velocity() with `in_pit()`: start sinking into the pit under the tank. */
@@ -690,6 +734,18 @@ class Tank(state: State) :
 
     /** Enforce a specific weapon from an enforcer actor. */
 
+
+    /** The exact position (legacy `fx`, `fy`). */
+    internal val exactPosition: Pair<Float, Float> get() = exactX to exactY
+
+    /** Legacy transportation(): carried along by a conveyor or turntable; the hull keeps its heading. */
+    internal fun carryTo(x: Float, y: Float) {
+        exactX = x
+        exactY = y
+        positionX = x.roundToInt()
+        positionY = y.roundToInt()
+        syncBodyFromPosition()
+    }
 
     /** Teleport the tank to a new position (used by warp actors). */
     fun teleportTo(x: Int, y: Int) {

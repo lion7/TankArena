@@ -73,6 +73,19 @@ class TankMovementTest {
     }
 
     @Test
+    fun `a key tapped between two steps still counts on the next step`() {
+        val prototype = Match.fromCanonicalMap(openFieldWithPlayerFacing(direction = 0))
+        prototype.initialize()
+        prototype.tick(emptyMap())
+        // Pressed and released again on the ticks between steps (legacy controls.c latches it).
+        prototype.tick(mapOf(0 to PlayerIntentFrame(turnRight = true)))
+        prototype.tick(mapOf(0 to PlayerIntentFrame()))
+        prototype.tick(mapOf(0 to PlayerIntentFrame()))
+        assertEquals(1, prototype.snapshot().playerTank().bodyDirection)
+        prototype.dispose()
+    }
+
+    @Test
     fun `aimRight rotates turret without affecting body direction`() {
         val prototype = Match.fromCanonicalMap(openFieldWithPlayerFacing(direction = 0))
         prototype.initialize()

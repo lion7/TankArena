@@ -207,15 +207,40 @@ class Match private constructor(
 
     /**
      * One tick of the 100 Hz timer. The game only moves on every third one ([STEP_TICKS]), like the
-     * original's game_control(); in between the world stands still and [intents] are not looked at,
-     * as the original reads the controls only on a step (legacy `read_controls()`).
+     * original's game_control(); in between the world stands still. The controls are read on a step,
+     * and like the original's keyboard handler (src/game/controls.c) a key pressed at any tick since
+     * the last step counts, so a short tap is not lost; so does an F-key tank selection.
      */
     fun tick(intents: Map<Int, PlayerIntentFrame>): WorldSnapshot {
         if (isDisposed) return buildSnapshot(drainEvents = false)
-        if (currentTick % STEP_TICKS == 0L) step(intents)
+        for ((player, intent) in intents) {
+            latchedIntents[player] = latchedIntents[player]?.let { held -> held latch intent } ?: intent
+        }
+        if (currentTick % STEP_TICKS == 0L) {
+            step(latchedIntents.toMap())
+            latchedIntents.clear()
+        }
         currentTick += 1
         return buildSnapshot(drainEvents = true)
     }
+
+    /** What the players pressed since the last step. */
+    private val latchedIntents: MutableMap<Int, PlayerIntentFrame> = sortedMapOf()
+
+    private infix fun PlayerIntentFrame.latch(next: PlayerIntentFrame) = PlayerIntentFrame(
+        forward = forward || next.forward,
+        reverse = reverse || next.reverse,
+        turnLeft = turnLeft || next.turnLeft,
+        turnRight = turnRight || next.turnRight,
+        aimLeft = aimLeft || next.aimLeft,
+        aimRight = aimRight || next.aimRight,
+        firePrimary = firePrimary || next.firePrimary,
+        fireSecondary = fireSecondary || next.fireSecondary,
+        shield = shield || next.shield,
+        cycleWeaponLeft = cycleWeaponLeft || next.cycleWeaponLeft,
+        cycleWeaponRight = cycleWeaponRight || next.cycleWeaponRight,
+        selectTankId = if (next.selectTankId > 0) next.selectTankId else selectTankId,
+    )
 
     /** Legacy game_control(): one step of the game. */
     private fun step(intents: Map<Int, PlayerIntentFrame>) {
@@ -292,13 +317,14 @@ class Match private constructor(
     fun snapshot(): WorldSnapshot = buildSnapshot(drainEvents = false)
 
     /**
-     * One legacy step for tests: [STEP_TICKS] ticks with the same controls, from a step tick on.
+     * One legacy step for tests: [STEP_TICKS] ticks from a step tick on, [intents] held on its first.
      * Returns the step tick's snapshot, which carries the step's events.
      */
     internal fun stepForTest(intents: Map<Int, PlayerIntentFrame> = emptyMap()): WorldSnapshot {
         check(currentTick % STEP_TICKS == 0L) { "tick $currentTick is not the start of a step" }
         val stepped = tick(intents)
-        repeat(STEP_TICKS - 1) { tick(intents) }
+        // The keys count on the step tick only: held on, they would count on the next step too.
+        repeat(STEP_TICKS - 1) { tick(emptyMap()) }
         return stepped
     }
 

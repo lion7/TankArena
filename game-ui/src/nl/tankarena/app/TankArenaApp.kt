@@ -1,5 +1,10 @@
 package nl.tankarena.app
 
+import nl.tankarena.ui.compose.extended.RelaySettingScreen
+import nl.tankarena.net.GameCodes
+import nl.tankarena.net.RelayDirectory
+import nl.tankarena.net.RelayGame
+import nl.tankarena.net.RelayHost
 import androidx.compose.runtime.mutableIntStateOf
 import nl.tankarena.ui.compose.extended.NetworkResultScreen
 import nl.tankarena.ui.compose.extended.VehicleChoiceScreen
@@ -344,12 +349,23 @@ fun TankArenaApp(
                     }
 
                     DesktopShellScreen.NetworkMenu -> NetworkMenuScreen(
+                        relay = options.relay,
+                        onRelay = { screen = DesktopShellScreen.NetworkRelay },
                         onHost = { screen = DesktopShellScreen.NetworkHost },
                         onJoin = {
                             netError = null
                             screen = netJoinFirst(DesktopShellScreen.NetworkAddress, back = DesktopShellScreen.NetworkMenu)
                         },
                         onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    DesktopShellScreen.NetworkRelay -> RelaySettingScreen(
+                        current = options.relay,
+                        onSave = { typed ->
+                            settings.update(options.copy(relay = typed))
+                            screen = DesktopShellScreen.NetworkMenu
+                        },
+                        onBack = { screen = DesktopShellScreen.NetworkMenu },
                     )
 
                     DesktopShellScreen.NetworkHost -> {
@@ -373,7 +389,10 @@ fun TankArenaApp(
                         server.mapName = current.mission.baseName
                         screen = runCatching { server.start() }.fold(
                             onSuccess = { port ->
-                                DesktopShellScreen.NetworkLobby(NetworkSession.Hosting(server, port, current.mission, current.mode, local))
+                                val session = NetworkSession.Hosting(server, port, current.mission, current.mode, local)
+                                // With a relay set the game is also on the internet, private until P.
+                                if (options.relay.isNotBlank()) session.relay = RelayHost(server, options.relay).also { it.start() }
+                                DesktopShellScreen.NetworkLobby(session)
                             },
                             onFailure = { DesktopShellScreen.Message("CANNOT HOST: ${it.message.orEmpty().uppercase()}", DesktopShellScreen.NetworkMenu) },
                         )
@@ -391,8 +410,17 @@ fun TankArenaApp(
                         }
                     }
                     val found by finder.games.collectAsState()
+                    // The relay's public games, looked up every few seconds.
+                    var internet by remember { mutableStateOf(emptyList<RelayGame>()) }
+                    LaunchedEffect(options.relay) {
+                        while (options.relay.isNotBlank()) {
+                            internet = RelayDirectory.games(options.relay, PROTOCOL_VERSION, Ruleset.EXTENDED.rulesVersion)
+                            kotlinx.coroutines.delay(5_000)
+                        }
+                    }
                     NetworkAddressScreen(
                         found = found,
+                        internet = internet,
                         lastAddress = netAddress,
                         connecting = netConnecting,
                         error = netError,
@@ -401,15 +429,20 @@ fun TankArenaApp(
                             netConnecting = true
                             netError = null
                             val (address, port) = parseAddress(typed)
+                            val code = GameCodes.normalize(typed)
                             val local = useNetworkSeats()
                             val client = GameClient(platform.deviceName, local, Ruleset.EXTENDED.rulesVersion)
                             scope.launch {
-                                val joined = client.join(address, port)
+                                val joined = when {
+                                    code == null -> client.join(address, port)
+                                    options.relay.isBlank() -> false.also { netError = "That is a game code: set an internet relay in the network menu first." }
+                                    else -> client.joinByCode(options.relay, code)
+                                }
                                 netConnecting = false
                                 if (joined) {
                                     screen = DesktopShellScreen.NetworkLobby(NetworkSession.Joined(client, typed, local))
                                 } else {
-                                    netError = (client.state.value as? ClientState.Out)?.reason ?: "Could not join."
+                                    if (netError == null) netError = (client.state.value as? ClientState.Out)?.reason ?: "Could not join."
                                     client.close()
                                 }
                             }
@@ -422,6 +455,10 @@ fun TankArenaApp(
                         is NetworkSession.Hosting -> {
                             val members by session.server.members.collectAsState()
                             val addresses = remember { localAddresses() }
+                            val relay = session.relay
+                            val code by (relay?.code ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
+                            val relayError by (relay?.error ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
+                            var listed by remember(relay) { mutableStateOf(relay?.public == true) }
                             NetworkLobbyScreen(
                                 title = session.mission.baseName.uppercase(),
                                 members = members,
@@ -429,6 +466,20 @@ fun TankArenaApp(
                                 addresses = addresses.map { if (session.port == DEFAULT_PORT) it else "$it:${session.port}" },
                                 minPlayers = 2,
                                 teams = session.mode == GameMode.PLAYER_VS_PLAYER,
+                                internet = relay?.let {
+                                    when {
+                                        relayError != null -> "Internet: ${relayError}"
+                                        code != null -> "Internet: game code ${GameCodes.show(code!!)}, " +
+                                            if (listed) "listed publicly (P: private)" else "private (P: list it publicly)"
+                                        else -> "Internet: reaching the relay…"
+                                    }
+                                },
+                                onTogglePublic = relay?.let {
+                                    {
+                                        it.public = !it.public
+                                        listed = it.public
+                                    }
+                                },
                                 onStart = {
                                     val series = NetSeries(
                                         session.server, session.mission.baseName, session.mission.document, session.mode.toMatchMode(),

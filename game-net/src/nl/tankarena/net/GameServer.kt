@@ -206,6 +206,26 @@ class GameServer(
         match = null
     }
 
+    /**
+     * Serves one machine on [socket], whoever opened it: a guest that connected here, or a tunnel to
+     * a relay (ADR 0028). Returns when the machine has left.
+     */
+    suspend fun accept(socket: DefaultWebSocketSession) = serve(socket)
+
+    /** The game as a relay lists it; null once the lobby has closed. */
+    internal fun relayGame(): RelayGame? = synchronized(lock) {
+        if (started) null else RelayGame(
+            name = hostName, map = mapName, players = hostPlayers + sessions.sumOf { it.seats.size }, maxPlayers = MAX_NET_PLAYERS,
+            netVersion = NET_VERSION, protocolVersion = PROTOCOL_VERSION, rulesVersion = rulesVersion,
+        )
+    }
+
+    /** Players in the game now (the host's and every machine's). */
+    internal fun playerCount(): Int = synchronized(lock) { hostPlayers + sessions.sumOf { it.seats.size } }
+
+    /** Whether machines can still join. */
+    internal val lobbyOpen: Boolean get() = synchronized(lock) { !started }
+
     private suspend fun serve(socket: DefaultWebSocketSession) {
         val hello = (socket.incoming.receiveCatching().getOrNull() as? Frame.Binary)
             ?.let { runCatching { NetCodec.decodeClient(it.readBytes()) }.getOrNull() } as? ClientMessage.Hello
@@ -272,6 +292,7 @@ class GameServer(
         if (session == null) {
             val reason = refusal ?: if (started) "The game has already started." else "The game is full."
             socket.send(Frame.Binary(true, NetCodec.encode(ServerMessage.Refused(reason))))
+            socket.flush()
             socket.close()
         }
         return session

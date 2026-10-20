@@ -2,7 +2,9 @@ package nl.tankarena.server
 
 import nl.tankarena.content.GameModeCompatibility
 import nl.tankarena.net.DEFAULT_PORT
+import nl.tankarena.net.GameCodes
 import nl.tankarena.net.GameServer
+import nl.tankarena.net.RelayHost
 import nl.tankarena.net.HostedMatch
 import nl.tankarena.net.NetSeries
 import nl.tankarena.net.MAX_NET_PLAYERS
@@ -29,6 +31,10 @@ data class ServerOptions(
     val port: Int,
     val name: String,
     val repeat: Boolean,
+    /** An internet relay to publish the games on (ADR 0028), or null. */
+    val relay: String? = null,
+    /** Listed in the relay's public list, not only reached by code. */
+    val public: Boolean = false,
 ) {
     companion object {
         const val USAGE = """Usage: app-server --map <name or file.tamap> [options]
@@ -38,7 +44,9 @@ data class ServerOptions(
   --rounds <n>      versus: rounds in a match, 1, 3, 5, 7 or 9, 0 endless (default 3)
   --port <port>     the port to listen on (default $DEFAULT_PORT)
   --name <name>     the server's name in the lobby (default: tankarena)
-  --repeat          host a new game on the same map after each one"""
+  --repeat          host a new game on the same map after each one
+  --relay <address> also publish the game on this internet relay (players join by its code)
+  --public          list the game publicly on the relay"""
 
         /** The options in [args], or null when they are wrong (the reason is printed). */
         fun parse(args: Array<String>): ServerOptions? {
@@ -49,6 +57,8 @@ data class ServerOptions(
             var port = DEFAULT_PORT
             var name = "tankarena"
             var repeat = false
+            var relay: String? = null
+            var public = false
             var index = 0
             fun value(): String? = args.getOrNull(++index)
             while (index < args.size) {
@@ -67,11 +77,13 @@ data class ServerOptions(
                         ?: return null.also { System.err.println("--port is a port number") }
                     "--name" -> name = value() ?: return null
                     "--repeat" -> repeat = true
+                    "--relay" -> relay = value() ?: return null
+                    "--public" -> public = true
                     else -> return null.also { System.err.println("Unknown option ${args[index]}") }
                 }
                 index++
             }
-            return ServerOptions(map ?: return null.also { System.err.println("--map is needed") }, mode, players, rounds, port, name, repeat)
+            return ServerOptions(map ?: return null.also { System.err.println("--map is needed") }, mode, players, rounds, port, name, repeat, relay, public)
         }
     }
 }
@@ -118,6 +130,15 @@ class DedicatedGame(private val options: ServerOptions, private val baseName: St
         val port = server.start()
         log("Hosting ${baseName.uppercase()} (${if (mode == MatchMode.DUAL) "versus" else "together"}) for ${options.players} players")
         log("Join at ${(localAddresses().ifEmpty { listOf("this machine") }).joinToString(" or ") { "$it:$port" }}")
+        val published = options.relay?.let { relay ->
+            RelayHost(server, relay, options.public).also { host ->
+                host.start()
+                val until = System.currentTimeMillis() + RELAY_WAIT_MILLIS
+                while (host.code.value == null && host.error.value == null && System.currentTimeMillis() < until) Thread.sleep(LOBBY_POLL_MILLIS)
+                host.code.value?.let { log("On the internet as ${GameCodes.show(it)} (${if (options.public) "public" else "private"})") }
+                host.error.value?.let { log("Not on the internet: $it") }
+            }
+        }
         var seen = 0
         while (true) {
             val joined = server.members.value.sumOf { it.seats.size }
@@ -152,6 +173,7 @@ class DedicatedGame(private val options: ServerOptions, private val baseName: St
             if (result.matchOver || everyoneLeft(server)) break
             Thread.sleep(RESULT_MILLIS)
         }
+        published?.stop()
         server.stop("The game is over.")
         log("The game is over")
     }
@@ -187,6 +209,9 @@ class DedicatedGame(private val options: ServerOptions, private val baseName: St
 
     private companion object {
         const val LOBBY_POLL_MILLIS = 100L
+
+        /** How long to wait for the relay's answer before going on without it. */
+        const val RELAY_WAIT_MILLIS = 5_000L
 
         /** How long the round's result shows before the next round's choice. */
         const val RESULT_MILLIS = 5_000L

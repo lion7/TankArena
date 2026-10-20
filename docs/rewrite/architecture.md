@@ -53,6 +53,7 @@ and `game-sim`. Packages are under `nl.tankarena`; artifacts are `nl.tankarena:<
 | `:app-desktop` | desktop app | Window, desktop audio and MIDI, gamepads (Jamepad), screenshots |
 | `:app-android` | Android app | Activity, Android audio and MIDI, gamepads, touch screen, app storage |
 | `:app-server` | command line | The dedicated server: hosts network games without a screen |
+| `:app-relay` | command line | The internet relay and lobby: game codes, tunnels, the public game list |
 | `:tools-mapconv` | command line | Map conversion and asset extraction (the extractors live here) |
 
 ### `:game-protocol`
@@ -117,6 +118,9 @@ All under `nl.tankarena.sim`.
   broadcast address) and `LanFinder` (the games heard lately).
 - `NetSeries`: the rounds of a game on the host: vehicle choice with a deadline, rounds until the
   match is decided, the result to every machine.
+- `RelayProtocol.kt`, `RelayServer`, `RelayHost`, `RelayDirectory` ([ADR 0028](adrs/0028-internet-relay-and-lobby.md)):
+  the relay's control messages and game codes, the relay itself, a host's publication with a tunnel
+  per guest, the public game list.
 - `GameClient` (connection, lobby, vehicle choice, results) and `RemoteMatchClient`: a `MatchClient` that sends its players'
   controls once a step and plays the frames back about 100 ms behind.
 

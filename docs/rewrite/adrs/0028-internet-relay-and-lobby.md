@@ -1,7 +1,11 @@
 # ADR 0028: Internet Play Through a Relay and Lobby Server
 
-- **Status:** Proposed (2026-10-20); design only, not built. Step 3 of phase 8 in the
-  [roadmap](../roadmap.md); builds on [ADR 0024](0024-networking.md).
+- **Status:** Accepted and built (2026-10-20). Step 3 of phase 8 in the [roadmap](../roadmap.md);
+  builds on [ADR 0024](0024-networking.md). Built as designed, with these choices: the relay
+  server is `RelayServer` in `:game-net` (so one test runs relay, host and guest together) and
+  `:app-relay` only starts it; TLS is left to a proxy in front of the relay (Caddy, nginx), the
+  game connects with `wss://` when the relay address says so; `app-server --relay` publishes a
+  dedicated server's games too.
 
 ## Context
 
@@ -35,7 +39,7 @@ cannot be reached directly. The game messages pass through unchanged; the relay 
 - **Control connection.** A host that publishes its game opens one WebSocket to the relay
   (`/host`) and registers: name, map, players and maximum, the three versions, public or private.
   The relay answers with a game code of six letters and digits without look-alikes, shown as
-  `K7Q-2MX`. The host updates the player count as the lobby changes and closes the connection when
+  `K7Q-4MX`. The host updates the player count as the lobby changes and closes the connection when
   the game ends; the code dies with it.
 - **Join.** A guest connects to the relay at `/join/<code>`. The relay tells the host over its
   control connection: `incoming <tunnel id>`.

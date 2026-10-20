@@ -58,6 +58,8 @@ data class GameOptions(
     val fillWindow: Boolean = true,
     /** Extended: on a wide window the map windows grow across and show more of the map. */
     val wideView: Boolean = true,
+    /** Extended network games: the internet relay's address (ADR 0028); empty for none. */
+    val relay: String = "",
 ) {
     /** Legacy read_controls(): `=` makes the window bigger, `-` smaller. */
     fun biggerWindow(): GameOptions = copy(windowSize = (windowSize - 1).coerceAtLeast(0))

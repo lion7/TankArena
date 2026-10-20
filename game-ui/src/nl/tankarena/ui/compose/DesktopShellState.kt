@@ -125,6 +125,9 @@ sealed interface DesktopShellScreen {
     /** Extended's network game (ADR 0024): host one or join one. */
     data object NetworkMenu : DesktopShellScreen
 
+    /** Setting the internet relay's address (ADR 0028). */
+    data object NetworkRelay : DesktopShellScreen
+
     /** Picking the map to host. */
     data object NetworkHost : DesktopShellScreen
 

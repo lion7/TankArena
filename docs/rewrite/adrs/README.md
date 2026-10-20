@@ -34,4 +34,4 @@ implemented is in the [roadmap](../roadmap.md).
 | [0025](0025-multiplatform-modules-and-android.md) | Multiplatform module layout and Android | Accepted, built (release signing open) |
 | [0026](0026-input-and-gamepads.md) | Input layer, remapping and gamepads | Accepted, built |
 | [0027](0027-four-players-two-teams.md) | Four players means two teams of two | Accepted, built |
-| [0028](0028-internet-relay-and-lobby.md) | Internet play through a relay and lobby server | Proposed, design only |
+| [0028](0028-internet-relay-and-lobby.md) | Internet play through a relay and lobby server | Accepted, built |

@@ -78,14 +78,26 @@ class GameClient(
      * Connects to the game at [host] and waits for the answer: true when in the lobby, false when
      * refused or unreachable ([state] then says why).
      */
-    suspend fun join(host: String, port: Int = DEFAULT_PORT): Boolean {
+    suspend fun join(host: String, port: Int = DEFAULT_PORT): Boolean = connect("ws://$host:$port$GAME_PATH", host)
+
+    /** Joins the game with [code] through the relay at [relay] (ADR 0028); see [join]. */
+    suspend fun joinByCode(relay: String, code: String): Boolean {
+        val normalized = GameCodes.normalize(code) ?: run {
+            stateFlow.value = ClientState.Out("$code is not a game code.")
+            return false
+        }
+        return connect(relayUrl(relay) + RelayPaths.JOIN + normalized, "the relay")
+    }
+
+    private suspend fun connect(url: String, host: String): Boolean {
         val answered = CompletableDeferred<Boolean>()
         scope.launch {
             try {
-                http.webSocket(host = host, port = port, path = GAME_PATH) {
-                    send(Frame.Binary(true, NetCodec.encode(ClientMessage.Hello(NET_VERSION, PROTOCOL_VERSION, rulesVersion, name, localPlayers))))
+                http.webSocket(urlString = url) {
+                    // A relay may refuse before reading the hello: the refusal is then still there to read.
+                    runCatching { send(Frame.Binary(true, NetCodec.encode(ClientMessage.Hello(NET_VERSION, PROTOCOL_VERSION, rulesVersion, name, localPlayers)))) }
                     val sender = launch {
-                        for (message in toServer) send(Frame.Binary(true, NetCodec.encode(message)))
+                        for (message in toServer) runCatching { send(Frame.Binary(true, NetCodec.encode(message))) }
                     }
                     for (frame in incoming) {
                         if (frame !is Frame.Binary) continue

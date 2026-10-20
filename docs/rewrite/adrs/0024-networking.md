@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (2026-10-19); partly implemented (2026-10-20: LAN play by address or from
   the LAN list, deltas against the previous frame instead of an acknowledged one (the connection
-  is ordered), and the dedicated server). Extended ruleset only
+  is ordered), the dedicated server, and internet play through a relay, [ADR 0028](0028-internet-relay-and-lobby.md)). Extended ruleset only
   ([ADR 0023](0023-classic-and-extended-rulesets.md)).
 
 ## Context

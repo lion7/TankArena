@@ -244,9 +244,12 @@ Depends on: phases 1 and 6 (the move is mechanical once the core is platform-fre
      rounds option), and every machine shows the round's result; together: one mission and its
      result. `NetSeries` keeps the rounds for the host's screens and for `app-server` (`--rounds`).
 2. [x] Dedicated headless `app-server` (`--map`, `--mode`, `--players`, `--port`, `--repeat`).
-3. Internet: join by address works now (deltas make it light enough); a relay and lobby server for
-   hosts behind NAT is designed in [ADR 0028](adrs/0028-internet-relay-and-lobby.md), not built;
-   own-vehicle prediction only if needed.
+3. [x] Internet ([ADR 0028](adrs/0028-internet-relay-and-lobby.md)): join by address, or by a game
+   code through the relay (`app-relay`, port 47310) for hosts behind NAT; a host with a relay set
+   publishes its game privately (P lists it publicly), the join screen shows the relay's public games,
+   `app-server --relay` publishes dedicated games. Tried: the emulator joined a dedicated server by
+   code through a relay on this machine. Own-vehicle prediction only if play over the internet shows
+   it is needed.
 
 Depends on: phases 5 and 6; Android-to-desktop play after phase 7.
 

@@ -3,6 +3,7 @@ package nl.tankarena.app
 import nl.tankarena.net.GameClient
 import nl.tankarena.net.GameServer
 import nl.tankarena.net.NetSeries
+import nl.tankarena.net.RelayHost
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.menu.MissionEntry
 
@@ -25,7 +26,13 @@ sealed interface NetworkSession {
         /** The rounds, once the host started the game. */
         var series: NetSeries? = null
 
-        override fun close() = server.stop()
+        /** The game on the internet relay, when one is set (ADR 0028). */
+        var relay: RelayHost? = null
+
+        override fun close() {
+            relay?.stop()
+            server.stop()
+        }
     }
 
     /** This machine joined the game at [address]. */

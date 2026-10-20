@@ -1,5 +1,7 @@
 package nl.tankarena.ui.compose.extended
 
+import nl.tankarena.net.RelayGame
+import nl.tankarena.net.GameCodes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,11 +45,12 @@ import nl.tankarena.ui.compose.menu.playableIn
 
 /** Extended's network game (ADR 0024): host a game on this machine or join one. */
 @Composable
-fun NetworkMenuScreen(onHost: () -> Unit, onJoin: () -> Unit, onBack: () -> Unit) {
+fun NetworkMenuScreen(relay: String, onHost: () -> Unit, onJoin: () -> Unit, onRelay: () -> Unit, onBack: () -> Unit) {
     val keys = remember { KeyRouter() }
     val entries = listOf(
         ListEntry("Host a game", "pick a map; the others join this machine") to onHost,
-        ListEntry("Join a game", "type the address of the machine that hosts") to onJoin,
+        ListEntry("Join a game", "from the network, the internet, or by address or code") to onJoin,
+        ListEntry("Internet relay", relay.ifBlank { "none: games stay on this network" }) to onRelay,
     )
     ExtendedPage(
         title = "Network game",
@@ -126,6 +129,8 @@ fun NetworkHostScreen(missions: List<MissionEntry>, onPick: (MissionEntry, GameM
 @Composable
 fun NetworkAddressScreen(
     found: List<LanGame>,
+    /** The relay's public games (ADR 0028). */
+    internet: List<RelayGame>,
     lastAddress: String,
     connecting: Boolean,
     error: String?,
@@ -136,12 +141,15 @@ fun NetworkAddressScreen(
     var typing by remember { mutableStateOf(false) }
     var typed by remember { mutableStateOf(lastAddress) }
     val fieldFocus = remember { FocusRequester() }
-    val entries = (if (found.isEmpty()) listOf(ListEntry("Looking for games on the network…", enabled = false)) else emptyList()) +
+    // The games to pick, in the list's order: on this network, then on the internet.
+    val targets = found.map { it.target } + internet.map { GameCodes.show(it.code) }
+    val entries = (if (targets.isEmpty()) listOf(ListEntry("Looking for games…", enabled = false)) else emptyList()) +
         found.map { ListEntry("${it.beacon.name} — ${it.beacon.map.uppercase()}", "${it.beacon.players} of ${it.beacon.maxPlayers} · ${it.target}") } +
-        ListEntry("Type an address…")
+        internet.map { ListEntry("${it.name} — ${it.map.uppercase()}", "${it.players} of ${it.maxPlayers} · internet") } +
+        ListEntry("Type an address or a game code…")
     ExtendedPage(
         title = "Join a game",
-        subtitle = if (typing) "The address of the machine that hosts; it shows it in its lobby" else "Games on this network, or an address",
+        subtitle = if (typing) "The host's address or its game code; the host's lobby shows both" else "Games on this network and the internet, or an address",
         onBack = { if (typing) typing = false else onBack() },
         footer = if (typing) "Enter joins · ESC goes back to the list" else "Enter joins · ESC goes back",
         onKey = { event -> if (typing || connecting) false else keys.handle(event) },
@@ -152,7 +160,7 @@ fun NetworkAddressScreen(
                 OutlinedTextField(
                     value = typed,
                     onValueChange = { typed = it.trim().take(MAX_ADDRESS_LENGTH) },
-                    label = { Text("Address") },
+                    label = { Text("Address or game code") },
                     singleLine = true,
                     enabled = !connecting,
                     modifier = Modifier
@@ -175,7 +183,7 @@ fun NetworkAddressScreen(
                             when {
                                 connecting -> Unit
                                 index == entries.lastIndex -> typing = true
-                                else -> found.getOrNull(if (found.isEmpty()) -1 else index)?.let { onConnect(it.target) }
+                                else -> targets.getOrNull(if (targets.isEmpty()) -1 else index)?.let(onConnect)
                             }
                         },
                         keys = keys,
@@ -203,6 +211,10 @@ fun NetworkLobbyScreen(
     minPlayers: Int,
     /** Against each other: the places show their team. */
     teams: Boolean,
+    /** The game on the internet relay: its code or what went wrong; null without a relay. */
+    internet: String? = null,
+    /** P lists the game publicly on the relay or takes it off the list. */
+    onTogglePublic: (() -> Unit)? = null,
     onStart: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -221,33 +233,35 @@ fun NetworkLobbyScreen(
             else -> "Waiting for players · ESC stops the game"
         },
         onKey = { event ->
-            if (hosting && (event.key == Key.Enter || event.key == Key.NumPadEnter) && players >= minPlayers) {
-                onStart()
-                true
-            } else {
-                false
+            when {
+                hosting && (event.key == Key.Enter || event.key == Key.NumPadEnter) && players >= minPlayers -> onStart()
+                event.key == Key.P && onTogglePublic != null -> onTogglePublic()
+                else -> return@ExtendedPage false
             }
+            true
         },
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            for (place in 0 until MAX_NET_PLAYERS) {
-                val member = members.firstOrNull { place in it.seats }
-                Column(
-                    modifier = Modifier
-                        .width(220.dp)
-                        .height(120.dp)
-                        .background(if (member != null) ExtendedColors.selected else ExtendedColors.panel, RoundedCornerShape(10.dp))
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Player ${place + 1}", color = ExtendedColors.accent, fontSize = 20.sp)
-                    Text(member?.name ?: "free", color = if (member != null) ExtendedColors.text else ExtendedColors.dim, fontSize = 16.sp)
-                    // Extended teams (ADR 0027): players 1 and 3 against 2 and 4.
-                    if (teams) Text(if (place % 2 == 0) "team 1" else "team 2", color = ExtendedColors.dim, fontSize = 13.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                for (place in 0 until MAX_NET_PLAYERS) {
+                    val member = members.firstOrNull { place in it.seats }
+                    Column(
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(120.dp)
+                            .background(if (member != null) ExtendedColors.selected else ExtendedColors.panel, RoundedCornerShape(10.dp))
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Player ${place + 1}", color = ExtendedColors.accent, fontSize = 20.sp)
+                        Text(member?.name ?: "free", color = if (member != null) ExtendedColors.text else ExtendedColors.dim, fontSize = 16.sp)
+                        // Extended teams (ADR 0027): players 1 and 3 against 2 and 4.
+                        if (teams) Text(if (place % 2 == 0) "team 1" else "team 2", color = ExtendedColors.dim, fontSize = 13.sp)
+                    }
                 }
             }
+            if (internet != null) Text(internet, color = ExtendedColors.text, fontSize = 18.sp)
         }
-        Spacer(Modifier.fillMaxWidth().height(8.dp))
     }
 }
 
@@ -348,6 +362,44 @@ fun NetworkResultScreen(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(headline, color = ExtendedColors.accent, fontSize = 28.sp)
             if (matchLine != null) Text(matchLine, color = ExtendedColors.text, fontSize = 20.sp)
+        }
+    }
+}
+
+/**
+ * The internet relay's address (ADR 0028): a name or `host:port`, `wss://` for one behind TLS.
+ * Empty: no relay, games stay on the network.
+ */
+@Composable
+fun RelaySettingScreen(current: String, onSave: (String) -> Unit, onBack: () -> Unit) {
+    var typed by remember { mutableStateOf(current) }
+    val fieldFocus = remember { FocusRequester() }
+    ExtendedPage(
+        title = "Internet relay",
+        subtitle = "Hosts publish their games there and get a code; others join with the code",
+        onBack = onBack,
+        footer = "Enter saves (empty: no relay) · ESC goes back",
+    ) {
+        LaunchedEffect(Unit) { fieldFocus.requestFocus() }
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            OutlinedTextField(
+                value = typed,
+                onValueChange = { typed = it.trim().take(MAX_ADDRESS_LENGTH) },
+                label = { Text("Relay address") },
+                singleLine = true,
+                modifier = Modifier
+                    .width(520.dp)
+                    .focusRequester(fieldFocus)
+                    .onPreviewKeyEvent { event ->
+                        if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
+                            onSave(typed)
+                            true
+                        } else {
+                            false
+                        }
+                    },
+            )
+            Text("Run one with: ./kotlin run -m app-relay", color = ExtendedColors.dim, fontSize = 14.sp)
         }
     }
 }

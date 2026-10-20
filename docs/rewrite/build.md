@@ -21,8 +21,9 @@ Products: `:game-protocol`, `:game-content`, `:game-sim` and `:game-ui` are `kmp
 code in `src@jvm/` and `src@android/`, desktop-only tests in `test@jvm/`); `:app-android` is
 `android/app` (the Android SDK is found in `~/Android/Sdk`, or set `ANDROID_HOME`);
 `:game-net` is a `kmp/lib` like them (Ktor 3.6.0, kotlinx-serialization-cbor); `:app-desktop`,
-`:app-server` and `:tools-mapconv` are `jvm/app` (main classes `nl.tankarena.app.desktop.MainKt`,
-`nl.tankarena.server.MainKt` and `nl.tankarena.tools.mapconv.MainKt`).
+`:app-server`, `:app-relay` and `:tools-mapconv` are `jvm/app` (main classes
+`nl.tankarena.app.desktop.MainKt`, `nl.tankarena.server.MainKt`, `nl.tankarena.relay.MainKt` and
+`nl.tankarena.tools.mapconv.MainKt`).
 
 ## Versions
 
@@ -45,6 +46,7 @@ they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, k
 ./kotlin build -m app-android            # the Android app: build/tasks/_app-android_buildAndroidDebug/*.apk
 ./kotlin package -m app-android          # the release bundle (.aab), shrunk by R8
 ./kotlin run -m app-server -- --map flagisle --players 2   # a dedicated network game server
+./kotlin run -m app-relay                                  # the internet relay (port 47310)
 ./kotlin run -m tools-mapconv -- <subcommand> <args>
 ```
 

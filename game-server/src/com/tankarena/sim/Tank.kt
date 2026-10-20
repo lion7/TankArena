@@ -318,6 +318,15 @@ class Tank(state: State) :
     private var verticalSpeed: Float = 0f
     /** Legacy `o->h`, rounded from the exact height; below 1 while the tank falls into a pit. */
     val height: Int get() = exactHeight.roundToInt()
+
+    internal fun setHeightForTest(height: Int) {
+        exactHeight = height.toFloat()
+    }
+
+    internal fun setVelocityForTest(x: Float, y: Float) {
+        velocityX = x
+        velocityY = y
+    }
     val falling: Boolean get() = exactHeight < 1f
     /** True for vehicles that fly (or a ground vehicle that left the ground); they are drawn with a shadow. */
     val airborne: Boolean get() = height > 1
@@ -795,16 +804,15 @@ class Tank(state: State) :
     override fun applyPendingResolutions(worldWidthPixels: Int, worldHeightPixels: Int) {
         if (pendingResolveX == 0 && pendingResolveY == 0 && pendingDamageThisTick == 0 && pendingRocketProofDamage == 0 && !pendingDestroy) return
         if (pendingResolveX != 0 || pendingResolveY != 0) {
-            positionX = (positionX + pendingResolveX)
-                .coerceIn(SERVER_TANK_HALF, worldWidthPixels - SERVER_TANK_HALF - 1)
-            positionY = (positionY + pendingResolveY)
-                .coerceIn(SERVER_TANK_HALF, worldHeightPixels - SERVER_TANK_HALF - 1)
+            positionX = wrapped((positionX + pendingResolveX).toFloat(), worldWidthPixels).roundToInt()
+            positionY = wrapped((positionY + pendingResolveY).toFloat(), worldHeightPixels).roundToInt()
             exactX = positionX.toFloat()
             exactY = positionY.toFloat()
         }
-        // Legacy hit_tank(): the start shield stops everything, the shield key everything but rockets.
+        // Legacy hit_tank(): the start shield stops everything while on or above the ground, the
+        // shield key everything but rockets.
         var incoming = 0
-        if (invulnerableTicks <= 0) {
+        if (invulnerableTicks <= 0 || height < 1) {
             incoming += pendingRocketProofDamage
             if (!shieldActive) incoming += pendingDamageThisTick
         }
@@ -959,19 +967,32 @@ class Tank(state: State) :
         velocityY = along * fy + across * fx
     }
 
-    /** Legacy new_position(): move by the velocity and burn one unit of fuel per pixel (humans only). */
     /**
-     * Legacy new_position() (src/tanks/control.c): try the move this tick's velocity asks for.
-     * It is refused when the vehicle's picture would overlap standing structures by more pixels
-     * than it does now (it then bounces, [staticCollide]), or when it would come within the two
-     * vehicles' radii of another vehicle ([collideWithVehicle]).
+     * Legacy new_position() (src/tanks/control.c): try the move this step's velocity asks for.
+     * Vehicles not driven by the computer burn one unit of fuel per pixel of the move, even when the
+     * move is then refused; a vehicle leaving the map comes back in on the other side. The move is
+     * refused when the vehicle's picture would overlap standing structures by more pixels than it
+     * does now (it then bounces, [staticCollide]), or when it would come within the two vehicles'
+     * radii of another vehicle ([collideWithVehicle]).
      */
     private fun advancePosition() {
         val dx = velocityX * STEP_SECONDS
         val dy = velocityY * STEP_SECONDS
-        val nextX = exactX + dx
-        val nextY = exactY + dy
+        var nextX = exactX + dx
+        var nextY = exactY + dy
+        if (!computer && (dx != 0f || dy != 0f)) {
+            fuelDebt += hypot(dx, dy)
+            val whole = fuelDebt.toInt()
+            if (whole > 0) {
+                fuel = (fuel - whole).coerceAtLeast(0)
+                fuelDebt -= whole
+            }
+        }
         val surroundings = surroundings
+        if (surroundings != null) {
+            nextX = wrapped(nextX, surroundings.worldWidth)
+            nextY = wrapped(nextY, surroundings.worldHeight)
+        }
         if (surroundings != null && (dx != 0f || dy != 0f)) {
             val roundedX = nextX.roundToInt()
             val roundedY = nextY.roundToInt()
@@ -1014,22 +1035,24 @@ class Tank(state: State) :
             }
             launchOffRamp(surroundings, roundedX, roundedY)
         }
-        exactX = nextX.coerceIn(0f, surroundings?.worldWidth?.toFloat() ?: Float.MAX_VALUE)
-        exactY = nextY.coerceIn(0f, surroundings?.worldHeight?.toFloat() ?: Float.MAX_VALUE)
+        exactX = nextX
+        exactY = nextY
         positionX = exactX.roundToInt()
         positionY = exactY.roundToInt()
-        if (playerIndex >= 0 && (dx != 0f || dy != 0f)) {
-            fuelDebt += hypot(dx, dy)
-            val whole = fuelDebt.toInt()
-            if (whole > 0) {
-                fuel = (fuel - whole).coerceAtLeast(0)
-                fuelDebt -= whole
-            }
-        }
         syncBodyFromPosition()
     }
 
     private var fuelDebt: Float = 0f
+
+    /**
+     * Legacy new_position(): `if (x < -15) x += map.sx * b_size; if (x > map.sx * b_size - 15) ...`
+     * on the picture's corner, which is 1 and size + 1 for the centre.
+     */
+    private fun wrapped(centre: Float, size: Int): Float = when {
+        centre < 1f -> centre + size
+        centre > size + 1f -> centre - size
+        else -> centre
+    }
 
     /**
      * Legacy on_big_ramp()/on_small_ramp() in new_position(): a tank or car on the ground that
@@ -1588,7 +1611,8 @@ class Tank(state: State) :
     private fun stepSmoke() {
         smokeCooldownTicks = smokeCooldownTicks.afterStep()
         if (smokeCooldownTicks > 0) return
-        if (!spec.smokes || speed < 1f || spec.smokePoints.isEmpty()) return
+        // Legacy tank_effects(): no smoke on water (`und.nw != WATER`).
+        if (!spec.smokes || onWater || speed < 1f || spec.smokePoints.isEmpty()) return
         val (sx, sy) = onHull(spec.smokePoints[random.nextInt(spec.smokePoints.size)])
         pendingEffects += GameEvent.Effect(EffectKind.SMOKE, sx, sy)
         smokeCooldownTicks = (if (armor <= maxArmor / 3) 5 else 30) + random.nextInt(10)

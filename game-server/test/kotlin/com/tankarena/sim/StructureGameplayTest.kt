@@ -46,7 +46,11 @@ class StructureGameplayTest {
         val match = start(structures = mapOf(buildingTileX to 8))
         match.structures.hit(buildingTileX, row, StructureLayer.SOLID, HitKind.NORMAL, 20)
         val tank = assertNotNull(match.playerTankForTest(0))
-        repeat(600) { match.tick(mapOf(0 to PlayerIntentFrame(forward = true))) }
+        // Stop once past it: driving on, the tank leaves the map and comes back in on the other side.
+        var ticks = 0
+        while (tank.positionX <= (buildingTileX + 1) * LEGACY_TILE_SIZE && ticks++ < 600) {
+            match.tick(mapOf(0 to PlayerIntentFrame(forward = true)))
+        }
         assertTrue(tank.positionX > (buildingTileX + 1) * LEGACY_TILE_SIZE, "the tank drives through the ruin (x=${tank.positionX})")
     }
 

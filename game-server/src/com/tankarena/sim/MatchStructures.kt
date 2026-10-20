@@ -55,6 +55,10 @@ internal fun Match.onStructureDestroyed(destroyed: DestroyedStructure, hitExplos
         }
     }
     if (destroyed.layer != StructureLayer.SOLID) return
+    // Legacy hit_wall(): a building that goes up in an explosion throws pieces of wall.
+    if (!silent && destroyed.explosion == "EXPLOSION") {
+        pendingEvents += GameEvent.Debris(com.tankarena.protocol.snapshot.DebrisKind.PARTS, centreX, centreY)
+    }
     modifyGoalCounter(destroyed.goalContribution)
     createBonus(destroyed.tileX, destroyed.tileY)
     dropParatroopers(destroyed.tileX, destroyed.tileY, by)
@@ -124,7 +128,12 @@ internal fun Match.checkProjectileStructureHits() {
             } else {
                 null
             }
-            if (bounce != null) projectile.deflect(x, y, bounce) else projectile.stopAt(x, y)
+            if (bounce != null) {
+                projectile.deflect(x, y, bounce)
+            } else {
+                projectile.stopAt(x, y)
+                shotDebris(projectile, x, y)
+            }
             break
         }
     }
@@ -164,6 +173,7 @@ internal fun Match.checkProjectileVehicleHits() {
                 // Legacy hit_obj_for(): one chain-gun round in twenty ricochets off a vehicle.
                 if (projectile.weaponKind == WEAPON_CHAIN && objectRandom.nextInt(20) == 0) ricochet(tank.positionX, tank.positionY)
                 projectile.hitVehicle(tank, x, y)
+                shotDebris(projectile, x, y)
                 break
             }
         }
@@ -220,6 +230,13 @@ private const val FLAME_PART_POWER_TANK = 7
 private const val FLAME_PART_POWER_WALL = 10
 /** Legacy `max_parts`. */
 private const val MAX_PARTS = 1000
+
+/** Legacy control_bullets(): a shot that stops scatters pixels, a chain-gun round only one time in five. */
+internal fun Match.shotDebris(projectile: Projectile, x: Int, y: Int) {
+    if (projectile.weaponKind == WEAPON_FLAME) return
+    if (projectile.weaponKind == WEAPON_CHAIN && debrisRandom.nextInt(5) != 0) return
+    pendingEvents += GameEvent.Debris(com.tankarena.protocol.snapshot.DebrisKind.PIXEL, x, y)
+}
 
 /** Legacy SND_RICOCHETS + rnd(6). */
 internal fun Match.ricochet(x: Int, y: Int) {

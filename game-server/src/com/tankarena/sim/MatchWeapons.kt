@@ -239,6 +239,7 @@ internal fun Match.drainMortarExplosions() {
         mortar.drainExplosion()?.let { impact ->
             pendingEvents += GameEvent.Explosion(impact.x, impact.y, impact.radius, ExplosionKind.MORTAR)
             pendingEvents += GameEvent.Sound(com.tankarena.protocol.snapshot.SoundKind.NUKE, impact.x, impact.y)
+            pendingEvents += GameEvent.Debris(com.tankarena.protocol.snapshot.DebrisKind.MORTAR, impact.x, impact.y)
         }
         val ring = mortar.nextRing() ?: continue
         val x = mortar.positionX.toInt()

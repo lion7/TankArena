@@ -141,9 +141,10 @@ Open:
   around the tile, heading unchanged) carry vehicles and soldiers below height 2; a vehicle that would
   end up in another stays (`src/world/transp.c`). Mines, bonuses and other small objects are not
   carried yet.
-- **missing** — debris (`src/world/parts.c`: tank parts, wall parts, pixels, flames). Without it,
-  fuel dumps only show flames: their `PT_FLAME` parts should hit tanks for 7 and walls for 10 and can
-  set off neighbouring dumps.
+- **done** — debris (`src/world/parts.c`): burning pieces of fuel dumps fly in the simulation and
+  burn vehicles (7) and structures (10), so dumps go up in chains; pixels from stopped shots (a
+  chain-gun round one time in five), mortar specks and smoking pieces of wall (PARTA..F) from
+  buildings that explode are thrown by the client from a debris event.
 - **done** — `underground_effects()` after the move: five splashes and SND_SPLASH into and out of
   water, five lava bubbles into and out of lava, lava burning 2 every 10 ticks with a bubble, and while
   moving or flying a splash on water, an oil splash on oil, dust on bare desert ground.

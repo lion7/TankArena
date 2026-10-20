@@ -112,13 +112,23 @@ enum class EffectKind {
     TELEPORT_SPARK3,
     /** DUST1..3: dust behind a vehicle on bare desert ground. */
     DUST,
+    /** PARTS1..3: smoke from a flying piece of a building. */
+    PARTS_SMOKE,
 }
+
+/** Legacy part types that only show (src/world/parts.c): PT_PIXEL, PT_MORTAR, PT_PARTS. */
+@Serializable
+enum class DebrisKind { PIXEL, MORTAR, PARTS }
 
 @Serializable
 sealed interface GameEvent {
     /** A purely visual legacy effect (`create_effect()`) at world position ([x], [y]). */
     @Serializable
     data class Effect(val kind: EffectKind, val x: Int, val y: Int) : GameEvent
+
+    /** Legacy create_parts() of a kind that only shows: the client throws the pieces itself. */
+    @Serializable
+    data class Debris(val kind: DebrisKind, val x: Int, val y: Int) : GameEvent
 
     @Serializable
     data class Explosion(

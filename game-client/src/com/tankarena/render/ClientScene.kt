@@ -1,5 +1,6 @@
 package com.tankarena.render
 
+import androidx.compose.ui.geometry.Offset
 import com.tankarena.protocol.snapshot.AbombState
 import com.tankarena.protocol.snapshot.B52State
 import com.tankarena.protocol.snapshot.BonusState
@@ -72,6 +73,7 @@ private val EFFECT_FRAMES: Map<EffectKind, List<Pair<String, Int>>> = mapOf(
     EffectKind.TELEPORT_SPARK2 to (2..6).map { "TEL$it" to 30 },
     EffectKind.TELEPORT_SPARK3 to (3..6).map { "TEL$it" to 30 },
     EffectKind.DUST to listOf("DUST1" to 25, "DUST2" to 25, "DUST3" to 25),
+    EffectKind.PARTS_SMOKE to listOf("PARTS1" to 13, "PARTS2" to 13, "PARTS3" to 13),
 )
 private const val LOCK_MARKER_ID = Long.MIN_VALUE
 
@@ -368,6 +370,17 @@ internal class ClientScene(
         for (event in events) {
             when (event) {
                 is GameEvent.Effect -> spawnEffect(event.kind, event.x, event.y, tick)
+                is GameEvent.Debris -> for (piece in DebrisPiece.throwFrom(event.kind, event.x, event.y, tick, effectRandom)) {
+                    debris += if (event.kind == com.tankarena.protocol.snapshot.DebrisKind.PARTS) {
+                        val sprite = SpriteActor(nextEffectId--, snapshot, pictures, sprites, layerIndex = EFFECT_LAYER)
+                        scene.add(sprite)
+                        DebrisVisual(piece, null, sprite)
+                    } else {
+                        val pixel = PixelDrawable(Offset(piece.x, piece.y))
+                        scene.add(pixel)
+                        DebrisVisual(piece, pixel, null)
+                    }
+                }
                 is GameEvent.Explosion -> spawnEffect(
                     if (event.kind == ExplosionKind.ROCKET) EffectKind.LEXPLOSION else EffectKind.EXPLOSION,
                     event.x,
@@ -377,6 +390,7 @@ internal class ClientScene(
                 else -> Unit
             }
         }
+        stepDebris(tick)
         val iterator = effects.iterator()
         while (iterator.hasNext()) {
             val effect = iterator.next()
@@ -395,6 +409,37 @@ internal class ClientScene(
     }
 
     private val effectRandom = kotlin.random.Random(0)
+
+    /** Legacy `parts` that only show, flying on the client. */
+    private val debris = mutableListOf<DebrisVisual>()
+    private var lastDebrisTick = Long.MIN_VALUE
+
+    /** Legacy control_parts(): pieces fly on once per tick and are gone after their distance. */
+    private fun stepDebris(tick: Long) {
+        if (tick == lastDebrisTick) return
+        lastDebrisTick = tick
+        val iterator = debris.iterator()
+        while (iterator.hasNext()) {
+            val visual = iterator.next()
+            val piece = visual.piece
+            if (!piece.advance()) {
+                visual.pixel?.let(scene::remove)
+                visual.sprite?.let(scene::remove)
+                iterator.remove()
+                continue
+            }
+            visual.pixel?.body?.position = Offset(piece.x, piece.y)
+            visual.sprite?.let { sprite ->
+                sprite.spriteName = "PART${piece.partLetter}${piece.frame + 1}"
+                sprite.moveTo(piece.x.toInt(), piece.y.toInt())
+                // Legacy control_parts(): a piece of wall smokes as it flies.
+                if (tick >= piece.smokeTick) {
+                    spawnEffect(EffectKind.PARTS_SMOKE, piece.x.toInt(), piece.y.toInt(), tick)
+                    piece.smokeTick = tick + 20 + effectRandom.nextInt(20)
+                }
+            }
+        }
+    }
 
     private fun spawnEffect(kind: EffectKind, x: Int, y: Int, tick: Long) {
         val frames = EFFECT_FRAMES[kind] ?: return

@@ -120,7 +120,9 @@ data class ListEntry(val label: String, val detail: String = "", val enabled: Bo
 
 /**
  * A list moved through with Up/Down (Page Up/Down, Home/End) or the mouse; Enter or a click picks the
- * selected entry. [onSelect] follows the selection, for a details pane next to it.
+ * selected entry, Left/Right go to [onStep] (a setting's value down or up). [onSelect] follows the
+ * selection, for a details pane next to it. The selection stays where it is when the entries' texts
+ * change (a setting's new value).
  */
 @Composable
 fun ExtendedList(
@@ -130,8 +132,9 @@ fun ExtendedList(
     initial: Int = entries.indexOfFirst { it.enabled }.coerceAtLeast(0),
     onSelect: (Int) -> Unit = {},
     keys: KeyRouter? = null,
+    onStep: ((index: Int, up: Boolean) -> Unit)? = null,
 ) {
-    var selected by remember(entries) { mutableIntStateOf(initial.coerceIn(0, (entries.size - 1).coerceAtLeast(0))) }
+    var selected by remember(entries.size) { mutableIntStateOf(initial.coerceIn(0, (entries.size - 1).coerceAtLeast(0))) }
     val listState = rememberLazyListState()
     LaunchedEffect(selected) {
         onSelect(selected)
@@ -157,6 +160,10 @@ fun ExtendedList(
             Key.MoveHome -> move(-entries.size)
             Key.MoveEnd -> move(entries.size)
             Key.Enter, Key.NumPadEnter -> if (entries.getOrNull(selected)?.enabled == true) onPick(selected)
+            Key.DirectionLeft, Key.DirectionRight -> {
+                val step = onStep ?: return@handler false
+                if (entries.getOrNull(selected)?.enabled == true) step(selected, event.key == Key.DirectionRight)
+            }
             else -> return@handler false
         }
         true

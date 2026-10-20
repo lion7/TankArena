@@ -5,9 +5,9 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -16,8 +16,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -25,12 +27,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.areAnyPressed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tankarena.audio.AudioManager
@@ -272,8 +278,46 @@ internal fun ReplayScreen(
     var view by remember(host) { mutableStateOf(published.get()) }
     var paused by remember { mutableStateOf(false) }
     var speed by remember { mutableStateOf(NORMAL_SPEED) }
-    // C: a free camera moved with the arrow keys instead of following the players.
-    var freeCamera by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    // C, dragging or the wheel: a free camera, moved with the arrow keys or the mouse and zoomed,
+    // instead of following the players.
+    var freeCamera by remember { mutableStateOf<Offset?>(null) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    // Screen pixels per map pixel in the free camera view, to move it with the mouse.
+    var cameraScale by remember { mutableFloatStateOf(2f) }
+    val heldArrows = remember { mutableStateSetOf<Key>() }
+    val worldWidth = mission.sidecar.metadata.widthTiles * com.tankarena.content.LEGACY_TILE_SIZE.toFloat()
+    val worldHeight = mission.sidecar.metadata.heightTiles * com.tankarena.content.LEGACY_TILE_SIZE.toFloat()
+    fun clamp(at: Offset) = Offset(at.x.coerceIn(0f, worldWidth), at.y.coerceIn(0f, worldHeight))
+    fun startCamera(): Offset =
+        freeCamera ?: view.frame.playerViews.firstOrNull()?.let { Offset(it.cameraCenterX.toFloat(), it.cameraCenterY.toFloat()) } ?: Offset.Zero
+    /** Zooms by [factor], keeping the map point under [at] (screen pixels from the view's centre) in place. */
+    fun zoomBy(factor: Float, at: Offset = Offset.Zero) {
+        val camera = startCamera()
+        val old = zoom
+        zoom = (zoom * factor).coerceIn(MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM)
+        val point = camera + at / cameraScale
+        freeCamera = clamp(point - (point - camera) * (old / zoom))
+    }
+    // Held arrow keys move the free camera smoothly: a screen's height a second, whatever the zoom.
+    LaunchedEffect(Unit) {
+        var last = 0L
+        while (true) {
+            withFrameNanos { now ->
+                val seconds = if (last == 0L) 0f else (now - last) / 1e9f
+                last = now
+                val camera = freeCamera ?: return@withFrameNanos
+                if (heldArrows.isEmpty()) return@withFrameNanos
+                val speed = 900f / cameraScale * seconds
+                var dx = 0f
+                var dy = 0f
+                if (Key.DirectionLeft in heldArrows) dx -= speed
+                if (Key.DirectionRight in heldArrows) dx += speed
+                if (Key.DirectionUp in heldArrows) dy -= speed
+                if (Key.DirectionDown in heldArrows) dy += speed
+                freeCamera = clamp(camera + Offset(dx, dy))
+            }
+        }
+    }
 
     DisposableEffect(host) {
         var credit = 0
@@ -321,21 +365,23 @@ internal fun ReplayScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent { event ->
+                val arrow = event.key in listOf(Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown)
+                if (event.type == KeyEventType.KeyUp) {
+                    if (arrow) heldArrows -= event.key
+                    return@onPreviewKeyEvent arrow
+                }
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 val camera = freeCamera
-                val step = 2 * com.tankarena.content.LEGACY_TILE_SIZE
                 when {
                     event.key == Key.Escape -> onClose()
                     event.key == Key.Spacebar -> paused = !paused
-                    event.key == Key.C -> freeCamera = if (camera == null) {
-                        view.frame.playerViews.firstOrNull()?.let { it.cameraCenterX to it.cameraCenterY }
-                    } else {
-                        null
+                    event.key == Key.C -> {
+                        freeCamera = if (camera == null) startCamera() else null
+                        heldArrows.clear()
                     }
-                    camera != null && event.key == Key.DirectionLeft -> freeCamera = camera.first - step to camera.second
-                    camera != null && event.key == Key.DirectionRight -> freeCamera = camera.first + step to camera.second
-                    camera != null && event.key == Key.DirectionUp -> freeCamera = camera.first to camera.second - step
-                    camera != null && event.key == Key.DirectionDown -> freeCamera = camera.first to camera.second + step
+                    camera != null && arrow -> heldArrows += event.key
+                    event.key == Key.PageUp -> zoomBy(1.25f)
+                    event.key == Key.PageDown -> zoomBy(0.8f)
                     event.key == Key.DirectionRight || event.key == Key.Plus || event.key == Key.Equals ->
                         speed = (speed + 1).coerceAtMost(SPEED_QUARTERS.lastIndex)
                     event.key == Key.DirectionLeft || event.key == Key.Minus -> speed = (speed - 1).coerceAtLeast(0)
@@ -346,18 +392,57 @@ internal fun ReplayScreen(
                 true
             },
     ) {
-        val shown = freeCamera?.let { (x, y) ->
-            view.frame.copy(playerViews = view.frame.playerViews.map { it.copy(cameraCenterX = x, cameraCenterY = y) })
-        } ?: view.frame
-        GameplayFrame(
-            mission = mission,
-            mode = mode,
-            serverFrame = shown,
-            playerIds = playerIds,
-            eventQueues = eventQueues,
-            missionEndBanner = view.banner,
-            brightness = 1f,
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        var last: Offset? = null
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.first()
+                            when (event.type) {
+                                PointerEventType.Scroll -> {
+                                    zoomBy(if (change.scrollDelta.y < 0) 1.25f else 0.8f, change.position - Offset(size.width / 2f, size.height / 2f))
+                                    change.consume()
+                                }
+                                PointerEventType.Press -> last = change.position
+                                PointerEventType.Move -> {
+                                    val from = last
+                                    if (from != null && event.buttons.areAnyPressed) {
+                                        freeCamera = clamp(startCamera() - (change.position - from) / cameraScale)
+                                        last = change.position
+                                    }
+                                }
+                                PointerEventType.Release -> last = null
+                            }
+                        }
+                    }
+                },
+        ) {
+            val camera = freeCamera
+            if (camera == null) {
+                GameplayFrame(
+                    mission = mission,
+                    mode = mode,
+                    serverFrame = view.frame,
+                    playerIds = playerIds,
+                    eventQueues = eventQueues,
+                    missionEndBanner = view.banner,
+                    brightness = 1f,
+                )
+            } else {
+                FreeCameraView(
+                    mission = mission,
+                    serverFrame = view.frame,
+                    events = eventQueues[0],
+                    cameraX = camera.x,
+                    cameraY = camera.y,
+                    zoom = zoom,
+                    onScale = { cameraScale = it },
+                )
+            }
+        }
         val rate = SPEED_QUARTERS[speed].let { if (it >= 4) "${it / 4}x" else "1/${4 / it}x" }
         val state = when {
             view.finished -> "end"
@@ -366,7 +451,8 @@ internal fun ReplayScreen(
         }
         Text(
             text = "REPLAY ${recording.title ?: recording.mission.uppercase()}  $state" +
-                (if (freeCamera != null) "  free camera" else "") + "   Space pause  +/- speed  C free camera  Esc back",
+                (if (freeCamera != null) "  free camera ${"%.2f".format(zoom)}x   arrows or drag move, wheel or PgUp/PgDn zoom" else "") +
+                "   Space pause  +/- speed  C free camera  Esc back",
             color = Color.White,
             fontSize = 13.sp,
             modifier = Modifier

@@ -54,6 +54,8 @@ Decided differences from the original. They are not parity bugs.
   the original had it only in a separate setup program (`TANK -SETUP`), which nobody starts from a
   shell today. `-SETUP` still opens it.
 - **No `-CODES`** (decided 2026-10-20): it only printed the map list to the console.
+- **"Switch to Extended" in the main menu** (decided 2026-10-20), so a player can leave Classic without
+  a command-line switch ([ADR 0023](adrs/0023-classic-and-extended-rulesets.md)).
 
 ## Out of scope
 

@@ -49,7 +49,7 @@ fun LocalGameScreen(
         ListEntry("Together against the computer", "two players, one side"),
         ListEntry("Rounds", if (options.rounds == GameOptions.ENDLESS) "endless" else options.rounds.toString()),
         ListEntry("Race laps", options.raceLaps.toString()),
-        ListEntry("Losers tank", listOf("off", "after 1 lost round", "after 3 lost rounds")[options.losersTank.coerceIn(0, 2)]),
+        ListEntry("Losers tank", losersTankText(options.losersTank)),
         ListEntry("Against each other, on:", enabled = false),
     )
     val entries = fixed + maps.map { ListEntry(it.baseName.uppercase(), it.sidecar.metadata.world.name.lowercase()) }
@@ -59,7 +59,7 @@ fun LocalGameScreen(
         title = "Local game",
         subtitle = "Two players at one keyboard",
         onBack = onBack,
-        footer = "Enter picks; on the options it changes them",
+        footer = "Enter picks; on the options Left/Right change them",
         onKey = keys::handle,
     ) {
         ListWithDetails(
@@ -78,6 +78,13 @@ fun LocalGameScreen(
                     initial = initial,
                     onSelect = { selected = it },
                     keys = keys,
+                    onStep = { index, up ->
+                        when (index) {
+                            1 -> onOptions(options.stepped(ExtendedSetting.ROUNDS, up))
+                            2 -> onOptions(options.stepped(ExtendedSetting.LAPS, up))
+                            3 -> onOptions(options.stepped(ExtendedSetting.LOSERS_TANK, up))
+                        }
+                    },
                 )
             },
             details = {

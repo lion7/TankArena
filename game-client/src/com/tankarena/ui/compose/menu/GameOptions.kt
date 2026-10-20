@@ -118,7 +118,7 @@ data class GameOptions(
         /** `'\xEC'`, the big font's infinity sign. */
         const val INFINITY = 'ì'
 
-        private val VOLUMES = intArrayOf(0, 85, 170, 255)
+        internal val VOLUMES = intArrayOf(0, 85, 170, 255)
         private val LOSER = listOf(
             "Losers tank disabled",
             "Losers tank enabled at 1 loss",

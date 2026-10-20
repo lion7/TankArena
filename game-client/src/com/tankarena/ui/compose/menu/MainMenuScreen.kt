@@ -12,6 +12,8 @@ fun MainMenuScreen(
     onMapEditor: (() -> Unit)? = null,
     onArenaInfo: (() -> Unit)? = null,
     onDefaultKeys: (() -> Unit)? = null,
+    /** Not in the original: switches to the Extended ruleset and its menus (ADR 0023). */
+    onExtended: (() -> Unit)? = null,
 ) {
     val items = listOf(
         RetroMenuItem(label = "Start new game", onActivate = onStartNewGame),
@@ -19,6 +21,7 @@ fun MainMenuScreen(
         RetroMenuItem(label = "Map editor", enabled = onMapEditor != null, onActivate = onMapEditor ?: {}),
         RetroMenuItem(label = "Arena info", enabled = onArenaInfo != null, onActivate = onArenaInfo ?: {}),
         RetroMenuItem(label = "Default keys", enabled = onDefaultKeys != null, onActivate = onDefaultKeys ?: {}),
+        RetroMenuItem(label = "Switch to Extended", enabled = onExtended != null, onActivate = onExtended ?: {}),
         RetroMenuItem(label = "Exit to DOS", onActivate = onExit),
     )
     RetroMenuScreen(

@@ -13,6 +13,7 @@ class ExtendedHomeActions(
     val settings: () -> Unit,
     val help: () -> Unit,
     val quit: () -> Unit,
+    val classic: () -> Unit,
     val networkGame: (() -> Unit)? = null,
 )
 
@@ -31,6 +32,7 @@ fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifi
         ListEntry("Map editor", "", enabled = actions.mapEditor != null) to (actions.mapEditor ?: {}),
         ListEntry("Settings", "controls, video, sound, match rules") to actions.settings,
         ListEntry("Help", "how to play, the keys") to actions.help,
+        ListEntry("Switch to Classic", "the original game and its menus") to actions.classic,
         ListEntry("Quit") to actions.quit,
     )
     ExtendedPage(

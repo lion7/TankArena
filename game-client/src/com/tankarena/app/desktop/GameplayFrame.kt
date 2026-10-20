@@ -3,10 +3,13 @@ package com.tankarena.app.desktop
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +27,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tankarena.content.LEGACY_TILE_SIZE
 import com.tankarena.protocol.snapshot.PlayerView
@@ -337,3 +342,52 @@ private fun ViewportDebugOverlay(
 /** A pilot's message shown by the shell rather than the game: two lines and the steps it has left. */
 internal data class HudMessage(val line1: String, val line2: String, val steps: Int)
 
+
+/** The free camera's zoom limits: a quarter of the game's scale up to four times it. */
+internal const val MIN_CAMERA_ZOOM = 0.25f
+internal const val MAX_CAMERA_ZOOM = 4f
+
+/**
+ * A replay's free camera: one view of the map, without status displays, around ([cameraX],
+ * [cameraY]) at [zoom] (1: the game's own scale, where the screen is 480 map pixels high).
+ * [onScale] reports the screen pixels per map pixel, for moving the camera with the mouse.
+ */
+@Composable
+internal fun FreeCameraView(
+    mission: MissionEntry,
+    serverFrame: ServerFrame,
+    events: ViewportEventQueue,
+    cameraX: Float,
+    cameraY: Float,
+    zoom: Float,
+    modifier: Modifier = Modifier,
+    onScale: (Float) -> Unit = {},
+) {
+    val worldWidth = mission.sidecar.metadata.widthTiles * LEGACY_TILE_SIZE
+    val worldHeight = mission.sidecar.metadata.heightTiles * LEGACY_TILE_SIZE
+    BoxWithConstraints(modifier = modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        val density = LocalDensity.current.density
+        val scale = zoom * constraints.maxHeight / LEGACY_SCREEN_HEIGHT
+        SideEffect { onScale(scale) }
+        // As much of the map as fits, but never more than the map.
+        val width = (constraints.maxWidth / scale).toInt().coerceIn(1, worldWidth)
+        val height = (constraints.maxHeight / scale).toInt().coerceIn(1, worldHeight)
+        val view = serverFrame.playerViews.firstOrNull() ?: return@BoxWithConstraints
+        val frame = serverFrame.copy(
+            playerViews = listOf(view.copy(cameraCenterX = cameraX.toInt(), cameraCenterY = cameraY.toInt())),
+        )
+        TankArenaViewport(
+            sidecar = mission.sidecar,
+            serverFrame = frame,
+            playerId = view.playerId,
+            worldWidth = worldWidth,
+            worldHeight = worldHeight,
+            modifier = Modifier.size(Dp(width * scale / density), Dp(height * scale / density)),
+            events = events,
+            playfieldWidth = width,
+            playfieldHeight = height,
+        )
+    }
+}
+
+private const val LEGACY_SCREEN_HEIGHT = 480f

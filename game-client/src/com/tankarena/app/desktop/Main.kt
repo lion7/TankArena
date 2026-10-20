@@ -240,6 +240,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                                 settings = { screen = DesktopShellScreen.ExtendedSettings },
                                 help = { screen = DesktopShellScreen.ExtendedHelp },
                                 quit = ::exitApplication,
+                                classic = { settings.update(options.copy(ruleset = Ruleset.CLASSIC)) },
                             ),
                         )
                     }
@@ -298,10 +299,6 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         options = options,
                         onChange = settings::update,
                         onControls = { screen = DesktopShellScreen.ControlsSetup(next = DesktopShellScreen.ExtendedSettings) },
-                        onClassic = {
-                            settings.update(options.copy(ruleset = Ruleset.CLASSIC))
-                            screen = DesktopShellScreen.MainMenu
-                        },
                         onBack = { screen = DesktopShellScreen.MainMenu },
                     )
 
@@ -380,6 +377,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         onMapEditor = { screen = DesktopShellScreen.EditorOpen },
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
+                        onExtended = { settings.update(options.copy(ruleset = Ruleset.EXTENDED)) },
                     )
 
                     is DesktopShellScreen.Help -> TextViewerScreen(

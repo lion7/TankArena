@@ -149,9 +149,13 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
 - [x] Local game: together against the computer (its own mission list) or against each other on a map
       (with what the map has room for), with rounds, laps and the losers tank changed in place.
 - [x] Replays: newest first with mission, mode, result, length, date and rules; naming (F2) and
-      deleting; the viewer with pause, 1/4×–8× speed and a free camera (C, arrow keys).
-- [x] Settings on one page: controls, window size, gamma, radar, music, sound, match rules, switch to
-      Classic. Help: how to play, the keys.
+      deleting; the viewer with pause, 1/4×–8× speed and a free camera (C, dragging or the wheel):
+      moved smoothly with held arrow keys or by dragging, zoomed (¼× to 4×) with the wheel around the
+      cursor or Page Up/Down, one view without status displays.
+- [x] Settings on one page: controls, window size, gamma, radar, music, sound, match rules;
+      Left/Right step a value (stopping at the ends), Enter goes round, the selection stays on the
+      row. "Switch to Classic" on the home screen, "Switch to Extended" in Classic's main menu.
+      Help: how to play, the keys.
 - [x] Extended presentation (each a setting, on by default): the picture fills the window; on a wide
       window the screen grows to up to 1280 legacy pixels across, so the map windows show more of the
       map; smooth motion draws vehicles, shots and the cameras between the 33 steps a second, one step

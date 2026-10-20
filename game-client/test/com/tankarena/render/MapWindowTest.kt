@@ -41,4 +41,12 @@ class MapWindowTest {
         assertEquals(1f, legacyScreenScale(1000f, 700f))
         assertEquals(0.5f, legacyScreenScale(320f, 400f))
     }
+
+    @Test
+    fun `every window size step takes 5 percent off`() {
+        // Legacy compute_window_size(): (640 - 640 * 5 / 20) / 1 - 1 by 480 - 480 * 5 / 20.
+        assertEquals(LegacyMapWindow(80, 40, 479, 360), legacyMapWindows(1, 3200, 3200, windowSize = 5).single())
+        assertEquals(2, legacyMapWindows(2, 3200, 3200, windowSize = 2).size)
+        assertEquals(287, legacyMapWindows(2, 3200, 3200, windowSize = 2).first().width)
+    }
 }

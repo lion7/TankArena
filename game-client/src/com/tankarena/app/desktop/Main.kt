@@ -140,6 +140,7 @@ fun main(args: Array<String>) = application {
         exitApplication()
     }
 
+    val windowRef = remember { AtomicReference<java.awt.Window?>(null) }
     Window(
         onCloseRequest = ::exitApplication,
         title = "Tank Arena Rewrite",
@@ -147,9 +148,10 @@ fun main(args: Array<String>) = application {
         icon = painterResource(Res.drawable.pic_tankico),
         state = rememberWindowState(placement = WindowPlacement.Maximized),
         onPreviewKeyEvent = { event ->
-            handleGlobalKeys(event, screen, controls)
+            handleGlobalKeys(event, screen, controls, settings) { saveScreenshot(windowRef.get(), settings) }
         },
     ) {
+        SideEffect { windowRef.set(window) }
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize().gammaCorrection(options.gamma), color = Color.Black) {
                 val atMenu = screen == DesktopShellScreen.MainMenu || screen == DesktopShellScreen.GameModeSelect
@@ -358,6 +360,8 @@ fun main(args: Array<String>) = application {
                         mode = current.mode,
                         controls = controls,
                         soundVolume = options.soundVolume,
+                        windowSize = options.windowSize,
+                        showRadar = options.showRadar,
                         ruleset = options.ruleset ?: Ruleset.CLASSIC,
                         dual = current.dual?.let { match ->
                             DualSetup(tankTypes = current.tankTypes, raceLaps = match.options.raceLaps, round = match.round, wins = match.wins)
@@ -379,6 +383,8 @@ fun main(args: Array<String>) = application {
                         mode = current.mode,
                         controls = controls,
                         soundVolume = options.soundVolume,
+                        windowSize = options.windowSize,
+                        showRadar = options.showRadar,
                         ruleset = options.ruleset ?: Ruleset.CLASSIC,
                         dual = if (current.mode == GameMode.PLAYER_VS_PLAYER) DualSetup() else null,
                         record = false,
@@ -439,6 +445,9 @@ private fun GameplayScreen(
     ruleset: Ruleset,
     /** Whether the match is saved as a recording when it ends. */
     record: Boolean = true,
+    /** Legacy `win_size` and `show_radar`. */
+    windowSize: Int = 0,
+    showRadar: Boolean = true,
     /** Player vs player: the round's vehicles and score. */
     dual: DualSetup? = null,
     /**
@@ -497,6 +506,9 @@ private fun GameplayScreen(
         eventQueues = eventQueues,
         missionEndBanner = missionEndBanner,
         brightness = view.brightness,
+        windowSize = windowSize,
+        showRadar = showRadar,
+        playerOneMessage = controls.playerOneMessage(),
     )
 }
 
@@ -532,6 +544,8 @@ private fun gameplayStep(
     var fadingOut = false
     val fadeTotal = (GAME_FADE_MILLIS / FixedStepClock.MILLIS_PER_TICK).coerceAtLeast(1)
     return step@{
+        // Legacy P: the game stands still (the timer does not count) until a key is pressed.
+        if (controls.paused) return@step true
         for (playerId in playerIds) {
             host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence))
         }
@@ -568,22 +582,66 @@ private fun gameplayStep(
 }
 
 
+/**
+ * Legacy read_controls() (src/game/controls.c) in a game: ESC leaves, P pauses until the next key,
+ * F11 steps the gamma correction (and tells player one), F12 shows or hides the radar, = and - make
+ * the window bigger and smaller, PrtScr saves a screenshot; everything else goes to the players.
+ */
 private fun handleGlobalKeys(
     event: KeyEvent,
     screen: DesktopShellScreen,
     controls: DesktopControls,
+    settings: GameSettings,
+    screenshot: () -> Unit,
 ): Boolean {
-    return when (screen) {
-        is DesktopShellScreen.Playing, is DesktopShellScreen.PlayTest -> {
-            if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends.
-                controls.exitRequested = true
-                true
-            } else {
-                controls.handle(event)
-            }
+    if (screen !is DesktopShellScreen.Playing && screen !is DesktopShellScreen.PlayTest) return false
+    val down = event.type == KeyEventType.KeyDown
+    if (controls.paused) {
+        // Legacy wait_key(): any key goes on with the game, and is used up; held keys are let go.
+        if (down) {
+            controls.paused = false
+            controls.resetAll()
         }
-        else -> false
+        return true
+    }
+    if (!down) return controls.handle(event)
+    val options = settings.options
+    when (event.key) {
+        // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends.
+        Key.Escape -> controls.exitRequested = true
+        Key.P -> {
+            controls.resetAll()
+            controls.paused = true
+        }
+        Key.F11 -> {
+            val changed = options.nextGamma()
+            settings.update(changed)
+            controls.showPlayerOneMessage("GAMMA CORRECTION", "LEVEL ${changed.gamma}")
+        }
+        Key.F12 -> settings.update(options.copy(showRadar = !options.showRadar))
+        Key.Equals, Key.Plus, Key.NumPadAdd -> settings.update(options.biggerWindow())
+        Key.Minus, Key.NumPadSubtract -> settings.update(options.smallerWindow())
+        Key.PrintScreen -> screenshot()
+        else -> return controls.handle(event)
+    }
+    return true
+}
+
+/**
+ * Legacy grab_screen() (src/game/grab.c): the window as it is, saved as TANK<n> (here a PNG in
+ * `~/.local/share/tankarena/screenshots`).
+ */
+private fun saveScreenshot(window: java.awt.Window?, settings: GameSettings) {
+    val content = (window as? javax.swing.JFrame)?.contentPane ?: return
+    try {
+        val image = java.awt.Robot().createScreenCapture(java.awt.Rectangle(content.locationOnScreen, content.size))
+        val number = settings.options.screenshotNumber
+        val file = java.io.File(RecordingStore.directory().parentFile, "screenshots/TANK$number.png")
+        file.parentFile.mkdirs()
+        javax.imageio.ImageIO.write(image, "png", file)
+        settings.update(settings.options.copy(screenshotNumber = number + 1))
+    } catch (e: Exception) {
+        System.err.println("Could not save a screenshot: ${e.message}")
     }
 }
 
@@ -675,6 +733,10 @@ private class PlayerControls {
     }
 }
 
+/** Legacy msg_control(): 29 steps of tinit(10), 12 ticks each on legacy steps. */
+private const val MESSAGE_STEPS = 29
+private const val MESSAGE_STEP_NANOS = 120_000_000L
+
 private val TANK_SELECT_KEYS: List<Key> = listOf(
     Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10,
 )
@@ -685,6 +747,25 @@ private class DesktopControls {
     /** ESC during a game (legacy `game.exit_game`); read by the simulation thread. */
     @Volatile
     var exitRequested = false
+
+    /** Legacy `game_pause` (P): the game stands still until the next key. */
+    @Volatile
+    var paused = false
+
+    @Volatile
+    private var message: Pair<HudMessage, Long>? = null
+
+    /** Legacy create_message() on player one's window, for keys the shell handles (F11). */
+    fun showPlayerOneMessage(line1: String, line2: String) {
+        message = HudMessage(line1, line2, MESSAGE_STEPS) to System.nanoTime()
+    }
+
+    /** The shell's message as it counts down: one step every 12 ticks (legacy msg_control()). */
+    fun playerOneMessage(): HudMessage? {
+        val (shown, since) = message ?: return null
+        val steps = MESSAGE_STEPS - ((System.nanoTime() - since) / MESSAGE_STEP_NANOS).toInt()
+        return if (steps > 0) shown.copy(steps = steps) else null
+    }
     private val players = List(2) { PlayerControls() }
 
     /** Single player uses the legacy cursor block (or WASD); two players split the keyboard. */

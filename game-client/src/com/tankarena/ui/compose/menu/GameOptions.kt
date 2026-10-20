@@ -44,7 +44,17 @@ data class GameOptions(
      * prompt of each game mode starts with, by [GameMode] name.
      */
     val lastCodes: Map<String, String> = emptyMap(),
+    /** Legacy `show_radar` (F12). */
+    val showRadar: Boolean = true,
+    /** Legacy `win_size` (- and = in a game): 0 is the full screen, every step 5% smaller, up to 5. */
+    val windowSize: Int = 0,
+    /** Legacy `grab_no`: the number of the next screenshot (PrtScr). */
+    val screenshotNumber: Int = 0,
 ) {
+    /** Legacy read_controls(): `=` makes the window bigger, `-` smaller. */
+    fun biggerWindow(): GameOptions = copy(windowSize = (windowSize - 1).coerceAtLeast(0))
+    fun smallerWindow(): GameOptions = copy(windowSize = (windowSize + 1).coerceAtMost(MAX_WINDOW_SIZE))
+
     /** Legacy select_laps(). */
     fun nextLaps(): GameOptions = copy(raceLaps = if (raceLaps >= 6) 1 else raceLaps + 1)
 
@@ -94,6 +104,8 @@ data class GameOptions(
     companion object {
         /** Legacy `rnds == '~'`. */
         const val ENDLESS = 0
+
+        const val MAX_WINDOW_SIZE = 5
 
         /** `'\xEC'`, the big font's infinity sign. */
         const val INFINITY = 'ì'

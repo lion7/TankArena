@@ -61,11 +61,24 @@ internal fun GameplayFrame(
     missionEndBanner: MissionOutcome?,
     /** Legacy fade: 0 black .. 1 the full palette. */
     brightness: Float,
+    /** Legacy `win_size` (0..5). */
+    windowSize: Int = 0,
+    /** Legacy `show_radar`. */
+    showRadar: Boolean = true,
+    /** A message the shell shows to player one (legacy F11: "GAMMA CORRECTION"). */
+    playerOneMessage: HudMessage? = null,
 ) {
     val worldWidth = mission.sidecar.metadata.widthTiles * LEGACY_TILE_SIZE
     val worldHeight = mission.sidecar.metadata.heightTiles * LEGACY_TILE_SIZE
     val views = playerIds.mapNotNull { id -> serverFrame.playerViews.firstOrNull { it.playerId == id } }
-    val windows = legacyMapWindows(views.size.coerceAtLeast(1), worldWidth, worldHeight)
+        .mapIndexed { index, view ->
+            if (index == 0 && playerOneMessage != null) {
+                view.copy(hud = view.hud.copy(messageLine1 = playerOneMessage.line1, messageLine2 = playerOneMessage.line2, messageSteps = playerOneMessage.steps))
+            } else {
+                view
+            }
+        }
+    val windows = legacyMapWindows(views.size.coerceAtLeast(1), worldWidth, worldHeight, windowSize)
     val night = mission.sidecar.metadata.night
 
     LegacyScreen(mode = LegacyVideoMode.GAME, brightness = brightness) {
@@ -91,6 +104,7 @@ internal fun GameplayFrame(
                         playfieldWidth = window.width,
                         playfieldHeight = window.height,
                         playerVsPlayer = mode == GameMode.PLAYER_VS_PLAYER,
+                        showRadar = showRadar,
                         // Legacy write_arrow(): only player-vs-player points at the other player.
                         opponent = if (mode == GameMode.PLAYER_VS_PLAYER) {
                             val otherId = views.getOrNull(1 - index)?.controlledActorId
@@ -127,6 +141,7 @@ private fun PlayerPane(
     playerVsPlayer: Boolean,
     modifier: Modifier,
     opponent: TankState? = null,
+    showRadar: Boolean = true,
 ) {
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
@@ -163,6 +178,7 @@ private fun PlayerPane(
                 ownCloaked = serverFrame.world.actors.any { it is TankState && it.actorId == playerView.controlledActorId && it.cloaked },
                 viewLeft = (geometry.cameraCenterX - sceneWidth / 2f - geometry.renderOffsetX).coerceAtLeast(0f),
                 viewTop = (geometry.cameraCenterY - sceneHeight / 2f - geometry.renderOffsetY).coerceAtLeast(0f),
+                showRadar = showRadar,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -309,3 +325,7 @@ private fun ViewportDebugOverlay(
         }
     }
 }
+
+/** A pilot's message shown by the shell rather than the game: two lines and the steps it has left. */
+internal data class HudMessage(val line1: String, val line2: String, val steps: Int)
+

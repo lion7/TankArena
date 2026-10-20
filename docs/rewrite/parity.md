@@ -191,8 +191,10 @@ losers tank, gamma, music and sound volume) with persistence; key help and arena
 
 Open (in scope by decision of 2026-10-19):
 
-- **missing** — in-game keys (`src/game/controls.c`): P pause (210-217), F11 gamma (177-185), F12 radar
-  toggle (207), PrtScr screenshot (174), keypad +/- window size (187-205).
+- **done** — in-game keys (`src/game/controls.c`): P pauses until the next key, F11 steps the gamma
+  with a "GAMMA CORRECTION / LEVEL n" message, F12 shows or hides the radar, = and - make the window
+  bigger and smaller in 5% steps, PrtScr saves `TANK<n>.png` (screenshots folder); window size, radar
+  and screenshot number are kept in `settings.json`. Taps shorter than a step count once.
 - **missing** — controls setup: key remapping, RELATIVE/DIRECT control modes, joysticks/gamepads,
   saved in `settings.json`. Bindings are hard-coded in `KeyBinding` (`game-client/.../Main.kt`).
 - **missing** — command-line switches and cheats (`src/game/main.c:52-97`, `cheat.txt`): `-GOD`,

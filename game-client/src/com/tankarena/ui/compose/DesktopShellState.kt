@@ -87,7 +87,7 @@ sealed interface DesktopShellScreen {
      * Legacy `debrief()` (src/game/single.c): after a won mission its success text, after a lost
      * one its failure text, in the text viewer; then back to the game mode menu.
      */
-    data class AfterMission(val text: String) : DesktopShellScreen
+    data class AfterMission(val text: String, val won: Boolean = true) : DesktopShellScreen
     /** The map editor (ADR 0021): choosing a map, then editing it. */
     data object EditorOpen : DesktopShellScreen
     data class Editor(

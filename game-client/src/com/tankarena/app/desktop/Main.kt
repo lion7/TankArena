@@ -48,7 +48,10 @@ import com.tankarena.sim.Ruleset
 import com.tankarena.sim.SimulationLoop
 import com.tankarena.ui.compose.extended.CampaignScreen
 import com.tankarena.ui.compose.extended.ExtendedHomeActions
+import com.tankarena.ui.compose.extended.ExtendedControlsPage
 import com.tankarena.ui.compose.extended.ExtendedHelpPage
+import com.tankarena.ui.compose.extended.ExtendedTextPage
+import com.tankarena.ui.compose.extended.RulesetChoicePage
 import com.tankarena.ui.compose.extended.ExtendedHomeScreen
 import com.tankarena.ui.compose.extended.ExtendedSettingsPage
 import com.tankarena.ui.compose.extended.LocalGameScreen
@@ -216,7 +219,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         onControls = if (extended) null else ({ screen = DesktopShellScreen.ControlsSetup(next = DesktopShellScreen.Options) }),
                     )
 
-                    DesktopShellScreen.RulesetChoice -> RulesetChoiceScreen(
+                    DesktopShellScreen.RulesetChoice -> RulesetChoicePage(
                         onChoose = { ruleset ->
                             settings.update(options.copy(ruleset = ruleset))
                             screen = DesktopShellScreen.MainMenu
@@ -345,13 +348,21 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         )
                     }
 
-                    is DesktopShellScreen.ControlsSetup -> ControlsSetupScreen(
+                    is DesktopShellScreen.ControlsSetup -> if (extended) {
+                        ExtendedControlsPage(
+                            controls = options.controls,
+                            onChange = { settings.update(settings.options.copy(controls = it)) },
+                            onBack = { screen = current.next },
+                        )
+                    } else {
+                        ControlsSetupScreen(
                         initial = options.controls,
                         onDone = { changed ->
                             changed?.let { settings.update(settings.options.copy(controls = it)) }
                             screen = current.next
                         },
                     )
+                    }
 
                     DesktopShellScreen.ExitConfirm -> YesNoScreen(
                         question = "EXIT TO DOS? (Y/N)",
@@ -430,13 +441,23 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         onDismiss = { screen = current.next },
                     )
 
-                    is DesktopShellScreen.Briefing -> TextViewerScreen(
-                        text = current.mission.sidecar.missionText.briefing,
-                        onClose = {
+                    is DesktopShellScreen.Briefing -> {
+                        val onClose = {
                             controls.resetAll()
                             screen = missionGate.afterBriefing(current.mission, current.mode)
-                        },
-                    )
+                        }
+                        if (extended) {
+                            val metadata = current.mission.sidecar.metadata
+                            ExtendedTextPage(
+                                title = metadata.name.ifBlank { current.mission.baseName.uppercase() },
+                                text = current.mission.sidecar.missionText.briefing,
+                                onClose = onClose,
+                                footer = "Enter starts",
+                            )
+                        } else {
+                            TextViewerScreen(text = current.mission.sidecar.missionText.briefing, onClose = onClose)
+                        }
+                    }
 
                     is DesktopShellScreen.TankSelect -> TankSelectScreen(
                         match = current.match,
@@ -498,10 +519,15 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         },
                     )
 
-                    is DesktopShellScreen.AfterMission -> TextViewerScreen(
-                        text = current.text,
-                        onClose = { screen = DesktopShellScreen.GameModeSelect },
-                    )
+                    is DesktopShellScreen.AfterMission -> if (extended) {
+                        ExtendedTextPage(
+                            title = if (current.won) "Mission completed" else "Mission failed",
+                            text = current.text,
+                            onClose = { screen = DesktopShellScreen.GameModeSelect },
+                        )
+                    } else {
+                        TextViewerScreen(text = current.text, onClose = { screen = DesktopShellScreen.GameModeSelect })
+                    }
 
                     DesktopShellScreen.EditorOpen -> EditorOpenScreen(
                         onOpen = { choice -> screen = DesktopShellScreen.Editor(choice) },

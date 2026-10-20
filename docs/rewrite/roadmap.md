@@ -142,6 +142,8 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
       window the screen grows to up to 1280 legacy pixels across, so the map windows show more of the
       map; smooth motion draws vehicles, shots and the cameras between the 33 steps a second, one step
       (30 ms) later, snapping on jumps.
+- [x] The controls setup, the mission texts (briefing, success, failure) and the first-start choice in
+      Extended's look; the tank selection keeps the original's arena on purpose.
 - [x] First Extended rule flags (`RuleFlags`, Extended rules v5): overlapping computer vehicles survive;
       one vehicle per player in player vs player.
 

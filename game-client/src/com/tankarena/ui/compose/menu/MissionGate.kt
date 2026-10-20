@@ -77,7 +77,7 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
             thunder = play
         }
         val text = mission.sidecar.missionText.let { if (outcome == MissionOutcome.WON) it.success else it.failure }
-        val after = if (text.isBlank()) DesktopShellScreen.GameModeSelect else DesktopShellScreen.AfterMission(text)
+        val after = if (text.isBlank()) DesktopShellScreen.GameModeSelect else DesktopShellScreen.AfterMission(text, won = outcome == MissionOutcome.WON)
         return if (thunder) DesktopShellScreen.Animation(THUNDER_FLI, after) else after
     }
 

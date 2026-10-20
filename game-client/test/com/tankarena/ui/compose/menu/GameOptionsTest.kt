@@ -95,7 +95,7 @@ class GameOptionsTest {
         val gate = MissionGate(PasswordStore(Files.createTempDirectory("tankarena-gate").resolve("passwd.json")), settings)
         val mode = GameMode.SINGLE_PLAYER_VS_COMPUTER
         repeat(4) { assertEquals(DesktopShellScreen.AfterMission("WELL DONE"), gate.missionEnded(mission, mode, MissionOutcome.WON)) }
-        assertEquals(DesktopShellScreen.AfterMission("TOO BAD"), gate.missionEnded(mission, mode, MissionOutcome.LOST))
+        assertEquals(DesktopShellScreen.AfterMission("TOO BAD", won = false), gate.missionEnded(mission, mode, MissionOutcome.LOST))
         assertEquals(
             DesktopShellScreen.Animation(MissionGate.THUNDER_FLI, DesktopShellScreen.AfterMission("WELL DONE")),
             gate.missionEnded(mission, mode, MissionOutcome.WON),

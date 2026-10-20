@@ -126,17 +126,21 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
       (`GAME_RULES_VERSION`, `EXTENDED_RULES_VERSION`); stored in recordings (old ones read as Classic)
       and in `settings.json`; first-start choice, `--classic` / `--extended`, and "Switch to Classic"
       in Extended's settings. Named flags come with the first Extended rule change.
-- [x] Extended menu, first version: campaign, two players vs computer, player vs player (each straight
-      to its code prompt and list), network game and map editor (shown, not yet available), replays,
-      settings (the original game options, switch to Classic), help. Same look as the original menus
-      for now.
-- [x] Replays: the saved recordings newest first; watching one through the game screen
-      (`ReplayMatchClient`) with pause and 1/4×–8× speed.
-- [ ] Still to do: a list of reached missions in the campaign, multiplayer setup screen, replay free
-      camera, rename and delete; settings for controls, video and audio; a new visual style.
-- Extended presentation: scalable view, wider field of view on widescreen, optional smooth camera.
-- First Extended flags, each documented (for example: stacked computer tanks do not destroy each
-  other).
+- [x] Extended's own look (dark, sand accent; `ui.compose.extended`), keyboard or mouse: home
+      (campaign, local game, network game later, replays, map editor, settings, help, quit).
+- [x] Campaign: the codes reached with each mission's world, size and briefing, a code field, starting
+      on the last code; after a game Extended returns to where it was started from.
+- [x] Local game: together against the computer (its own mission list) or against each other on a map
+      (with what the map has room for), with rounds, laps and the losers tank changed in place.
+- [x] Replays: newest first with mission, mode, result, length, date and rules; naming (F2) and
+      deleting; the viewer with pause, 1/4×–8× speed and a free camera (C, arrow keys).
+- [x] Settings on one page: controls, window size, gamma, radar, music, sound, match rules, switch to
+      Classic. Help: how to play, the keys.
+- [ ] Still in the original's look: the controls setup, the briefing and mission texts, the tank
+      selection and the first-start choice.
+- [ ] Extended presentation: scalable view, wider field of view on widescreen, optional smooth camera.
+- [ ] First Extended rule flags, each documented — to be chosen (for example: stacked computer tanks do
+      not destroy each other).
 
 Depends on: phase 1 (renderer for the replay viewer).
 

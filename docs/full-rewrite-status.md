@@ -30,7 +30,7 @@ choice with a first Extended menu and a replay viewer, and a first version of th
 | Audio and music | Done | [ADR 0018](rewrite/adrs/0018-audio-and-music.md) |
 | Shell: intro, menus, codes, options, help, in-game keys, controls setup, cheats | Done; joysticks in phase 6 | [parity.md → Shell](rewrite/parity.md#shell-and-meta-game) |
 | Map editor | Open, paint picture layers, undo, save, play-test; the rest missing | [roadmap phase 4](rewrite/roadmap.md) |
-| Rulesets and Extended menu | Ruleset choice, Extended menu, replay viewer; Extended plays like Classic | [roadmap phase 5](rewrite/roadmap.md) |
+| Rulesets and Extended menu | Ruleset choice; Extended's own look: home, campaign, local game, replays (naming, deleting, free camera), settings; Extended plays like Classic | [roadmap phase 5](rewrite/roadmap.md) |
 | Assets | All runtime assets converted and bundled | [assets.md](rewrite/assets.md) |
 | Content | 69 maps as `.tamap` (2.3 MB), imported from `.MAP` without notes | [content-format.md](rewrite/content-format.md) |
 | Tests | 324 green (server 250, client 65, content 9); recordings to be played again (rules v14); every map boots; 9 reference renders | [testing-strategy.md](rewrite/testing-strategy.md) |
@@ -56,8 +56,8 @@ The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
    the native map format ([ADR 0022](rewrite/adrs/0022-native-map-format.md); `.MAP` export moves to
    phase 4) and Classic parity ([parity.md](rewrite/parity.md)).
 3. **Now, side by side:** the in-game editor (phase 4: objects, the other layers, header and texts,
-   new maps, `.MAP` export, validation) and the Extended menu (phase 5: campaign list, multiplayer
-   setup, replay management, settings, a new look, the first Extended rules).
+   new maps, `.MAP` export, validation) and the Extended menu (phase 5: the remaining screens in the new look, the presentation, the
+   first Extended rules).
 4. **Then:** input layer, gamepads and four players (phase 6), Android (7), networked play (8).
 
 ## Documents

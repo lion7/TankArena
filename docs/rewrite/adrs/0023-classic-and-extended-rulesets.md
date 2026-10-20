@@ -2,7 +2,9 @@
 
 - **Status:** Accepted (2026-10-19). Built the same day: `Ruleset`, a rules version per ruleset,
   the first-start choice, the command-line options and a first Extended menu with replays (roadmap
-  phase 5). Extended still plays exactly like Classic: no flags yet.
+  phase 5). On 2026-10-20 Extended got its own look and screens (home, campaign, local game, replays
+  with naming, deleting and a free camera, settings, help). Extended still plays exactly like Classic:
+  no flags yet.
 
 ## Context
 

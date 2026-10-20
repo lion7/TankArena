@@ -797,6 +797,7 @@
       "size": [29, 29],
       "bodyDirection": 8,
       "turretDirection": 8,
+      "ref": 8536068,
       "goalContribution": 10,
       "aiAttackTanks": 0,
       "aiActivationRadius": 250,
@@ -826,6 +827,7 @@
       "size": [29, 29],
       "bodyDirection": 8,
       "turretDirection": 8,
+      "ref": 8493060,
       "goalContribution": 10,
       "aiAttackTanks": 0,
       "aiActivationRadius": 250,
@@ -855,6 +857,7 @@
       "size": [29, 29],
       "bodyDirection": 8,
       "turretDirection": 8,
+      "ref": 8601604,
       "goalContribution": 10,
       "aiAttackTanks": 0,
       "aiActivationRadius": 250,
@@ -884,6 +887,7 @@
       "size": [29, 29],
       "bodyDirection": 8,
       "turretDirection": 8,
+      "ref": 8532996,
       "goalContribution": 10,
       "aiAttackTanks": 0,
       "aiActivationRadius": 250,
@@ -969,6 +973,7 @@
       "size": [29, 29],
       "bodyDirection": 8,
       "turretDirection": 8,
+      "ref": 3552260,
       "goalContribution": 10,
       "aiAttackTanks": 0,
       "aiActivationRadius": 250,
@@ -1338,10 +1343,50 @@
       "spawnTurretDirection": 0
     },
     {"type": "warp", "at": [3044, 3242], "size": [16, 16], "targetX": 1501, "targetY": 1725},
-    {"type": "goal", "at": [1491, 1829], "size": [16, 16], "who": 3, "contribution": -50, "radius": 100},
-    {"type": "goal", "at": [1491, 1836], "size": [16, 16], "who": 3, "contribution": -50, "radius": 100},
-    {"type": "goal", "at": [1491, 1857], "size": [16, 16], "who": 3, "contribution": -50, "radius": 100},
-    {"type": "goal", "at": [1491, 1843], "size": [16, 16], "who": 3, "contribution": -50, "radius": 100},
-    {"type": "goal", "at": [1491, 1850], "size": [16, 16], "who": 3, "contribution": -50, "radius": 100}
+    {
+      "type": "goal",
+      "at": [1491, 1829],
+      "size": [16, 16],
+      "who": 3,
+      "contribution": -50,
+      "radius": 100,
+      "targetRef": 8536068
+    },
+    {
+      "type": "goal",
+      "at": [1491, 1836],
+      "size": [16, 16],
+      "who": 3,
+      "contribution": -50,
+      "radius": 100,
+      "targetRef": 3552260
+    },
+    {
+      "type": "goal",
+      "at": [1491, 1857],
+      "size": [16, 16],
+      "who": 3,
+      "contribution": -50,
+      "radius": 100,
+      "targetRef": 8532996
+    },
+    {
+      "type": "goal",
+      "at": [1491, 1843],
+      "size": [16, 16],
+      "who": 3,
+      "contribution": -50,
+      "radius": 100,
+      "targetRef": 8601604
+    },
+    {
+      "type": "goal",
+      "at": [1491, 1850],
+      "size": [16, 16],
+      "who": 3,
+      "contribution": -50,
+      "radius": 100,
+      "targetRef": 8493060
+    }
   ]
 }

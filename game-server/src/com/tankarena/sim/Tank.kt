@@ -173,6 +173,8 @@ class Tank(state: State) :
         internal set
     /** Legacy `contr.id` (the F1–F10 tank id); -1 when the map did not assign one. */
     val controllerId: Int = state.controllerId
+    /** The map file's address of this vehicle, when an object (a goal) points at it; else 0. */
+    val ref: Int = state.ref
     /** Legacy `contr.computer`: when false the tank only moves while a player controls it. */
     val computer: Boolean = state.computer
     /** Legacy `o->gc`: goal-counter percentage applied when this tank is destroyed. */
@@ -854,6 +856,7 @@ class Tank(state: State) :
         turretDirection = turretDirection,
         playerIndex = playerIndex,
         controllerId = controllerId,
+        ref = ref,
         computer = computer,
         goalContribution = goalContribution,
         startPadType = startPadType,
@@ -1720,6 +1723,7 @@ class Tank(state: State) :
         @SerialName("turretDirection") val turretDirection: Int = 0,
         @SerialName("playerIndex") val playerIndex: Int = -1,
         @SerialName("controllerId") val controllerId: Int = -1,
+        @SerialName("ref") val ref: Int = 0,
         @SerialName("computer") val computer: Boolean = true,
         @SerialName("goalContribution") val goalContribution: Int = 0,
         @SerialName("startPadType") val startPadType: Int = -1,

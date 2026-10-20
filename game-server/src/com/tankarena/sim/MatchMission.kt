@@ -40,6 +40,14 @@ internal fun Match.collectProducts() {
     }
 }
 
+/** Legacy load_map() `relocate(&o->target)`: goals with `who` 3 find the vehicle they wait for. */
+internal fun Match.linkGoals() {
+    val byRef = allTanks.filter { it.ref != 0 }.associateBy { it.ref }
+    for (goal in objects.all.filterIsInstance<Goal>()) {
+        if (goal.targetRef != 0) goal.target = byRef[goal.targetRef]
+    }
+}
+
 internal fun Match.collectGoals() {
     if (missionStatus != MissionStatus.IN_PROGRESS) return
     val tanks = objects.all.filterIsInstance<Tank>()
@@ -49,14 +57,15 @@ internal fun Match.collectGoals() {
         val size = actor.body.size
         val cx = (position.x + size.width / 2f).toInt()
         val cy = (position.y + size.height / 2f).toInt()
-        // Legacy control_goal(): who=0 is reached by a good tank, who=1 by an evil tank,
-        // who=2 by a train; who=3 (a linked object) is not modelled yet.
+        // Legacy control_goal(): who=0 is reached by a good vehicle, who=1 by an evil one (wrecks
+        // too), who=2 by a train and who=3 by the linked vehicle while it is on the map.
         val reached = when (actor.who) {
-            // Legacy control_goal(): in supermarket mayhem the way out opens once everything is bought.
-            0 -> (!mayhem || mayhemProductsNeeded == 0) && tanks.any { it.team == 0 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
-            1 -> tanks.any { it.team == 1 && it.armor > 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+            // In supermarket mayhem the way out opens once everything is bought.
+            0 -> (!mayhem || mayhemProductsNeeded == 0) && tanks.any { it.team == 0 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+            1 -> tanks.any { it.team == 1 && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
             2 -> objects.all.filterIsInstance<Train>()
                 .any { it.alive && withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) }
+            3 -> actor.target?.takeIf { it in tanks }?.let { withinRadius(it.positionX, it.positionY, cx, cy, actor.radius) } == true
             else -> false
         }
         if (!reached) continue

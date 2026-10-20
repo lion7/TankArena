@@ -89,6 +89,7 @@ object CanonicalSceneBuilder {
                         team = if (good) 0 else 1,
                         computer = computer,
                         controllerId = props.int("controllerId") ?: -1,
+                        ref = props.int("ref") ?: 0,
                         goalContribution = goalContribution,
                         aiAttackTanks = props.int("attackTanks") ?: 100,
                         aiActivationRadius = props.int("activationRadius") ?: -1,
@@ -134,6 +135,7 @@ object CanonicalSceneBuilder {
                         who = props.int("who") ?: 0,
                         contribution = props.int("contribution") ?: props.int("goalContribution") ?: 100,
                         radius = props.int("radius") ?: GOAL_FOOTPRINT,
+                        targetRef = props.int("targetRef") ?: 0,
                     )
                 }
 
@@ -260,6 +262,7 @@ object CanonicalSceneBuilder {
         team: Int,
         computer: Boolean = true,
         controllerId: Int = -1,
+        ref: Int = 0,
         goalContribution: Int = 0,
         startPadType: Int = -1,
         padAmmo: List<Int>? = null,
@@ -295,6 +298,7 @@ object CanonicalSceneBuilder {
             team = team,
             computer = computer,
             controllerId = controllerId,
+            ref = ref,
             goalContribution = goalContribution,
             startPadType = startPadType,
             padAmmo = padAmmo,
@@ -350,7 +354,7 @@ object CanonicalSceneBuilder {
             ),
         )
 
-    private fun goalActor(cx: Int, cy: Int, who: Int, contribution: Int, radius: Int): Goal =
+    private fun goalActor(cx: Int, cy: Int, who: Int, contribution: Int, radius: Int, targetRef: Int = 0): Goal =
         Goal(
             Goal.State(
                 body = BoxBody(
@@ -361,6 +365,7 @@ object CanonicalSceneBuilder {
                 contribution = contribution,
                 radius = radius,
                 isClaimed = false,
+                targetRef = targetRef,
             ),
         )
 

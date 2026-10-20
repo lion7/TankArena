@@ -183,6 +183,7 @@ class Match private constructor(
         }
         if (unused.isNotEmpty()) objects.remove(unused)
         linkTrains()
+        linkGoals()
         prepareB52s()
         prepareLocks()
         // Legacy control_turret(): turrets placed off a building are gone from the first tick

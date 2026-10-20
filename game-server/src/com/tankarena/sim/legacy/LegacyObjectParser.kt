@@ -70,6 +70,8 @@ internal object LegacyObjectParser {
     private const val TILE_CENTRE_OFFSET = 16
     /** Legacy `o->this_structure` and `o->owner`: saved pointers that load_map() relocates. */
     private const val OFFSET_THIS = 4
+    /** Legacy `o->target`: a saved pointer to another object (a goal's linked object). */
+    private const val OFFSET_TARGET = 8
     private const val OFFSET_OWNER = 12
     /** Legacy `o->funct.control`: non-zero for objects that were running when the map was saved. */
     private const val OFFSET_CONTROL = 24
@@ -80,6 +82,8 @@ internal object LegacyObjectParser {
         }
 
         val objects = mutableListOf<AuthoredObject>()
+        /** Each object's saved `this_structure`, to resolve the pointers in other objects. */
+        val savedAddresses = mutableListOf<Int>()
         val notes = mutableListOf<String>()
         val unsupportedCounts = mutableMapOf<Int, Int>()
         val total = blob.size / objectSize
@@ -103,15 +107,54 @@ internal object LegacyObjectParser {
             if (type in runtimeSpawnedOnly) continue
             when (val authored = parseObject(index, reader)) {
                 null -> unsupportedCounts[type] = unsupportedCounts.getOrDefault(type, 0) + 1
-                else -> objects += authored
+                else -> {
+                    objects += authored
+                    savedAddresses += reader.readInt(OFFSET_THIS)
+                }
+            }
+        }
+        linkGoalTargets(objects, savedAddresses, notes)
+
+        unsupportedCounts.toSortedMap().forEach { (type, count) ->
+            notes += if (type == TYPE_MAN || type == TYPE_BONUS) {
+                // Legacy load_map() has no case for them and stops with "invalid object type":
+                // soldiers and bonuses belong in the men and bonus layers.
+                "Skipped $count placed ${if (type == TYPE_MAN) "soldier" else "bonus"} object(s); the original refuses maps with them."
+            } else {
+                "Unsupported legacy object type $type encountered $count time(s) during import."
             }
         }
 
-        unsupportedCounts.toSortedMap().forEach { (type, count) ->
-            notes += "Unsupported legacy object type $type encountered $count time(s) during import."
-        }
-
         return LegacyObjectParseResult(objects = objects, notes = notes)
+    }
+
+    /**
+     * Legacy load_map(): `relocate(&o->target)` turns a goal's saved pointer back into the object
+     * it pointed at. Goals with `who` 3 are reached by that object; it gets a `ref` the goal names
+     * as its `targetRef`. Only vehicles can be such targets here.
+     */
+    private fun linkGoalTargets(objects: MutableList<AuthoredObject>, addresses: List<Int>, notes: MutableList<String>) {
+        val byAddress = addresses.withIndex().associate { (i, address) -> address to i }
+        for (i in objects.indices) {
+            val goal = objects[i]
+            if (goal.kind != ObjectKinds.GOAL) continue
+            val address = goal.properties["targetAddress"]?.toInt() ?: continue
+            val properties = goal.properties - "targetAddress"
+            val targetIndex = byAddress[address]
+            if (goal.properties["who"] != "3") {
+                objects[i] = goal.copy(properties = properties)
+                continue
+            }
+            val target = targetIndex?.let { objects[it] }
+            if (target == null || target.kind != ObjectKinds.AI_TANK) {
+                notes += "Goal ${goal.id} is linked to an object the importer cannot link (${target?.kind ?: "missing"})."
+                objects[i] = goal.copy(properties = properties)
+                continue
+            }
+            val ref = address.toString()
+            objects[targetIndex] = target.copy(properties = target.properties + ("ref" to ref))
+            objects[i] = goal.copy(properties = properties + ("targetRef" to ref))
+        }
     }
 
     private fun parseObject(index: Int, reader: LegacyObjectReader): AuthoredObject? {
@@ -144,15 +187,6 @@ internal object LegacyObjectParser {
                 ),
             )
 
-            TYPE_MAN -> AuthoredObject(
-                id = "legacy-man-$index",
-                kind = ObjectKinds.MAN,
-                x = x,
-                y = y,
-                properties = mapOf(
-                    "goalContribution" to goalContribution.toString(),
-                ),
-            )
 
             TYPE_MINE -> AuthoredObject(
                 id = "legacy-mine-$index",
@@ -165,16 +199,6 @@ internal object LegacyObjectParser {
                 ),
             )
 
-            TYPE_BONUS -> AuthoredObject(
-                id = "legacy-bonus-$index",
-                kind = ObjectKinds.BONUS,
-                x = x,
-                y = y,
-                properties = mapOf(
-                    "bonusType" to reader.readInt(OFFSET_UNION).toString(),
-                    "goalContribution" to goalContribution.toString(),
-                ),
-            )
 
             TYPE_TRAIN, TYPE_WAGON -> AuthoredObject(
                 id = if (type == TYPE_TRAIN) "legacy-train-$index" else "legacy-wagon-$index",
@@ -252,11 +276,12 @@ internal object LegacyObjectParser {
                 kind = ObjectKinds.GOAL,
                 x = x,
                 y = y,
-                properties = mapOf(
-                    "radius" to reader.readInt(OFFSET_UNION).toString(),
-                    "who" to reader.readInt(OFFSET_UNION + 4).toString(),
-                    "goalContribution" to goalContribution.toString(),
-                ),
+                properties = buildMap {
+                    put("radius", reader.readInt(OFFSET_UNION).toString())
+                    put("who", reader.readInt(OFFSET_UNION + 4).toString())
+                    put("goalContribution", goalContribution.toString())
+                    reader.readInt(OFFSET_TARGET).takeIf { it != 0 }?.let { put("targetAddress", it.toString()) }
+                },
             )
 
             TYPE_LOCK -> AuthoredObject(

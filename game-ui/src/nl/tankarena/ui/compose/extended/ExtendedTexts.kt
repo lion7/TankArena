@@ -1,8 +1,11 @@
 package nl.tankarena.ui.compose.extended
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -45,7 +48,7 @@ import nl.tankarena.ui.compose.menu.withSensitivity
  * goes on; the arrow keys and Page Up/Down scroll.
  */
 @Composable
-fun ExtendedTextPage(title: String, text: String, onClose: () -> Unit, footer: String = "Enter goes on") {
+fun ExtendedTextPage(title: String, text: String, onClose: () -> Unit, footer: String = "Enter or a tap goes on") {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     ExtendedPage(
@@ -64,8 +67,11 @@ fun ExtendedTextPage(title: String, text: String, onClose: () -> Unit, footer: S
             true
         },
     ) {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(scroll)) {
-            Text(text.trim(), color = ExtendedColors.text, fontSize = 18.sp, lineHeight = 28.sp)
+        // A tap anywhere on the page goes on, as Enter does.
+        Box(modifier = Modifier.fillMaxSize().clickable(onClick = onClose)) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(scroll)) {
+                Text(text.trim(), color = ExtendedColors.text, fontSize = 18.sp, lineHeight = 28.sp)
+            }
         }
     }
 }

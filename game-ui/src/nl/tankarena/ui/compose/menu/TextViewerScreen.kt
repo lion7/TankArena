@@ -73,6 +73,15 @@ fun TextViewerScreen(
             }
             true
         },
+        // A tap in the top quarter scrolls up, in the bottom quarter down, elsewhere closes.
+        onTap = { _, y ->
+            when {
+                closing -> Unit
+                y < 50 -> top = TextPages.scroll(top, -TextPages.SCROLL_STEP, lines.size)
+                y >= 150 -> top = TextPages.scroll(top, TextPages.SCROLL_STEP, lines.size)
+                else -> closing = true
+            }
+        },
     ) {
         backdrop?.let { blit(it) }
         if (top > 0) writeText(2, 2, TEXT_COLOR, ARROW_UP)

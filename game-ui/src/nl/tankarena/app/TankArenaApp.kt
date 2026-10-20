@@ -194,7 +194,7 @@ fun TankArenaApp(
                 for (key in keys) post(key)
             }
         }
-        CompositionLocalProvider(LocalGamePlatform provides platform) {
+        CompositionLocalProvider(LocalGamePlatform provides platform, LocalTouchScreen provides platform.touchScreen) {
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize().gammaCorrection(options.gamma), color = Color.Black) {
                 val atMenu = screen == DesktopShellScreen.MainMenu || screen == DesktopShellScreen.GameModeSelect
@@ -477,7 +477,7 @@ fun TankArenaApp(
                                 title = metadata.name.ifBlank { current.mission.baseName.uppercase() },
                                 text = current.mission.sidecar.missionText.briefing,
                                 onClose = onClose,
-                                footer = "Enter starts",
+                                footer = "Enter or a tap starts",
                             )
                         } else {
                             TextViewerScreen(text = current.mission.sidecar.missionText.briefing, onClose = onClose)
@@ -696,6 +696,11 @@ private fun GameplayScreen(
     }
 
     val interpolator = remember(host) { StepInterpolator() }
+    // A touch screen without a gamepad: player one's virtual controller over the game.
+    val touchPad = remember { TouchPad() }
+    val touchControls = platform.touchScreen && platform.gamepads().isEmpty()
+    SideEffect { controls.touch = touchPad.takeIf { touchControls } }
+    Box(modifier = Modifier.fillMaxSize()) {
     GameplayFrame(
         mission = mission,
         mode = mode,
@@ -710,6 +715,19 @@ private fun GameplayScreen(
         fill = fill,
         wide = wide,
     )
+    if (touchControls) {
+        TouchControls(
+            pad = touchPad,
+            onPause = {
+                // Legacy P: the game stands still; the button again goes on.
+                controls.resetAll()
+                controls.paused = !controls.paused
+            },
+            // Legacy ESC: the game ends (with Extended's question first).
+            onExit = { controls.exitRequested = true },
+        )
+    }
+    }
 }
 
 /** What one simulation tick hands to the screen. */

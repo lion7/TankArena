@@ -57,6 +57,7 @@ fun FliScreen(
             stopped = true
             true
         },
+        onTap = { _, _ -> stopped = true },
     ) {
         if (frame > 0) System.arraycopy(animation.pixels, 0, pixels, 0, minOf(pixels.size, animation.pixels.size))
     }
@@ -91,6 +92,7 @@ fun CreditsScreen(
             closing = true
             true
         },
+        onTap = { _, _ -> closing = true },
     ) {
         picture?.let { blit(it) }
         val top = y - lines.size * CREDITS_PITCH / 2

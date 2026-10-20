@@ -6,6 +6,7 @@
 
     <application
         android:label="Tank Arena"
+        android:icon="@mipmap/ic_launcher"
         android:isGame="true"
         android:appCategory="game"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">

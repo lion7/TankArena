@@ -203,9 +203,15 @@ Depends on: phase 5.
       storage in the app's folders, gamepads from key and motion events (A/START are Enter, B/BACK
       and the back button Esc in menus). Debug APK and release bundle build; R8 finds no missing
       classes.
-- [ ] Try it on a device or an emulator.
-- [ ] Touch: on-screen controls for phones, tapping through menus and texts.
-- [ ] Release signing, app icon.
+- [x] Try it on an emulator (AVD `tankarena`, Android 16): menus, campaign and a mission run.
+  A real phone is still to try.
+- [x] Touch: player one's virtual controller over the game (`TouchControls`: a floating move stick
+  that steers directly, an aim stick for the turret, FIRE, SHIELD, the weapon buttons, PAUSE and
+  EXIT), shown on a touch screen without a gamepad; the other players need gamepads. Taps go
+  through the intro, credits, texts, Classic menus and yes/no questions; Back is ESC.
+- [x] App icon (the packaging's `tankarena.png`).
+- [ ] Release signing (deferred).
+- [ ] Less allocation in a game (the garbage collector frees about 24 MB every 4 s on Android).
 
 Depends on: phases 1 and 6 (the move is mechanical once the core is platform-free).
 

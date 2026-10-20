@@ -42,6 +42,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import nl.tankarena.ui.compose.refocusOnTouch
 
 /** The Extended ruleset's look (ADR 0023): dark, with the game's sand colour as accent. */
 object ExtendedColors {
@@ -90,6 +91,7 @@ fun ExtendedPage(
                 .fillMaxSize()
                 .background(Brush.verticalGradient(listOf(Color(0xFF22262E), ExtendedColors.background)))
                 .focusRequester(focus)
+                .refocusOnTouch(focus)
                 .focusable()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false

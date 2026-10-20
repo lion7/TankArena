@@ -2,6 +2,7 @@ package nl.tankarena.ui.compose.legacy
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,11 +15,13 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import nl.tankarena.ui.compose.LegacyScreen
 import nl.tankarena.ui.compose.LegacyScreenScope
 import nl.tankarena.ui.compose.LegacyVideoMode
+import nl.tankarena.ui.compose.refocusOnTouch
 
 /**
  * A mode 13h screen, painted by [draw] on every recomposition and shown through [palette] at
@@ -32,6 +35,8 @@ fun Mode13View(
     onKey: (KeyEvent) -> Boolean = { false },
     /** Live content over the picture, in legacy screen coordinates (the tank selection's views). */
     overlay: @Composable LegacyScreenScope.() -> Unit = {},
+    /** A tap on a touch screen, at a point of the 320×200 screen. */
+    onTap: ((x: Int, y: Int) -> Unit)? = null,
     draw: Mode13Screen.() -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -42,10 +47,22 @@ fun Mode13View(
         brightness = brightness,
         modifier = modifier
             .focusRequester(focusRequester)
+            .refocusOnTouch(focusRequester)
             .focusable()
             .onPreviewKeyEvent { event -> event.type == KeyEventType.KeyDown && onKey(event) },
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        val scope = this
+        Canvas(
+            modifier = Modifier.fillMaxSize().then(
+                if (onTap == null) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(onTap) {
+                        detectTapGestures { at -> onTap((at.x / scope.pixelWidth).toInt(), (at.y / scope.pixelHeight).toInt()) }
+                    }
+                },
+            ),
+        ) {
             drawImage(
                 image = image,
                 dstOffset = IntOffset.Zero,

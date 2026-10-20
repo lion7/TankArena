@@ -25,6 +25,11 @@ data class InputState(
     val stickY: Int = 0,
     val aimHeld: Boolean = false,
     val weaponHeld: Boolean = false,
+    /** A second stick (touch controls, Extended): the way to turn the turret, -100..100. */
+    val aimX: Int = 0,
+    val aimY: Int = 0,
+    /** The stick steers directly whatever the player's setting (a touch screen's stick). */
+    val directStick: Boolean = false,
 ) {
     val hasStick: Boolean get() = stickX != 0 || stickY != 0 || aimHeld || weaponHeld
 
@@ -44,6 +49,9 @@ data class InputState(
         stickY = if (kotlin.math.abs(other.stickY) > kotlin.math.abs(stickY)) other.stickY else stickY,
         aimHeld = aimHeld || other.aimHeld,
         weaponHeld = weaponHeld || other.weaponHeld,
+        aimX = if (kotlin.math.abs(other.aimX) > kotlin.math.abs(aimX)) other.aimX else aimX,
+        aimY = if (kotlin.math.abs(other.aimY) > kotlin.math.abs(aimY)) other.aimY else aimY,
+        directStick = directStick || other.directStick,
     )
 }
 
@@ -79,7 +87,25 @@ object ControlMapping {
             aimRight = state.aimRight,
             selectTankId = selectTankId,
         )
-        return if (mode == ControlMode.DIRECT && heading != null) direct(state, base, heading, sensitivity) else relative(state, base, sensitivity)
+        val steered = if ((mode == ControlMode.DIRECT || state.directStick) && heading != null) {
+            direct(state, base, heading, sensitivity)
+        } else {
+            relative(state, base, sensitivity)
+        }
+        return aimWithStick(state, steered, heading, sensitivity)
+    }
+
+    /**
+     * The second stick turns the turret the short way towards where it points (with the vehicle's
+     * heading), or left and right without it.
+     */
+    private fun aimWithStick(s: InputState, frame: InputFrame, heading: Heading?, sensitivity: Int): InputFrame {
+        if (s.aimX * s.aimX + s.aimY * s.aimY <= sensitivity * sensitivity) return frame
+        if (heading == null) return frame.copy(aimLeft = s.aimX < -sensitivity, aimRight = s.aimX > sensitivity)
+        val wanted = LegacyDirections.fromAngle(s.aimX, s.aimY)
+        if (wanted == heading.turret) return frame.copy(aimLeft = false, aimRight = false)
+        val left = ((heading.turret - wanted) and 15) < 8
+        return frame.copy(aimLeft = left, aimRight = !left)
     }
 
     /** Legacy copy_controls_relative(): keys as they are; the stick past the dead zone like the keys. */

@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
+import nl.tankarena.app.LocalTouchScreen
 import nl.tankarena.ui.compose.legacy.LegacyColors
 import nl.tankarena.ui.compose.legacy.LegacyFonts
 import nl.tankarena.ui.compose.legacy.Mode13View
@@ -149,6 +150,7 @@ fun YesNoScreen(
     onNo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val touch = LocalTouchScreen.current
     Mode13View(
         modifier = modifier,
         onKey = { event ->
@@ -159,11 +161,19 @@ fun YesNoScreen(
             }
             true
         },
+        // On a touch screen: YES on the left, NO on the right.
+        onTap = if (touch) ({ x, _ -> if (x < 160) onYes() else onNo() }) else null,
     ) {
         val length = question.length * 6
         panel()
         addBar((300 - length) / 2, 85, length + 20, 30, LegacyColors.BAR_ADD)
         writeText((320 - length) / 2, 98, LegacyColors.HIGH, question)
+        if (touch) {
+            addBar(50, 130, 80, 24, LegacyColors.BAR_ADD)
+            addBar(190, 130, 80, 24, LegacyColors.BAR_ADD)
+            writeText(81, 139, LegacyColors.HIGH, "YES")
+            writeText(224, 139, LegacyColors.HIGH, "NO")
+        }
     }
 }
 

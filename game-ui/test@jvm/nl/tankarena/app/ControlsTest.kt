@@ -112,4 +112,24 @@ class ControlsTest {
         assertEquals(ControlDevice.KEYBOARD, controls.device)
         assertEquals(PlayerControls.DEFAULT_JOYSTICK_BUTTONS, controls.joystickButtons)
     }
+
+    @Test
+    fun `a touch screen's move stick steers directly and its aim stick turns the turret`() {
+        // Relative steering in the settings, but the touch stick steers directly: east from north turns right.
+        val touched = ControlMapping.frame(InputState(stickX = 100, directStick = true), 0, 0, ControlMode.RELATIVE, Heading(0, 0))
+        assertTrue(touched.turnRight && touched.forward)
+        // The aim stick points south (8) from a turret facing east (4): right round.
+        val aimed = ControlMapping.frame(InputState(aimY = 100), 0, 0, ControlMode.RELATIVE, Heading(0, 4))
+        assertTrue(aimed.aimRight && !aimed.aimLeft)
+        assertFalse(ControlMapping.frame(InputState(aimX = 100), 0, 0, ControlMode.RELATIVE, Heading(0, 4)).let { it.aimLeft || it.aimRight }, "already there")
+    }
+
+    @Test
+    fun `a tap on a Classic menu picks the entry under it`() {
+        val height = nl.tankarena.ui.compose.legacy.LegacyFonts.BIG_HEIGHT
+        val top = (180 - 6 * height) / 2
+        assertEquals(0, nl.tankarena.ui.compose.menu.menuEntryAt(6, top + 11 + height))
+        assertEquals(5, nl.tankarena.ui.compose.menu.menuEntryAt(6, top + 11 + 6 * height + 2))
+        assertNull(nl.tankarena.ui.compose.menu.menuEntryAt(6, 2))
+    }
 }

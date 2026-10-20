@@ -48,9 +48,24 @@ fun RetroMenuScreen(
             }
             true
         },
+        // A tap on an entry picks it.
+        onTap = { _, y ->
+            val index = menuEntryAt(items.size, y)
+            if (index != null && items[index].enabled) {
+                selected = index
+                items[index].onActivate()
+            }
+        },
     ) {
         drawMenu(title, items.map { it.label }, selected)
     }
+}
+
+/** Which entry of a menu of [count] entries is drawn at line [y] (see [drawMenu]), or null. */
+internal fun menuEntryAt(count: Int, y: Int): Int? {
+    val height = LegacyFonts.BIG_HEIGHT
+    val top = (180 - count * height) / 2
+    return (0 until count).firstOrNull { index -> y in top + 11 + (index + 1) * height - 2 until top + 11 + (index + 2) * height - 2 }
 }
 
 /** The picture of legacy `menu()` with entry [selected] (0-based) highlighted. */

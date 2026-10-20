@@ -196,7 +196,9 @@ internal class DesktopControls {
         p.selectTankId = 0
         val controls = controlsFor(playerId)
         val pad = padFor(playerId)?.inputState(controls!!)
-        val state = pad?.let { p.state().and(it) } ?: p.state()
+        var state = pad?.let { p.state().and(it) } ?: p.state()
+        // A touch screen's controller is player one's.
+        if (playerId == 0) touch?.state()?.let { state = state.and(it) }
         return ControlMapping.frame(
             state, playerId, inputSequence, controls?.mode ?: ControlMode.RELATIVE, heading(playerId, frame),
             sensitivity = controls?.sensitivity ?: ControlMapping.DEFAULT_SENSITIVITY,
@@ -209,6 +211,10 @@ internal class DesktopControls {
      * order they are numbered, to the players who chose one.
      */
     private fun padFor(playerId: Int): PadReading? = padIndex(playerId)?.let { pads().getOrNull(it) }
+
+    /** Player one's controller on a touch screen, if it is shown. */
+    @Volatile
+    var touch: TouchPad? = null
 
     /** The connected gamepads (the platform's), read when the players' inputs are made. */
     @Volatile

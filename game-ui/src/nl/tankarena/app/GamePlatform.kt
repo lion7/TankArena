@@ -27,6 +27,9 @@ interface GamePlatform {
      */
     val postKey: ((Key) -> Unit)?
 
+    /** A touch screen: the game shows its virtual controller and takes taps (Android). */
+    val touchScreen: Boolean get() = false
+
     /** Leaves the game. */
     fun quit()
 
@@ -76,6 +79,9 @@ class GameKeyHook {
 
     fun handle(event: KeyEvent): Boolean = handler(event)
 }
+
+/** Whether the screens take taps (the platform's [GamePlatform.touchScreen]). */
+val LocalTouchScreen = staticCompositionLocalOf { false }
 
 /** The platform of the running game, for screens deep down (replays' sound). */
 val LocalGamePlatform = staticCompositionLocalOf<GamePlatform> { error("no GamePlatform") }

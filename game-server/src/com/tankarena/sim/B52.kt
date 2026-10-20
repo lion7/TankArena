@@ -48,7 +48,7 @@ class B52 internal constructor(state: State) : SceneObject<B52>, Placed {
         exactY = y
         positionX = Math.round(x)
         positionY = Math.round(y)
-        val offset = ScenePoint((positionX - body.size.width / 2f).toFloat(), (positionY - body.size.height / 2f).toFloat())
+        val offset = ScenePoint((positionX - body.size.width / 2f), (positionY - body.size.height / 2f))
         body.position = offset
     }
 

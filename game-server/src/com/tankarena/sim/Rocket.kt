@@ -88,7 +88,7 @@ class Rocket internal constructor(state: State) : Steppable,
             pendingTrail = (positionX - fx * EXHAUST_OFFSET_PX).roundToInt() to (positionY - fy * EXHAUST_OFFSET_PX).roundToInt()
             smokeTicks = 10 + smokeRandom.nextInt(20)
         }
-        val offset = ScenePoint(positionX.toFloat(), positionY.toFloat())
+        val offset = ScenePoint(positionX, positionY)
         body.position = offset
         if (arrived || rangeLeft < 0f) markDead()
     }

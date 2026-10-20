@@ -151,7 +151,8 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
 - [x] Replays: newest first with mission, mode, result, length, date and rules; naming (F2) and
       deleting; the viewer with pause, 1/4×–8× speed and a free camera (C, dragging or the wheel):
       moved smoothly with held arrow keys or by dragging, zoomed (¼× to 4×) with the wheel around the
-      cursor or Page Up/Down, one view without status displays.
+      cursor or Page Up/Down, one view without status displays; at the end "END OF REPLAY" with the
+      result, R watches it again.
 - [x] Settings on one page: controls, window size, gamma, radar, music, sound, match rules;
       Left/Right step a value (stopping at the ends), Enter goes round, the selection stays on the
       row. "Switch to Classic" on the home screen, "Switch to Extended" in Classic's main menu.

@@ -28,8 +28,6 @@ class MineTest {
         prototype.tick(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
         repeat(5) { prototype.tick() }
 
-        val mineCount = prototype.snapshot().actors.count { it is com.tankarena.protocol.snapshot.ActorState && false } // placeholder
-        // mines are not in protocol snapshot yet — assert via internal accessor instead.
         val mineActors = prototype.snapshotMines()
         assertEquals(1, mineActors.size, "exactly one mine should be deployed")
         prototype.dispose()

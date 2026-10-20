@@ -182,7 +182,7 @@ private class ViewportRuntime(
 
     fun draw(scope: androidx.compose.ui.graphics.drawscope.DrawScope) {
         val geometry = snapshot.geometry
-        scene.draw(scope, geometry.cameraCenterX.toFloat(), geometry.cameraCenterY.toFloat(), playfieldWidth.toFloat())
+        scene.draw(scope, geometry.cameraCenterX, geometry.cameraCenterY, playfieldWidth.toFloat())
     }
 
     fun dispose() = Unit

@@ -109,7 +109,7 @@ class TankArenaSceneRoundTripTest {
     }
 
     private fun box(x: Float, y: Float, size: Float): BoxBody = BoxBody(
-        position = ScenePoint(x.toFloat(), y.toFloat()),
-        size = SceneExtent(size.toFloat(), size.toFloat()),
+        position = ScenePoint(x, y),
+        size = SceneExtent(size, size),
     )
 }

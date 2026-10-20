@@ -87,7 +87,7 @@ class AircraftAndWeaponsTest {
             exhaust = exhaust || frame.events.any { it is GameEvent.Effect && it.kind == EffectKind.EXHAUST }
         }
         assertEquals(ProjectileKind.SROCK, assertNotNull(rocket).kind)
-        assertEquals(4, rocket!!.direction, "it points east")
+        assertEquals(4, rocket.direction, "it points east")
         assertTrue(exhaust)
     }
 

@@ -210,7 +210,7 @@ internal class DualRules(
 
     private fun moveTo(flag: Flag, x: Int, y: Int) {
         val body = flag.body
-        body.position = ScenePoint((x - body.size.width / 2f).toFloat(), (y - body.size.height / 2f).toFloat())
+        body.position = ScenePoint((x - body.size.width / 2f), (y - body.size.height / 2f))
     }
 
     private companion object {

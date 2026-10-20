@@ -268,7 +268,9 @@ internal fun ReplayScreen(
         MatchMode.DUAL_VS_COMPUTER -> GameMode.DUAL_PLAYER_VS_COMPUTER
     }
     val playerIds = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) listOf(0) else listOf(0, 1)
-    val host = remember(recording) { ReplayMatchClient(recording, mission.document) }
+    // R at the end starts the replay again: a new client from the first tick.
+    var run by remember { mutableIntStateOf(0) }
+    val host = remember(recording, run) { ReplayMatchClient(recording, mission.document) }
     val control = remember(host) { ReplayControl() }
     val audio = remember { AudioManager(DesktopAudioBackend()) }
     SideEffect { audio.soundVolume = soundVolume }
@@ -374,6 +376,10 @@ internal fun ReplayScreen(
                 val camera = freeCamera
                 when {
                     event.key == Key.Escape -> onClose()
+                    event.key == Key.R && view.finished -> {
+                        run++
+                        paused = false
+                    }
                     event.key == Key.Spacebar -> paused = !paused
                     event.key == Key.C -> {
                         freeCamera = if (camera == null) startCamera() else null
@@ -441,6 +447,24 @@ internal fun ReplayScreen(
                     zoom = zoom,
                     onScale = { cameraScale = it },
                 )
+            }
+        }
+        if (view.finished) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .padding(horizontal = 32.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("END OF REPLAY", color = Color.White, fontSize = 28.sp)
+                val result = when (view.banner) {
+                    MissionOutcome.WON -> "The mission was won."
+                    MissionOutcome.LOST -> "The mission was lost."
+                    null -> "The recording stops here."
+                }
+                Text(result, color = Color.LightGray, fontSize = 16.sp)
+                Text("R watch again    C free camera    Esc back", color = Color.LightGray, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
             }
         }
         val rate = SPEED_QUARTERS[speed].let { if (it >= 4) "${it / 4}x" else "1/${4 / it}x" }

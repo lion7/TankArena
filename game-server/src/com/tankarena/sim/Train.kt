@@ -74,7 +74,7 @@ class Train internal constructor(state: State) : SceneObject<Train>, Placed {
         }
 
     internal fun syncBody() {
-        val offset = ScenePoint((positionX - body.size.width / 2f).toFloat(), (positionY - body.size.height / 2f).toFloat())
+        val offset = ScenePoint((positionX - body.size.width / 2f), (positionY - body.size.height / 2f))
         body.position = offset
     }
 

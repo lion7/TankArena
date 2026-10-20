@@ -154,8 +154,8 @@ class ProductTest {
     fun `product round-trips through serialization`() {
         val state = Product.State(
             body = BoxBody(
-                position = ScenePoint(100f.toFloat(), 200f.toFloat()),
-                size = SceneExtent(16f.toFloat(), 16f.toFloat()),
+                position = ScenePoint(100f, 200f),
+                size = SceneExtent(16f, 16f),
             ),
             productType = 7,
             price = 5,

@@ -198,7 +198,7 @@ class Turret internal constructor(state: State) : SceneObject<Turret>, Placed {
     /** Legacy control_train(): a turret on a wagon moves with it. */
     internal fun moveTo(x: Int, y: Int) {
         val half = body.size.width / 2f
-        val offset = ScenePoint((x - half).toFloat(), (y - half).toFloat())
+        val offset = ScenePoint((x - half), (y - half))
         body.position = offset
     }
 

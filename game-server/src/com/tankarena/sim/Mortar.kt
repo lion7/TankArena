@@ -47,7 +47,7 @@ class Mortar internal constructor(state: State) : Steppable,
         // Velocities are per tick; a step covers STEP_TICKS of them.
         positionX += velocityX * STEP_TICKS
         positionY += velocityY * STEP_TICKS
-        val offset = ScenePoint(positionX.toFloat(), positionY.toFloat())
+        val offset = ScenePoint(positionX, positionY)
         body.position = offset
         travelTicksRemaining -= STEP_TICKS
         if (travelTicksRemaining <= 0) detonate()

@@ -447,7 +447,7 @@ object MapObjects {
             if (it != 0) state.copy(padAmmo = state.ammo, ammo = state.ammo) else state.copy(padAmmo = null)
         })
         if (own) for ((label, index, range) in WEAPONS) {
-            val ammo = state.padAmmo!!
+            val ammo = state.padAmmo
             add(ObjectProperty(label, range, ammo.getOrElse(index) { 0 }) { value ->
                 val changed = ammo.toMutableList().also { list -> while (list.size <= index) list += 0; list[index] = value }
                 state.copy(padAmmo = changed, ammo = changed)

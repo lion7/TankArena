@@ -38,10 +38,10 @@ class MissionEvaluationTest {
 
         assertEquals(Match.MissionStatus.WON, prototype.mission)
         assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(true, missionResult!!.won)
-        assertEquals("GOALS_CAPTURED", missionResult!!.reason)
-        assertEquals(1, missionResult!!.captures)
-        assertEquals(500, missionResult!!.score)
+        assertEquals(true, missionResult.won)
+        assertEquals("GOALS_CAPTURED", missionResult.reason)
+        assertEquals(1, missionResult.captures)
+        assertEquals(500, missionResult.score)
 
         prototype.dispose()
     }
@@ -67,9 +67,9 @@ class MissionEvaluationTest {
 
         assertEquals(Match.MissionStatus.WON, prototype.mission)
         assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(true, missionResult!!.won)
-        assertEquals("ALL_ENEMIES_ELIMINATED", missionResult!!.reason)
-        assertEquals(1, missionResult!!.kills)
+        assertEquals(true, missionResult.won)
+        assertEquals("ALL_ENEMIES_ELIMINATED", missionResult.reason)
+        assertEquals(1, missionResult.kills)
 
         prototype.dispose()
     }
@@ -95,8 +95,8 @@ class MissionEvaluationTest {
 
         assertEquals(Match.MissionStatus.LOST, prototype.mission)
         assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(false, missionResult!!.won)
-        assertEquals("ALL_LIVES_LOST", missionResult!!.reason)
+        assertEquals(false, missionResult.won)
+        assertEquals("ALL_LIVES_LOST", missionResult.reason)
 
         prototype.dispose()
     }
@@ -126,8 +126,8 @@ class MissionEvaluationTest {
 
         assertEquals(Match.MissionStatus.WON, prototype.mission)
         assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(true, missionResult!!.won)
-        assertEquals("ALL_ENEMIES_ELIMINATED", missionResult!!.reason)
+        assertEquals(true, missionResult.won)
+        assertEquals("ALL_ENEMIES_ELIMINATED", missionResult.reason)
 
         prototype.dispose()
     }
@@ -150,8 +150,8 @@ class MissionEvaluationTest {
 
         assertEquals(Match.MissionStatus.WON, prototype.mission)
         assertTrue(missionResult != null, "MissionResult should be emitted")
-        assertEquals(true, missionResult!!.won)
-        assertEquals("GOALS_CAPTURED", missionResult!!.reason)
+        assertEquals(true, missionResult.won)
+        assertEquals("GOALS_CAPTURED", missionResult.reason)
 
         prototype.dispose()
     }
@@ -173,7 +173,7 @@ class MissionEvaluationTest {
         }
 
         assertTrue(missionResult != null)
-        assertTrue(missionResult!!.ticks > 0, "ticks should be > 0")
+        assertTrue(missionResult.ticks > 0, "ticks should be > 0")
 
         prototype.dispose()
     }

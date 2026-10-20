@@ -98,7 +98,7 @@ class ActorRoundTripTest {
     fun `Projectile round-trip preserves ownership velocity damage and TTL`() {
         val original = Projectile(
             Projectile.State(
-                body = PointBody(position = ScenePoint(150f.toFloat(), 250f.toFloat())),
+                body = PointBody(position = ScenePoint(150f, 250f)),
                 ownerActorId = 42L,
                 ownerKind = ProjectileOwnerKind.TURRET,
                 damage = 17,
@@ -125,7 +125,7 @@ class ActorRoundTripTest {
     }
 
     private fun box(x: Float, y: Float, w: Float, h: Float): BoxBody = BoxBody(
-        position = ScenePoint(x.toFloat(), y.toFloat()),
-        size = SceneExtent(w.toFloat(), h.toFloat()),
+        position = ScenePoint(x, y),
+        size = SceneExtent(w, h),
     )
 }

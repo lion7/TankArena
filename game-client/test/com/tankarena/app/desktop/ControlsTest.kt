@@ -4,10 +4,16 @@ import androidx.compose.ui.input.key.Key
 import com.tankarena.input.ControlMapping
 import com.tankarena.input.Heading
 import com.tankarena.input.InputState
-import com.tankarena.ui.compose.menu.ControlMode
+import com.tankarena.input.PadReading
 import com.tankarena.ui.compose.menu.ControlAction
+import com.tankarena.ui.compose.menu.ControlDevice
+import com.tankarena.ui.compose.menu.ControlMode
 import com.tankarena.ui.compose.menu.DEFAULT_CONTROLS
+import com.tankarena.ui.compose.menu.JoystickAction
+import com.tankarena.ui.compose.menu.PlayerControls
+import com.tankarena.ui.compose.menu.withJoystickButtons
 import com.tankarena.ui.compose.menu.withKey
+import com.tankarena.ui.compose.menu.withSensitivity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -73,5 +79,37 @@ class ControlsTest {
         assertEquals(Key.K, changed[1].key(ControlAction.FIRE))
         assertNull(changed[0].key(ControlAction.UP), "K was player one's UP")
         assertNull(changed.withKey(0, ControlAction.SHIELD, null)[0].key(ControlAction.SHIELD))
+    }
+
+    @Test
+    fun `a gamepad is a joystick with the original's four buttons`() {
+        val controls = DEFAULT_CONTROLS[1].copy(device = ControlDevice.JOYSTICK)
+        val fire = PadReading(0, 0, buttons = 1).inputState(controls)
+        assertTrue(fire.fire && !fire.weaponHeld)
+        // The weapon button (X) stops the fire button and turns the stick into weapon left/right.
+        val weapon = PadReading(-90, 0, buttons = 1 or 4).inputState(controls)
+        assertTrue(!weapon.fire && weapon.weaponHeld)
+        assertTrue(relative(weapon).cycleWeaponLeft)
+        // A mask of two buttons needs both.
+        val together = controls.copy(joystickButtons = listOf(1 or 2, 0, 0, 0))
+        assertFalse(PadReading(0, 0, buttons = 1).inputState(together).fire)
+        assertTrue(PadReading(0, 0, buttons = 3).inputState(together).fire)
+    }
+
+    @Test
+    fun `joystick buttons and sensitivity are set as in the original setup`() {
+        val changed = DEFAULT_CONTROLS.withJoystickButtons(0, JoystickAction.SHIELD, 1)
+        assertEquals(1, changed[0].buttons(JoystickAction.SHIELD))
+        assertEquals(0, changed[0].buttons(JoystickAction.FIRE), "button A was player one's FIRE")
+        assertEquals(0, changed[1].buttons(JoystickAction.FIRE), "and player two's")
+        assertEquals(100, DEFAULT_CONTROLS.withSensitivity(0, 120)[0].sensitivity)
+    }
+
+    @Test
+    fun `settings saved before gamepads still load`() {
+        val old = """{"mode":"DIRECT","keys":[1,2,3,4,5,6,7,8,9,10]}"""
+        val controls = kotlinx.serialization.json.Json.decodeFromString(PlayerControls.serializer(), old)
+        assertEquals(ControlDevice.KEYBOARD, controls.device)
+        assertEquals(PlayerControls.DEFAULT_JOYSTICK_BUTTONS, controls.joystickButtons)
     }
 }

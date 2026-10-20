@@ -30,6 +30,7 @@ import com.tankarena.audio.MusicPlayer
 import com.tankarena.content.GameModeCompatibility
 import com.tankarena.content.TankArenaWorld
 import com.tankarena.core.FixedStepClock
+import com.tankarena.input.Gamepads
 import com.tankarena.protocol.snapshot.GameEvent
 import com.tankarena.protocol.snapshot.ServerFrame
 import com.tankarena.render.ViewportEventQueue
@@ -340,6 +341,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                     is DesktopShellScreen.ControlsSetup -> if (extended) {
                         ExtendedControlsPage(
                             controls = options.controls,
+                            readPadButtons = { Gamepads.read().map { it.buttons } },
                             onChange = { settings.update(settings.options.copy(controls = it)) },
                             onBack = { screen = current.next },
                         )
@@ -350,6 +352,7 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                             changed?.let { settings.update(settings.options.copy(controls = it)) }
                             screen = current.next
                         },
+                        readPadButtons = { Gamepads.read().map { it.buttons } },
                     )
                     }
 

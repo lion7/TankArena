@@ -1,6 +1,9 @@
 # ADR 0026: Input Layer, Remapping and Gamepads
 
-- **Status:** Accepted (2026-10-19); not implemented.
+- **Status:** Accepted (2026-10-19). Built 2026-10-20: the input layer (`com.tankarena.input`:
+  `InputState`, `ControlMapping` for relative and direct steering with keys and sticks) and gamepads
+  through Jamepad 2.30.0.0 as the original's joysticks. Not yet: press to join, gamepad menus, more
+  than two players.
 
 ## Context
 

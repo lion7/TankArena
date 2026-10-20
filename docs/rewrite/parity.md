@@ -25,7 +25,7 @@ missing), **differs** (built, behaves differently from the original and must be 
 | Map objects | Done |
 | Computer AI | Done (port of `computer.c`) |
 | Modes | Done, supermarket mayhem included |
-| Shell, menus, options | Done; joysticks in phase 6 |
+| Shell, menus, options | Done; joysticks are gamepads (phase 6) |
 | Status display, radar, presentation | Done |
 | Audio and music | Done |
 | Map editor | Layers, structures, objects, undo, save, play-test; header, texts and the rest in phase 4 |
@@ -248,7 +248,9 @@ Open (in scope by decision of 2026-10-19):
   drives forward, the turret with an aim key held) and ten keys; a key given to one slot leaves every
   other; DEL clears; "SAVE SETTINGS? (Y/N)". Kept in `settings.json`. A single player uses player
   two's keys (the grey cursor block, as KEYS.HLP shows; `controls.c` itself defaults to the keypad).
-  **moved to phase 6** — joysticks: they come with the gamepad layer (ADR 0026).
+  **done** (2026-10-20) — joysticks are gamepads: per player KEYBOARD or JOYSTICK, the four
+  joystick buttons (FIRE, AIM, WEAPON, SHIELD; several pressed together count as one) and the
+  sensitivity, on a second page of the controls setup (Tab), as the original's setup program had them.
 - **done** — command-line cheats `-GOD`, `-NOFAIL`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT` (also spelt
   `--god` ...; kept in recordings) (`src/game/main.c:52-97`, `cheat.txt`). `-SETUP` opens the controls
   setup. Not ported: `-CODES` (see intentional deviations) and the developer tools `-KEYTEST`,

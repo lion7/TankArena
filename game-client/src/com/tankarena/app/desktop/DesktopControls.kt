@@ -7,6 +7,9 @@ import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import com.tankarena.input.ControlMapping
+import com.tankarena.input.Gamepads
+import com.tankarena.input.PadReading
+import com.tankarena.ui.compose.menu.ControlDevice
 import com.tankarena.input.Heading
 import com.tankarena.input.InputState
 import com.tankarena.protocol.InputFrame
@@ -179,8 +182,24 @@ internal class DesktopControls {
         val p = players[playerId]
         val selectTankId = p.selectTankId
         p.selectTankId = 0
-        val mode = controlsFor(playerId)?.mode ?: ControlMode.RELATIVE
-        return ControlMapping.frame(p.state(), playerId, inputSequence, mode, heading(playerId, frame), selectTankId = selectTankId)
+        val controls = controlsFor(playerId)
+        val pad = padFor(playerId)?.inputState(controls!!)
+        val state = pad?.let { p.state().and(it) } ?: p.state()
+        return ControlMapping.frame(
+            state, playerId, inputSequence, controls?.mode ?: ControlMode.RELATIVE, heading(playerId, frame),
+            sensitivity = controls?.sensitivity ?: ControlMapping.DEFAULT_SENSITIVITY,
+            selectTankId = selectTankId,
+        )
+    }
+
+    /**
+     * The gamepad of a player who steers with a joystick (legacy `key_or_joy`): the pads go, in the
+     * order they are numbered, to the players who chose one.
+     */
+    private fun padFor(playerId: Int): PadReading? {
+        if (controlsFor(playerId)?.device != ControlDevice.JOYSTICK) return null
+        val joystickPlayers = players.indices.filter { controlsFor(it)?.device == ControlDevice.JOYSTICK }
+        return Gamepads.read().getOrNull(joystickPlayers.indexOf(playerId))
     }
 
     /** The player's vehicle's heading for direct steering; null while the rocket marker is out. */

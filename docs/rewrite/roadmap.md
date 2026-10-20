@@ -170,8 +170,13 @@ Depends on: phase 1 (renderer for the replay viewer).
 
 ## Phase 6 — Input layer, gamepads, four players ([ADR 0026](adrs/0026-input-and-gamepads.md), [ADR 0027](adrs/0027-four-players-two-teams.md))
 
-- Devices → actions → `InputFrame` per player; bindings per device in `settings.json`.
-- Gamepads on desktop through Jamepad (SDL2), several Bluetooth pads at once; "press to join".
+- [x] Devices → actions → `InputFrame` per player (`InputState`, `ControlMapping`: the original's
+      relative and direct steering for keys and sticks, dead zone, aim and weapon buttons); bindings
+      in `settings.json`.
+- [x] Gamepads on desktop through Jamepad (SDL2), as the original's joysticks: per player keyboard or
+      joystick, four buttons (combinations allowed), sensitivity; Classic's controls setup has a
+      joystick page (Tab), Extended's controls page the same rows.
+- [ ] "Press to join"; several pads for more players.
 - Menus fully usable with a gamepad in Extended.
 - Four local players as two teams on existing maps; 2 × 2 split screen; per-team scoring; optional
   extra pads per team in map files.

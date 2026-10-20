@@ -8,6 +8,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -457,6 +458,9 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         soundVolume = options.soundVolume,
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
+                        smoothMotion = extended && options.smoothMotion,
+                        fill = extended && options.fillWindow,
+                        wide = extended && options.wideView,
                         ruleset = options.ruleset ?: Ruleset.CLASSIC,
                         cheats = cheats,
                         dual = current.dual?.let { match ->
@@ -481,6 +485,9 @@ private fun runGame(args: Array<String>, cheats: Cheats) = application {
                         soundVolume = options.soundVolume,
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
+                        smoothMotion = extended && options.smoothMotion,
+                        fill = extended && options.fillWindow,
+                        wide = extended && options.wideView,
                         ruleset = options.ruleset ?: Ruleset.CLASSIC,
                         cheats = cheats,
                         dual = if (current.mode == GameMode.PLAYER_VS_PLAYER) DualSetup() else null,
@@ -546,6 +553,10 @@ private fun GameplayScreen(
     /** Legacy `win_size` and `show_radar`. */
     windowSize: Int = 0,
     showRadar: Boolean = true,
+    /** Extended's presentation: movement between steps, filling the window, a wider view. */
+    smoothMotion: Boolean = false,
+    fill: Boolean = false,
+    wide: Boolean = false,
     /** Player vs player: the round's vehicles and score. */
     dual: DualSetup? = null,
     /**
@@ -582,10 +593,13 @@ private fun GameplayScreen(
 
     // Every frame the screen takes the newest published state; once the game has faded out, the
     // mission ends here, on the UI thread.
+    // Extended's smooth motion draws between steps, so it redraws on every frame.
+    var frameNanos by remember { mutableLongStateOf(System.nanoTime()) }
     LaunchedEffect(host) {
         while (true) {
-            val latest = withFrameNanos { frameNanos ->
-                PerfLog.frame(frameNanos)
+            val latest = withFrameNanos { now ->
+                PerfLog.frame(now)
+                if (smoothMotion) frameNanos = now
                 published.get()
             }
             if (latest !== view) view = latest
@@ -596,10 +610,11 @@ private fun GameplayScreen(
         }
     }
 
+    val interpolator = remember(host) { StepInterpolator() }
     GameplayFrame(
         mission = mission,
         mode = mode,
-        serverFrame = serverFrame,
+        serverFrame = if (smoothMotion) interpolator.frame(serverFrame, frameNanos) else serverFrame,
         playerIds = playerIds,
         eventQueues = eventQueues,
         missionEndBanner = missionEndBanner,
@@ -607,6 +622,8 @@ private fun GameplayScreen(
         windowSize = windowSize,
         showRadar = showRadar,
         playerOneMessage = controls.playerOneMessage(),
+        fill = fill,
+        wide = wide,
     )
 }
 

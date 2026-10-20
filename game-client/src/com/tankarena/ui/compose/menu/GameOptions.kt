@@ -52,6 +52,12 @@ data class GameOptions(
     val screenshotNumber: Int = 0,
     /** Legacy `plN_mode` and `keyN_*`: each player's control mode and keys. */
     val controls: List<PlayerControls> = DEFAULT_CONTROLS,
+    /** Extended: show movement between the game's steps (33 a second), one step later. */
+    val smoothMotion: Boolean = true,
+    /** Extended: the picture fills the window instead of growing by whole multiples. */
+    val fillWindow: Boolean = true,
+    /** Extended: on a wide window the map windows grow across and show more of the map. */
+    val wideView: Boolean = true,
 ) {
     /** Legacy read_controls(): `=` makes the window bigger, `-` smaller. */
     fun biggerWindow(): GameOptions = copy(windowSize = (windowSize - 1).coerceAtLeast(0))

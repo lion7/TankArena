@@ -185,11 +185,18 @@ data class LegacyMapWindow(val left: Int, val top: Int, val width: Int, val heig
  * when it is smaller. One window is centred across; two are spread with equal gaps. Both sit a
  * third of the free height from the top, and start on a multiple of 4 pixels.
  */
-fun legacyMapWindows(players: Int, worldWidth: Int, worldHeight: Int, windowSize: Int = 0): List<LegacyMapWindow> {
+fun legacyMapWindows(
+    players: Int,
+    worldWidth: Int,
+    worldHeight: Int,
+    windowSize: Int = 0,
+    /** Legacy pixels across the screen: 640, or more on Extended's wide screen. */
+    screenWidth: Int = SCREEN_WIDTH,
+): List<LegacyMapWindow> {
     // Legacy compute_window_size(): every step of `win_size` (0..5) takes 5% of the screen off.
-    val width = min((SCREEN_WIDTH - SCREEN_WIDTH * windowSize / 20) / players - 1, worldWidth)
+    val width = min((screenWidth - screenWidth * windowSize / 20) / players - 1, worldWidth)
     val height = min(SCREEN_HEIGHT - SCREEN_HEIGHT * windowSize / 20, worldHeight)
-    val first = if (players == 1) (SCREEN_WIDTH - width) / 2 else (SCREEN_WIDTH - 2 * width) / 3
+    val first = if (players == 1) (screenWidth - width) / 2 else (screenWidth - 2 * width) / 3
     val top = (SCREEN_HEIGHT - height) / 3
     return List(players) { index ->
         val left = if (index == 1) first + first + width + 1 else first

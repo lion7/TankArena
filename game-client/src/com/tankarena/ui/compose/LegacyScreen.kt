@@ -27,6 +27,9 @@ import kotlin.math.min
  * and the 320×200 mode 13h of the menus, prompts and text pages, which a VGA monitor shows at the
  * same 4:3 size, so its pixels are 1.2 times taller than wide.
  */
+/** Extended's wide screen stops at 2:1. */
+private const val MAX_WIDE_SCREEN_WIDTH = 1280
+
 enum class LegacyVideoMode(val width: Int, val height: Int) {
     GAME(640, 480),
     MODE13(320, 200),
@@ -36,6 +39,8 @@ enum class LegacyVideoMode(val width: Int, val height: Int) {
 class LegacyScreenScope internal constructor(
     boxScope: BoxScope,
     val mode: LegacyVideoMode,
+    /** Legacy pixels across: the mode's width, or more on a wide screen (Extended). */
+    val screenWidth: Int,
     /** Window pixels per legacy pixel, across and down. */
     val pixelWidth: Float,
     val pixelHeight: Float,
@@ -60,6 +65,10 @@ fun LegacyScreen(
     mode: LegacyVideoMode,
     modifier: Modifier = Modifier,
     brightness: Float = 1f,
+    /** Extended: fill the window at any scale instead of whole multiples. */
+    fill: Boolean = false,
+    /** Extended: as wide as the window's shape allows (more than 640 legacy pixels across). */
+    wide: Boolean = false,
     content: @Composable LegacyScreenScope.() -> Unit,
 ) {
     val density = LocalDensity.current.density
@@ -67,9 +76,22 @@ fun LegacyScreen(
         modifier = modifier.fillMaxSize().background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
-        val scale = legacyScreenScale(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
-        val width = SCREEN_WIDTH * scale
+        val availableWidth = constraints.maxWidth.toFloat()
+        val availableHeight = constraints.maxHeight.toFloat()
+        // On a wide window the screen grows across: 480 high, up to 1280 wide, on a multiple of 4.
+        val virtualWidth = if (wide && availableHeight > 0f) {
+            ((SCREEN_HEIGHT * availableWidth / availableHeight).toInt() and 3.inv()).coerceIn(SCREEN_WIDTH.toInt(), MAX_WIDE_SCREEN_WIDTH)
+        } else {
+            SCREEN_WIDTH.toInt()
+        }
+        val scale = if (fill || wide) {
+            min(availableWidth / virtualWidth, availableHeight / SCREEN_HEIGHT)
+        } else {
+            legacyScreenScale(availableWidth, availableHeight)
+        }
+        val width = virtualWidth * scale
         val height = SCREEN_HEIGHT * scale
+        val screenWidth = mode.width * virtualWidth / SCREEN_WIDTH.toInt()
         Box(
             modifier = Modifier
                 .size(Dp(width / density), Dp(height / density))
@@ -78,7 +100,8 @@ fun LegacyScreen(
             val scope = LegacyScreenScope(
                 boxScope = this,
                 mode = mode,
-                pixelWidth = width / mode.width,
+                screenWidth = screenWidth,
+                pixelWidth = width / screenWidth,
                 pixelHeight = height / mode.height,
                 density = density,
             )

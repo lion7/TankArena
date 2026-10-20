@@ -67,6 +67,9 @@ internal fun GameplayFrame(
     showRadar: Boolean = true,
     /** A message the shell shows to player one (legacy F11: "GAMMA CORRECTION"). */
     playerOneMessage: HudMessage? = null,
+    /** Extended: fill the window, and widen the screen on a wide window. */
+    fill: Boolean = false,
+    wide: Boolean = false,
 ) {
     val worldWidth = mission.sidecar.metadata.widthTiles * LEGACY_TILE_SIZE
     val worldHeight = mission.sidecar.metadata.heightTiles * LEGACY_TILE_SIZE
@@ -78,11 +81,11 @@ internal fun GameplayFrame(
                 view
             }
         }
-    val windows = legacyMapWindows(views.size.coerceAtLeast(1), worldWidth, worldHeight, windowSize)
     val night = mission.sidecar.metadata.night
 
-    LegacyScreen(mode = LegacyVideoMode.GAME, brightness = brightness) {
+    LegacyScreen(mode = LegacyVideoMode.GAME, brightness = brightness, fill = fill, wide = wide) {
         val screen = this
+        val windows = legacyMapWindows(views.size.coerceAtLeast(1), worldWidth, worldHeight, windowSize, screenWidth)
         // Legacy set_palette() with `nuke_total` brightens the whole screen, panel included.
         Box(modifier = Modifier.fillMaxSize().nukeFlash(serverFrame.world.flash)) {
             screen.PanelPattern()

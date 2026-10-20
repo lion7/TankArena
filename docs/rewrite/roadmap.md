@@ -138,7 +138,10 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
       Classic. Help: how to play, the keys.
 - [ ] Still in the original's look: the controls setup, the briefing and mission texts, the tank
       selection and the first-start choice.
-- [ ] Extended presentation: scalable view, wider field of view on widescreen, optional smooth camera.
+- [x] Extended presentation (each a setting, on by default): the picture fills the window; on a wide
+      window the screen grows to up to 1280 legacy pixels across, so the map windows show more of the
+      map; smooth motion draws vehicles, shots and the cameras between the 33 steps a second, one step
+      (30 ms) later, snapping on jumps.
 - [x] First Extended rule flags (`RuleFlags`, Extended rules v5): overlapping computer vehicles survive;
       one vehicle per player in player vs player.
 

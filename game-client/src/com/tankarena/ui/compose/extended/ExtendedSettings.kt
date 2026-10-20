@@ -24,6 +24,13 @@ fun ExtendedSettingsPage(
         ListEntry("Window size", "${100 - options.windowSize * 5}%") to {
             onChange(if (options.windowSize >= GameOptions.MAX_WINDOW_SIZE) options.copy(windowSize = 0) else options.smallerWindow())
         },
+        ListEntry("Smooth motion", if (options.smoothMotion) "on" else "off") to { onChange(options.copy(smoothMotion = !options.smoothMotion)) },
+        ListEntry("Picture", if (options.fillWindow) "fills the window" else "whole multiples, as in DOSBox") to {
+            onChange(options.copy(fillWindow = !options.fillWindow))
+        },
+        ListEntry("Wide view", if (options.wideView) "on: more of the map on a wide window" else "off: 4:3") to {
+            onChange(options.copy(wideView = !options.wideView))
+        },
         ListEntry("Gamma correction", options.gamma.toString()) to { onChange(options.nextGamma()) },
         ListEntry("Radar", if (options.showRadar) "on" else "off") to { onChange(options.copy(showRadar = !options.showRadar)) },
         ListEntry("Music", volumeText(options.musicVolume)) to { onChange(options.nextMusicVolume()) },

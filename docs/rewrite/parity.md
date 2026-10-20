@@ -67,9 +67,10 @@ Decided differences from the original. They are not parity bugs.
 Kept because the original does the same ([ADR 0010](adrs/0010-port-the-original-rules.md)):
 
 - In player vs player every start pad of a player's vehicle kind spawns a tank and all of them obey
-  that player's keys; F1–F10 is disabled in that mode (`src/game/controls.c:220`).
-- Computer tanks stacked on each other at start destroy each other (FOREST, NIRVANA, NUKEBOMB, Q2,
-  RACE_10, SUBURBS).
+  that player's keys; F1–F10 is disabled in that mode (`src/game/controls.c:220`). No shipped map has
+  two such pads for a player. Extended gives each player one vehicle.
+- Computer tanks stacked on each other at start destroy each other (of the shipped maps, SUBURBS).
+  In Extended they survive.
 - Water never kills tanks; it slows them and hides the hull.
 - BASE1's wagons have no engine and never move.
 - Turrets cannot be shot; they fall with the building under them, and turrets placed off buildings

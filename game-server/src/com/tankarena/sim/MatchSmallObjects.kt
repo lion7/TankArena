@@ -399,6 +399,7 @@ internal fun Match.checkVehicleOverlaps() {
             if (dx * dx + dy * dy >= reach * reach) continue
             // The original tests the first vehicle's armor for both of them.
             if (a.armor <= 0) continue
+            if (ruleset.flags.stackedComputerVehiclesSurvive && a.computer && b.computer) continue
             if (a.invulnerableTicks <= 0) a.queueDestroy()
             if (b.invulnerableTicks <= 0) b.queueDestroy()
         }

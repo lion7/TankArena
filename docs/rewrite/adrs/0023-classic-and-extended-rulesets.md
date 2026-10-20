@@ -41,7 +41,8 @@ One game core with a **ruleset** chosen at start: **Classic** or **Extended**.
   (controls per device, video, audio), help.
 - **Rule changes are flags** of the `Ruleset` object, each named and documented (for example
   "stacked computer tanks do not destroy each other", "wider view"), never ad-hoc `if`s. Classic has
-  every flag off.
+  every flag off. The first two (2026-10-20, Extended rules v5, `RuleFlags`): computer-driven vehicles
+  that overlap do not destroy each other, and in player vs player each player gets one vehicle.
 - **Versions per ruleset:** recordings store the ruleset; `GAME_RULES_VERSION` exists per ruleset, so
   an Extended-only change does not invalidate Classic recordings.
 

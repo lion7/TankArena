@@ -47,7 +47,12 @@ data class DualSetup(
  */
 internal object MatchSetup {
 
-    fun assignControl(actors: List<SceneObject<*>>, mode: MatchMode, dual: DualSetup = DualSetup()): List<SceneObject<*>> {
+    fun assignControl(
+        actors: List<SceneObject<*>>,
+        mode: MatchMode,
+        dual: DualSetup = DualSetup(),
+        flags: RuleFlags = RuleFlags(),
+    ): List<SceneObject<*>> {
         val tanks = actors.filterIsInstance<Tank>()
         val humanIds = tanks
             .filter { it.startPadType < 0 && !it.computer && it.controllerId >= 0 && it.playerIndex < 0 }
@@ -77,6 +82,10 @@ internal object MatchSetup {
                 ?.let { padKindForPlayer[player] = it }
         }
 
+        // Extended: one vehicle per player, at the first of their pads that spawns one.
+        val playersWithVehicle = mutableSetOf<Int>()
+        fun firstForPlayer(player: Int, tank: Tank?): Tank? =
+            if (tank == null || !flags.oneVehiclePerPlayer || playersWithVehicle.add(player)) tank else null
         return actors.mapNotNull { actor ->
             if (actor !is Tank) return@mapNotNull actor
             if (actor.startPadType >= 0) {
@@ -85,9 +94,9 @@ internal object MatchSetup {
                 if (mode == MatchMode.DUAL) {
                     // Legacy prepare_player(): race pads always race; the others only spawn when
                     // they are for the kind of vehicle the player picked.
-                    if (kind == DualSetup.PAD_RACE) return@mapNotNull actor.asVehicle(DualSetup.RACE_TANK)
+                    if (kind == DualSetup.PAD_RACE) return@mapNotNull firstForPlayer(player, actor.asVehicle(DualSetup.RACE_TANK))
                     val chosen = dual.tankTypes.getOrElse(player) { 0 }
-                    return@mapNotNull actor.asVehicle(chosen).takeIf { padKind(chosen) == kind }
+                    return@mapNotNull firstForPlayer(player, actor.asVehicle(chosen).takeIf { padKind(chosen) == kind })
                 }
                 return@mapNotNull actor.takeIf { padKindForPlayer[player] == kind }
             }

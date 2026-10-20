@@ -167,6 +167,13 @@ class DualRulesTest {
         assertEquals(10, events.count { it is GameEvent.Effect && it.kind == com.tankarena.protocol.snapshot.EffectKind.EXPLOSION })
     }
 
+    @Test
+    fun `every pad of a player's vehicle kind spawns one in Classic, only the first in Extended`() {
+        val pads = listOf(pad(0, tileX = 2), pad(0, tileX = 4), pad(1, tileX = 12))
+        assertEquals(2, start(pads = pads).tanksForTest().count { it.playerIndex == 0 })
+        assertEquals(1, start(pads = pads, ruleset = Ruleset.EXTENDED).tanksForTest().count { it.playerIndex == 0 })
+    }
+
     private fun pictureOfType(world: TankArenaWorld, type: String): Int? =
         (0 until 400).firstOrNull { PictureCatalog.legacyRow(world, it)?.type == type }
 
@@ -193,6 +200,7 @@ class DualRulesTest {
         dual: DualSetup = DualSetup(),
         base: Map<Int, Int> = emptyMap(),
         world: TankArenaWorld = TankArenaWorld.DESERT,
+        ruleset: Ruleset = Ruleset.CLASSIC,
     ): Match {
         val width = 16
         val height = 6
@@ -211,7 +219,7 @@ class DualRulesTest {
             missionText = MissionText(),
             objects = pads + flags,
         )
-        val match = Match.fromCanonicalMap(map, MatchMode.DUAL, dual = dual)
+        val match = Match.fromCanonicalMap(map, MatchMode.DUAL, dual = dual, ruleset = ruleset)
         match.initialize()
         return match
     }

@@ -640,10 +640,11 @@ class Match private constructor(
             startShields: Boolean = false,
             dual: DualSetup = DualSetup(),
             cheats: Cheats = Cheats(),
+            ruleset: Ruleset = Ruleset.CLASSIC,
         ): Match {
             // Round-trip through scene JSON so fixtures exercise the same load path as shipped scenes.
             val sceneJson = CanonicalSceneBuilder.buildSceneJson(map)
-            return create(map.metadata, map.layers, SceneFile.read(sceneJson), mode, startShields, dual, cheats = cheats)
+            return create(map.metadata, map.layers, SceneFile.read(sceneJson), mode, startShields, dual, ruleset = ruleset, cheats = cheats)
         }
 
         /** A match on [map] (a shipped or imported map in the native format, ADR 0022), with fresh objects. */
@@ -670,7 +671,7 @@ class Match private constructor(
         ): Match {
             val instance = Match(
                 mapMetadata = metadata,
-                initialActors = MatchSetup.assignControl(actors, mode, dual),
+                initialActors = MatchSetup.assignControl(actors, mode, dual, ruleset.flags),
                 terrainGrid = TerrainGridBuilder.build(layers, metadata),
                 structures = StructureGrid(metadata.widthTiles, metadata.heightTiles, metadata.world, layers),
                 mode = mode,

@@ -139,8 +139,8 @@ Goal: choose Classic or Extended; Extended has its own clearer menu.
 - [ ] Still in the original's look: the controls setup, the briefing and mission texts, the tank
       selection and the first-start choice.
 - [ ] Extended presentation: scalable view, wider field of view on widescreen, optional smooth camera.
-- [ ] First Extended rule flags, each documented — to be chosen (for example: stacked computer tanks do
-      not destroy each other).
+- [x] First Extended rule flags (`RuleFlags`, Extended rules v5): overlapping computer vehicles survive;
+      one vehicle per player in player vs player.
 
 Depends on: phase 1 (renderer for the replay viewer).
 

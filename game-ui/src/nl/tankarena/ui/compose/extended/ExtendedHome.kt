@@ -27,7 +27,7 @@ fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifi
     val entries = listOf(
         ListEntry("Campaign", "missions one after another") to actions.campaign,
         ListEntry("Local game", "two players, together or against each other") to actions.localGame,
-        ListEntry("Network game", "coming later", enabled = actions.networkGame != null) to (actions.networkGame ?: {}),
+        ListEntry("Network game", "players on other machines", enabled = actions.networkGame != null) to (actions.networkGame ?: {}),
         ListEntry("Replays", "watch your recorded games") to actions.replays,
         ListEntry("Map editor", "", enabled = actions.mapEditor != null) to (actions.mapEditor ?: {}),
         ListEntry("Settings", "controls, video, sound, match rules") to actions.settings,

@@ -189,8 +189,12 @@ internal class DesktopControls {
         return handled
     }
 
+    /**
+     * The controls of this machine's player [playerId] (its keys, pad, touch screen) as the input of
+     * the match's player [seat]: in a network game the two differ (ADR 0024).
+     */
     @Synchronized
-    fun toInputFrame(playerId: Int, inputSequence: Long, frame: ServerFrame? = null): InputFrame {
+    fun toInputFrame(playerId: Int, inputSequence: Long, frame: ServerFrame? = null, seat: Int = playerId): InputFrame {
         val p = players[playerId]
         val selectTankId = p.selectTankId
         p.selectTankId = 0
@@ -200,7 +204,7 @@ internal class DesktopControls {
         // A touch screen's controller is player one's.
         if (playerId == 0) touch?.state()?.let { state = state.and(it) }
         return ControlMapping.frame(
-            state, playerId, inputSequence, controls?.mode ?: ControlMode.RELATIVE, heading(playerId, frame),
+            state, seat, inputSequence, controls?.mode ?: ControlMode.RELATIVE, heading(seat, frame),
             sensitivity = controls?.sensitivity ?: ControlMapping.DEFAULT_SENSITIVITY,
             selectTankId = selectTankId,
         )

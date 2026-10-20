@@ -1,5 +1,23 @@
 package nl.tankarena.app
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
+import nl.tankarena.sim.DualVehicles
+import nl.tankarena.input.Seat
+import nl.tankarena.ui.compose.extended.NetworkLobbyScreen
+import nl.tankarena.ui.compose.extended.NetworkAddressScreen
+import nl.tankarena.ui.compose.extended.NetworkHostScreen
+import nl.tankarena.ui.compose.extended.NetworkMenuScreen
+import nl.tankarena.net.parseAddress
+import nl.tankarena.net.localAddresses
+import nl.tankarena.net.DEFAULT_PORT
+import nl.tankarena.net.GameServer
+import nl.tankarena.net.GameClient
+import nl.tankarena.net.ClientState
+import nl.tankarena.net.RemoteMatchClient
+import nl.tankarena.net.HostedMatch
+import nl.tankarena.sim.MatchClient
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -114,6 +132,11 @@ fun TankArenaApp(
     var missions by remember { mutableStateOf<List<MissionEntry>?>(null) }
     // Extended: the screen a game was started from, shown again when it ends.
     var extendedReturn by remember { mutableStateOf<DesktopShellScreen?>(null) }
+    // Joining a network game: the address typed last, a connection being made, why the last one failed.
+    var netAddress by remember { mutableStateOf("") }
+    var netConnecting by remember { mutableStateOf(false) }
+    var netError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     // Legacy TANK.CFG: the game options, saved whenever they change.
     val settings = remember {
         GameSettings(GameOptionsStore()).also { settings ->
@@ -171,6 +194,11 @@ fun TankArenaApp(
     fun joinFirst(next: DesktopShellScreen): DesktopShellScreen =
         if (platform.gamepads().isEmpty()) next else DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS)
 
+    /** One player at a network machine: the single player's keys, and the first gamepad if there is one. */
+    fun useNetworkSeat() {
+        controls.seats = listOf(Seat(keys = 1, pad = 0.takeIf { platform.gamepads().isNotEmpty() }))
+    }
+
     /** Players this session: who joined (Extended, ADR 0027), else as many as the mode has. */
     fun sessionPlayers(mode: GameMode): Int {
         val default = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) 1 else 2
@@ -183,7 +211,7 @@ fun TankArenaApp(
     Box(modifier = Modifier.fillMaxSize()) {
         // Outside a game the gamepads work the menus as the keyboard does (ADR 0026).
         // The join screen and the tank selection read the pads themselves.
-        val inGame = screen is DesktopShellScreen.Playing || screen is DesktopShellScreen.PlayTest ||
+        val inGame = screen is DesktopShellScreen.Playing || screen is DesktopShellScreen.PlayTest || screen is DesktopShellScreen.NetworkPlaying ||
             screen is DesktopShellScreen.TankSelect || screen is DesktopShellScreen.Join
         LaunchedEffect(inGame) {
             val post = platform.postKey
@@ -253,6 +281,7 @@ fun TankArenaApp(
                                 help = { screen = DesktopShellScreen.ExtendedHelp },
                                 quit = platform::quit,
                                 classic = { settings.update(options.copy(ruleset = Ruleset.CLASSIC)) },
+                                networkGame = { screen = DesktopShellScreen.NetworkMenu },
                             ),
                         )
                     }
@@ -290,6 +319,122 @@ fun TankArenaApp(
                                     screen = DesktopShellScreen.MainMenu
                                 },
                             )
+                        }
+                    }
+
+                    DesktopShellScreen.NetworkMenu -> NetworkMenuScreen(
+                        onHost = { screen = DesktopShellScreen.NetworkHost },
+                        onJoin = {
+                            netError = null
+                            screen = DesktopShellScreen.NetworkAddress
+                        },
+                        onBack = { screen = DesktopShellScreen.MainMenu },
+                    )
+
+                    DesktopShellScreen.NetworkHost -> {
+                        LaunchedEffect(Unit) {
+                            if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
+                        }
+                        missions?.let { all ->
+                            NetworkHostScreen(
+                                missions = all,
+                                onPick = { mission, mode ->
+                                    useNetworkSeat()
+                                    val server = GameServer(platform.deviceName, NET_LOCAL_PLAYERS, Ruleset.EXTENDED.rulesVersion)
+                                    screen = runCatching { server.start() }.fold(
+                                        onSuccess = { port ->
+                                            DesktopShellScreen.NetworkLobby(NetworkSession.Hosting(server, port, mission, mode, NET_LOCAL_PLAYERS))
+                                        },
+                                        onFailure = { DesktopShellScreen.Message("CANNOT HOST: ${it.message.orEmpty().uppercase()}", DesktopShellScreen.NetworkMenu) },
+                                    )
+                                },
+                                onBack = { screen = DesktopShellScreen.NetworkMenu },
+                            )
+                        }
+                    }
+
+                    DesktopShellScreen.NetworkAddress -> NetworkAddressScreen(
+                        lastAddress = netAddress,
+                        connecting = netConnecting,
+                        error = netError,
+                        onConnect = { typed ->
+                            netAddress = typed
+                            netConnecting = true
+                            netError = null
+                            val (address, port) = parseAddress(typed)
+                            val client = GameClient(platform.deviceName, NET_LOCAL_PLAYERS, Ruleset.EXTENDED.rulesVersion)
+                            scope.launch {
+                                val joined = client.join(address, port)
+                                netConnecting = false
+                                if (joined) {
+                                    useNetworkSeat()
+                                    screen = DesktopShellScreen.NetworkLobby(NetworkSession.Joined(client, typed, NET_LOCAL_PLAYERS))
+                                } else {
+                                    netError = (client.state.value as? ClientState.Out)?.reason ?: "Could not join."
+                                    client.close()
+                                }
+                            }
+                        },
+                        onBack = { screen = DesktopShellScreen.NetworkMenu },
+                    )
+
+                    is DesktopShellScreen.NetworkLobby -> when (val session = current.session) {
+                        is NetworkSession.Hosting -> {
+                            val members by session.server.members.collectAsState()
+                            val addresses = remember { localAddresses() }
+                            NetworkLobbyScreen(
+                                title = session.mission.baseName.uppercase(),
+                                members = members,
+                                hosting = true,
+                                addresses = addresses.map { if (session.port == DEFAULT_PORT) it else "$it:${session.port}" },
+                                minPlayers = 2,
+                                teams = session.mode == GameMode.PLAYER_VS_PLAYER,
+                                onStart = {
+                                    val mission = session.mission
+                                    // No vehicle choice over the network yet: everyone gets the map's first.
+                                    val dual = if (session.mode == GameMode.PLAYER_VS_PLAYER) {
+                                        DualVehicles.defaultSetup(mission.sidecar.metadata.mapContents, options.raceLaps)
+                                    } else {
+                                        DualSetup()
+                                    }
+                                    val hosted = session.server.startMatch(
+                                        mission.baseName, mission.document, session.mode.toMatchMode(), dual, Ruleset.EXTENDED, recordAs = mission.baseName,
+                                    )
+                                    screen = DesktopShellScreen.NetworkPlaying(session, hosted, mission, session.mode, (0 until session.localPlayers).toList())
+                                },
+                                onBack = {
+                                    session.close()
+                                    screen = DesktopShellScreen.NetworkMenu
+                                },
+                            )
+                        }
+                        is NetworkSession.Joined -> {
+                            val state by session.client.state.collectAsState()
+                            when (val now = state) {
+                                is ClientState.InLobby -> NetworkLobbyScreen(
+                                    title = "Joined ${now.hostName}",
+                                    members = now.members,
+                                    hosting = false,
+                                    addresses = emptyList(),
+                                    minPlayers = 2,
+                                    teams = false,
+                                    onStart = {},
+                                    onBack = {
+                                        session.close()
+                                        screen = DesktopShellScreen.NetworkMenu
+                                    },
+                                )
+                                is ClientState.Playing -> LaunchedEffect(now) {
+                                    val match = now.match
+                                    screen = DesktopShellScreen.NetworkPlaying(
+                                        session, match, MissionEntry.of(match.baseName, match.map), match.mode.toGameMode(), match.seats,
+                                    )
+                                }
+                                is ClientState.Out -> LaunchedEffect(now) {
+                                    screen = DesktopShellScreen.Message(now.reason.uppercase(), DesktopShellScreen.NetworkMenu)
+                                }
+                                ClientState.Connecting -> Unit
+                            }
                         }
                     }
 
@@ -543,6 +688,32 @@ fun TankArenaApp(
                         },
                     )
 
+                    is DesktopShellScreen.NetworkPlaying -> GameplayScreen(
+                        mission = current.mission,
+                        mode = current.mode,
+                        controls = controls,
+                        players = current.seats.size,
+                        network = current.match,
+                        seats = current.seats,
+                        soundVolume = options.soundVolume,
+                        windowSize = options.windowSize,
+                        showRadar = options.showRadar,
+                        smoothMotion = options.smoothMotion,
+                        fill = options.fillWindow,
+                        wide = options.wideView,
+                        ruleset = Ruleset.EXTENDED,
+                        onMissionEnd = { outcome ->
+                            controls.resetAll()
+                            val lost = (current.match as? RemoteMatchClient)?.endedReason
+                            current.session.close()
+                            screen = if (outcome == null && lost != null) {
+                                DesktopShellScreen.Message(lost.uppercase(), DesktopShellScreen.NetworkMenu)
+                            } else {
+                                DesktopShellScreen.NetworkMenu
+                            }
+                        },
+                    )
+
                     // Not recorded: the map may never be saved, so a recording could not be replayed.
                     is DesktopShellScreen.PlayTest -> GameplayScreen(
                         mission = current.mission,
@@ -612,6 +783,15 @@ fun TankArenaApp(
     }
 }
 
+/** One player per machine in a network game for now; more need the join screen first. */
+private const val NET_LOCAL_PLAYERS = 1
+
+private fun MatchMode.toGameMode(): GameMode = when (this) {
+    MatchMode.SINGLE -> GameMode.SINGLE_PLAYER_VS_COMPUTER
+    MatchMode.DUAL -> GameMode.PLAYER_VS_PLAYER
+    MatchMode.DUAL_VS_COMPUTER -> GameMode.DUAL_PLAYER_VS_COMPUTER
+}
+
 private fun GameMode.toMatchMode(): MatchMode = when (this) {
     GameMode.SINGLE_PLAYER_VS_COMPUTER -> MatchMode.SINGLE
     GameMode.PLAYER_VS_PLAYER -> MatchMode.DUAL
@@ -640,16 +820,22 @@ private fun GameplayScreen(
     dual: DualSetup? = null,
     /** Local players: up to four as teams in Extended (ADR 0027). */
     players: Int = if (mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) 1 else 2,
+    /** A network game (ADR 0024): the match hosted here or shown from the host, instead of a local one. */
+    network: MatchClient? = null,
+    /** In a network game: this machine's players' ids in the match, in order. */
+    seats: List<Int>? = null,
     /**
      * Called once the screen has faded out; the outcome is null when the player left with ESC.
      * In player vs player WON means player 1 won the round, LOST player 2.
      */
     onMissionEnd: (MissionOutcome?) -> Unit,
 ) {
-    val host = remember(mission.baseName, mode, dual, players) {
-        controls.mode = mode
+    val host: MatchClient = remember(mission.baseName, mode, dual, players, network) {
+        // One player at a network machine plays with the single player's keys.
+        controls.mode = if (network != null && players == 1) GameMode.SINGLE_PLAYER_VS_COMPUTER else mode
         controls.exitRequested = false
-        LocalMatchClient.fromMap(
+        controls.paused = false
+        network ?: LocalMatchClient.fromMap(
             mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(),
             ruleset = ruleset, cheats = cheats, players = players,
         )
@@ -659,7 +845,7 @@ private fun GameplayScreen(
     SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
     val eventQueues = remember(host) { List(MAX_PLAYERS) { ViewportEventQueue() } }
-    val playerIds = (0 until players).toList()
+    val playerIds = seats ?: (0 until players).toList()
     // What the simulation thread last published, and what the screen shows.
     val published = remember(host) { AtomicReference(GameplayView(host.currentServerFrame())) }
     var view by remember(host) { mutableStateOf(published.get()) }
@@ -748,7 +934,7 @@ private data class GameplayView(
  * pressed; the game runs on during both.
  */
 private fun gameplayStep(
-    host: LocalMatchClient,
+    host: MatchClient,
     controls: DesktopControls,
     playerIds: List<Int>,
     eventQueues: List<ViewportEventQueue>,
@@ -762,10 +948,10 @@ private fun gameplayStep(
     var fadingOut = false
     val fadeTotal = (GAME_FADE_MILLIS / FixedStepClock.MILLIS_PER_TICK).coerceAtLeast(1)
     return step@{
-        // Legacy P: the game stands still (the timer does not count) until a key is pressed.
-        if (controls.paused) return@step true
-        for (playerId in playerIds) {
-            host.submitInput(controls.toInputFrame(playerId = playerId, inputSequence = inputSequence, frame = published.get().frame))
+        // Legacy P: the game stands still (the timer does not count) until a key is pressed; not in a network game.
+        if (controls.paused && host is LocalMatchClient) return@step true
+        for ((local, playerId) in playerIds.withIndex()) {
+            host.submitInput(controls.toInputFrame(playerId = local, inputSequence = inputSequence, frame = published.get().frame, seat = playerId))
         }
         inputSequence++
         val tickStart = System.nanoTime()
@@ -786,14 +972,16 @@ private fun gameplayStep(
         } else {
             bannerTicksLeft--
         }
-        if (!fadingOut && (bannerTicksLeft <= 0 || controls.exitRequested)) {
+        // A network game whose host left or whose connection broke ends like ESC.
+        val lost = (host as? RemoteMatchClient)?.endedReason != null && outcome == null
+        if (!fadingOut && (bannerTicksLeft <= 0 || controls.exitRequested || lost)) {
             fadingOut = true
             fadeTicks = fadeTotal - fadeTicks
         }
         fadeTicks = (fadeTicks + 1).coerceAtMost(fadeTotal)
         val brightness = if (fadingOut) 1f - fadeTicks.toFloat() / fadeTotal else fadeTicks.toFloat() / fadeTotal
         val ended = fadingOut && fadeTicks >= fadeTotal
-        if (ended) host.recorder?.let { RecordingStore.save(it.recording()) }
+        if (ended) ((host as? LocalMatchClient)?.recorder ?: (host as? HostedMatch)?.recorder)?.let { RecordingStore.save(it.recording()) }
         published.set(GameplayView(frame, outcome, brightness, ended))
         !ended
     }
@@ -812,7 +1000,7 @@ private fun handleGlobalKeys(
     settings: GameSettings,
     screenshot: () -> Unit,
 ): Boolean {
-    if (screen !is DesktopShellScreen.Playing && screen !is DesktopShellScreen.PlayTest) return false
+    if (screen !is DesktopShellScreen.Playing && screen !is DesktopShellScreen.PlayTest && screen !is DesktopShellScreen.NetworkPlaying) return false
     val down = event.type == KeyEventType.KeyDown
     if (controls.paused) {
         // Legacy wait_key(): any key goes on with the game, and is used up; held keys are let go.
@@ -827,7 +1015,8 @@ private fun handleGlobalKeys(
     when (event.key) {
         // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends.
         Key.Escape -> controls.exitRequested = true
-        Key.P -> {
+        // A network game does not stand still for one player.
+        Key.P -> if (screen !is DesktopShellScreen.NetworkPlaying) {
             controls.resetAll()
             controls.paused = true
         }

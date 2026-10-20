@@ -37,18 +37,22 @@ reasons are in the [ADRs](adrs/); the original game it reproduces is described i
 
 ## Modules
 
-Six modules (2026-10-20, the first step of [ADR 0025](adrs/0025-multiplatform-modules-and-android.md));
-all compile for the JVM only so far. Dependencies point one way:
-`game-protocol` ← `game-content` ← `game-sim` ← `game-ui` ← `app-desktop`; `tools-mapconv` uses
-`game-content` and `game-sim`. Packages are under `nl.tankarena`; artifacts are `nl.tankarena:<module>`.
+Nine modules (2026-10-20, [ADR 0025](adrs/0025-multiplatform-modules-and-android.md)); the libraries
+compile for the JVM and Android. Dependencies point one way:
+`game-protocol` ← `game-content` ← `game-sim` ← `game-net` ← `game-ui` ← `app-desktop` and
+`app-android`; `app-server` uses `game-net` without any Compose; `tools-mapconv` uses `game-content`
+and `game-sim`. Packages are under `nl.tankarena`; artifacts are `nl.tankarena:<module>`.
 
 | Module | Kind | Holds |
 |---|---|---|
 | `:game-protocol` | library | Wire and timing types, deterministic maths; no Compose |
 | `:game-content` | library | Shipped maps, generated tables, pixel masks, sounds, music, `.MAP` parser |
 | `:game-sim` | library | The authoritative simulation, the native map format, `.MAP` import and export, the editor's rules |
-| `:game-ui` | library (Compose) | Renderer, HUD, both menus, editor and replay screens' parts, input layer, sound mixer, pictures |
-| `:app-desktop` | desktop app | Window and screen state machine, desktop audio and MIDI, gamepads (Jamepad), storage, editor and replay screens |
+| `:game-net` | library | Network games ([ADR 0024](adrs/0024-networking.md)): messages, the match server with its lobby, the remote match client |
+| `:game-ui` | library (Compose) | The whole game: screen state machine, renderer, HUD, both menus, editor and replay screens, input layer, sound mixer, pictures |
+| `:app-desktop` | desktop app | Window, desktop audio and MIDI, gamepads (Jamepad), screenshots |
+| `:app-android` | Android app | Activity, Android audio and MIDI, gamepads, touch screen, app storage |
+| `:app-server` | command line | The dedicated server: hosts network games without a screen |
 | `:tools-mapconv` | command line | Map conversion and asset extraction (the extractors live here) |
 
 ### `:game-protocol`
@@ -98,6 +102,17 @@ All under `nl.tankarena.sim`.
 | `SceneObjects` | `SceneObject`/`Steppable`/`Resolvable`, bodies, `SceneFile` (each object's state by type id), `MatchObjectList` |
 | `map/` | `MapDocument`/`MapFile` (the `.tamap` format), `MapConversion` (document ↔ layers and objects), `ShippedMaps` (loader), `LegacyMapImport` (`.MAP` → document) |
 | `CanonicalSceneBuilder`, `legacy/*` | The importer's object mapping (tools, tests and fixtures) |
+
+### `:game-net`
+
+- `NetMessages.kt`: `ClientMessage` (hello, inputs, leave) and `ServerMessage` (welcome, refused,
+  lobby, match start with the map's `.tamap` text, frame, ended), sent as CBOR by `NetCodec`.
+- `GameServer`: Ktor CIO WebSockets on port 47300; admits machines after comparing versions, gives
+  their players the next free ids, keeps the lobby, and starts a `HostedMatch`.
+- `HostedMatch`: a `LocalMatchClient` plus the joined players' latest controls; sends one frame per
+  step (33 a second) with the events since the last one and only that machine's views.
+- `GameClient` (connection and lobby) and `RemoteMatchClient`: a `MatchClient` that sends its players'
+  controls once a step and plays the frames back about 100 ms behind.
 
 ### `:game-ui`
 

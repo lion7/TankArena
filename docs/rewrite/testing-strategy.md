@@ -89,6 +89,7 @@ only those that change, and relabel the rest. Recordings were the main safety ne
 | `IDLE_SCAN=<ticks>` | `IdleScanTest` | How every single-player map ends with nobody playing (catches maps that win or lose by themselves) |
 | `TICK_BENCH=1` (`TICK_BENCH_MAPS`, `TICK_BENCH_TICKS`) | `TickBenchmarkTest` | Per-map tick timings incl. p99, with the player driving and firing |
 | `ALLOC_BENCH=1` | `AllocationBenchmarkTest` (`:game-ui`) | Bytes allocated per tick and per frame at 2400×1080 ([performance](performance.md)) |
+| `FRAME_PROBE=1` | `FrameSizeProbeTest` (`:game-net`) | Bytes per network frame for every shipped map |
 | `DUMP_DIR=<dir>` | `ScreenDumpTest`, parts of `FliAnimationTest`, `NightHudTest` | Offscreen renders as PNG |
 | `UPDATE_REFERENCE_RENDERS=1` | `ReferenceRenderTest` | Rewrites the reference renders |
 

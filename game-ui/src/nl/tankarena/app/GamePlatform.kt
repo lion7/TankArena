@@ -30,6 +30,9 @@ interface GamePlatform {
     /** A touch screen: the game shows its virtual controller and takes taps (Android). */
     val touchScreen: Boolean get() = false
 
+    /** This machine's name for the others in a network game. */
+    val deviceName: String get() = System.getProperty("user.name")?.takeIf { it.isNotBlank() } ?: "Player"
+
     /** Leaves the game. */
     fun quit()
 

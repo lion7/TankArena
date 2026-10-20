@@ -223,7 +223,18 @@ Depends on: phases 1 and 6 (the move is mechanical once the core is platform-fre
 
 1. LAN: listen server from the menu, join by LAN list, tick-stamped inputs, delta snapshots near each
    player's views, client interpolation; 2–4 players in two teams.
-2. Dedicated headless `app-server`.
+   - [x] `game-net`: CBOR messages over Ktor WebSockets, `GameServer` with lobby and seats,
+     `HostedMatch` (one frame per step with the step's events and the machine's own views),
+     `GameClient` and `RemoteMatchClient` (controls latched per step, playback 100 ms behind).
+   - [x] Extended's "Network game": host (a mission together or a map against each other), join by
+     address, lobby, the game itself; one player per machine; tried with the emulator joining a
+     server on this machine.
+   - [ ] Join by LAN list (UDP broadcast).
+   - [ ] Smaller frames: deltas and only what is near the machine's views (median 4 KB, SUBURBS
+     35 KB per frame now; fine on a LAN, too much for the internet).
+   - [ ] More players per machine (the join screen first), the vehicle choice over the network,
+     several rounds, a result screen.
+2. [x] Dedicated headless `app-server` (`--map`, `--mode`, `--players`, `--port`, `--repeat`).
 3. Internet: join by address, then a small relay/lobby server; own-vehicle prediction only if needed.
 
 Depends on: phases 5 and 6; Android-to-desktop play after phase 7.

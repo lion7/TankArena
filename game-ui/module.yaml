@@ -11,6 +11,7 @@ dependencies:
   - ../game-content: exported
   - ../game-protocol: exported
   - ../game-sim: exported
+  - ../game-net: exported
   - $compose.foundation: exported
   - $compose.material3: exported
   - $compose.components.resources: exported

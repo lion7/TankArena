@@ -31,6 +31,8 @@ class AndroidPlatform(private val activity: Activity) : GamePlatform {
     /** Android turns pad buttons into keys itself (see MainActivity). */
     override val postKey: ((Key) -> Unit)? = null
 
+    override val deviceName: String = android.os.Build.MODEL ?: "Android"
+
     override val touchScreen: Boolean = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
 
     override fun quit() = activity.finishAndRemoveTask()

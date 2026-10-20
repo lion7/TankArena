@@ -1,6 +1,7 @@
 modules:
   - app-android
   - app-desktop
+  - app-server
   - game-content
   - game-net
   - game-protocol

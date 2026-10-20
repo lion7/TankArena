@@ -39,11 +39,11 @@ import nl.tankarena.protocol.snapshot.ServerFrame
 import nl.tankarena.protocol.snapshot.TankState
 import nl.tankarena.render.LegacySpriteCatalog
 import nl.tankarena.render.TankArenaViewport
+import nl.tankarena.sim.DualVehicles
 import nl.tankarena.sim.LegacyVehicles
 import nl.tankarena.sim.LocalMatchClient
 import nl.tankarena.sim.SimulationLoop
 import nl.tankarena.sim.MatchMode
-import nl.tankarena.sim.VehicleKind
 import nl.tankarena.ui.compose.DualMatch
 import nl.tankarena.ui.compose.GAME_FADE_MILLIS
 import nl.tankarena.ui.compose.LegacyScreenScope
@@ -57,42 +57,18 @@ import org.jetbrains.compose.resources.imageResource
 enum class SelectionKey { UP, DOWN, LEFT, RIGHT, FIRE }
 
 /** Legacy select_tanks(): the eight vehicles players can pick, four across and two down. */
-private const val CHOICES = 8
+private const val CHOICES = DualVehicles.CHOICES
 private const val WINDOW = 60
-
-/** Legacy `MAPC_*` (src/include/define.h). */
-private const val MAPC_TANK = 1
-private const val MAPC_CHOP = 2
-private const val MAPC_PLANE = 4
-private const val MAPC_RACE = 8
 
 /** Legacy select_tanks() border colours: player 1, player 2, both. */
 private const val BORDER_P1 = 143
 private const val BORDER_P2 = 127
 private const val BORDER_BOTH = 64
 
-/**
- * Legacy select_tanks(): which of the eight vehicles a map allows. [losersTank] is the game
- * option (legacy `lose`): the losers tank is there for a player 1 or 3 rounds behind.
- */
-internal fun allowedTanks(mapContents: Int, wins: List<Int>, losersTank: Int = 0): List<Boolean> = List(CHOICES) { tank ->
-    when (tank) {
-        in 0..5 -> when (LegacyVehicles.spec(tank).kind) {
-            VehicleKind.TANK -> mapContents and MAPC_TANK != 0
-            VehicleKind.CHOPPER -> mapContents and MAPC_CHOP != 0
-            VehicleKind.PLANE -> mapContents and MAPC_PLANE != 0
-            else -> false
-        }
-        6 -> mapContents and MAPC_RACE != 0
-        // The losers tank: only with the option on and one player far enough behind.
-        else -> mapContents and MAPC_TANK != 0 && losersTank > 0 && kotlin.math.abs(wins[0] - wins[1]) >= losersTank * 2 - 1
-    }
-}
+internal fun allowedTanks(mapContents: Int, wins: List<Int>, losersTank: Int = 0): List<Boolean> =
+    DualVehicles.allowed(mapContents, wins, losersTank)
 
-/** Legacy select_tanks(): a vehicle the map does not allow is swapped for the first one it does. */
-internal fun autoSelect(chosen: List<Int>, allowed: List<Boolean>): List<Int> = chosen.map { tank ->
-    if (tank in 0 until CHOICES && allowed[tank]) tank else (0 until 7).firstOrNull { allowed[it] } ?: tank
-}
+internal fun autoSelect(chosen: List<Int>, allowed: List<Boolean>): List<Int> = DualVehicles.autoSelect(chosen, allowed)
 
 /**
  * Legacy select_tanks() (src/game/seltank.c), before every player-vs-player round: the SELECT

@@ -116,6 +116,27 @@ sealed interface DesktopShellScreen {
     data class Campaign(val mode: GameMode) : DesktopShellScreen
 
     /** Extended: settings and help submenus. */
+    /** Extended's network game (ADR 0024): host one or join one. */
+    data object NetworkMenu : DesktopShellScreen
+
+    /** Picking the map to host. */
+    data object NetworkHost : DesktopShellScreen
+
+    /** Typing the address of a game to join. */
+    data object NetworkAddress : DesktopShellScreen
+
+    /** Waiting for the players (host) or for the host to start (guest). */
+    data class NetworkLobby(val session: nl.tankarena.app.NetworkSession) : DesktopShellScreen
+
+    /** A network game being played: [match] is hosted here or shown from the host; [seats] are this machine's players. */
+    data class NetworkPlaying(
+        val session: nl.tankarena.app.NetworkSession,
+        val match: nl.tankarena.sim.MatchClient,
+        val mission: MissionEntry,
+        val mode: GameMode,
+        val seats: List<Int>,
+    ) : DesktopShellScreen
+
     data object ExtendedSettings : DesktopShellScreen
     data object ExtendedHelp : DesktopShellScreen
 

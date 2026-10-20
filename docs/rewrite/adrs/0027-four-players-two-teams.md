@@ -5,8 +5,9 @@
   pad of their side, team mates sharing a pad start on the nearest free tile
   (`Match.spreadPlayers`); against the computer players without a map tank of their own drive a copy
   of a team mate's; 2 × 2 split screen; the arrow points at the nearest player of the other side;
-  a side is out of lives when all its players are; recordings keep the number of players. Extra pads
-  per team in map files are not built yet. Extended ruleset only.
+  a side is out of lives when all its players are; recordings keep the number of players; start pads
+  for players 3 and 4 (`padPlayer`, made in the editor) come first for them, and Classic and the
+  `.MAP` export leave them out. Extended ruleset only.
 
 ## Context
 
@@ -25,7 +26,7 @@ and new maps.
   on the good side.
 - Each player has their own view (2 × 2 split screen locally), HUD and controls; the opponent arrow
   points at the nearest opposing player.
-- Map files may add extra pads per team in the `extended` section ([ADR 0022](0022-native-map-format.md));
+- Map files may add start pads for players 3 and 4 (a pad's `padPlayer`, [ADR 0022](0022-native-map-format.md));
   without them, team members share their team's pads.
 
 ## Consequences

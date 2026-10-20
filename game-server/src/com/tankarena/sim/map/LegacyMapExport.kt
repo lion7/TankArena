@@ -42,12 +42,16 @@ object LegacyMapExport {
         return unpatched.bytes(patch)
     }
 
-    /** The parts of a `.MAP`: header, layers and texts, and one record per object. */
-    class Parts(val head: ByteArray, val records: List<ByteArray>) {
+    /**
+     * The parts of a `.MAP`: header, layers and texts, and one record per object, by the object's
+     * place in the map (null for what the original cannot hold: the zeppelin, pads for players 3 and 4).
+     */
+    class Parts(val head: ByteArray, val records: List<ByteArray?>) {
         fun bytes(patch: LegacyPatch? = null): ByteArray {
             val out = ByteArrayOutputStream()
             out.write(patch?.head?.let { applyRuns(head, it) } ?: head)
             for ((index, record) in records.withIndex()) {
+                record ?: continue
                 out.write(patch?.objects?.get(index.toString())?.let { applyRuns(record, it) } ?: record)
             }
             return out.toByteArray()
@@ -105,12 +109,22 @@ object LegacyMapExport {
     fun bareRecord(state: MapObject): ByteArray? = record(state, 0) { 0 }
 
     /** One record per object, pointers made of saved addresses (`ref`) or new ones. */
-    internal fun records(states: List<MapObject>): List<ByteArray> {
-        val addresses = states.mapIndexed { i, state -> MapObjects.ref(state).takeIf { it != 0 } ?: (FIRST_ADDRESS + i * OBJECT_SIZE) }
+    internal fun records(states: List<MapObject>): List<ByteArray?> {
+        // New addresses count only the objects written, so they are what an import of the file gives.
+        var written = 0
+        val addresses = states.map { state ->
+            val place = written
+            if (writable(state)) written++
+            MapObjects.ref(state).takeIf { it != 0 } ?: (FIRST_ADDRESS + place * OBJECT_SIZE)
+        }
         fun turretOf(train: Train.State): Int =
             states.indexOfFirst { it is Turret.State && it.ownerRef != 0 && it.ownerRef == train.ref }.let { if (it < 0) 0 else addresses[it] }
-        return states.mapIndexedNotNull { i, state -> record(state, addresses[i], ::turretOf) }
+        return states.mapIndexed { i, state -> record(state, addresses[i], ::turretOf) }
     }
+
+    /** What the original can hold: not the zeppelin, nor Extended's pads for players 3 and 4. */
+    private fun writable(state: MapObject): Boolean =
+        state !is com.tankarena.sim.Zeppelin.State && !(state is Tank.State && state.padPlayer >= 2)
 
     private fun record(state: MapObject, address: Int, turretOf: (Train.State) -> Int): ByteArray? {
         val r = ByteArray(OBJECT_SIZE)
@@ -131,7 +145,10 @@ object LegacyMapExport {
             w.float(80, h.toFloat())
         }
         when (state) {
-            is Tank.State -> if (state.startPadType >= 0) {
+            // Extended's pads for players 3 and 4 have no place in the original.
+            is Tank.State -> if (state.padPlayer >= 2) {
+                return null
+            } else if (state.startPadType >= 0) {
                 // Legacy make_player().
                 val type = state.startPadType
                 objectHeader(10, cx - 16, cy - 16, if (type == 2 || type == 3) 7 else 1, 0, state.goalContribution)

@@ -129,6 +129,13 @@ object MapObjects {
         for (i in 8 until 22) add(Template("Computer vehicle", LegacyVehicles.spec(i).name.lowercase().replaceFirstChar { it.uppercase() }) { x, y, objects -> vehicle(i, x, y, player = false, objects) })
         add(Template("Player vehicle", "Shopping car") { x, y, objects -> vehicle(22, x, y, player = true, objects) })
         for ((i, name) in PAD_NAMES.withIndex()) add(Template("Two players: start", name) { x, y, _ -> build(ObjectKinds.PLAYER_START, x, y, "startType" to "$i") })
+        // Extended (ADR 0027): pads of players 3 and 4, on their side (3 with player 1, 4 with 2).
+        for (player in 2..3) for (kind in 0..3) {
+            val name = listOf("Tank", "Chopper", "Plane", "Race")[kind] + " P${player + 1}"
+            add(Template("Teams (Extended): start", name) { x, y, _ ->
+                (build(ObjectKinds.PLAYER_START, x, y, "startType" to "${kind * 2 + (player and 1)}") as? Tank.State)?.copy(padPlayer = player)
+            })
+        }
         for (i in 0..1) add(Template("Two players: start", "Flag P${i + 1}") { x, y, objects ->
             build(ObjectKinds.FLAG, x, y, "flagType" to "$i", "number" to "${objects.count { it is Flag.State && it.flagType == i }}")
         })
@@ -351,6 +358,7 @@ object MapObjects {
     /** What the object is, for lists and the status line. */
     fun describe(state: MapObject): String = when (state) {
         is Tank.State -> when {
+            state.padPlayer >= 2 -> "Start pad: ${listOf("Tank", "Chopper", "Plane", "Race").getOrElse(state.startPadType shr 1) { "?" }} P${state.padPlayer + 1} (Extended)"
             state.startPadType >= 0 -> "Start pad: ${PAD_NAMES.getOrElse(state.startPadType) { "?" }}"
             else -> LegacyVehicles.spec(state.tankType).name.lowercase().replaceFirstChar { it.uppercase() } +
                 when {

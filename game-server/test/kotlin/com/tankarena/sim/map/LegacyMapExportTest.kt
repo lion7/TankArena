@@ -38,7 +38,9 @@ class LegacyMapExportTest {
         val bytes = LegacyMapExport.export(document)
         val again = LegacyMapImport.import(bytes, "fresh")
         assertEquals(emptyList(), again.notes)
-        assertEquals(document.objects.size, again.document.objects.size)
+        // Extended's pads for players 3 and 4 have no place in the original.
+        val forOriginal = editor.objects.count { !(it is com.tankarena.sim.Tank.State && it.padPlayer >= 2) }
+        assertEquals(forOriginal, again.document.objects.size)
         assertEquals(document.texts, again.document.texts)
         assertEquals(document.floor, again.document.floor)
         assertTrue(again.document.legacy?.objects.isNullOrEmpty(), "new objects export without leftovers: ${again.document.legacy?.objects?.keys}")

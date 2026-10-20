@@ -173,6 +173,8 @@ class Tank(state: State) :
     var turretDirection: Int = state.turretDirection
         private set
     /** Human player driving this tank, or -1. Mutable so control can move between friendly tanks. */
+    /** See [State.padPlayer]. */
+    val padPlayer: Int = state.padPlayer
     var playerIndex: Int = state.playerIndex
         internal set
     /** Legacy `contr.id` (the F1–F10 tank id); -1 when the map did not assign one. */
@@ -977,6 +979,7 @@ class Tank(state: State) :
         computer = computer,
         goalContribution = goalContribution,
         startPadType = startPadType,
+        padPlayer = padPlayer,
         padAmmo = padAmmo,
         aiAttackTanks = aiAttackTanks,
         aiActivationRadius = aiActivationRadius,
@@ -1856,6 +1859,11 @@ class Tank(state: State) :
         @SerialName("computer") val computer: Boolean = true,
         @SerialName("goalContribution") val goalContribution: Int = 0,
         @SerialName("startPadType") val startPadType: Int = -1,
+        /**
+         * Extended (ADR 0027): a start pad for player 3 or 4 (2 or 3) only; -1 for the original's
+         * pads, which are their side's. Classic and the `.MAP` export leave such pads out.
+         */
+        @SerialName("padPlayer") val padPlayer: Int = -1,
         /** Legacy `pl.weap.nw` of a start pad with its own loadout; null: the vehicle's defaults. */
         @SerialName("padAmmo") val padAmmo: List<Int>? = null,
         @SerialName("aiAttackTanks") val aiAttackTanks: Int = 100,

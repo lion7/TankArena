@@ -107,4 +107,29 @@ class TeamsTest {
         val live = client.currentServerFrame()
         assertEquals(live.playerViews.map { it.cameraCenterX to it.cameraCenterY }, last.playerViews.map { it.cameraCenterX to it.cameraCenterY })
     }
+
+    @Test
+    fun `a pad for player 3 is theirs with teams, unknown to Classic and to the original`() {
+        val name = firstMap(GameModeCompatibility.DUAL)
+        val original = ShippedMaps.load(name)!!.document
+        val editor = com.tankarena.sim.map.MapEditor(original)
+        val (x, y) = com.tankarena.sim.map.MapObjects.centre(editor.objects.first { it is Tank.State && it.startPadType == 0 })
+        val template = com.tankarena.sim.map.MapObjects.TEMPLATES.first { it.label == "Tank P3" }
+        // A free spot a few tiles from player one's pad.
+        val spot = (1..6).asSequence().flatMap { r -> sequenceOf(x + r * 33 to y, x to y + r * 33, x - r * 33 to y, x to y - r * 33) }
+            .first { (px, py) -> px in 40..(original.header.size[0] * 33 - 40) && py in 40..(original.header.size[1] * 33 - 40) }
+        editor.addObject(template, spot.first, spot.second)
+        val document = editor.toDocument()
+
+        val teams = Match.fromMap(document, MatchMode.DUAL, dual = DualSetup(tankTypes = List(4) { 0 }), ruleset = Ruleset.EXTENDED, players = 4).also { it.initialize() }
+        val third = teams.tanksForTest().first { it.playerIndex == 2 }
+        assertEquals(spot, third.spawnX to third.spawnY, "player 3 starts on their own pad")
+
+        val classic = Match.fromMap(document, MatchMode.DUAL).also { it.initialize() }
+        assertTrue(classic.tanksForTest().none { it.padPlayer >= 2 })
+
+        val exported = com.tankarena.sim.map.LegacyMapImport.import(com.tankarena.sim.map.LegacyMapExport.export(document), name).document
+        assertEquals(original.objects.size, exported.objects.size, "the pad stays out of the .MAP")
+        assertTrue(com.tankarena.sim.map.LegacyMapExport.export(original).contentEquals(com.tankarena.sim.map.LegacyMapExport.export(document.copy(objects = document.objects.dropLast(1)))))
+    }
 }

@@ -62,6 +62,9 @@ internal object MatchSetup {
         playerCount: Int = mode.defaultPlayers,
     ): List<SceneObject<*>> {
         if (playerCount > 2) return assignTeams(actors, mode, dual, playerCount)
+        // Pads for players 3 and 4 only play with teams.
+        @Suppress("NAME_SHADOWING")
+        val actors = actors.filterNot { it is Tank && it.padPlayer >= 2 }
         val tanks = actors.filterIsInstance<Tank>()
         val humanIds = tanks
             .filter { it.startPadType < 0 && !it.computer && it.controllerId >= 0 && it.playerIndex < 0 }
@@ -133,7 +136,8 @@ internal object MatchSetup {
             val vehicles = (0 until playerCount).mapNotNull { player ->
                 val side = player.side
                 val chosen = dual.tankTypes.getOrElse(player) { 0 }
-                val own = pads.filter { (it.startPadType and 1) == side }
+                // The player's own pads first (Extended maps), then their side's.
+                val own = pads.filter { it.padPlayer == player } + pads.filter { (it.startPadType and 1) == side && it.padPlayer < 2 }
                 val race = own.filter { it.startPadType shr 1 == DualSetup.PAD_RACE }
                 val fitting = race.ifEmpty { own.filter { it.startPadType shr 1 == padKind(chosen) } }
                 val pad = fitting.firstOrNull { it !in used } ?: fitting.firstOrNull() ?: return@mapNotNull null

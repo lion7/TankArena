@@ -184,7 +184,9 @@ Depends on: phase 1 (renderer for the replay viewer).
 - [x] Four local players as two teams on existing maps (Extended rules v6): join up to four, tank
       selection for four in the sides' colours, 2 × 2 split screen, per-team scoring and lives,
       team mates spread out from a shared pad, copies of a team mate's tank against the computer.
-- [ ] Optional extra pads per team in map files (with the editor's `extended` section).
+- [x] Extra pads for players 3 and 4 in map files: start pads with `padPlayer` 2 or 3 (editor:
+      "Tank P3" … "Race P4"); a player starts on their own pad first, then their side's; Classic and
+      the `.MAP` export leave them out.
 
 Depends on: phase 5.
 

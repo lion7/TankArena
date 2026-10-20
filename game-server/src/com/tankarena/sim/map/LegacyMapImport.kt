@@ -39,9 +39,10 @@ object LegacyMapImport {
         val records = (offsets[3] until file.size - size + 1 step size.coerceAtLeast(1))
             .map { file.copyOfRange(it, it + size) }
             .filter { record -> (0..3).fold(0) { v, k -> v or ((record[48 + k].toInt() and 0xFF) shl (8 * k)) } in IMPORTED_TYPES }
-        val objects = if (size == LegacyMapExport.OBJECT_SIZE && records.size == parts.records.size) {
-            parts.records.indices
-                .associate { it.toString() to LegacyMapExport.diffRuns(parts.records[it], records[it]) }
+        val exported = parts.records.filterNotNull()
+        val objects = if (size == LegacyMapExport.OBJECT_SIZE && records.size == exported.size && exported.size == parts.records.size) {
+            exported.indices
+                .associate { it.toString() to LegacyMapExport.diffRuns(exported[it], records[it]) }
                 .filterValues { it.isNotEmpty() }
         } else {
             emptyMap()

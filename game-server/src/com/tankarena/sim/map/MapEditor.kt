@@ -233,7 +233,7 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         val made = template.create(x, y, objectList) ?: return null
         // Legacy create_start(): one start pad of each kind; placing it again moves it.
         if (made is Tank.State && made.startPadType >= 0) {
-            val existing = objectList.indexOfFirst { it is Tank.State && it.startPadType == made.startPadType }
+            val existing = objectList.indexOfFirst { it is Tank.State && it.startPadType == made.startPadType && it.padPlayer == made.padPlayer }
             if (existing >= 0) {
                 moveObject(existing, x, y)
                 return existing

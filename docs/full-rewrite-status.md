@@ -76,5 +76,5 @@ The [roadmap](rewrite/roadmap.md) has the full plan. Next, in order:
 - [`rewrite/risk-register.md`](rewrite/risk-register.md) — risks and mitigations.
 - [`rewrite/legacy-system-map.md`](rewrite/legacy-system-map.md) — C source to Kotlin.
 - [`rewrite/history.md`](rewrite/history.md) — how the rewrite got here; deleted documents.
-- [`game/`](game/) — the original game: overview, mechanics, vehicles, weapons, terrain, objects, AI,
-  map format. This is the parity spec, checked against `src/`.
+- [`game/`](../original/docs/game/) — the original game: overview, mechanics, vehicles, weapons, terrain, objects, AI,
+  map format. This is the parity spec, checked against `original/src/`.

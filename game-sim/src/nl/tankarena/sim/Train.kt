@@ -3,13 +3,13 @@ package nl.tankarena.sim
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-/** Legacy `railstype` (src/include/types.h). */
+/** Legacy `railstype` (original/src/include/types.h). */
 internal const val RAILS_HORIZONTAL: Int = 0
 internal const val RAILS_VERTICAL: Int = 1
 internal const val RAILS_CIRCLE: Int = 2
 
 /**
- * A train engine or wagon (legacy TRAIN_TYPE / WAGON_TYPE, src/objects/train.c). The map stores
+ * A train engine or wagon (legacy TRAIN_TYPE / WAGON_TYPE, original/src/objects/train.c). The map stores
  * each car's whole `trainstruct`: the rail segment it is on (`rails`), the one it heads for
  * (`end`), and its neighbours in the train. The match drives the cars (Match
  * stepTrains()); the engine pulls the cars behind it, which keep 31 px apart.

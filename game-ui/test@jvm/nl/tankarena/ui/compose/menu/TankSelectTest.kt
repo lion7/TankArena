@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Legacy select_tanks() (src/game/seltank.c) and dual_game()'s rounds (src/game/dual.c). */
+/** Legacy select_tanks() (original/src/game/seltank.c) and dual_game()'s rounds (original/src/game/dual.c). */
 class TankSelectTest {
 
     @Test

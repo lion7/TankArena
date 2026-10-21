@@ -65,7 +65,7 @@ enum class SoundKind {
 }
 
 /**
- * Legacy effect animations (`eff[]` in src/world/effects.c): a sequence of pictures, each shown
+ * Legacy effect animations (`eff[]` in original/src/world/effects.c): a sequence of pictures, each shown
  * for its own number of ticks. Only the kinds the server emits are listed.
  */
 @Serializable
@@ -116,7 +116,7 @@ enum class EffectKind {
     PARTS_SMOKE,
 }
 
-/** Legacy part types that only show (src/world/parts.c): PT_PIXEL, PT_MORTAR, PT_PARTS. */
+/** Legacy part types that only show (original/src/world/parts.c): PT_PIXEL, PT_MORTAR, PT_PARTS. */
 @Serializable
 enum class DebrisKind { PIXEL, MORTAR, PARTS }
 

@@ -74,4 +74,4 @@ are in [parity.md](parity.md) and the [testing strategy](testing-strategy.md).
 | Separate editor app on Kubriko's `SceneEditor` (0004, 0009) | Editor inside the game ([ADR 0021](adrs/0021-editor-in-the-game.md)) |
 | Kubriko scene JSON plus sidecar (0008) | Native `.tamap` format ([ADR 0022](adrs/0022-native-map-format.md)) |
 | Gradle, then Amper | Kotlin toolchain ([ADR 0016](adrs/0016-kotlin-toolchain-build.md)) |
-| All 121/122 maps in `MAPS/` | The 69 of the original release ([ADR 0015](adrs/0015-ship-the-original-69-maps.md)) |
+| All 121/122 maps in `original/MAPS/` | The 69 of the original release ([ADR 0015](adrs/0015-ship-the-original-69-maps.md)) |

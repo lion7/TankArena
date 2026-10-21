@@ -1,6 +1,6 @@
 package nl.tankarena.sim
 
-// Driving the computer tanks (src/tanks/computer.c, ported in ComputerTankAi).
+// Driving the computer tanks (original/src/tanks/computer.c, ported in ComputerTankAi).
 
 
 /** Legacy control_computer_tank() for every computer tank (ComputerTankAi). */

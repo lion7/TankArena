@@ -23,7 +23,7 @@ internal fun interface RocketTarget {
 }
 
 /**
- * Legacy homing missile (src/objects/rocket.c): it heads straight for its target every tick,
+ * Legacy homing missile (original/src/objects/rocket.c): it heads straight for its target every tick,
  * accelerating from standstill, and explodes when it arrives or runs out of range. The target
  * is whatever was under the lock-on marker when it was launched, or else the marker's spot.
  */

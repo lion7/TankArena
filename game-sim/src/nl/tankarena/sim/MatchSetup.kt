@@ -1,15 +1,15 @@
 package nl.tankarena.sim
 
 
-/** The three ways the original game starts a map (`game.mode` in src/include/types.h). */
+/** The three ways the original game starts a map (`game.mode` in original/src/include/types.h). */
 enum class MatchMode {
-    /** One player drives the map tanks with id 1 (`src/game/single.c`). */
+    /** One player drives the map tanks with id 1 (`original/src/game/single.c`). */
     SINGLE,
 
-    /** Player vs player: tanks come from the start pads, human map tanks are removed (`src/game/dual.c`). */
+    /** Player vs player: tanks come from the start pads, human map tanks are removed (`original/src/game/dual.c`). */
     DUAL,
 
-    /** Two players co-operate: player 1 drives id 1, player 2 drives id 2 (`src/game/dualvc.c`). */
+    /** Two players co-operate: player 1 drives id 1, player 2 drives id 2 (`original/src/game/dualvc.c`). */
     DUAL_VS_COMPUTER,
     ;
 
@@ -20,7 +20,7 @@ enum class MatchMode {
 /** A player's side (ADR 0027): 0 the original's player one (players 0 and 2), 1 player two (1 and 3); -1 none. */
 internal val Int.side: Int get() = if (this < 0) -1 else this and 1
 
-/** Player vs player (legacy dual_game(), src/game/dual.c): what the players chose for this round. */
+/** Player vs player (legacy dual_game(), original/src/game/dual.c): what the players chose for this round. */
 @kotlinx.serialization.Serializable
 data class DualSetup(
     /** Legacy `pl_tanks`: the vehicle each player picked on the selection screen (index into tanks.c). */
@@ -44,10 +44,10 @@ data class DualSetup(
  * Decides which tanks each human player drives once the scene is loaded. Scenes are mode
  * agnostic: human-drivable map tanks carry their legacy `contr.id` and dual start pads carry
  * their pad type, and this resolves them for the chosen [MatchMode] the way `prepare_tank()`
- * (src/tanks/tank.c) and `prepare_player()` (src/objects/player.c) do.
+ * (original/src/tanks/tank.c) and `prepare_player()` (original/src/objects/player.c) do.
  *
  * A player drives a *group*: in single / co-operative play every human tank sharing the
- * selected id obeys that player's controls (`control_tank()` in src/tanks/control.c), and in
+ * selected id obeys that player's controls (`control_tank()` in original/src/tanks/control.c), and in
  * player-vs-player every start pad of the chosen vehicle kind spawns a tank for its player.
  *
  * Tanks that already carry a `playerIndex` (hand-built fixtures, older scenes) are left alone.

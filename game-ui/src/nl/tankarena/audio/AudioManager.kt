@@ -58,7 +58,7 @@ class AudioManager(
     private var twoPlayers = false
 
     /**
-     * Legacy create_sound_absolute() (src/hardware/sound.c): the distance to the player's vehicle
+     * Legacy create_sound_absolute() (original/src/hardware/sound.c): the distance to the player's vehicle
      * (the nearer of two), at most 612 (also without a vehicle), sets the volume; with two players the
      * difference pans the sound; quieter than 33 it is not played.
      */

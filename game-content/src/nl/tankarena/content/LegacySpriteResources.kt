@@ -4,8 +4,8 @@ package nl.tankarena.content
  * Pure data-side resolver that maps simulation state (tile ids, tank
  * variants, turret types, facing vectors, …) to legacy picture names.
  *
- * The mappings mirror the lookup logic in `src/game/init.c` and the data
- * arrays in `src/data/pictures.c`. Pairing them with
+ * The mappings mirror the lookup logic in `original/src/game/init.c` and the data
+ * arrays in `original/src/data/pictures.c`. Pairing them with
  * [LegacyResourceNaming.safeKey] yields the Compose Multiplatform
  * resource key for each sprite.
  */

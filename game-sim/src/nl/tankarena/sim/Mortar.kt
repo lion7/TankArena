@@ -3,7 +3,7 @@ package nl.tankarena.sim
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-/** Legacy HT_MORTAR shell: 120 px at 75 px/s, i.e. 160 ticks in flight (src/world/bullet.c). */
+/** Legacy HT_MORTAR shell: 120 px at 75 px/s, i.e. 160 ticks in flight (original/src/world/bullet.c). */
 internal const val MORTAR_TRAVEL_TICKS: Int = 160
 internal const val MORTAR_MIN_RADIUS_PX: Int = 5
 internal const val MORTAR_MAX_RADIUS_PX: Int = 60

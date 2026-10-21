@@ -47,7 +47,7 @@ private fun contentsText(contents: Int): String = buildList {
 
 /**
  * The map's header (the original editor's SPECIAL menu: codes, mode, public code, day or night, random
- * bonuses) and its three texts, which the original took from `MAPS/name.0..2` files. [onTyping] tells
+ * bonuses) and its three texts, which the original took from `original/MAPS/name.0..2` files. [onTyping] tells
  * the editor a text field has the keyboard, so its one-key shortcuts stay out of the way.
  */
 @Composable

@@ -8,7 +8,7 @@ import javax.imageio.ImageIO
 
 /**
  * Writes the opaque-pixel masks of every legacy picture to [PictureMasks]' resource file. The
- * original game collides by pixels (`overlap()` in src/check/overlap.c counts pixel pairs that
+ * original game collides by pixels (`overlap()` in original/src/check/overlap.c counts pixel pairs that
  * are both not 0xFF); the extracted PNGs keep exactly those pixels opaque.
  */
 object PictureMaskExtractor {

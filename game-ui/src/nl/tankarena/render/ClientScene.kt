@@ -46,7 +46,7 @@ private const val MORTAR_ARC = 15
 private const val ZEPPELIN_HEIGHT = 20
 
 /**
- * Legacy `eff[]` (src/world/effects.c): each effect is a run of pictures, each shown for its
+ * Legacy `eff[]` (original/src/world/effects.c): each effect is a run of pictures, each shown for its
  * delay in ticks. After the first frame the original adds up to half the delay again at random.
  */
 private val EFFECT_FRAMES: Map<EffectKind, List<Pair<String, Int>>> = mapOf(

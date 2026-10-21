@@ -74,7 +74,7 @@ fun Mode13View(
     }
 }
 
-/** Legacy palette indices used by the menus (src/include/define.h and the routines' callers). */
+/** Legacy palette indices used by the menus (original/src/include/define.h and the routines' callers). */
 object LegacyColors {
     const val BLACK = 0
 

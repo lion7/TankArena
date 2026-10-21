@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 /**
- * The zeppelin of the unregistered original (legacy make_zeppelin(), src/objects/zeppelin.c):
+ * The zeppelin of the unregistered original (legacy make_zeppelin(), original/src/objects/zeppelin.c):
  * an 8×4-tile airship at height 20 drifting west at 10 px/s and coming back in from the east
  * edge at a random height on the map. Its picture alternates every 100 ticks.
  */

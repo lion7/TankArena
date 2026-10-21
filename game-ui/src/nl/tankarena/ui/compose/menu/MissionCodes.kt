@@ -13,8 +13,8 @@ sealed interface CodeResolution {
 }
 
 /**
- * The mission-code gate in front of every game mode: legacy `single_game` (src/game/single.c),
- * `dual_v_computer_game` (src/game/dualvc.c) and `dual_game` (src/game/dual.c).
+ * The mission-code gate in front of every game mode: legacy `single_game` (original/src/game/single.c),
+ * `dual_v_computer_game` (original/src/game/dualvc.c) and `dual_game` (original/src/game/dual.c).
  *
  * The computer modes ask for a mission code, the player-vs-player mode for a map file name.
  */
@@ -25,7 +25,7 @@ object MissionCodes {
     /** `read_string(..., dual_map_name, 8)`: a DOS file name without extension. */
     const val MAX_MAP_NAME_LENGTH: Int = 8
 
-    /** Legacy `check_suitable` (src/game/mapfiles.c). */
+    /** Legacy `check_suitable` (original/src/game/mapfiles.c). */
     const val NOT_SUITABLE: String = "THIS MAP IS NOT SUITABLE FOR THIS MODE"
 
     /** Legacy `select_password_from_list` with an empty `PASSWD.DAT`. */
@@ -87,7 +87,7 @@ object MissionCodes {
     }
 
     /**
-     * Legacy `search_passwd` + `select_password_from_list` (src/game/listcod.c, passwd.c): the
+     * Legacy `search_passwd` + `select_password_from_list` (original/src/game/listcod.c, passwd.c): the
      * codes the player reached, followed by every map with a public password and every
      * dual-vs-computer map.
      *
@@ -132,7 +132,7 @@ object MissionCodes {
 }
 
 /**
- * Legacy `read_string` (src/game/prompt.c) reads scan codes, not characters: the letter rows,
+ * Legacy `read_string` (original/src/game/prompt.c) reads scan codes, not characters: the letter rows,
  * the digit row and the space bar, always as upper case on a QWERTY layout.
  */
 private val PROMPT_KEYS: Map<Key, Char> = buildMap {

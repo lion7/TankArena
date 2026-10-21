@@ -1,7 +1,7 @@
 package nl.tankarena.sim
 
 /**
- * Legacy select_tanks() (src/game/seltank.c): the eight vehicles player-vs-player rounds choose
+ * Legacy select_tanks() (original/src/game/seltank.c): the eight vehicles player-vs-player rounds choose
  * from, and which of them a map allows. Used by the selection screen and by network games, which
  * have no selection yet.
  */
@@ -9,7 +9,7 @@ object DualVehicles {
     /** The eight vehicles, four across and two down; the last is the losers tank. */
     const val CHOICES = 8
 
-    /** Legacy `MAPC_*` (src/include/define.h). */
+    /** Legacy `MAPC_*` (original/src/include/define.h). */
     private const val MAPC_TANK = 1
     private const val MAPC_CHOP = 2
     private const val MAPC_PLANE = 4

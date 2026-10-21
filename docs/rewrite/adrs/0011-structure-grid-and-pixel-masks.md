@@ -9,9 +9,9 @@
 The original keeps buildings in the map's tile layers, not as objects. Per tile and layer it stores
 three strengths (against normal hits, crashes and flames; 1000 means indestructible), links
 multi-tile structures so they are damaged as one, swaps in ruin pictures, turns destroyed bridges into
-water, sets fuel dumps alight and applies the signed goal layer (`src/check/hitwall.c`,
-`src/game/mapfiles.c`). Vehicles collide with the opaque pixels of standing pictures
-(`src/check/overlap.c`): a move is refused when the overlap grows, turning is always allowed, and the
+water, sets fuel dumps alight and applies the signed goal layer (`original/src/check/hitwall.c`,
+`original/src/game/mapfiles.c`). Vehicles collide with the opaque pixels of standing pictures
+(`original/src/check/overlap.c`): a move is refused when the overlap grows, turning is always allowed, and the
 vehicle's height decides which layers count.
 
 The 2026-04 design made one Kubriko wall actor per solid tile (55,327 actors over the old map set),

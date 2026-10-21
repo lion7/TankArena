@@ -1,7 +1,7 @@
 package nl.tankarena.content
 
 /**
- * One row of the legacy `pc{world}` arrays from `src/data/pictures.c`.
+ * One row of the legacy `pc{world}` arrays from `original/src/data/pictures.c`.
  * Each row owns up to three picture names (intact / damaged / dead) so the
  * renderer can swap variants without re-reading the legacy source.
  */

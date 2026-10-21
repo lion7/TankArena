@@ -5,8 +5,8 @@
 
 ## Context
 
-In the original, the map editor (`src/edit/`) is linked into `TANK.EXE`: the main menu's "Map
-editor" entry calls `edit_map()` (`src/game/menu.c:43`, `src/edit/main.c:620`). It edits `.MAP`
+In the original, the map editor (`original/src/edit/`) is linked into `TANK.EXE`: the main menu's "Map
+editor" entry calls `edit_map()` (`original/src/game/menu.c:43`, `original/src/edit/main.c:620`). It edits `.MAP`
 files directly. The rewrite deliberately departs from that and makes the editor its own program.
 
 ## Decision

@@ -10,7 +10,7 @@ class MapDocumentTest {
 
     @Test
     fun `every MAP file of the original release imports cleanly to its committed tamap`() {
-        val originals = File("../MAPS").listFiles { file -> file.isFile && file.name.endsWith(".MAP", ignoreCase = true) }
+        val originals = File("../original/MAPS").listFiles { file -> file.isFile && file.name.endsWith(".MAP", ignoreCase = true) }
             .orEmpty().sortedBy { it.name.lowercase() }
         assertEquals(69, originals.size, "the maps the original game shipped with")
         val committed = File("../game-content/resources/maps")

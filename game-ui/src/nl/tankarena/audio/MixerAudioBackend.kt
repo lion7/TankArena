@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *
  * - Max 32 concurrent sounds; excess are dropped
  *
- * Samples are the legacy `DATA/SOUND.DAT` WAVs, bundled under `sounds/` on the classpath.
+ * Samples are the legacy `original/DATA/SOUND.DAT` WAVs, bundled under `sounds/` on the classpath.
  * Playback mixes them in software onto one output (the platform's [PcmOutput]) on its own thread,
  * so playing a sound never blocks the game; when no audio device is available the backend stays
  * silent instead of failing.
@@ -48,7 +48,7 @@ class MixerAudioBackend(
         /** Headroom so a few overlapping explosions do not clip at once. */
         private const val MASTER_GAIN = 0.7f
 
-        /** Legacy SND_* sample for each sound kind (src/include/sound.h). */
+        /** Legacy SND_* sample for each sound kind (original/src/include/sound.h). */
         val LEGACY_SAMPLES: Map<SoundKind, String> = mapOf(
             SoundKind.MAIN to "main",
             SoundKind.CHAIN to "chain",

@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 
 /**
  * Legacy determine_hit(): a rocket in flight (and a mine) is an object anything can hit — a flame
- * within 15 px, a shot within 3 px, a blast (src/check/hitobj.c, src/objects/rocket.c:40-46).
+ * within 15 px, a shot within 3 px, a blast (original/src/check/hitobj.c, original/src/objects/rocket.c:40-46).
  */
 class RocketDefenceTest {
     private val t = LEGACY_TILE_SIZE

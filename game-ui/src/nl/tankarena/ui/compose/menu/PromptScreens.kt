@@ -18,7 +18,7 @@ import nl.tankarena.ui.compose.legacy.Mode13View
 private const val LIST_LENGTH = 20
 
 /**
- * Legacy `read_string` (src/game/prompt.c): a brighter band across the middle of the panel
+ * Legacy `read_string` (original/src/game/prompt.c): a brighter band across the middle of the panel
  * screen with the prompt, then the text typed so far on black and a green cursor block. The text
  * starts as [initialText] (the legacy code keeps the last code, so after a win it already holds
  * the next one). Enter submits, ESC cancels.
@@ -60,7 +60,7 @@ fun PromptBarScreen(
     }
 }
 
-/** Legacy `message_key` (src/game/prompt.c): a one-line message band; any key dismisses it. */
+/** Legacy `message_key` (original/src/game/prompt.c): a one-line message band; any key dismisses it. */
 @Composable
 fun MessageBarScreen(
     message: String,
@@ -88,8 +88,8 @@ enum class PickListLayout(val boxLeft: Int, val boxWidth: Int, val textLeft: Int
 }
 
 /**
- * Legacy `select_password_from_list` (src/game/passwd.c) and `select_from_list`
- * (src/game/sellist.c): a black box in a brighter band with a big title and up to [LIST_LENGTH]
+ * Legacy `select_password_from_list` (original/src/game/passwd.c) and `select_from_list`
+ * (original/src/game/sellist.c): a black box in a brighter band with a big title and up to [LIST_LENGTH]
  * entries, the selected one marked with `>`. Up/Down/PgUp/PgDn move, Enter picks, ESC cancels.
  */
 @Composable
@@ -140,7 +140,7 @@ fun PickListScreen(
 }
 
 /**
- * Legacy `message()` + `wait_yesno()` (src/game/prompt.c): a question in the message band that only
+ * Legacy `message()` + `wait_yesno()` (original/src/game/prompt.c): a question in the message band that only
  * Y or N answer.
  */
 @Composable

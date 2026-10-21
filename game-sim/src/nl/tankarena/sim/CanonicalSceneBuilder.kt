@@ -12,7 +12,7 @@ private const val TURRET_FOOTPRINT: Int = LEGACY_TILE_SIZE
 private const val GOAL_FOOTPRINT: Int = 16
 /** Fallback armor for authored objects without one (the STANDARD tank's legacy `props.armor`). */
 private const val DEFAULT_ARMOR: Int = Tank.DEFAULT_TANK_ARMOR
-/** `make_player()` in src/objects/player.c gives dual-mode pads four lives. */
+/** `make_player()` in original/src/objects/player.c gives dual-mode pads four lives. */
 internal const val LEGACY_PAD_LIVES: Int = 4
 private const val LIGHT_MINE_DAMAGE: Int = 7
 

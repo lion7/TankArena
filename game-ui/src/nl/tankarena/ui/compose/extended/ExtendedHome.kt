@@ -37,7 +37,8 @@ fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifi
     )
     ExtendedPage(
         title = "TANK ARENA",
-        subtitle = "Extended",
+        // Extended's name: its initials spell TANK.
+        subtitle = "Next Kombat",
         onBack = actions.quit,
         footer = "Up/Down and Enter, or the mouse",
         onKey = keys::handle,

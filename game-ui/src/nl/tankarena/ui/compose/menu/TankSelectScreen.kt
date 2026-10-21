@@ -71,7 +71,7 @@ internal fun allowedTanks(mapContents: Int, wins: List<Int>, losersTank: Int = 0
 internal fun autoSelect(chosen: List<Int>, allowed: List<Boolean>): List<Int> = DualVehicles.autoSelect(chosen, allowed)
 
 /**
- * Legacy select_tanks() (src/game/seltank.c), before every player-vs-player round: the SELECT
+ * Legacy select_tanks() (original/src/game/seltank.c), before every player-vs-player round: the SELECT
  * map plays live behind eight 60×60 windows, one on each vehicle. Each player moves a coloured
  * frame with their own drive keys and confirms with fire (the losers tank only when behind);
  * Enter confirms both, ESC leaves the match. Vehicles the map has no room for are grey.

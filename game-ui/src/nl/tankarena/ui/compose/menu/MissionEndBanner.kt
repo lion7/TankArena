@@ -29,7 +29,7 @@ private const val TILE = 33
 private const val PLAYFIELD_WIDTH = 640
 
 /**
- * Legacy `write_winner_1p` (src/world/status.c): a 4×2 grid of 33 px tiles centred in the
+ * Legacy `write_winner_1p` (original/src/world/status.c): a 4×2 grid of 33 px tiles centred in the
  * playfield, `MISSIONA`..`MISSIOND` on top and, one tile lower, `COMPLA`..`COMPLD` for a
  * completed mission or `FAILEDA`..`FAILEDD` (with the skull) for a failed one. Scaled with the
  * playfield ([playfieldWidth] playfield pixels across this composable), nearest-neighbour.
@@ -47,7 +47,7 @@ fun MissionEndBanner(
 }
 
 /**
- * Legacy `write_winner_2p` (src/world/status.c): in the window of the player who won the round,
+ * Legacy `write_winner_2p` (original/src/world/status.c): in the window of the player who won the round,
  * `YOUA` `YOUB` and one tile lower `WINA` `WINB`, centred like the mission banner.
  */
 @Composable

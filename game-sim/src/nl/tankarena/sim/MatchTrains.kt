@@ -5,7 +5,7 @@ import nl.tankarena.content.LEGACY_TILE_SIZE
 import nl.tankarena.protocol.snapshot.EffectKind
 import nl.tankarena.protocol.snapshot.GameEvent
 
-// Trains and wagons on their rails (src/objects/train.c).
+// Trains and wagons on their rails (original/src/objects/train.c).
 
 /** Legacy prepare_train() with relocate(): tie each car to its neighbours and its turret. */
 internal fun Match.linkTrains() {

@@ -8,13 +8,13 @@ import java.util.Base64
 object LegacyFonts {
     private val decoder = Base64.getDecoder()
 
-    /** src/graph/5x5font.s: five rows per character, bit 7 leftmost. */
+    /** original/src/graph/5x5font.s: five rows per character, bit 7 leftmost. */
     val small: ByteArray = decoder.decode(GeneratedLegacyFonts.FONT_5X5)
 
-    /** `big_font`, SETUP_FONT of DATA/SETSOUND.DAT: 8×16 glyphs for characters 32..255. */
+    /** `big_font`, SETUP_FONT of original/DATA/SETSOUND.DAT: 8×16 glyphs for characters 32..255. */
     val big: ByteArray = decoder.decode(GeneratedLegacyFonts.BIG_FONT)
 
-    /** DATA/PALETTE.DAT as 0xRRGGBB. */
+    /** original/DATA/PALETTE.DAT as 0xRRGGBB. */
     val gamePalette: IntArray = decoder.decode(GeneratedLegacyFonts.PALETTE).let { rgb ->
         IntArray(256) { i -> ((rgb[i * 3].toInt() and 0xFF) shl 16) or ((rgb[i * 3 + 1].toInt() and 0xFF) shl 8) or (rgb[i * 3 + 2].toInt() and 0xFF) }
     }
@@ -33,7 +33,7 @@ class IndexedBitmap(val width: Int, val height: Int, val pixels: ByteArray, val 
     operator fun get(x: Int, y: Int): Int = pixels[x + y * width].toInt() and 0xFF
 
     companion object {
-        /** An uncompressed 8-bit Windows BMP, as extracted from DATA/BITMAPS.DAT. */
+        /** An uncompressed 8-bit Windows BMP, as extracted from original/DATA/BITMAPS.DAT. */
         fun readBmp(bytes: ByteArray): IndexedBitmap {
             fun int(at: Int) = (bytes[at].toInt() and 0xFF) or ((bytes[at + 1].toInt() and 0xFF) shl 8) or
                 ((bytes[at + 2].toInt() and 0xFF) shl 16) or ((bytes[at + 3].toInt() and 0xFF) shl 24)
@@ -59,7 +59,7 @@ class IndexedBitmap(val width: Int, val height: Int, val pixels: ByteArray, val 
             return IndexedBitmap(width, height, pixels, palette)
         }
 
-        /** A picture extracted from `DATA/BITMAPS.DAT` (the panel tile, the `BLACK*.BMP` backdrops), bundled as `backgrounds/`. */
+        /** A picture extracted from `original/DATA/BITMAPS.DAT` (the panel tile, the `BLACK*.BMP` backdrops), bundled as `backgrounds/`. */
         fun loadBackground(fileName: String): IndexedBitmap? {
             val bytes = readBackground(fileName) ?: return null
             return runCatching { readBmp(bytes) }.getOrNull()
@@ -71,7 +71,7 @@ class IndexedBitmap(val width: Int, val height: Int, val pixels: ByteArray, val 
 
 /**
  * The 320×200 VGA mode 13h screen of the menus, prompts and text pages: palette indices drawn
- * with ports of the original's routines (src/graph/mode13.c, 5x5text.c, prompt.c, Allegro's
+ * with ports of the original's routines (original/src/graph/mode13.c, 5x5text.c, prompt.c, Allegro's
  * textout), then shown through a palette.
  */
 class Mode13Screen {

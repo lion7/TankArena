@@ -6,7 +6,7 @@ import nl.tankarena.content.PictureMasks
 import nl.tankarena.content.TankArenaWorld
 import nl.tankarena.content.TileLayers
 
-/** Legacy `hit[type].kind` (src/check/hitwall.c): which of a structure's three strengths a hit wears down. */
+/** Legacy `hit[type].kind` (original/src/check/hitwall.c): which of a structure's three strengths a hit wears down. */
 enum class HitKind { NORMAL, CRASH, FLAME }
 
 /** Legacy structure layers: the solid layer (`mapm.m[1]`, `strength[0]`) and the top layer (`mapm.m[2]`, `strength[1]`). */
@@ -26,11 +26,11 @@ data class DestroyedStructure(
 )
 
 /**
- * The buildings of a map as the original keeps them (`strength[2][3][]` in src/game/mapfiles.c):
+ * The buildings of a map as the original keeps them (`strength[2][3][]` in original/src/game/mapfiles.c):
  * per tile and layer three strengths (against normal hits, crashes and flames; 1000 means
  * indestructible), linked multi-tile structures that are damaged as one, and pixel masks for
  * collisions. A solid-layer tile blocks ground vehicles only while its normal strength is above
- * zero, and then only with the opaque pixels of its picture (`overlap()` in src/check/overlap.c).
+ * zero, and then only with the opaque pixels of its picture (`overlap()` in original/src/check/overlap.c).
  */
 class StructureGrid(
     val width: Int,

@@ -16,7 +16,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** The per-vehicle data from src/data/tanks.c and the behaviour built on it. */
+/** The per-vehicle data from original/src/data/tanks.c and the behaviour built on it. */
 class VehicleSpecTest {
 
     @Test

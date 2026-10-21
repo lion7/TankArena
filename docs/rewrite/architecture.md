@@ -2,7 +2,7 @@
 
 This document describes how the Kotlin rewrite is built **today** (2026-10-19). Decisions and their
 reasons are in the [ADRs](adrs/); the original game it reproduces is described in
-[`docs/game/`](../game/) and the C source in `src/`.
+[`original/docs/game/`](../../original/docs/game/) and the C source in `original/src/`.
 
 > **Planned changes.** Kubriko is gone since 2026-10-19 ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md));
 > maps move to a native format ([ADR 0022](adrs/0022-native-map-format.md)), the editor moves into the
@@ -74,7 +74,7 @@ and `game-sim`. Packages are under `nl.tankarena`; artifacts are `nl.tankarena:<
 - `MapSceneSidecar`: a map's header fields, mission texts and tile layers in memory (the name is a
   leftover of the old sidecar file).
 - Generated from the C source: `GeneratedLegacyPictureCatalog` and `GeneratedLegacyPictureTerrain`
-  (`src/data/pictures.c`); `PictureCatalog` and `TerrainGridBuilder` build each map's terrain grid
+  (`original/src/data/pictures.c`); `PictureCatalog` and `TerrainGridBuilder` build each map's terrain grid
   (material and speed per tile).
 - `PictureMasks`: opaque-pixel masks of every picture (`resources/masks/pictures.mask`).
 - `legacy/LegacyMapParser`: the raw `.MAP` reader (importer only).
@@ -93,7 +93,7 @@ All under `nl.tankarena.sim`.
 | `StructureGrid` | Buildings: strengths, links, ruins, goal shares, masks ([ADR 0011](adrs/0011-structure-grid-and-pixel-masks.md)) |
 | `DualRules` | Player vs player: start pads and lives, flag hunt, races |
 | `MatchSetup` | Mode (`SINGLE`, `DUAL`, `DUAL_VS_COMPUTER`) and who controls which tanks |
-| `LegacyVehicles`, `GeneratedLegacyVehicles` | The 23-vehicle table from `src/data/tanks.c` |
+| `LegacyVehicles`, `GeneratedLegacyVehicles` | The 23-vehicle table from `original/src/data/tanks.c` |
 | `MatchObjects` | Runtime-only objects: bonuses, soldiers, A-bombs |
 | `AreaDamageResolver` | Blast damage for mines, mortars, rockets, A-bombs |
 | `Tank`, `Turret`, `Projectile`, … (17 files) | Map objects: tank, turret, projectile, mine, rocket, mortar, goal, flag, product, lock, warp, destroyer, enforcer, train, zeppelin, B52, wall |
@@ -156,7 +156,7 @@ tables) over `:game-content` and `:game-sim`; see
 - `:game-protocol`, `:game-content` and `:game-sim` contain no Compose code; desktop-only APIs
   (`javax.sound`, Jamepad, the player's folders) are in `:app-desktop`.
 - Only `:game-sim` decides gameplay. The client renders snapshots and sends inputs.
-- No runtime code reads repository folders (`MAPS/`, `DATA/`, `unpacked/`); everything shipped comes
+- No runtime code reads repository folders (`original/MAPS/`, `original/DATA/`, `original/unpacked/`); everything shipped comes
   from the class path. Only the tools and some tests read them.
 - `:game-sim` depends only on `:game-content`, `:game-protocol` and kotlinx.serialization. No module
   uses Kubriko (removed 2026-10-19, [ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)).

@@ -2,7 +2,7 @@
 
 How a map is stored and loaded in the rewrite: the native `.tamap` format of
 [ADR 0022](adrs/0022-native-map-format.md). Where the files come from and every other asset are in
-[assets.md](assets.md); the original `.MAP` format is in [`docs/game/map-format.md`](../game/map-format.md).
+[assets.md](assets.md); the original `.MAP` format is in [`original/docs/game/map-format.md`](../../original/docs/game/map-format.md).
 
 ## One file per map
 
@@ -104,10 +104,10 @@ The `.tamap` files are the source of the shipped maps ([ADR 0003](adrs/0003-lega
 
 ```bash
 ./kotlin run -m tools-mapconv -- import <file.MAP> <out-dir>
-./kotlin run -m tools-mapconv -- import-all "$PWD/MAPS" "$PWD/game-content/resources/maps"
+./kotlin run -m tools-mapconv -- import-all "$PWD/original/MAPS" "$PWD/game-content/resources/maps"
 ```
 
-`import-all` converts every `*.MAP` at the top level of `MAPS/` (not `MAPS/extra/`) and writes
+`import-all` converts every `*.MAP` at the top level of `original/MAPS/` (not `original/MAPS/extra/`) and writes
 `index.txt`. The importer chain: `LegacyMapParser` (game-content) → `LegacyObjectParser` and
 `LegacyCanonicalConverter` (game-sim, `sim.legacy`) → `CanonicalSceneBuilder.buildActors` → map
 objects → `MapConversion.toDocument` → `MapFile.write`.

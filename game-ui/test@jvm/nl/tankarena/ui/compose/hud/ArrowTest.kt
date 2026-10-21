@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Legacy write_arrow() (src/world/status.c) on a 320×400 split-screen view. */
+/** Legacy write_arrow() (original/src/world/status.c) on a 320×400 split-screen view. */
 class ArrowTest {
     private val w = 320f
     private val h = 400f

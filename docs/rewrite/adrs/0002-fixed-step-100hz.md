@@ -7,8 +7,8 @@
 
 ## Context
 
-The original's timer runs at 100 Hz (`sec 100` in `src/include/define.h`, `install_int_ex(game_tick,
-BPS_TO_TIMER(sec))` in `src/hardware/timer.c`). Every delay, refire time, countdown and AI cadence
+The original's timer runs at 100 Hz (`sec 100` in `original/src/include/define.h`, `install_int_ex(game_tick,
+BPS_TO_TIMER(sec))` in `original/src/hardware/timer.c`). Every delay, refire time, countdown and AI cadence
 in the C source is a number of these ticks (`tinit(x)` / `tdone(x)`). Running the rewrite at the same
 rate lets those numbers be copied without conversion.
 
@@ -37,7 +37,7 @@ never built and is withdrawn here (replays store inputs instead; see ADR 0014).
 ## The original's game step is not its timer tick
 
 The original's timer ticks at 100 Hz, but `game_control()` does not run every tick:
-`twait(np); np = tinit(2);` (`src/game/mainloop.c:17-21`) waits until `timer > np` and then sets the
+`twait(np); np = tinit(2);` (`original/src/game/mainloop.c:17-21`) waits until `timer > np` and then sets the
 next step 2 ticks later, so steps are at least **3 timer ticks apart (about 33 steps per second)**,
 fewer when drawing is slow. Movement uses the elapsed time (`dt`) and every delay uses `tinit()`
 timers, so both are independent of the step rate — those port correctly to 100 Hz.
@@ -45,8 +45,8 @@ timers, so both are independent of the step rate — those port correctly to 100
 Two things depend on the step rate:
 
 - Rules that change something by a fixed amount **per step**: the guided rocket gains 1 px/s per step
-  (`src/objects/rocket.c:29`), computer tanks roll their steering noise per step
-  (`src/tanks/computer.c:715`), wagons close up per step (`src/objects/train.c:267`), wrecks explode
+  (`original/src/objects/rocket.c:29`), computer tanks roll their steering noise per step
+  (`original/src/tanks/computer.c:715`), wagons close up per step (`original/src/objects/train.c:267`), wrecks explode
   per step. On a 100 Hz tick they run three times as often.
 - **Timers** (`tdone(t)` is `timer >= t`) are only looked at on a step, so a `tinit(n)` set on a step
   runs out on the first step at or after `n` ticks: 7 lasts 9, 10 lasts 12, 200 lasts 201. Counted

@@ -28,7 +28,7 @@ internal const val MORTAR_STEP_POWER: Int = 5
 internal const val FLAME_HIT_RADIUS_PX: Int = 15
 /** Legacy tank_write_marker(): the marker turns red beyond 400 px. */
 internal const val LOCK_OUT_OF_RANGE_PX: Int = 400
-// Legacy src/objects/train.c: quarter-circle rails of radius 49, wagons 31 px apart, at most
+// Legacy original/src/objects/train.c: quarter-circle rails of radius 49, wagons 31 px apart, at most
 // 50 px/s, the engine's smoke 11 px ahead of its centre, and wagon 7 carrying an A-bomb.
 internal const val RAILS_RADIUS: Int = 49
 internal const val WAGON_DISTANCE: Int = 31
@@ -42,8 +42,8 @@ internal val B52_BOMBS: List<Pair<Int, Int>> = listOf(
 )
 internal val B52_ENGINES: List<Pair<Int, Int>> = listOf(-16 to 9, -10 to 8, 9 to 8, 15 to 9)
 internal const val B52_BOMB_POWER: Int = 20
-/** Legacy `prodname[]` (src/objects/product.c). */
-/** Legacy `max_mayhem_cash`, `max_mayhem_products` and `max_mayhem_time` (src/include/define.h). */
+/** Legacy `prodname[]` (original/src/objects/product.c). */
+/** Legacy `max_mayhem_cash`, `max_mayhem_products` and `max_mayhem_time` (original/src/include/define.h). */
 internal const val MAYHEM_CASH: Int = 40
 internal const val MAYHEM_PRODUCTS: Int = 20
 internal const val MAYHEM_TICKS: Long = 180L * 100
@@ -110,7 +110,7 @@ class Match private constructor(
     internal var goalBad: Int = 0
 
     /**
-     * Legacy `game.supermarket_mayhem` (src/objects/product.c): a map with products is a shopping
+     * Legacy `game.supermarket_mayhem` (original/src/objects/product.c): a map with products is a shopping
      * trip — [mayhemProductsNeeded] products to buy with [mayhemCash] before [MAYHEM_TICKS] run out.
      */
     internal var mayhem: Boolean = false
@@ -216,7 +216,7 @@ class Match private constructor(
     /**
      * One tick of the 100 Hz timer. The game only moves on every third one ([STEP_TICKS]), like the
      * original's game_control(); in between the world stands still. The controls are read on a step,
-     * and like the original's keyboard handler (src/game/controls.c) a key pressed at any tick since
+     * and like the original's keyboard handler (original/src/game/controls.c) a key pressed at any tick since
      * the last step counts, so a short tap is not lost; so does an F-key tank selection.
      */
     fun tick(intents: Map<Int, PlayerIntentFrame>): WorldSnapshot {

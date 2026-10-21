@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-/** Goals with `who` 3 wait for one linked vehicle (src/objects/goal.c:46-51); WEAPON has five. */
+/** Goals with `who` 3 wait for one linked vehicle (original/src/objects/goal.c:46-51); WEAPON has five. */
 class GoalLinkTest {
     @Test
     fun `a linked goal is reached by its own vehicle only`() {

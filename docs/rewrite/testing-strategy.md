@@ -1,7 +1,7 @@
 # Testing Strategy
 
 How the rewrite is tested today, and what is planned. The parity target is the original game: the C
-source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of the original release.
+source in `original/src/`, described in [`original/docs/game/`](../../original/docs/game/), and DOSBox footage of the original release.
 
 ## Principles
 
@@ -10,8 +10,8 @@ source in `src/`, described in [`docs/game/`](../game/), and DOSBox footage of t
    stepping ticks and reading the `WorldSnapshot`, `PlayerView`s and `GameEvent`s.
 2. **One seam.** Tests, recordings, bots and agents drive a match through `MatchClient`
    (`submitInput`, `tick`) or `Match` directly; never by synthesising clicks.
-3. **The original is the oracle.** Expected values come from the C source (`src/data/tanks.c`,
-   `src/include/define.h`, …), not from what the Kotlin code currently does. Each parity test cites its
+3. **The original is the oracle.** Expected values come from the C source (`original/src/data/tanks.c`,
+   `original/src/include/define.h`, …), not from what the Kotlin code currently does. Each parity test cites its
    source line in a comment ([ADR 0010](adrs/0010-port-the-original-rules.md)).
 4. **Deterministic or broken.** Identical input gives identical output
    ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)). A flaky test is a bug in the code or

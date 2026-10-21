@@ -9,7 +9,7 @@ internal object LegacyObjectParser {
     private const val OFFSET_GC = 68
     private const val OFFSET_UNION = 84
 
-    // Offsets into the packed `tankstruct` (src/include/types.h) relative to OFFSET_UNION.
+    // Offsets into the packed `tankstruct` (original/src/include/types.h) relative to OFFSET_UNION.
     private const val TANK_NUM = 4
     private const val TANK_DIR = 32
     private const val TANK_ATTACK_AT = 108
@@ -160,7 +160,7 @@ internal object LegacyObjectParser {
     private fun parseObject(index: Int, reader: LegacyObjectReader): AuthoredObject? {
         val type = reader.readInt(OFFSET_TYPE)
         // Every object is stored by the top-left corner of its 33×33 picture (the engine adds 16
-        // for the centre, e.g. `(o->x+16)/b_size` in src/objects/player.c); the scene uses centres.
+        // for the centre, e.g. `(o->x+16)/b_size` in original/src/objects/player.c); the scene uses centres.
         val x = reader.readInt(OFFSET_X) + TILE_CENTRE_OFFSET
         val y = reader.readInt(OFFSET_Y) + TILE_CENTRE_OFFSET
         val goalContribution = reader.readInt(OFFSET_GC)
@@ -356,7 +356,7 @@ internal object LegacyObjectParser {
     }
 
     /**
-     * The packed `trainstruct` (src/include/types.h): speed and direction, armor, whether it
+     * The packed `trainstruct` (original/src/include/types.h): speed and direction, armor, whether it
      * smokes, its neighbours in the train (saved pointers, matched against `this_structure`),
      * its picture, and the rail segment it is on (`rails`) and the one it heads for (`end`).
      */
@@ -388,7 +388,7 @@ internal object LegacyObjectParser {
 
     /**
      * Reads the authored controller fields of a legacy tank: vehicle index into
-     * `src/data/tanks.c`, facing, `contr.id` (the F1–F10 id), whether the computer drives it,
+     * `original/src/data/tanks.c`, facing, `contr.id` (the F1–F10 id), whether the computer drives it,
      * which side it is on, its `computer` driving preferences and its authored waypoints.
      */
     private fun parseTankProperties(reader: LegacyObjectReader): Map<String, String> {

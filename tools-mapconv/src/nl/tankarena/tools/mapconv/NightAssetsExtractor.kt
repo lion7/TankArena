@@ -5,14 +5,14 @@ import java.io.File
 import javax.imageio.ImageIO
 
 /**
- * Builds what the client needs to draw the night missions like the original (src/game/night.c):
+ * Builds what the client needs to draw the night missions like the original (original/src/game/night.c):
  *
  * - `night_lut.png`, a lookup from every 6-bit palette colour to its night colour. The original
  *   draws a night map through NIGHT.LNK into the dark half (0..127) of NIGHT.PAL, and a light sets
  *   bit 7 of the pixels it covers, which picks the lit half. Some colours link straight into the
  *   lit half and glow without a light. The table holds 64 slices of 64×64 (blue picks the slice,
  *   8 slices per row): the dark colours in the left 512×512, the lit ones in the right.
- * - `light_<name>.png`, the 15 light cones of DATA/LIGHT.DAT (`LLIGHT1..5`, `MLIGHT1..5`,
+ * - `light_<name>.png`, the 15 light cones of original/DATA/LIGHT.DAT (`LLIGHT1..5`, `MLIGHT1..5`,
  *   `SLIGHT1..5`), white where they light. As in write_pattern(), each row lights one run of
  *   pixels after its leading transparent (0xFF) ones.
  */

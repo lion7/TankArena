@@ -22,7 +22,7 @@ one). Settings, passwords and recordings go to the player's own folders, never i
 
 `package.sh` (Linux) and `package.ps1` (Windows) do the same steps and can also run outside a container:
 
-1. `kotlin package -m game-client -f executable-jar` builds the game and writes the module jars.
+1. `kotlin package -m app-desktop -f executable-jar` builds the game and writes the module jars.
 2. The runtime class path comes from `kotlin show dependencies --scope runtime`. Each library jar is copied from
    the toolchain's Maven cache under a name that includes its group.
 3. `jpackage` from a JDK 25 bundles the jars with a runtime made of the five Java modules the game uses

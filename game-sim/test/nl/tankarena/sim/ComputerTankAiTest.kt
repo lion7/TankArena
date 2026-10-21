@@ -11,7 +11,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Legacy control_computer_tank() (src/tanks/computer.c), ported as [ComputerTankAi]. */
+/** Legacy control_computer_tank() (original/src/tanks/computer.c), ported as [ComputerTankAi]. */
 class ComputerTankAiTest {
 
     @Test

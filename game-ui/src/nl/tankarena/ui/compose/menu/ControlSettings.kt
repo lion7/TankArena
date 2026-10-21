@@ -66,7 +66,7 @@ data class PlayerControls(
 
 /**
  * The default keys. Player one: K , M . drive, Z fire, X/C turret, S/D weapon, A shield (legacy
- * controls.c). Player two (and the single player): the grey cursor block, as DATA/KEYS.HLP shows.
+ * controls.c). Player two (and the single player): the grey cursor block, as original/DATA/KEYS.HLP shows.
  */
 val DEFAULT_CONTROLS: List<PlayerControls> = listOf(
     PlayerControls(

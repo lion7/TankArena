@@ -6,7 +6,7 @@ import nl.tankarena.ui.compose.legacy.LegacyFonts
 import kotlin.random.Random
 
 /**
- * Legacy palette_effects() (src/graph/palette.c): by day the game rotates five ranges of the
+ * Legacy palette_effects() (original/src/graph/palette.c): by day the game rotates five ranges of the
  * palette, so water ripples, conveyor belts roll, teleporters, glowing parts and lava move. The
  * pictures here are already in colour, so a shader recognises the pixels of those palette entries
  * (their colours are unique in the palette) and gives them the colour their entry has now.

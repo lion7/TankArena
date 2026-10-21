@@ -88,7 +88,7 @@ internal fun initiallyStanding(world: TankArenaWorld, solid: Int, top: Int): Boo
 }
 
 /**
- * Legacy top layer (`mapm.m[2]`, drawn after the objects in src/world/under.c): roofs and tree
+ * Legacy top layer (`mapm.m[2]`, drawn after the objects in original/src/world/under.c): roofs and tree
  * tops above the vehicles, only over a standing building, with the ruined picture once the
  * top-layer piece itself is destroyed.
  */

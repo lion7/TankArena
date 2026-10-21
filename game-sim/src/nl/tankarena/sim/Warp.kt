@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 /**
- * Legacy WARP_TYPE (src/objects/warp.c): whatever comes within 15 px is put down at the exit
+ * Legacy WARP_TYPE (original/src/objects/warp.c): whatever comes within 15 px is put down at the exit
  * ([targetX], [targetY]).
  */
 class Warp internal constructor(state: State) : SceneObject<Warp>, Placed {

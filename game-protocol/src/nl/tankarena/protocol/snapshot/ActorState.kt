@@ -44,7 +44,7 @@ data class TankState(
 ) : ActorState
 
 /**
- * One legacy light bundle (write_bundle() in src/game/night.c): cone [size] 0 large, 1 medium,
+ * One legacy light bundle (write_bundle() in original/src/game/night.c): cone [size] 0 large, 1 medium,
  * 2 small, from world point ([x], [y]) in one of 16 [direction]s.
  */
 @Serializable
@@ -80,7 +80,7 @@ data class ProjectileState(
     val dropHeight: Int = 0,
 ) : ActorState
 
-/** A bonus lying on the map (legacy BONUS_TYPE, src/objects/bonus.c), drawn as `ICON(bonusType + 1)`. */
+/** A bonus lying on the map (legacy BONUS_TYPE, original/src/objects/bonus.c), drawn as `ICON(bonusType + 1)`. */
 @Serializable
 data class BonusState(
     override val actorId: Long,
@@ -89,7 +89,7 @@ data class BonusState(
     val bonusType: Int,
 ) : ActorState
 
-/** A soldier (legacy MAN_TYPE, src/objects/man.c), drawn as `MAN-(frame + 1)` turned to [direction]. */
+/** A soldier (legacy MAN_TYPE, original/src/objects/man.c), drawn as `MAN-(frame + 1)` turned to [direction]. */
 @Serializable
 data class ManState(
     override val actorId: Long,
@@ -100,7 +100,7 @@ data class ManState(
 ) : ActorState
 
 /**
- * An A-bomb (legacy ABOMB_TYPE, src/objects/abomb.c). While it counts down it shows
+ * An A-bomb (legacy ABOMB_TYPE, original/src/objects/abomb.c). While it counts down it shows
  * `ABOMB(4 - countdown)`; once it goes off nothing is drawn but the blast and the white flash.
  */
 @Serializable

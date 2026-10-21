@@ -1,11 +1,11 @@
 package nl.tankarena.ui.compose.menu
 
-/** The help files of the legacy main menu, bundled from `DATA/` as client resources. */
+/** The help files of the legacy main menu, bundled from `original/DATA/` as client resources. */
 enum class HelpFile(val resourceName: String) {
-    /** Legacy `arena_info` (src/game/menu.c): `DATA/TANK.HLP`. */
+    /** Legacy `arena_info` (original/src/game/menu.c): `original/DATA/TANK.HLP`. */
     ARENA_INFO("TANK.HLP"),
 
-    /** Legacy `keys_info` (src/game/menu.c): `DATA/KEYS.HLP`. */
+    /** Legacy `keys_info` (original/src/game/menu.c): `original/DATA/KEYS.HLP`. */
     DEFAULT_KEYS("KEYS.HLP"),
     ;
 
@@ -20,7 +20,7 @@ enum class HelpFile(val resourceName: String) {
 }
 
 /**
- * Paging rules of legacy `view_file` (src/game/prompt.c): the text is shown in upper case,
+ * Paging rules of legacy `view_file` (original/src/game/prompt.c): the text is shown in upper case,
  * [VISIBLE_LINES] lines at a time, and the cursor keys move it by [SCROLL_STEP] lines.
  */
 object TextPages {

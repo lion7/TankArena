@@ -36,11 +36,11 @@ import kotlin.math.roundToInt
 // What a match shows: the snapshot sent to clients, each player's radar and rocket lock marker.
 
 /**
- * Legacy write_radar() (src/game/radar.c): every live tank including the player's own, every
+ * Legacy write_radar() (original/src/game/radar.c): every live tank including the player's own, every
  * turret and every rocket; the client keeps those within 15 tiles of the player.
  */
 /**
- * Legacy write_radar() (src/game/radar.c): the vehicles (not wrecks, not cloaked ones — the viewer's
+ * Legacy write_radar() (original/src/game/radar.c): the vehicles (not wrecks, not cloaked ones — the viewer's
  * own included), bombers, trains, turrets and rockets, coloured for the viewer. The client shows those
  * within 15 tiles.
  */

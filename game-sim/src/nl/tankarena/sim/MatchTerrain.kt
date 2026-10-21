@@ -7,7 +7,7 @@ import nl.tankarena.protocol.snapshot.TerrainTile
 import nl.tankarena.protocol.snapshot.Transport
 import kotlin.math.roundToInt
 
-// What the ground does to vehicles: speed, water, lava, pits (src/tanks/control.c, src/check/pit.c).
+// What the ground does to vehicles: speed, water, lava, pits (original/src/tanks/control.c, original/src/check/pit.c).
 
 /**
  * Apply terrain effects (lava damage, pit kill) to all tanks, and set the per-tank terrain
@@ -15,7 +15,7 @@ import kotlin.math.roundToInt
  * the picture table); the legacy game never kills a tank for driving into it.
  */
 /**
- * Legacy transportation() (src/world/transp.c), first in a step: everything on or near the ground
+ * Legacy transportation() (original/src/world/transp.c), first in a step: everything on or near the ground
  * (below height 2) on a conveyor tile moves 60 px/s along it; on a turntable it turns a full circle
  * a second around the tile, its heading unchanged. A vehicle that would end up in another stays.
  */
@@ -93,7 +93,7 @@ internal fun Match.applyTerrainEffects() {
 }
 
 /**
- * Legacy `in_pit()` (src/check/pit.c): the centre tile of a pit always swallows a tank, while
+ * Legacy `in_pit()` (original/src/check/pit.c): the centre tile of a pit always swallows a tank, while
  * an edge or corner tile only does so once the tank's centre is past the rim on the side
  * facing the pit. [subX]/[subY] are the tank centre's offset inside its tile.
  */

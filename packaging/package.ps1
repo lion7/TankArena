@@ -53,7 +53,7 @@ foreach ($line in (Invoke-Kotlin show dependencies -m app-desktop --scope runtim
     # Umbrella artifacts have no jar of their own, only metadata.
     if (Test-Path $jar) { Copy-Item $jar "$inputDir\$group.$artifact-$ver.jar" }
 }
-foreach ($module in 'app-desktop', 'game-ui', 'game-sim', 'game-content', 'game-protocol') {
+foreach ($module in 'app-desktop', 'game-ui', 'game-net', 'game-sim', 'game-content', 'game-protocol') {
     Copy-Item "build\tasks\_${module}_jarJvm\$module-jvm.jar" $inputDir
 }
 Write-Host "$((Get-ChildItem $inputDir).Count) jars on the class path"

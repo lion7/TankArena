@@ -15,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The pilot's messages (src/world/status.c) and the night maps' lights (src/game/night.c). */
+/** The pilot's messages (original/src/world/status.c) and the night maps' lights (original/src/game/night.c). */
 class PilotAndNightTest {
 
     private val row = 2

@@ -7,7 +7,7 @@ import kotlin.random.Random
 
 /**
  * The rules of a player-vs-player round (legacy `game.mode == DUAL`): the start pads of
- * src/objects/player.c, the flags of src/objects/flag.c and the races of control_race().
+ * original/src/objects/player.c, the flags of original/src/objects/flag.c and the races of control_race().
  *
  * - A pad gives its player four vehicles (`ply.lives`); losing the last one loses the round, and
  *   once the building on the pad is destroyed the vehicle out there is the last one.

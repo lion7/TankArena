@@ -19,7 +19,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Legacy rocket (src/tanks/fire.c tank_marker_control(), src/objects/rocket.c): fire puts a
+ * Legacy rocket (original/src/tanks/fire.c tank_marker_control(), original/src/objects/rocket.c): fire puts a
  * lock-on marker on the tank, the drive keys steer it while fire is held, and releasing fire
  * launches a rocket that homes on whatever is under the marker.
  */

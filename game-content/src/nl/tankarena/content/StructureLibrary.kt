@@ -16,7 +16,7 @@ data class Structure(val libraryX: Int, val libraryY: Int, val cells: List<Struc
 }
 
 /**
- * The original editor's structure libraries, `DATA/MAP_0..3.DAT` (one per world, shipped as
+ * The original editor's structure libraries, `original/DATA/MAP_0..3.DAT` (one per world, shipped as
  * `structures/map_N.dat`): a 50×50 grid, column by column, of `short pic[3], links` (legacy
  * `structtype`). Linked cells (UP 1, DOWN 2, LEFT 4, RIGHT 8) form one structure; it is placed from its
  * top-left cell along the DOWN and RIGHT links (legacy `recursive_add_struct()`).

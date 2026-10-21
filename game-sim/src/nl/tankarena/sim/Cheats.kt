@@ -3,7 +3,7 @@ package nl.tankarena.sim
 import kotlinx.serialization.Serializable
 
 /**
- * The original's command-line cheats (src/game/main.c:52-97, cheat.txt). They change how the game
+ * The original's command-line cheats (original/src/game/main.c:52-97, cheat.txt). They change how the game
  * plays, so recordings keep them.
  */
 @Serializable

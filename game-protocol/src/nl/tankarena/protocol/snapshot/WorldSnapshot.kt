@@ -62,7 +62,7 @@ data class PlayerView(
     val lockMarker: LockMarker? = null,
 )
 
-/** The legacy rocket marker (`tank_write_marker()` in src/game/mainloop.c), in world pixels. */
+/** The legacy rocket marker (`tank_write_marker()` in original/src/game/mainloop.c), in world pixels. */
 @Serializable
 data class LockMarker(
     val x: Int,

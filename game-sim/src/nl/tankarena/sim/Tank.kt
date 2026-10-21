@@ -17,7 +17,7 @@ import kotlin.random.Random
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
-/** Seconds per server tick; the legacy physics (src/tanks/control.c) works in px/s with `dt = 1/sec`. */
+/** Seconds per server tick; the legacy physics (original/src/tanks/control.c) works in px/s with `dt = 1/sec`. */
 /** Shot speeds are kept in pixels per tick (a step moves them [STEP_TICKS] times as far). */
 private const val TICK_SECONDS: Float = 0.01f
 /** Legacy `weapon_left()/right()`: `tinit(15)` between two weapon changes. */
@@ -119,14 +119,14 @@ internal const val MESSAGE_STEPS: Int = 29
 internal const val MESSAGE_STEP_TICKS: Int = 10
 /** Legacy tank_fire(): switching the light blocks the trigger for 50 ticks. */
 private const val LIGHT_SWITCH_TICKS: Int = 50
-/** Legacy `desc[]` in src/tanks/fire.c: what weapon_left()/right() announce. */
+/** Legacy `desc[]` in original/src/tanks/fire.c: what weapon_left()/right() announce. */
 private val WEAPON_NAMES: List<String> = listOf(
     "MAIN CANNON", "CHAIN GUN", "FLAME THROWER", "MINES", "ROCKET", "MORTAR", "A-BOMB",
     "MEN WITH CG", "MEN WITH FL", "SMOKE SCREEN", "INVISIBILITY", "EXTRA SPEED", "LIGHT",
 )
 
 /** Legacy WRECK_LIFE_TIME: a wreck smokes (ROOK every 500..800 ticks) for 30 s. */
-/** Legacy WRECK_LIFE_TIME (src/tanks/control.c): a wreck burns this long, then blows up. */
+/** Legacy WRECK_LIFE_TIME (original/src/tanks/control.c): a wreck burns this long, then blows up. */
 internal const val WRECK_LIFE_TICKS: Int = 3000
 private const val WRECK_SMOKE_MIN_TICKS: Int = 500
 private const val WRECK_SMOKE_SPREAD_TICKS: Int = 300
@@ -153,7 +153,7 @@ const val SHOT_SMALL_ROCKET: Int = 100
 /** Legacy `num_weapon`. */
 const val WEAPON_COUNT: Int = 12
 
-/** Legacy `props.max_fuel` for almost every vehicle in `src/data/tanks.c`; fuel is measured in pixels driven. */
+/** Legacy `props.max_fuel` for almost every vehicle in `original/src/data/tanks.c`; fuel is measured in pixels driven. */
 const val LEGACY_MAX_FUEL: Int = 30000
 
 internal const val SERVER_TANK_FOOTPRINT: Int = LEGACY_TILE_SIZE - 4
@@ -220,7 +220,7 @@ class Tank(state: State) :
     private val firstWaypoint: Int = (0 until WAYPOINTS).firstOrNull { wayPoints[2 * it] != -1 } ?: -1
     internal var wayType: Int = if (firstWaypoint < 0) ComputerTankAi.WAY_INACTIVE else state.wayType
     internal var wayCurrent: Int = if (firstWaypoint < 0) state.wayCurrent else firstWaypoint
-    /** The legacy `computer` timers and target of control_computer_tank() (src/tanks/computer.c). */
+    /** The legacy `computer` timers and target of control_computer_tank() (original/src/tanks/computer.c). */
     internal val brain = ComputerTankAi.State()
     /** Legacy `shield.armor`; maps store each tank's own value, the vehicle table its maximum. */
     var armor: Int = state.armor
@@ -601,7 +601,7 @@ class Tank(state: State) :
     val picksUpBonuses: Boolean get() = kind == VehicleKind.TANK || kind == VehicleKind.CAR
 
     /**
-     * Legacy pickup_bonus() (src/objects/bonus.c): what each of the 14 bonus types gives; returns
+     * Legacy pickup_bonus() (original/src/objects/bonus.c): what each of the 14 bonus types gives; returns
      * the second line of the pickup message.
      */
     fun pickUpBonus(type: Int): String = when (type) {
@@ -665,7 +665,7 @@ class Tank(state: State) :
     private var undergroundEffectTicks: Int = 0
 
     /**
-     * Legacy get_underground() and underground_effects() (src/tanks/control.c:331-383), after the
+     * Legacy get_underground() and underground_effects() (original/src/tanks/control.c:331-383), after the
      * vehicle has moved: low vehicles splash into and out of water and bubble into and out of lava;
      * lava burns [LAVA_DAMAGE] every [LAVA_INTERVAL_TICKS]; otherwise, moving or flying, water
      * splashes, oil spatters and bare desert ground raises dust from time to time.
@@ -1109,7 +1109,7 @@ class Tank(state: State) :
     }
 
     /**
-     * Legacy new_position() (src/tanks/control.c): try the move this step's velocity asks for.
+     * Legacy new_position() (original/src/tanks/control.c): try the move this step's velocity asks for.
      * Vehicles not driven by the computer burn one unit of fuel per pixel of the move, even when the
      * move is then refused; a vehicle leaving the map comes back in on the other side. The move is
      * refused when the vehicle's picture would overlap standing structures by more pixels than it
@@ -1386,7 +1386,7 @@ class Tank(state: State) :
     }
 
     /**
-     * Legacy control_enforcer() (src/objects/enforce.c): an enforcer selects [weapon] for this
+     * Legacy control_enforcer() (original/src/objects/enforce.c): an enforcer selects [weapon] for this
      * computer tank and, when [fire], makes it fire that weapon at once with one round; unless
      * [keep] the tank switches back to its own weapon.
      */
@@ -1927,7 +1927,7 @@ class Tank(state: State) :
         @SerialName("velocityX") val velocityX: Float = 0f,
         @SerialName("velocityY") val velocityY: Float = 0f,
         @SerialName("primaryCooldownTicks") val primaryCooldownTicks: Int = 0,
-        /** Legacy `weap.nw`; the default is the STANDARD tank's loadout from src/data/tanks.c. */
+        /** Legacy `weap.nw`; the default is the STANDARD tank's loadout from original/src/data/tanks.c. */
         @SerialName("ammo") val ammo: List<Int> = DEFAULT_AMMO,
         /** Legacy `weap.power`. */
         @SerialName("power") val power: List<Int> = DEFAULT_POWER,

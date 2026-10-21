@@ -64,7 +64,7 @@ data class InputState(
 data class Heading(val body: Int, val turret: Int)
 
 /**
- * Legacy copy_controls_relative() and copy_controls_direct() (src/game/controls.c:339-470): what a
+ * Legacy copy_controls_relative() and copy_controls_direct() (original/src/game/controls.c:339-470): what a
  * player's keys and stick ask of their vehicle. [sensitivity] is the stick's dead zone (legacy
  * `joy[i].sensitivity`, 50 by default). Direct steering needs the vehicle's [heading]; without it
  * (no vehicle, or the rocket marker out) the controls are read as relative.

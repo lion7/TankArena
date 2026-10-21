@@ -18,7 +18,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Trains, destroyers, locks and enforcers (src/objects/train.c, destroy.c, lock.c, enforce.c). */
+/** Trains, destroyers, locks and enforcers (original/src/objects/train.c, destroy.c, lock.c, enforce.c). */
 class MapObjectsTest {
 
     private val rails = 2

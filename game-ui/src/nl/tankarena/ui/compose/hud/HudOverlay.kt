@@ -52,13 +52,13 @@ private object HudNames {
     fun faces(vehicleType: Int): List<String> = faces.getOrPut(vehicleType) { (1..5).map { "FACE${vehicleType + 1}-$it" } }
 }
 
-/** Legacy radar (src/game/radar.c): 15 tiles around the player, `res_x / 6` across, 4 px blips. */
+/** Legacy radar (original/src/game/radar.c): 15 tiles around the player, `res_x / 6` across, 4 px blips. */
 private const val RADAR_RANGE_TILES = 15
 private const val RADAR_RADIUS = 640 / 6 / 2
 private const val RADAR_BLIP = RADAR_RADIUS / RADAR_RANGE_TILES + 1
 
 /**
- * The legacy in-playfield status display (`write_status()` in src/world/status.c), drawn with the
+ * The legacy in-playfield status display (`write_status()` in original/src/world/status.c), drawn with the
  * original pictures at their original pixel offsets:
  * - top left `METER2A/B`: armor and fuel percentages (write_bars);
  * - top right `METER3A/B`: good and evil goal counters and the tank id (write_1p_info);
@@ -213,7 +213,7 @@ fun HudOverlay(
 }
 
 /**
- * Legacy write_status() in supermarket mayhem (src/world/status.c): products needed, time left and
+ * Legacy write_status() in supermarket mayhem (original/src/world/status.c): products needed, time left and
  * cash at the top left, what was bought along the bottom, and only the message's second line, with
  * no face. There is no radar.
  */
@@ -268,7 +268,7 @@ internal fun arrowFor(x: Float, y: Float, width: Float, height: Float): Triple<I
     }
 }
 
-/** Legacy `speech[]` (src/world/status.c): the pilot's face picture for each step of a message. */
+/** Legacy `speech[]` (original/src/world/status.c): the pilot's face picture for each step of a message. */
 private val SPEECH = intArrayOf(0, 1, 2, 3, 3, 2, 2, 3, 2, 1, 2, 3, 2, 0, 0, 1, 2, 3, 3, 2, 1, 2, 3, 2, 1, 3, 2, 0, 0, 0)
 private const val MESSAGE_STEPS = 29
 /** Legacy `num_weapon`: the light switch, drawn with ICON15/XCON15. */
@@ -369,7 +369,7 @@ private class HudPainter(
         /** Legacy write_number(): `cmap[13]`. */
         val METER_TEXT = paletteColor(LegacyColors.STATUS_NUMBER)
 
-        /** Legacy write_radar() colours (src/game/radar.c). */
+        /** Legacy write_radar() colours (original/src/game/radar.c). */
         val RADAR_BLACK = paletteColor(0)
         val RADAR_RED = paletteColor(95)
         val RADAR_YELLOW = paletteColor(64)

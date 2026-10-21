@@ -10,7 +10,7 @@ import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 
-/** Legacy palette_effects() and rotate_palette() (src/graph/palette.c). */
+/** Legacy palette_effects() and rotate_palette() (original/src/graph/palette.c). */
 class PaletteCyclingTest {
 
     private fun argb(index: Int) = LegacyFonts.gamePalette[index] or (0xFF shl 24)

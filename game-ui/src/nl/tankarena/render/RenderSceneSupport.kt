@@ -126,10 +126,10 @@ internal fun createWorldBody(worldWidth: Int, worldHeight: Int): RenderBody = Re
 )
 
 /**
- * Legacy `bkground(x, y)` (src/include/function.h): every tile is first painted with one of four
+ * Legacy `bkground(x, y)` (original/src/include/function.h): every tile is first painted with one of four
  * world background pictures, `BACK1`..`BACK16` (`back[variant + 4 * map.background]`). The
  * original picks the variant from bytes of its own code segment (`_bkground` in
- * src/world/rawunder.s), which is effectively fixed noise; a hash of the tile gives the same look.
+ * original/src/world/rawunder.s), which is effectively fixed noise; a hash of the tile gives the same look.
  */
 fun backgroundTileName(world: TankArenaWorld, tileX: Int, tileY: Int): String {
     val hash = (tileX * 73_856_093) xor (tileY * 19_349_663)
@@ -185,7 +185,7 @@ internal fun DrawScope.drawSpriteCentered(
 data class LegacyMapWindow(val left: Int, val top: Int, val width: Int, val height: Int)
 
 /**
- * Legacy compute_window_size() (src/world/under.c) and write_screen() (src/game/mainloop.c):
+ * Legacy compute_window_size() (original/src/world/under.c) and write_screen() (original/src/game/mainloop.c):
  * one window per player, `buf_x` = 640 / players − 1 wide and 480 high, or the map's own size
  * when it is smaller. One window is centred across; two are spread with equal gaps. Both sit a
  * third of the free height from the top, and start on a multiple of 4 pixels.

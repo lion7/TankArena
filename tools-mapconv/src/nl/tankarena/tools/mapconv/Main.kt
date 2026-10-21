@@ -23,11 +23,11 @@ fun main(args: Array<String>) {
           mapconv import <legacy-map-file> <output-maps-dir>
           mapconv import-all <legacy-maps-dir> <output-maps-dir>
           mapconv export <tamap-file> <legacy-map-file>
-          mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>
-          mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>
-          mapconv extract-vehicles <src/data/tanks.c> <output-kotlin-file>
+          mapconv extract-pictures <original/src/data/pictures.c> <output-kotlin-file>
+          mapconv extract-picture-terrain <original/src/data/pictures.c> <output-kotlin-file>
+          mapconv extract-vehicles <original/src/data/tanks.c> <output-kotlin-file>
           mapconv extract-masks <drawable dir> <output mask file>
-          mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <src/data/pictures.c>
+          mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <original/src/data/pictures.c>
         """.trimIndent()
     }
 
@@ -95,7 +95,7 @@ fun main(args: Array<String>) {
 
         "extract-pictures-png" -> {
             require(args.size >= 5) {
-                "Usage: mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <src/data/pictures.c>"
+                "Usage: mapconv extract-pictures-png <DATA dir> <output drawable dir> <output kotlin catalog> <original/src/data/pictures.c>"
             }
             LegacyPicturesPngExtractor.run(
                 dataDir = File(args[1]),
@@ -114,7 +114,7 @@ fun main(args: Array<String>) {
 
         "extract-fonts" -> {
             require(args.size >= 4) {
-                "Usage: mapconv extract-fonts <src/graph/5x5font.s> <DATA dir> <output-kotlin-file>"
+                "Usage: mapconv extract-fonts <original/src/graph/5x5font.s> <DATA dir> <output-kotlin-file>"
             }
             LegacyFontExtractor.run(File(args[1]), File(args[2]), File(args[3]))
         }
@@ -128,7 +128,7 @@ fun main(args: Array<String>) {
 
         "extract-vehicles" -> {
             require(args.size >= 3) {
-                "Usage: mapconv extract-vehicles <src/data/tanks.c> <output-kotlin-file>"
+                "Usage: mapconv extract-vehicles <original/src/data/tanks.c> <output-kotlin-file>"
             }
             val output = File(args[2])
             LegacyVehicleExtractor.generateKotlin(sourceFile = File(args[1]), outputFile = output)
@@ -137,7 +137,7 @@ fun main(args: Array<String>) {
 
         "extract-picture-terrain" -> {
             require(args.size >= 3) {
-                "Usage: mapconv extract-picture-terrain <src/data/pictures.c> <output-kotlin-file>"
+                "Usage: mapconv extract-picture-terrain <original/src/data/pictures.c> <output-kotlin-file>"
             }
             val output = File(args[2])
             LegacyPictureTerrainExtractor.generateKotlin(sourceFile = File(args[1]), outputFile = output)
@@ -146,7 +146,7 @@ fun main(args: Array<String>) {
 
         "extract-pictures" -> {
             require(args.size >= 3) {
-                "Usage: mapconv extract-pictures <src/data/pictures.c> <output-kotlin-file>"
+                "Usage: mapconv extract-pictures <original/src/data/pictures.c> <output-kotlin-file>"
             }
             val input = File(args[1])
             val output = File(args[2])

@@ -16,7 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** B52 bombers and the zeppelin (src/objects/b52.c, zeppelin.c), force fields and ramps. */
+/** B52 bombers and the zeppelin (original/src/objects/b52.c, zeppelin.c), force fields and ramps. */
 class BombersFieldsRampsTest {
 
     private val row = 2

@@ -1,11 +1,11 @@
 # Legacy System Map
 
-Where each part of the original C source (`src/`, about 23,800 lines of C and assembly) lives in the
+Where each part of the original C source (`original/src/`, about 23,800 lines of C and assembly) lives in the
 rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-sim/src/nl/tankarena/sim/`,
 `client/` is `game-ui/src/nl/tankarena/` (and `app-desktop/src/nl/tankarena/` for the desktop app),
 `content/` is `game-content/src/nl/tankarena/`.
 
-## Gameplay (`src/tanks`, `src/check`, `src/objects`, `src/world`)
+## Gameplay (`original/src/tanks`, `original/src/check`, `original/src/objects`, `original/src/world`)
 
 | Original | Rewrite |
 |---|---|
@@ -33,7 +33,7 @@ rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-sim/src/nl
 | `world/parts.c` (debris) | **not ported** |
 | `world/transp.c` (conveyors, rotating platforms) | **not ported** |
 
-## Game flow (`src/game`)
+## Game flow (`original/src/game`)
 
 | Original | Rewrite |
 |---|---|
@@ -49,7 +49,7 @@ rewrite. Kotlin paths are abbreviated: `server/` and `sim/` are `game-sim/src/nl
 | `radar.c` | `HudOverlay` radar; contacts from `Match.buildRadar` |
 | `settings.c` (`TANK.CFG`) | `GameOptionsStore` (`settings.json`) |
 
-## Graphics, sound, hardware (`src/graph`, `src/hardware`)
+## Graphics, sound, hardware (`original/src/graph`, `original/src/hardware`)
 
 | Original | Rewrite |
 |---|---|

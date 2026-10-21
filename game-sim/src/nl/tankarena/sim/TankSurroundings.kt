@@ -1,6 +1,6 @@
 package nl.tankarena.sim
 
-/** What a tank needs from the match to move like the original (src/tanks/control.c new_position()). */
+/** What a tank needs from the match to move like the original (original/src/tanks/control.c new_position()). */
 internal interface TankSurroundings {
     val structures: StructureGrid
     val worldWidth: Int

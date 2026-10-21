@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 
 /** ADR 0022, option C: `.MAP` export. */
 class LegacyMapExportTest {
-    private val originals = File("../MAPS").listFiles { file -> file.isFile && file.name.endsWith(".MAP", ignoreCase = true) }!!
+    private val originals = File("../original/MAPS").listFiles { file -> file.isFile && file.name.endsWith(".MAP", ignoreCase = true) }!!
         .sortedBy { it.name }
 
     @Test

@@ -43,7 +43,7 @@ are about detection), or *Closed* (kept briefly for the record).
 - **Risk:** the importer models only the object fields the rewrite uses, so `.MAP` export could write
   files the original rejects or plays differently ([ADR 0022](adrs/0022-native-map-format.md)).
 - **Mitigations:** the import side is pinned by `MapDocumentTest`; for export, decide how to keep the
-  unmodelled bytes, add `.MAP` round-trip tests and spot-check exported maps in DOSBox; `MAPS/*.MAP`
+  unmodelled bytes, add `.MAP` round-trip tests and spot-check exported maps in DOSBox; `original/MAPS/*.MAP`
   stays in the repository as the reference.
 
 ## Editor far behind

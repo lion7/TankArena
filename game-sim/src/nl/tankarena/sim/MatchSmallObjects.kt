@@ -6,8 +6,8 @@ import nl.tankarena.protocol.snapshot.TerrainMaterial
 import nl.tankarena.protocol.snapshot.EffectKind
 import nl.tankarena.protocol.snapshot.GameEvent
 
-// Bonuses, soldiers and A-bombs, and vehicles that overlap (src/objects/bonus.c, man.c, abomb.c,
-// src/check/overlap.c).
+// Bonuses, soldiers and A-bombs, and vehicles that overlap (original/src/objects/bonus.c, man.c, abomb.c,
+// original/src/check/overlap.c).
 
 /** A tile of the map's bonus layer (`mapm.b`, a signed char: 255 is -1, no bonus). */
 internal fun Match.layerBonus(tileX: Int, tileY: Int): Int {

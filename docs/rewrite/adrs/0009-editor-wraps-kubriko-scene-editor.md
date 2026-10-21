@@ -8,9 +8,9 @@
 
 ## Context
 
-The original's editor (`src/edit/`, ~23 files) edits structures per layer with links, every object
+The original's editor (`original/src/edit/`, ~23 files) edits structures per layer with links, every object
 type through property menus, the goal, men and bonus layers, the map header ("SPECIAL" menu: map
-type, codes, day/night, public/shareware), creates maps from the world templates `DATA/MAP_0..3.DAT`
+type, codes, day/night, public/shareware), creates maps from the world templates `original/DATA/MAP_0..3.DAT`
 and shows a whole-map overview. Rebuilding that from scratch in Compose is a large job. Kubriko ships
 a generic `SceneEditor` (viewport, palette, property inspector, load/save) that works on the same
 serialized objects the game reads.

@@ -10,7 +10,7 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.imageResource
 
 /**
- * The status display of a night mission (legacy load_pictures() at night, src/game/init.c): every
+ * The status display of a night mission (legacy load_pictures() at night, original/src/game/init.c): every
  * picture goes through NIGHT.LNK into NIGHT.PAL, the pictures marked `night_vis` (meters, the
  * large weapon icon, faces, arrows, SELECT, ...) into its lit half and the rest into its dark
  * half. Text and radar dots use `cmap[c] = night_link[c] + 0x80`, the lit half too.

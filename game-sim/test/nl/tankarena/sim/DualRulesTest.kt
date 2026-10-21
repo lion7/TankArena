@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Player vs player rounds: src/objects/player.c, flag.c and dual.c. */
+/** Player vs player rounds: original/src/objects/player.c, flag.c and dual.c. */
 class DualRulesTest {
 
     @Test

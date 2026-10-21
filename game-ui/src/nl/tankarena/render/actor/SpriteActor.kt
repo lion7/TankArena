@@ -43,7 +43,7 @@ internal open class SpriteActor(
     var shadowOffset: Int = 0
 
     /**
-     * Legacy b_add_layer_d() (src/world/under.c): a picture drawn in one of 16 directions from the
+     * Legacy b_add_layer_d() (original/src/world/under.c): a picture drawn in one of 16 directions from the
      * five pictures `base` (north) to `base + 4` (east), mirrored for the other directions.
      */
     fun showDirectional(direction: Int, picture: (Int) -> String) {
@@ -95,7 +95,7 @@ internal fun directionalFrame(direction: Int): DirectionalFrame {
 }
 
 /**
- * Legacy b_add_shadow() (src/graph/sprites.s): where the picture is opaque, the screen pixel
+ * Legacy b_add_shadow() (original/src/graph/sprites.s): where the picture is opaque, the screen pixel
  * underneath becomes the palette grey `gray[]` of its brightness — a grey at about 57 % of the
  * pixel's luma (init.c: grey entry `luma / 6` of the 16-step ramp, whose entry 10 is 36/63). It is
  * drawn as two passes over what is already there: take its colour away, then darken it.

@@ -17,15 +17,15 @@ differently.
 
 ## Decision
 
-- **The C source in `src/` is the authority** for every gameplay rule and number. `docs/game/`
+- **The C source in `original/src/` is the authority** for every gameplay rule and number. `original/docs/game/`
   describes it in prose and is corrected when it disagrees with the source.
 - **Port the original's algorithms**, not approximations: `new_velocity()`/`new_position()` movement,
   `hitwall.c`/`overlap.c` structure collisions, `line_obj_hit_point()` shot hits, `computer.c` AI,
   `train.c` rails, and so on. Kotlin code cites the C function or file it ports.
 - **Generate data tables from the C source** instead of copying numbers by hand:
-  `tools-mapconv extract-vehicles` (`src/data/tanks.c` → `GeneratedLegacyVehicles.kt`),
-  `extract-picture-terrain` and `extract-pictures` (`src/data/pictures.c`), `extract-fonts`
-  (`src/graph/5x5font.s`).
+  `tools-mapconv extract-vehicles` (`original/src/data/tanks.c` → `GeneratedLegacyVehicles.kt`),
+  `extract-picture-terrain` and `extract-pictures` (`original/src/data/pictures.c`), `extract-fonts`
+  (`original/src/graph/5x5font.s`).
 - **Faithful quirks stay.** Behaviour that looks like a bug but is what the original does is kept, for
   example: in player vs player every start pad of a player's vehicle kind spawns a tank and all of
   them follow that player's keys; stacked computer tanks that overlap at start blow each other up

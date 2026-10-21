@@ -16,7 +16,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Legacy game_options() (src/game/menu.c), save_settings() and what the options change. */
+/** Legacy game_options() (original/src/game/menu.c), save_settings() and what the options change. */
 class GameOptionsTest {
 
     @Test

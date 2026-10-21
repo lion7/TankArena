@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Vehicle rules of new_position(), hit_tank() and tank_effects() (src/tanks/control.c, tank.c). */
+/** Vehicle rules of new_position(), hit_tank() and tank_effects() (original/src/tanks/control.c, tank.c). */
 class VehicleRulesTest {
     @Test
     fun `a vehicle leaving the map comes back in on the other side`() {

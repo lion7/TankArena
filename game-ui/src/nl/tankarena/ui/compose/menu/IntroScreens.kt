@@ -19,7 +19,7 @@ import nl.tankarena.ui.compose.legacy.Mode13View
 import nl.tankarena.ui.compose.rememberFadeIn
 import kotlinx.coroutines.delay
 
-/** The steps of legacy write_title() (src/game/title.c) before the main menu. */
+/** The steps of legacy write_title() (original/src/game/title.c) before the main menu. */
 enum class IntroStep { LOGO, TITLE, CREDITS, THANKS }
 
 /**

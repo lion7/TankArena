@@ -14,7 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Warps (src/objects/warp.c): vehicles, soldiers, bombers and rockets, no pause, sparks and sound. */
+/** Warps (original/src/objects/warp.c): vehicles, soldiers, bombers and rockets, no pause, sparks and sound. */
 class WarpTest {
     private val warpX = 4 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2
     private val warpY = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2

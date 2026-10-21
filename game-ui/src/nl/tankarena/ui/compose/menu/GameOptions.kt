@@ -19,7 +19,7 @@ import nl.tankarena.sim.Ruleset
 import nl.tankarena.ui.compose.legacy.Mode13View
 
 /**
- * The game options of legacy menu.c and the other settings TANK.CFG keeps (src/game/settings.c):
+ * The game options of legacy menu.c and the other settings TANK.CFG keeps (original/src/game/settings.c):
  * `race_laps`, `rnds`, `lose`, `gamcor`, `music_volume`, `sound_volume` and `victory_count`.
  */
 @Serializable

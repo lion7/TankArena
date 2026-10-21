@@ -5,7 +5,7 @@ import nl.tankarena.content.TerrainGridBuilder
 import nl.tankarena.protocol.snapshot.EffectKind
 import nl.tankarena.protocol.snapshot.GameEvent
 
-// B52 bombers and the zeppelin (src/objects/b52.c, zeppelin.c).
+// B52 bombers and the zeppelin (original/src/objects/b52.c, zeppelin.c).
 
 /** Legacy control_zeppelin(): drift west at 10 px/s and come back in from the east. */
 internal fun Match.stepZeppelins() {

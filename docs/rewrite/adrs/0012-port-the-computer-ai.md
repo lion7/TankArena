@@ -11,7 +11,7 @@ differently from the original: computer tanks routed perfectly around buildings,
 a crash, ignored the per-tank attack weights and waves stored in the maps, and could not be tuned by
 the map author's fields.
 
-The original's `control_computer_tank()` (`src/tanks/computer.c`) is a fuzzy-logic controller with
+The original's `control_computer_tank()` (`original/src/tanks/computer.c`) is a fuzzy-logic controller with
 no path finding: it blends dangers (objects, buildings, pits) and wants (target, waypoints, faster
 terrain) into steering, picks a new target every 100 + rnd(100) ticks weighted by `attack_tanks` and
 `attack_goals`, follows up to ten waypoints, attacks in waves (`wave_delay`), and panics after

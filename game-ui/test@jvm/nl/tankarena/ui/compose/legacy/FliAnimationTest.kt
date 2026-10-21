@@ -9,7 +9,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The intro animations of legacy write_title() (src/game/title.c). */
+/** The intro animations of legacy write_title() (original/src/game/title.c). */
 class FliAnimationTest {
 
     @Test

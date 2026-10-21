@@ -2,11 +2,11 @@ package nl.tankarena.sim
 
 import nl.tankarena.core.DetMath
 /**
- * Legacy `tankinfotype.turret.main_static` (src/include/types.h): how a vehicle's main gun aims.
+ * Legacy `tankinfotype.turret.main_static` (original/src/include/types.h): how a vehicle's main gun aims.
  *
  * Only [TURRET] guns follow the aim keys. [STATIC] guns are fixed to the hull, and [ROTATE] is a
  * purely visual auto-spinning top (a helicopter rotor): both fire along the hull
- * (`tank_fire()` in src/tanks/fire.c uses `motion.dir` unless the gun is `MAIN_TURRET`).
+ * (`tank_fire()` in original/src/tanks/fire.c uses `motion.dir` unless the gun is `MAIN_TURRET`).
  */
 enum class TurretMode { STATIC, TURRET, ROTATE }
 
@@ -14,7 +14,7 @@ enum class TurretMode { STATIC, TURRET, ROTATE }
 enum class VehicleKind { CAR, TANK, CHOPPER, PLANE }
 
 /**
- * Legacy `tankinfotype.motion`, used by `new_velocity()` in src/tanks/control.c. Forces are in
+ * Legacy `tankinfotype.motion`, used by `new_velocity()` in original/src/tanks/control.c. Forces are in
  * pixel-mass units per second: thrust `acc / mass` px/s², longitudinal friction
  * `(ffV * |v| + ff0) / mass` and sideways friction `(fsV * |v| + fs0) / mass`.
  * [rotation] is the delay in ticks between two 1/16 turns; [change] the pixels driven between
@@ -33,7 +33,7 @@ data class VehicleMotion(
     val change: Int,
 )
 
-/** One row of `tank[]` in src/data/tanks.c. Weapon lists are indexed by legacy weapon number (0..11). */
+/** One row of `tank[]` in original/src/data/tanks.c. Weapon lists are indexed by legacy weapon number (0..11). */
 data class VehicleSpec(
     val name: String,
     val kind: VehicleKind,
@@ -78,7 +78,7 @@ data class VehicleSpec(
 data class VehicleLight(val size: Int, val offset: Pair<Int, Int>)
 
 /**
- * Legacy loc_x()/loc_y() (src/check/math.c): turn an offset laid out for a north-facing vehicle
+ * Legacy loc_x()/loc_y() (original/src/check/math.c): turn an offset laid out for a north-facing vehicle
  * to [direction] (16 steps, clockwise), rounding like the original.
  */
 fun rotate(direction: Int, offset: Pair<Int, Int>): Pair<Int, Int> {
@@ -88,7 +88,7 @@ fun rotate(direction: Int, offset: Pair<Int, Int>): Pair<Int, Int> {
         Math.round(DetMath.sin(angle) * x + DetMath.cos(angle) * y).toInt()
 }
 
-/** Per-vehicle data from `tank[]` in src/data/tanks.c, indexed by the legacy vehicle number that scenes store as `tankType`. */
+/** Per-vehicle data from `tank[]` in original/src/data/tanks.c, indexed by the legacy vehicle number that scenes store as `tankType`. */
 object LegacyVehicles {
     fun spec(tankType: Int): VehicleSpec =
         GeneratedLegacyVehicles.vehicles.getOrElse(tankType) { GeneratedLegacyVehicles.vehicles[0] }

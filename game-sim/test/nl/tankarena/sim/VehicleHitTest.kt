@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Legacy line_obj_hit_point() (src/check/hitobj.c): shots hit a vehicle's picture, not a box. */
+/** Legacy line_obj_hit_point() (original/src/check/hitobj.c): shots hit a vehicle's picture, not a box. */
 class VehicleHitTest {
 
     private val row = 2

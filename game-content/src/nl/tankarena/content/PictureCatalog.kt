@@ -6,7 +6,7 @@ import nl.tankarena.protocol.snapshot.TerrainTile
 import nl.tankarena.protocol.snapshot.Transport
 
 /**
- * The gameplay columns of one `pictureinfotype` row (src/include/types.h): its legacy `type`
+ * The gameplay columns of one `pictureinfotype` row (original/src/include/types.h): its legacy `type`
  * constant name, `speed`, `str[3]` (strength against normal hits, crashes and flames; 1000 is
  * indestructible), `exptype` (effect when destroyed) and `linked` (`UP+DOWN+LEFT+RIGHT+STOP` flags).
  */
@@ -22,8 +22,8 @@ data class LegacyPictureTerrain(
  * Maps (world, picture-index) → terrain properties (material + speed multiplier).
  *
  * The rows come from [GeneratedLegacyPictureTerrain], which is generated from the pc0–pc3
- * arrays in src/data/pictures.c; this object only translates the legacy type constants
- * (src/include/define.h) into [TerrainMaterial]s.
+ * arrays in original/src/data/pictures.c; this object only translates the legacy type constants
+ * (original/src/include/define.h) into [TerrainMaterial]s.
  *
  * Defaults: speed = 1.0, material = NORMAL (unknown or negative index).
  */

@@ -14,7 +14,7 @@ enum class GameMode {
 enum class MissionOutcome { WON, LOST }
 
 /**
- * Legacy dual_game() (src/game/dual.c): the rounds of one player-vs-player match on [mission].
+ * Legacy dual_game() (original/src/game/dual.c): the rounds of one player-vs-player match on [mission].
  * [round] is 1-based; [wins] counts the rounds each player has won (`game.wins`). [options]
  * are the game options the match was started with (rounds, laps, the losers tank).
  */
@@ -80,11 +80,11 @@ sealed interface DesktopShellScreen {
         val tankTypes: List<Int> = listOf(0, 0),
     ) : DesktopShellScreen
 
-    /** Legacy select_tanks() (src/game/seltank.c) before every player-vs-player round. */
+    /** Legacy select_tanks() (original/src/game/seltank.c) before every player-vs-player round. */
     data class TankSelect(val match: DualMatch) : DesktopShellScreen
 
     /**
-     * Legacy `debrief()` (src/game/single.c): after a won mission its success text, after a lost
+     * Legacy `debrief()` (original/src/game/single.c): after a won mission its success text, after a lost
      * one its failure text, in the text viewer; then back to the game mode menu.
      */
     data class AfterMission(val text: String, val won: Boolean = true) : DesktopShellScreen

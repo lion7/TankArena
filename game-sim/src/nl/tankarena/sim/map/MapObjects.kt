@@ -73,7 +73,7 @@ enum class ObjectPoint(val label: String) {
 }
 
 /**
- * The map editor's object rules (ADR 0021, legacy `src/edit/`): what can be added, where an object
+ * The map editor's object rules (ADR 0021, legacy `original/src/edit/`): what can be added, where an object
  * is, how it moves and turns, and the properties each kind has.
  */
 object MapObjects {

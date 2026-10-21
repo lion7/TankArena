@@ -42,7 +42,7 @@ can still be played in the original under DOSBox.
 ```
 
 - **Picture layers as text grids.** A per-map `legend` maps two-character codes to picture *names*
-  from the original catalog (`src/data/pictures.c`); each layer is a list of rows, each row the codes
+  from the original catalog (`original/src/data/pictures.c`); each layer is a list of rows, each row the codes
   of its cells, `..` for none. Every cell is exactly two characters, so columns line up, the shape of
   the map is visible in a text editor, and a changed tile is a small diff. Names rather than picture
   numbers make the legend readable; the numbering itself never changes (the catalog is the original's).
@@ -115,7 +115,7 @@ Sparse lists are used where they fit: the goal, bonus and men layers.
 
 - The 69 shipped maps are converted once into `game-content/resources/maps/*.tamap`; from then on
   these files are the source, edited by the in-game editor ([ADR 0021](0021-editor-in-the-game.md)).
-  `MAPS/*.MAP` stays in the repository as the original release and as round-trip test input.
+  `original/MAPS/*.MAP` stays in the repository as the original release and as round-trip test input.
 - `.MAP` import is a permanent feature (players can bring maps from their old install); it is no
   longer how shipped content is produced.
 - The scene/sidecar files, `ShippedScenes`, `LegacyToSceneJson`, `LegacyMapImporter`, the

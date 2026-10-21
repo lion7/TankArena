@@ -11,7 +11,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Legacy `pp[]` (src/world/parts.c) for the parts that only show: how many pieces, how far (min +
+ * Legacy `pp[]` (original/src/world/parts.c) for the parts that only show: how many pieces, how far (min +
  * rnd(spread) px) and how fast (min + rnd(spread) px/s) they fly.
  */
 internal enum class DebrisProperties(

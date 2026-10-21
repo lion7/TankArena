@@ -8,7 +8,7 @@ import nl.tankarena.protocol.snapshot.ProjectileOwnerKind
 import kotlin.math.roundToInt
 
 // Turrets and every shot: bullets, flames, rockets, mortar shells and mines, from firing to impact
-// (src/objects/turret.c, rocket.c, mortar.c, mine.c, src/world/bullet.c, src/tanks/fire.c).
+// (original/src/objects/turret.c, rocket.c, mortar.c, mine.c, original/src/world/bullet.c, original/src/tanks/fire.c).
 
 internal fun Match.stepTurrets() {
     val tanks = objects.all.filterIsInstance<Tank>()
@@ -42,7 +42,7 @@ internal fun Match.removeDeadProjectiles() {
 }
 
 /**
- * Legacy `hit[type].explosion` (src/check/hitwall.c) for a bullet that hits something, and
+ * Legacy `hit[type].explosion` (original/src/check/hitwall.c) for a bullet that hits something, and
  * control_bullets() for one that runs out of range: the main gun explodes either way, a chain-gun
  * round sparks or puffs, a flame burns where it hit and simply dies out otherwise.
  */
@@ -80,7 +80,7 @@ internal fun Match.flushOutOfBoundsRockets() {
 }
 
 /**
- * Legacy nearest_target() (src/objects/objects.c): the closest object with a hit radius within
+ * Legacy nearest_target() (original/src/objects/objects.c): the closest object with a hit radius within
  * 15 px of ([x], [y]) — any vehicle (the shooter's own and wrecks too), soldier, bomber, train car,
  * mine, bonus, A-bomb, flag, product, the zeppelin or another rocket. Turrets, warps and goals have
  * no radius. The rocket follows it until it is gone from the map.
@@ -224,7 +224,7 @@ internal fun Match.flushOutOfBoundsMortars() {
 }
 
 /**
- * Legacy create_mortar() and control_mortar() (src/objects/mortar.c): where a shell or a plane's bomb
+ * Legacy create_mortar() and control_mortar() (original/src/objects/mortar.c): where a shell or a plane's bomb
  * lands there is a bang (SND_NUKE), then a blast that grows by 5 px a step from 5 to 60 px. Every
  * ring hits whatever is within it for 5 — vehicles above ground (the shooter too), soldiers, mines,
  * low bombers, trains, bonuses and A-bombs — and the structures under it. The shell's own power

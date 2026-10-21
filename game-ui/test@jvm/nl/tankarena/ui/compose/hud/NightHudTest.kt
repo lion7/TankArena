@@ -22,7 +22,7 @@ import org.jetbrains.skia.Image
  */
 class NightHudTest {
 
-    private fun dataFile(name: String): File = listOf(File("../DATA/$name"), File("DATA/$name")).first { it.isFile }
+    private fun dataFile(name: String): File = listOf(File("../original/DATA/$name"), File("original/DATA/$name")).first { it.isFile }
 
     private fun palette(name: String): List<Int> {
         val bytes = dataFile(name).readBytes()

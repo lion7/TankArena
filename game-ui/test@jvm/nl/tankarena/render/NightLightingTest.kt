@@ -13,11 +13,11 @@ import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 
-/** The night shader against the original palettes: DATA/PALETTE.DAT, NIGHT.PAL and NIGHT.LNK. */
+/** The night shader against the original palettes: original/DATA/PALETTE.DAT, NIGHT.PAL and NIGHT.LNK. */
 class NightLightingTest {
 
     private fun dataFile(name: String): File =
-        listOf(File("../DATA/$name"), File("DATA/$name")).first { it.isFile }
+        listOf(File("../original/DATA/$name"), File("original/DATA/$name")).first { it.isFile }
 
     private fun palette(name: String): List<Triple<Int, Int, Int>> {
         val bytes = dataFile(name).readBytes()

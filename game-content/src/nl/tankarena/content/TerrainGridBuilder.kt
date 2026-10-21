@@ -6,7 +6,7 @@ import nl.tankarena.protocol.snapshot.TerrainTile
 /**
  * Builds a [TerrainGrid] from a [TileLayers] and [MapMetadata].
  *
- * Follows the legacy lookups in src/tanks/control.c:
+ * Follows the legacy lookups in original/src/tanks/control.c:
  * - the tile type comes from layer 0 (base) and falls through to layer 1 (solid) when the
  *   base tile is missing or has type `NOTHING` (`get_underground()` / `get_type()`);
  * - the speed multiplies the base and solid pictures' speeds (`move_tank()`). The legacy code

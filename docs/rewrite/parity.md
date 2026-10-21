@@ -1,8 +1,8 @@
 # Feature Parity
 
 What the rewrite does and does not yet do compared with the original game, checked against the code
-and the C source on 2026-10-20 (Classic parity, roadmap phase 3, finished). The original is described in [`docs/game/`](../game/); where that
-text and `src/` disagree, `src/` wins ([ADR 0010](adrs/0010-port-the-original-rules.md)).
+and the C source on 2026-10-20 (Classic parity, roadmap phase 3, finished). The original is described in [`original/docs/game/`](../../original/docs/game/); where that
+text and `original/src/` disagree, `original/src/` wins ([ADR 0010](adrs/0010-port-the-original-rules.md)).
 
 **Parity** means: the 69 original maps play as in the original, in every mode, with the original's
 rules, presentation, sound, controls and editor capabilities, except for the deviations and
@@ -59,8 +59,8 @@ Decided differences from the original. They are not parity bugs.
 
 ## Out of scope
 
-- The shareware build's zeppelin that the game spawns by itself (`src/game/mapfiles.c:324`).
-- The DOS setup programs (`src/setup/`: sound card, video mode); the JDK picks the audio device.
+- The shareware build's zeppelin that the game spawns by itself (`original/src/game/mapfiles.c:324`).
+- The DOS setup programs (`original/src/setup/`: sound card, video mode); the JDK picks the audio device.
 - `VICTORY.FLI` and `THUNDER.FLI`: not in the original release either; the code plays them if present.
 - Map locking/encryption of the original editor (`lock`, `protect`).
 
@@ -69,7 +69,7 @@ Decided differences from the original. They are not parity bugs.
 Kept because the original does the same ([ADR 0010](adrs/0010-port-the-original-rules.md)):
 
 - In player vs player every start pad of a player's vehicle kind spawns a tank and all of them obey
-  that player's keys; F1–F10 is disabled in that mode (`src/game/controls.c:220`). No shipped map has
+  that player's keys; F1–F10 is disabled in that mode (`original/src/game/controls.c:220`). No shipped map has
   two such pads for a player. Extended gives each player one vehicle.
 - Computer tanks stacked on each other at start destroy each other (of the shipped maps, SUBURBS).
   In Extended they survive.
@@ -86,7 +86,7 @@ flash; fades; grey view for the losing player.
 Open:
 
 - **done** — the game step: one step every 3 timer ticks like `game_control()`
-  (`src/game/mainloop.c:17-21`), timers running out on steps like `tdone()`, per-step rules (rocket
+  (`original/src/game/mainloop.c:17-21`), timers running out on steps like `tdone()`, per-step rules (rocket
   acceleration, steering noise, wagon spacing, explosions) once per step, the start and bonus shield as
   15 blinks of `tinit(5)` after the hold (rules v12, 2026-10-19). See
   [ADR 0002](adrs/0002-fixed-step-100hz.md#the-originals-game-step-is-not-its-timer-tick).
@@ -101,7 +101,7 @@ Open:
 
 ## Vehicles
 
-Done: the 23-vehicle table generated from `src/data/tanks.c`; legacy thrust and friction
+Done: the 23-vehicle table generated from `original/src/data/tanks.c`; legacy thrust and friction
 (`new_velocity`), turn delays, speed-up bonus; mass-ratio collisions and ram damage; structure
 crashes; overlap destruction at start; fuel per pixel; armor, shield key pool, start shield
 (200 + 15×5 ticks); lives, 300-tick respawn and refill on pads; low-armor smoke and wrecks; planes
@@ -110,7 +110,7 @@ structure collisions; pits, ramps; turret modes; atomic tank.
 
 Open:
 
-- **done** — wrecks (`src/tanks/control.c:14-39,138-146`, `src/objects/player.c:71-86`): a vehicle
+- **done** — wrecks (`original/src/tanks/control.c:14-39,138-146`, `original/src/objects/player.c:71-86`): a vehicle
   becomes a wreck when its dying explosions end; it smokes, blows up when hit or after 3000 ticks while
   the round runs, and is gone; a player-vs-player respawn leaves the old wreck where it lay. Wrecks
   still reach goals.
@@ -131,15 +131,15 @@ flamers and paratroopers; smoke screen; cloak; speed-up; light; all 14 bonuses.
 Open:
 
 - **done** — heavy mines fire eight small rockets (power 10, 100 px) that belong to nobody; light
-  mines blow up with their imported power (`src/objects/mine.c:12-28`).
+  mines blow up with their imported power (`original/src/objects/mine.c:12-28`).
 - **done** — mine trigger: a vehicle, train or bomber at height −1..1 whose radius plus 3 (light) or
-  50 (heavy) covers the mine (`src/check/collide.c:25-40`).
-- **done** — mine visibility: only heavy mines are drawn (RMINE), not on water (`src/objects/mine.c:7-10`).
-- **done** — mortar blast (`src/objects/mortar.c`): SND_NUKE on impact, then a ring per step growing
+  50 (heavy) covers the mine (`original/src/check/collide.c:25-40`).
+- **done** — mine visibility: only heavy mines are drawn (RMINE), not on water (`original/src/objects/mine.c:7-10`).
+- **done** — mortar blast (`original/src/objects/mortar.c`): SND_NUKE on impact, then a ring per step growing
   5 → 60 px, each hitting what it reaches for 5 (vehicles above ground including the shooter,
   soldiers, mines, low bombers, trains, bonuses, A-bombs) and the structures under it with five
   explosions around it; the shell's power plays no part.
-- **done** — rocket target (`src/objects/objects.c:189-204`, `rocket.c:32-34`): the nearest object
+- **done** — rocket target (`original/src/objects/objects.c:189-204`, `rocket.c:32-34`): the nearest object
   with a radius within 15 px of the marker (the shooter's own vehicle, wrecks, soldiers, bombers,
   trains, mines, bonuses, A-bombs, flags, products, the zeppelin, rockets); on arrival everything within
   10 px of it is hit through the shield key, the shooter too; without a target, or out of range, the
@@ -152,7 +152,7 @@ Open:
 
 ## Terrain and structures
 
-Done: material and speed per picture from `src/data/pictures.c`; water (slow, weapons, hidden hull,
+Done: material and speed per picture from `original/src/data/pictures.c`; water (slow, weapons, hidden hull,
 men drown); lava; runways and helipads; rails; bushes; structure strengths for normal, crash and
 flame hits with linked pieces, ruins, the signed goal layer, bonuses and paratroopers from destroyed
 buildings; bridges turning into water; A-bomb boxes; force fields; shelters; night maps.
@@ -161,9 +161,9 @@ Open:
 
 - **done** — conveyors (`T_LEFT/RIGHT/UP/DOWN`, 60 px/s) and turntables (`ROTATE_L/R`, a turn a second
   around the tile, heading unchanged) carry vehicles and soldiers below height 2; a vehicle that would
-  end up in another stays (`src/world/transp.c`). Mines, bonuses and other small objects are not
+  end up in another stays (`original/src/world/transp.c`). Mines, bonuses and other small objects are not
   carried yet.
-- **done** — debris (`src/world/parts.c`): burning pieces of fuel dumps fly in the simulation and
+- **done** — debris (`original/src/world/parts.c`): burning pieces of fuel dumps fly in the simulation and
   burn vehicles (7) and structures (10), so dumps go up in chains; pixels from stopped shots (a
   chain-gun round one time in five), mortar specks and smoking pieces of wall (PARTA..F) from
   buildings that explode are thrown by the client from a debris event.
@@ -186,13 +186,13 @@ falling with their building); computer tanks.
 Open:
 
 - **done** — goal `who = 3`: the importer links the goal to its vehicle (WEAPON's five goals).
-- **done** — supermarket mayhem (`src/objects/product.c`, `src/world/status.c:162-232`,
-  `src/objects/goal.c:22`, `src/tanks/tank.c:293`): cash 40, price per product, 20 products needed,
+- **done** — supermarket mayhem (`original/src/objects/product.c`, `original/src/world/status.c:162-232`,
+  `original/src/objects/goal.c:22`, `original/src/tanks/tank.c:293`): cash 40, price per product, 20 products needed,
   180 s limit, −100 when cash or time runs out, the way out (goal `who = 0`) closed while products
   remain, pickup by human vehicles on the ground, the products/time/cash display, product strip and
   message line, no radar and no start shield (2026-10-20).
 - **done** — warps move vehicles (wrecks too, at any height), soldiers, bombers and rockets within
-  15 px, without a pause, with three sparks and SND_TELEPORT at each end (`src/objects/warp.c`).
+  15 px, without a pause, with three sparks and SND_TELEPORT at each end (`original/src/objects/warp.c`).
 - **done** — placed soldier and bonus objects are skipped with a note: the original refuses such maps.
 
 ## AI
@@ -203,9 +203,9 @@ Done: `ComputerTankAi` ports `control_computer_tank()`: activation, target choic
 
 Open:
 
-- **done** — computer vehicles refire after their imported `computer.fire_delay` (`src/tanks/fire.c:171`).
+- **done** — computer vehicles refire after their imported `computer.fire_delay` (`original/src/tanks/fire.c:171`).
 - **done** — the radar as `write_radar()` draws it: no cloaked vehicles or wrecks, bombers and trains,
-  colours per viewer, turrets by `shootat` (`src/game/radar.c`).
+  colours per viewer, turrets by `shootat` (`original/src/game/radar.c`).
 
 ## Modes
 
@@ -219,14 +219,14 @@ Open:
 
 - **done** — supermarket mayhem (see map objects).
 - **done** — F1–F10 in two players vs computer select for player two (`id_select = 1`), Alt+F-key
-  for player one (`src/game/controls.c:38,163-168`).
+  for player one (`original/src/game/controls.c:38,163-168`).
 - **done** — known codes ([ADR 0020](adrs/0020-user-data-as-json.md)): Classic lists every known
   code like the original, Extended only the mode's; the last code per mode and the last
   player-vs-player map are kept in `settings.json` like `TANK.CFG`. Public codes are added on the fly,
   not saved (intentional).
 - **done** — the static-noise view when a player has no vehicle (an F-key id without one, or the
   wreck they looked at blew up): random palette colours 0..15 in 33-px tiles every frame, with the
-  goal counters and the picked id (`src/game/mainloop.c:81-91`); F-keys may pick any id, and in two
+  goal counters and the picked id (`original/src/game/mainloop.c:81-91`); F-keys may pick any id, and in two
   players vs computer not the other player's.
 
 ## Shell and meta-game
@@ -238,7 +238,7 @@ losers tank, gamma, music and sound volume) with persistence; key help and arena
 
 Open (in scope by decision of 2026-10-19):
 
-- **done** — in-game keys (`src/game/controls.c`): P pauses until the next key, F11 steps the gamma
+- **done** — in-game keys (`original/src/game/controls.c`): P pauses until the next key, F11 steps the gamma
   with a "GAMMA CORRECTION / LEVEL n" message, F12 shows or hides the radar, = and - make the window
   bigger and smaller in 5% steps, PrtScr saves `TANK<n>.png` (screenshots folder); window size, radar
   and screenshot number are kept in `settings.json`. Taps shorter than a step count once.
@@ -252,7 +252,7 @@ Open (in scope by decision of 2026-10-19):
   joystick buttons (FIRE, AIM, WEAPON, SHIELD; several pressed together count as one) and the
   sensitivity, on a second page of the controls setup (Tab), as the original's setup program had them.
 - **done** — command-line cheats `-GOD`, `-NOFAIL`, `-LOADSOFWEAPONS`, `-NOLOCKLIMIT` (also spelt
-  `--god` ...; kept in recordings) (`src/game/main.c:52-97`, `cheat.txt`). `-SETUP` opens the controls
+  `--god` ...; kept in recordings) (`original/src/game/main.c:52-97`, `cheat.txt`). `-SETUP` opens the controls
   setup. Not ported: `-CODES` (see intentional deviations) and the developer tools `-KEYTEST`,
   `-DEBUG`, `-INFO`, `-MISSING`, `-UNUSED`, `-AUTOLOCK`, `-UNLOCK`.
 - **done** — "EXIT TO DOS? (Y/N)" after leaving the Classic main menu (Exit or ESC); only Y or N answer.
@@ -283,7 +283,7 @@ Open:
   in ten on walls and one in twenty on vehicles; the teleport sound.
 - **done** — mortar impact plays SND_NUKE.
 - **done** — sound distance from the player's vehicle (612 without one), volume above 32 only, pan by
-  the two players' distances, pitch 900..1099 (`src/hardware/sound.c:62-109`).
+  the two players' distances, pitch 900..1099 (`original/src/hardware/sound.c:62-109`).
 
 ## Map editor
 

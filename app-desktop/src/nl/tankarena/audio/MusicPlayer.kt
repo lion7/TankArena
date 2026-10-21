@@ -7,7 +7,7 @@ import javax.sound.midi.SysexMessage
 import javax.sound.midi.Synthesizer
 
 /**
- * Legacy init_player() and Allegro's MIDI volume (src/hardware/sound.c): one tune at a time,
+ * Legacy init_player() and Allegro's MIDI volume (original/src/hardware/sound.c): one tune at a time,
  * looping, played by Java's software synthesizer. Without a MIDI device it stays silent.
  */
 class MusicPlayer : Music {

@@ -21,7 +21,7 @@ data class RetroMenuItem(
 )
 
 /**
- * Legacy `menu()` (src/game/menu.c): the panel screen with a brighter band, a black box in it,
+ * Legacy `menu()` (original/src/game/menu.c): the panel screen with a brighter band, a black box in it,
  * the title and the entries in the big font, centred; the selected entry in `FNT_HIGH`, the
  * others in `FNT_NORM`. Up and Down move (wrapping round), Enter picks, ESC leaves.
  */

@@ -7,7 +7,7 @@ import nl.tankarena.protocol.snapshot.ProjectileOwnerKind
 import kotlin.math.roundToInt
 
 // Buildings hit by shots, blasts and crashes, and what falling buildings leave behind
-// (src/check/hitwall.c, hitobj.c).
+// (original/src/check/hitwall.c, hitobj.c).
 
 /**
  * Legacy hit_wall_for()/hit_wall(): damage a structure and play out what destroying it does —
@@ -140,7 +140,7 @@ internal fun Match.checkProjectileStructureHits() {
 }
 
 /**
- * Legacy line_obj_hit_point() (src/check/hitobj.c) for the vehicles: a shot that got past the
+ * Legacy line_obj_hit_point() (original/src/check/hitobj.c) for the vehicles: a shot that got past the
  * walls this tick hits the first vehicle, in object order, whose body picture lies on its path.
  * The original walks the path from its start one pixel per step diagonally (both axes move by
  * their sign) for as many steps as the longer axis, plus one. Vehicles sinking into a pit
@@ -301,7 +301,7 @@ internal fun Match.blastStructureAt(
  * wears 5 off every structure within the radius plus 16.
  */
 /**
- * Legacy hit_wall_big() (src/check/hitwall.c): one ring of a blast hits the structures on a 32 px
+ * Legacy hit_wall_big() (original/src/check/hitwall.c): one ring of a blast hits the structures on a 32 px
  * grid within [radius] + 16 for [MORTAR_STEP_POWER], with five explosions around the ring.
  */
 internal fun Match.blastStructureRing(x: Int, y: Int, radius: Int, by: Tank?) {

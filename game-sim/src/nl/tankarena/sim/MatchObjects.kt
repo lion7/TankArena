@@ -16,13 +16,13 @@ internal const val SOLDIER_RADIUS_PX: Int = 5
 /** Legacy create_object(ABOMB_TYPE, ..., r = 3). */
 internal const val ABOMB_RADIUS_PX: Int = 3
 
-/** A bonus lying on the map (legacy BONUS_TYPE, src/objects/bonus.c). */
+/** A bonus lying on the map (legacy BONUS_TYPE, original/src/objects/bonus.c). */
 internal class Bonus(val id: Long, val x: Int, val y: Int, val type: Int) {
     var removed: Boolean = false
 }
 
 /**
- * A soldier (legacy MAN_TYPE, src/objects/man.c): walks at 5 px/s to within 20 px of his target
+ * A soldier (legacy MAN_TYPE, original/src/objects/man.c): walks at 5 px/s to within 20 px of his target
  * (a vehicle he follows, or a fixed point) and fires one of his 75 rounds every 40..80 ticks
  * towards it.
  */
@@ -113,7 +113,7 @@ internal class Soldier(
 }
 
 /**
- * An A-bomb (legacy ABOMB_TYPE, src/objects/abomb.c): counts down [countdown] × 60 ticks, then
+ * An A-bomb (legacy ABOMB_TYPE, original/src/objects/abomb.c): counts down [countdown] × 60 ticks, then
  * goes off in 30 steps of 6 ticks, each wearing 4 off everything within a radius that grows by
  * 7 px per step (up to 210 px).
  */
@@ -159,7 +159,7 @@ internal class Abomb(val id: Long, val x: Int, val y: Int, countdown: Int, val o
 }
 
 /**
- * Legacy PT_FLAME part (src/world/parts.c): a burning piece of a fuel dump that flies straight on at
+ * Legacy PT_FLAME part (original/src/world/parts.c): a burning piece of a fuel dump that flies straight on at
  * 30..49 px/s for 50..69 px. It burns the first vehicle in its path for 7 and the first structure
  * for 10, which can set off the next fuel dump.
  */

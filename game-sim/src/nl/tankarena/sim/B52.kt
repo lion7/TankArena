@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 
 /**
- * A B52 bomber (legacy B52_TYPE, src/objects/b52.c). It waits on the ground, takes off along
+ * A B52 bomber (legacy B52_TYPE, original/src/objects/b52.c). It waits on the ground, takes off along
  * its heading ([Phase.LIFTING]), then crosses the map at height 19 dropping a stick of ten
  * bombs every 650 ticks, re-entering from a random edge each time it leaves ([Phase.FLYING]).
  * Shot down it sinks, burning, and lies as a wreck. The match drives it (stepB52s()).

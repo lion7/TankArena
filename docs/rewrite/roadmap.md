@@ -113,7 +113,7 @@ Goal: everything the original editor can do, inside the game, plus validation, u
       the map's mode, unrecorded, back to the editor with its undo history.
 - [x] New map ("- NEW MAP -" when opening): name, world, size (blocks of 4, at most 200 × 200
       cells), empty, barriers all round or all water. The structure library of each world
-      (`DATA/MAP_0..3.DAT` as `structures/map_N.dat`, `StructureLibrary`): place, remove the building
+      (`original/DATA/MAP_0..3.DAT` as `structures/map_N.dat`, `StructureLibrary`): place, remove the building
       or else the floor, Shift-drag fills or clears a region. Goal (±10, Shift ±1), bonus and men
       layers, drawn on their cells. Tools on keys 1–7; every change can be undone.
 - [x] Objects (key 8, `MapObjects`): every kind the original editor adds (player and computer
@@ -125,7 +125,7 @@ Goal: everything the original editor can do, inside the game, plus validation, u
       cars are placed exactly as the original's (both tested).
 - [x] Map settings and texts (key 9): codes of this and the next mission, the modes it is for, public
       code, night, random bonuses; the briefing and both texts after a mission, which the original
-      took from separate `MAPS/name.0..2` files (lines over 51 characters are flagged). Saving works
+      took from separate `original/MAPS/name.0..2` files (lines over 51 characters are flagged). Saving works
       out what the pads and flags give room for and warns of a start point conflict, as `save_map()`.
       Every shipped map comes back unchanged when opened and saved.
 - [x] Export `.MAP` (ADR 0022, option C; "Export .MAP" or Ctrl+E): every original map exports to
@@ -266,4 +266,4 @@ Depends on: phases 5 and 6; Android-to-desktop play after phase 7.
 - WASM/web build.
 - Gamma/scaling options and accessibility settings in Extended.
 - `extract-sounds` and `extract-bitmaps` converters so every asset is generated, not copied
-  ([assets.md](assets.md)); delete `unpacked/`.
+  ([assets.md](assets.md)); delete `original/unpacked/`.

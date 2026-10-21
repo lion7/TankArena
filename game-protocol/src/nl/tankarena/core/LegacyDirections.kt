@@ -59,7 +59,7 @@ object LegacyDirections {
     }
 
     /**
-     * Legacy radtoa16(angle(dx, dy)) (src/check/math.c): the nearest of the 16 directions from a
+     * Legacy radtoa16(angle(dx, dy)) (original/src/check/math.c): the nearest of the 16 directions from a
      * point towards another one at offset ([dx], [dy]) in screen pixels (y grows downwards).
      */
     fun fromAngle(dx: Int, dy: Int): Int {

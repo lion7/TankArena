@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Legacy create_sound_absolute() (src/hardware/sound.c): the distance to the player's vehicle sets
+ * Legacy create_sound_absolute() (original/src/hardware/sound.c): the distance to the player's vehicle sets
  * the volume (full nearer than 100, then (612 - d) / 2, not played at 32 or less), two players pan by
  * their distances, and the pitch is 900 + rnd(200).
  */

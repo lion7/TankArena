@@ -157,7 +157,7 @@ class MapEditor(document: MapDocument, unsaved: Boolean = false) {
         changeSidecar(sidecar.copy(metadata = metadata), texts = false)
     }
 
-    /** The briefing and the texts after a won and a lost mission (legacy `MAPS/name.0..2`). */
+    /** The briefing and the texts after a won and a lost mission (legacy `original/MAPS/name.0..2`). */
     val texts: MissionText get() = sidecar.missionText
 
     /** Changes the texts; typing on in the same text is one undo step. */

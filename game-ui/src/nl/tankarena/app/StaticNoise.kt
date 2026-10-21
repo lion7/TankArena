@@ -24,7 +24,7 @@ import nl.tankarena.ui.compose.legacy.LegacyFonts
 import kotlin.random.Random
 
 /**
- * Legacy write_screen() with no vehicle to follow (src/game/mainloop.c:81-91): every frame four
+ * Legacy write_screen() with no vehicle to follow (original/src/game/mainloop.c:81-91): every frame four
  * 33×33 tiles (STATIC1..4) are filled with random colours 0..15 of the palette and the window is
  * tiled with them at random. The game's own random numbers stay untouched.
  */

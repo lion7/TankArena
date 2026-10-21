@@ -4,10 +4,10 @@ import nl.tankarena.protocol.snapshot.GameEvent
 import nl.tankarena.sim.Match.MissionStatus
 
 // Goals, products, the goal counter, tank losses and control hand-over, and how a mission ends
-// (src/objects/goal.c, product.c, objects.c, src/tanks/tank.c, src/game/controls.c).
+// (original/src/objects/goal.c, product.c, objects.c, original/src/tanks/tank.c, original/src/game/controls.c).
 
 /**
- * Legacy check_obj_collide() and pickup_product() (src/check/collide.c, src/objects/product.c): a
+ * Legacy check_obj_collide() and pickup_product() (original/src/check/collide.c, original/src/objects/product.c): a
  * human-driven vehicle on the ground that touches a product buys it. Overspending fails the mission.
  */
 internal fun Match.collectProducts() {
@@ -49,7 +49,7 @@ internal fun Match.linkGoals() {
 }
 
 /**
- * Legacy control_player() and hit_wreck() (src/objects/player.c, src/tanks/control.c): a respawn
+ * Legacy control_player() and hit_wreck() (original/src/objects/player.c, original/src/tanks/control.c): a respawn
  * leaves the old wreck on the map; while the round is running, a wreck that is hit or has burnt for
  * [WRECK_LIFE_TICKS] blows up and is gone.
  */
@@ -196,7 +196,7 @@ internal fun Match.drainTurretDestructions() {
 
 /** Legacy modify_goal_counter(): positive percentages feed the good counter, negative the bad one. */
 /**
- * Legacy write_timeleft() (src/world/status.c): in one player and two players vs computer, the
+ * Legacy write_timeleft() (original/src/world/status.c): in one player and two players vs computer, the
  * shopping time running out fails the mission.
  */
 internal fun Match.checkMayhemTime() {

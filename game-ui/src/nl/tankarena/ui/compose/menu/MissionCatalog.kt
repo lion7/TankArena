@@ -49,7 +49,7 @@ object MissionCatalog {
 }
 
 /**
- * Legacy `src/game/mapfiles.c`: a map's type decides which game modes may load it
+ * Legacy `original/src/game/mapfiles.c`: a map's type decides which game modes may load it
  * (player-vs-player lists only "don't care" and dual maps, and so on).
  */
 fun List<MissionEntry>.playableIn(mode: GameMode): List<MissionEntry> = filter { entry ->

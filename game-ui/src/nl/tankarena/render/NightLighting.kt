@@ -21,7 +21,7 @@ import org.jetbrains.compose.resources.getSystemResourceEnvironment
 import kotlinx.coroutines.runBlocking
 
 /**
- * The night missions as the original draws them (src/game/night.c, under.c): the whole view is
+ * The night missions as the original draws them (original/src/game/night.c, under.c): the whole view is
  * remapped through NIGHT.LNK into the dark half of NIGHT.PAL, except where a light falls — the
  * headlight cones of the vehicles (light_tank()), the glow of standing street lamps (top-layer
  * LIGHT_SRC pictures) and the blinking lights of the B52s — which use the lit half. Colours that
@@ -175,7 +175,7 @@ internal class NightLighting(
 
         private val CONE_NAMES = listOf("LLIGHT", "MLIGHT", "SLIGHT").flatMap { size -> (1..5).map { "$size$it" } }
 
-        /** Legacy `b[]` in src/game/night.c: size and light origin of each cone picture. */
+        /** Legacy `b[]` in original/src/game/night.c: size and light origin of each cone picture. */
         private val CONES: List<List<Int>> = listOf(
             listOf(75, 150, 37, 149), listOf(100, 150, 0, 149), listOf(150, 150, 0, 149), listOf(150, 100, 0, 99), listOf(150, 75, 0, 37),
             listOf(29, 76, 14, 75), listOf(39, 71, 0, 70), listOf(58, 58, 0, 57), listOf(71, 39, 0, 38), listOf(76, 29, 0, 14),
@@ -184,7 +184,7 @@ internal class NightLighting(
 
         private const val B52_LIGHT = "B52L"
 
-        /** Legacy `li[2][4][2]` in src/objects/b52.c, per heading. */
+        /** Legacy `li[2][4][2]` in original/src/objects/b52.c, per heading. */
         private val B52_WINGS: List<List<Pair<Int, Int>>> = listOf(
             listOf(1 to 49, 16 to 1, 1 to 16, 49 to 1),
             listOf(65 to 49, 16 to 65, 65 to 16, 49 to 65),

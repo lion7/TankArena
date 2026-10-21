@@ -9,7 +9,7 @@ import kotlinx.serialization.json.Json
 private data class PasswordFile(val codes: List<String> = emptyList())
 
 /**
- * The mission codes the player has reached: the legacy `PASSWD.DAT` (src/game/passwd.c), kept
+ * The mission codes the player has reached: the legacy `PASSWD.DAT` (original/src/game/passwd.c), kept
  * as JSON in the user's config directory. Every IO failure degrades to "nothing known" or "not
  * saved"; it never ends the game.
  */

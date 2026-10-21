@@ -3,7 +3,7 @@ package nl.tankarena.render.actor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Legacy b_add_layer_d() (src/world/under.c): five pictures, mirrored for the other eleven directions. */
+/** Legacy b_add_layer_d() (original/src/world/under.c): five pictures, mirrored for the other eleven directions. */
 class DirectionalFrameTest {
 
     @Test

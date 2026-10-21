@@ -6,10 +6,10 @@ import nl.tankarena.protocol.snapshot.EffectKind
 import nl.tankarena.protocol.snapshot.GameEvent
 import nl.tankarena.sim.Match.MissionStatus
 
-// Warps, locks, destroyers and enforcers (src/objects/warp.c, lock.c, destroy.c, enforce.c).
+// Warps, locks, destroyers and enforcers (original/src/objects/warp.c, lock.c, destroy.c, enforce.c).
 
 /**
- * Legacy control_warp() (src/objects/warp.c): every vehicle (wrecks too, at any height), soldier,
+ * Legacy control_warp() (original/src/objects/warp.c): every vehicle (wrecks too, at any height), soldier,
  * bomber and rocket within 15 px of a warp is put down at its exit, with three sparks and the
  * teleport sound at each end. There is no pause: an exit inside another warp sends it on at once.
  */

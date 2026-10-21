@@ -22,7 +22,7 @@ layouts serve no purpose for the rewrite.
     (laps, rounds, losers tank, gamma, music and sound volume) and the victory count
     (`GameOptionsStore`);
   - `$XDG_CONFIG_HOME/tankarena/passwd.json`: the reached mission codes (`PasswordStore`, port of
-    `src/game/passwd.c`);
+    `original/src/game/passwd.c`);
   - `$XDG_DATA_HOME/tankarena/recordings/` (default `~/.local/share/`): match recordings
     ([ADR 0014](0014-simulation-thread-and-recordings.md)).
 - Original `TANK.CFG` and `PASSWD.DAT` files are not read or written.

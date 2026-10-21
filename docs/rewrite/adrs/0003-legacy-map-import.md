@@ -10,19 +10,19 @@
 ## Context
 
 The original ships its maps as binary `.MAP` files (format in
-[`docs/game/map-format.md`](../../game/map-format.md)). The rewrite plays converted files, currently
+[`original/docs/game/map-format.md`](../../../original/docs/game/map-format.md)). The rewrite plays converted files, currently
 a Kubriko scene JSON plus a `MapSceneSidecar` ([content format](../content-format.md)), regenerated
-from `MAPS/*.MAP` by `tools-mapconv scene-all` (until 2026-10-19).
+from `original/MAPS/*.MAP` by `tools-mapconv scene-all` (until 2026-10-19).
 
 The 2026-05 decision treated the importer as transitional and planned to delete it. In practice it
 was re-run in most gameplay commits since 2026-09, because every faithfully ported rule needed a field
-the importer had not read yet. So `MAPS/*.MAP` became the de facto source and the converted files
+the importer had not read yet. So `original/MAPS/*.MAP` became the de facto source and the converted files
 generated output — the opposite of the plan, and a trap: a hand edit of a converted file is lost at the
 next regeneration.
 
 ## Options considered
 
-1. Keep `MAPS/*.MAP` as the source and the converted files as generated output. Maps could only be
+1. Keep `original/MAPS/*.MAP` as the source and the converted files as generated output. Maps could only be
    changed with an editor that writes `.MAP`, and every format detail of the rewrite would have to fit
    the original's binary layout.
 2. Make the converted files the source and delete the importer. Old maps could no longer be brought
@@ -35,7 +35,7 @@ next regeneration.
   the in-game editor ([ADR 0021](0021-editor-in-the-game.md)).
 - `.MAP` → native import and native → `.MAP` export are permanent features: players can import maps
   from their own installation, and maps made in the rewrite can be played in the original.
-- `MAPS/*.MAP` (the 69 originals) and `MAPS/extra/` stay in the repository as the original release and
+- `original/MAPS/*.MAP` (the 69 originals) and `original/MAPS/extra/` stay in the repository as the original release and
   as test input for round-trip tests; they are no longer converted as part of the build.
 - Done on 2026-10-19: the 69 maps are `.tamap` files; the scene files are gone. Until the editor exists,
   an importer change is followed by `import-all` and a commit of the regenerated maps (a test enforces

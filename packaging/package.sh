@@ -53,7 +53,7 @@ mkdir -p "$input" "$dist"
         # Umbrella artifacts have no jar of their own, only metadata.
         if [[ -f "$jar" ]]; then cp "$jar" "$input/$group.$artifact-$version.jar"; fi
     done
-for module in app-desktop game-ui game-sim game-content game-protocol; do
+for module in app-desktop game-ui game-net game-sim game-content game-protocol; do
     cp "build/tasks/_${module}_jarJvm/$module-jvm.jar" "$input/"
 done
 echo "$(ls "$input" | wc -l) jars on the class path"

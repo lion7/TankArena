@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Terrain material classification derived from legacy picture type constants.
- * See docs/game/terrain.md and src/include/define.h.
+ * See docs/game/terrain.md and original/src/include/define.h.
  */
 @Serializable
 enum class TerrainMaterial {
@@ -38,7 +38,7 @@ enum class TerrainMaterial {
 /**
  * Which part of a pit a [TerrainMaterial.PIT_BIG] / [TerrainMaterial.PIT_SMALL] tile is, named after
  * the legacy `PIT_*` / `S_PIT_*` picture types: an edge or corner tile only swallows a tank on the
- * side that faces the pit's centre (`in_pit()` in src/check/pit.c).
+ * side that faces the pit's centre (`in_pit()` in original/src/check/pit.c).
  */
 @Serializable
 enum class PitShape { CENTER, TOP, BOTTOM, LEFT, RIGHT, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
@@ -53,7 +53,7 @@ data class TerrainTile(
     val pitShape: PitShape? = null,
     /** Legacy `NOTHING`: neither picture has a type (bare ground, where desert vehicles raise dust). */
     val bare: Boolean = false,
-    /** Legacy `T_*` / `ROTATE_*` base pictures: a conveyor or turntable (src/world/transp.c). */
+    /** Legacy `T_*` / `ROTATE_*` base pictures: a conveyor or turntable (original/src/world/transp.c). */
     val transport: Transport? = null,
 )
 

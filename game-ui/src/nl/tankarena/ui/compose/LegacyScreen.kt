@@ -131,7 +131,7 @@ private fun Modifier.fade(brightness: Float): Modifier = if (brightness >= 1f) t
 const val MODE13_FADE_MILLIS: Int = 300
 
 /**
- * Legacy `do_fade_step()` (src/graph/palette.c): the game screen fades over `fade_time` = 0.6 s
+ * Legacy `do_fade_step()` (original/src/graph/palette.c): the game screen fades over `fade_time` = 0.6 s
  * while the game runs on.
  */
 const val GAME_FADE_MILLIS: Int = 600

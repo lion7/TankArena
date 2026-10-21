@@ -8,7 +8,7 @@
 
 ## Context
 
-The original's editor (`src/edit/`) is linked into `TANK.EXE` and started from the main menu. The
+The original's editor (`original/src/edit/`) is linked into `TANK.EXE` and started from the main menu. The
 rewrite's `:game-editor` is a separate 73-line wrapper around Kubriko's `SceneEditor` that edits four
 object types and none of the tile layers or the header. Most of what an editor for Tank Arena needs —
 painting three structure layers with the structure library and links, the goal, bonus and men layers,
@@ -24,7 +24,7 @@ a small part. Kubriko is removed ([ADR 0019](0019-plain-kotlin-no-kubriko.md)), 
   the game's renderer, so what you edit is exactly what you play.
 - Scope (everything the original editor can do): new map from a world and size (empty, with a
   barrier border, or all water); the three picture layers with the world's structure library
-  (`DATA/MAP_0..3.DAT`: ready-made linked cells, placed singly or over a region); the goal, bonus and men
+  (`original/DATA/MAP_0..3.DAT`: ready-made linked cells, placed singly or over a region); the goal, bonus and men
   layers; every object type with its properties, including computer-tank settings and waypoints, pad
   weapons, lock and goal links, train setup; the header (codes, map type and contents, public and
   random-bonus flags, world, night); mission texts; whole-map overview.

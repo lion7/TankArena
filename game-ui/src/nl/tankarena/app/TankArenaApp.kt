@@ -1211,7 +1211,7 @@ private fun gameplayStep(
 
 
 /**
- * Legacy read_controls() (src/game/controls.c) in a game: ESC leaves, P pauses until the next key,
+ * Legacy read_controls() (original/src/game/controls.c) in a game: ESC leaves, P pauses until the next key,
  * F11 steps the gamma correction (and tells player one), F12 shows or hides the radar, = and - make
  * the window bigger and smaller, PrtScr saves a screenshot; everything else goes to the players.
  */
@@ -1257,7 +1257,7 @@ private fun handleGlobalKeys(
 }
 
 /**
- * Legacy grab_screen() (src/game/grab.c): the screen as it is, saved as TANK<n> (here a PNG in the
+ * Legacy grab_screen() (original/src/game/grab.c): the screen as it is, saved as TANK<n> (here a PNG in the
  * data folder's `screenshots`).
  */
 private fun saveScreenshot(platform: GamePlatform, settings: GameSettings) {

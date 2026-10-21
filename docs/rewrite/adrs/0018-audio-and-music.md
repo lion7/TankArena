@@ -7,8 +7,8 @@
 
 ## Context
 
-The original plays 29 samples from `DATA/SOUND.DAT` with distance volume, stereo pan and a random
-pitch (900–1100), at most 32 at a time (`src/hardware/sound.c`), and MIDI music: `TUNE.MID`, or
+The original plays 29 samples from `original/DATA/SOUND.DAT` with distance volume, stereo pan and a random
+pitch (900–1100), at most 32 at a time (`original/src/hardware/sound.c`), and MIDI music: `TUNE.MID`, or
 `BELVED.MID` on maps of background 3, at 30 % volume during play.
 
 The first desktop backend opened a `javax.sound` `Clip` per sound; opening a clip blocked for up to
@@ -17,7 +17,7 @@ hundreds of milliseconds and stalled the game.
 ## Decision
 
 - **Samples:** the 29 original sounds are bundled as WAVs under `game-content/resources/sounds/`
-  (copied from `unpacked/sound/`, which holds `SOUND.DAT`'s samples) and loaded from the class path.
+  (copied from `original/unpacked/sound/`, which holds `SOUND.DAT`'s samples) and loaded from the class path.
 - **One output line, mixed in software:** `DesktopAudioBackend` opens a single 16-bit stereo
   `SourceDataLine` and mixes up to 32 voices on an `audio-mixer` thread, with volume, pan and pitch.
 - **Rules from the original:** `AudioManager` maps `GameEvent`s to sounds with the original's distance

@@ -19,7 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** transportation() and underground_effects() (src/world/transp.c, src/tanks/control.c). */
+/** transportation() and underground_effects() (original/src/world/transp.c, original/src/tanks/control.c). */
 class TerrainEffectsTest {
     private val t = LEGACY_TILE_SIZE
 

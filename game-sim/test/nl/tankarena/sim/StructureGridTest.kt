@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** The legacy structure model (strength[2][3][], hit_wall()) on the desert pictures of src/data/pictures.c. */
+/** The legacy structure model (strength[2][3][], hit_wall()) on the desert pictures of original/src/data/pictures.c. */
 class StructureGridTest {
 
     private fun grid(vararg solid: Pair<Int, Int>, top: Map<Int, Int> = emptyMap(), base: Map<Int, Int> = emptyMap()): StructureGrid {

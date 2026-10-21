@@ -7,7 +7,7 @@ import nl.tankarena.core.DetMath.cos
 import nl.tankarena.core.DetMath.sin
 import kotlinx.serialization.json.Json
 
-/** Legacy `ti[0]` (src/objects/turret.c): delay 150 ticks, power 5, radius 200. */
+/** Legacy `ti[0]` (original/src/objects/turret.c): delay 150 ticks, power 5, radius 200. */
 private const val DEFAULT_FIRE_DELAY_TICKS: Int = 150
 private const val DEFAULT_RANGE_PIXELS: Int = 200
 private const val DEFAULT_POWER: Int = 5
@@ -17,7 +17,7 @@ private const val TURN_DELAY_TICKS: Int = 35
 private const val BULLET_SPEED_PX_PER_TICK: Float = 2f
 
 /**
- * Legacy `turretinfo ti[]` (src/objects/turret.c): what each of the nine turret kinds fires and
+ * Legacy `turretinfo ti[]` (original/src/objects/turret.c): what each of the nine turret kinds fires and
  * where its guns sit, as (x, y) offsets from the centre with the gun pointing north. A turret
  * with two guns fires them in turn.
  */
@@ -36,7 +36,7 @@ internal val TURRET_KINDS: List<TurretKind> = listOf(
 )
 
 /**
- * Legacy loc_x()/loc_y() (src/check/math.c): an offset given for a north-facing picture, turned
+ * Legacy loc_x()/loc_y() (original/src/check/math.c): an offset given for a north-facing picture, turned
  * clockwise to the 16-step [direction].
  */
 internal fun rotateLegacyOffset(direction: Int, x: Int, y: Int): Pair<Int, Int> {
@@ -45,7 +45,7 @@ internal fun rotateLegacyOffset(direction: Int, x: Int, y: Int): Pair<Int, Int> 
 }
 
 /**
- * A gun turret on a building or a wagon (legacy TURRET_TYPE, src/objects/turret.c). It aims at
+ * A gun turret on a building or a wagon (legacy TURRET_TYPE, original/src/objects/turret.c). It aims at
  * the closest vehicle it may shoot at ([shootAt]), turns towards it one step at a time while it
  * is in range, and fires bullets or rockets when its gun points straight at it.
  */
@@ -191,7 +191,7 @@ class Turret internal constructor(state: State) : SceneObject<Turret>, Placed {
 
     /**
      * Legacy `o->owner`: the saved pointer of the wagon this turret rides on (make_turret(..., o)
-     * in src/objects/train.c), or 0 for a turret on a building.
+     * in original/src/objects/train.c), or 0 for a turret on a building.
      */
     val ownerRef: Int = state.ownerRef
 

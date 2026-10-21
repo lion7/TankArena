@@ -33,7 +33,7 @@ private const val ARROW_UP = "\u001e"
 private const val ARROW_DOWN = "\u001f"
 
 /**
- * Legacy `view_file` (src/game/prompt.c): a full-screen page of upper-case text over a random
+ * Legacy `view_file` (original/src/game/prompt.c): a full-screen page of upper-case text over a random
  * dark backdrop, shown through the backdrop's own palette. Up/PgUp and Down/PgDn scroll, ESC,
  * Enter and Space close it. Used for the main menu's "Arena info" and "Default keys", the
  * mission briefings and the texts after a mission. It fades in from black (`fade_in(pl, 3)`)

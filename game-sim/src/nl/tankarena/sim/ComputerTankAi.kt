@@ -47,7 +47,7 @@ internal interface ComputerTankWorld {
 }
 
 /**
- * Legacy control_computer_tank() (src/tanks/computer.c): the original's fuzzy-logic driver.
+ * Legacy control_computer_tank() (original/src/tanks/computer.c): the original's fuzzy-logic driver.
  * Every tick a computer tank looks for a new target every 1–2 s (enemy tanks, goal objects and
  * goal buildings, weighed by its preferences), aims and fires at it, and — whenever it may turn
  * — weighs dangers (objects, buildings, pits in front and to the sides) against where it wants
@@ -611,7 +611,7 @@ internal object ComputerTankAi {
         return if (a < 0) a + 2 * PI else a
     }
 
-    /** Legacy angle() (src/check/math.c), with y growing downwards. */
+    /** Legacy angle() (original/src/check/math.c), with y growing downwards. */
     private fun angle(dx: Int, dy: Int): Double {
         if (dx == 0) return if (dy <= 0) 0.5 * PI else 1.5 * PI
         val a = if (dx > 0) -atan(dy.toDouble() / dx) else PI - atan(dy.toDouble() / dx)

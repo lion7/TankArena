@@ -2,7 +2,7 @@ package nl.tankarena.sim
 
 /**
  * The original runs one game step every third tick of its 100 Hz timer: game_control() waits until
- * the timer passes `np = tinit(2)` (src/game/mainloop.c). Every rule runs once per step, movement
+ * the timer passes `np = tinit(2)` (original/src/game/mainloop.c). Every rule runs once per step, movement
  * covers the time of a step, and timers (`tdone(t)`, `timer >= t`) are only looked at on a step.
  */
 const val STEP_TICKS: Int = 3

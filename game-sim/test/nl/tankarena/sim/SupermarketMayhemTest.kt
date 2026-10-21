@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Supermarket mayhem on SUPER (src/objects/product.c, src/world/status.c). */
+/** Supermarket mayhem on SUPER (original/src/objects/product.c, original/src/world/status.c). */
 class SupermarketMayhemTest {
     private fun start(mode: MatchMode = MatchMode.SINGLE): Match {
         val match = Match.fromMap(assertNotNull(ShippedMaps.load("super")).document, mode)

@@ -4,7 +4,7 @@ import nl.tankarena.ui.compose.menu.drawMenu
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The ports of src/graph/mode13.c, 5x5text.c and the menu layout of src/game/menu.c. */
+/** The ports of original/src/graph/mode13.c, 5x5text.c and the menu layout of original/src/game/menu.c. */
 class Mode13ScreenTest {
 
     @Test

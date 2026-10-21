@@ -25,7 +25,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Helicopters and planes, the remaining weapons, bonuses and soldiers (src/tanks, src/objects). */
+/** Helicopters and planes, the remaining weapons, bonuses and soldiers (original/src/tanks, original/src/objects). */
 class AircraftAndWeaponsTest {
 
     private val row = 2

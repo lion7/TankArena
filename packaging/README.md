@@ -37,3 +37,34 @@ wins, so the game cannot start (`NoClassDefFoundError: androidx/compose/runtime/
 
 `jpackage` only builds for the system it runs on, and the game bundles that system's Skia library, which is why
 Windows needs a Windows builder.
+
+## Android
+
+```bash
+packaging/package-android.sh                   # build/dist/android/TankArena-<version>-debug.apk
+packaging/package-android.sh release           # ...-release-debugkey.apk, shrunk by R8
+packaging/package-android.sh bundle            # ...-release.aab for Google Play (unsigned)
+packaging/package-android.sh debug --install   # and install it on the connected phone or emulator
+```
+
+The version comes from `versionName` in `app-android/module.yaml`. It runs on this machine, no container: it
+needs the Android SDK in `~/Android/Sdk` (or `ANDROID_HOME`). The debug APK and the release APK can be installed
+directly (`adb install -r`, or copied to a phone that allows apps from unknown sources); the release one is about
+10 MB instead of 25.
+
+Release signing is not set up yet. Without a keystore the release APK is signed with the Android debug key and
+named `-release-debugkey`: fine for testing, not for a store. With one, it is signed properly:
+
+```bash
+KEYSTORE=~/keys/tankarena.jks KEY_ALIAS=tankarena KEYSTORE_PASSWORD=... packaging/package-android.sh release
+```
+
+(`KEY_PASSWORD` too if the key has its own password.) The bundle stays unsigned.
+
+The toolchain's own outputs, which the script copies, are `build/tasks/_app-android_buildAndroidDebug/gradle-project-debug.apk`,
+`build/tasks/_app-android_buildAndroidRelease/gradle-project-release-unsigned.apk` and
+`build/tasks/_app-android_bundleAndroid/gradle-project-release.aab`. Because the Android build does not notice
+changed resources or a changed manifest, the script removes the APK's task folder first.
+
+R8 shrinks the release build with the rules in `app-android/proguard-rules.pro`; Ktor needs one of them.
+

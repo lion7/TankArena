@@ -45,6 +45,7 @@ they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, k
 ./kotlin run -m app-desktop              # the game (opens a window)
 ./kotlin build -m app-android            # the Android app: build/tasks/_app-android_buildAndroidDebug/*.apk
 ./kotlin package -m app-android          # the release bundle (.aab), shrunk by R8
+packaging/package-android.sh debug release bundle   # named APKs and bundle in build/dist/android
 ./kotlin run -m app-server -- --map flagisle --players 2   # a dedicated network game server
 ./kotlin run -m app-relay                                  # the internet relay (port 47310)
 ./kotlin run -m tools-mapconv -- <subcommand> <args>

@@ -19,6 +19,10 @@ dependencies:
 settings:
   kotlin:
     freeCompilerArgs: [-Xexpect-actual-classes]
+  jvm:
+    test:
+      # The rendering tests load Skia's native library, as the game does.
+      freeJvmArgs: [--enable-native-access=ALL-UNNAMED]
   compose:
     enabled: true
     resources:

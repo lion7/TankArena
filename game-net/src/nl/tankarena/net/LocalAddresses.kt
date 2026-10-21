@@ -9,7 +9,7 @@ fun localAddresses(): List<String> = runCatching {
         .filter { it.isUp && !it.isLoopback && !it.isVirtual }
         .flatMap { it.inetAddresses.toList() }
         .filterIsInstance<Inet4Address>()
-        .map { it.hostAddress }
+        .mapNotNull { it.hostAddress }
         .distinct()
 }.getOrDefault(emptyList())
 

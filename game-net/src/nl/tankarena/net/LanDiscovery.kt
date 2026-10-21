@@ -146,10 +146,11 @@ class LanFinder(
                 val beacon = runCatching {
                     beaconCbor.decodeFromByteArray(LanBeacon.serializer(), packet.data.copyOf(packet.length))
                 }.getOrNull()
-                if (beacon != null && beacon.netVersion == NET_VERSION && beacon.protocolVersion == protocolVersion &&
-                    beacon.rulesVersion == rulesVersion
+                // Android declares the address nullable; a packet without one is of no use.
+                val address = packet.address?.hostAddress
+                if (address != null && beacon != null && beacon.netVersion == NET_VERSION &&
+                    beacon.protocolVersion == protocolVersion && beacon.rulesVersion == rulesVersion
                 ) {
-                    val address = packet.address.hostAddress
                     heard["$address:${beacon.port}"] = LanGame(address, beacon) to System.currentTimeMillis()
                 }
             } catch (_: SocketTimeoutException) {

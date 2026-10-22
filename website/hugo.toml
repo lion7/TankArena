@@ -2,7 +2,7 @@
 # (pegasus). Built and deployed by .github/workflows/website.yml; locally: hugo server.
 baseURL = "https://www.tankarena.nl/"
 title = "Tank Arena"
-languageCode = "en"
+locale = "en"
 disableHugoGeneratorInject = true
 disableKinds = ["taxonomy", "term", "RSS", "sitemap"]
 

@@ -72,7 +72,7 @@ The relay (ADR 0028) ships as a container image, `ghcr.io/lion7/tankarena/relay`
 jar is fine there) on a Java 25 runtime, and runs as an unprivileged user on port 47310.
 
 - `.github/workflows/relay.yml` builds and pushes it when the relay or a module it uses changes on
-  `master` or `rewrite`. Tags: `sha-<commit>`, `latest`, and the version for `v*` tags.
+  `main`. Tags: `sha-<commit>`, `latest`, and the version for `v*` tags.
 - `packaging/build-relay.sh` builds it locally; `PUSH=1` pushes it (after `docker login ghcr.io`).
 - The image starts the relay with `--behind-proxy`. Behind the TLS proxy, the relay takes the
   guest's address from `X-Forwarded-For`, so it limits wrong code guesses per player. Without a

@@ -13,7 +13,7 @@ wrappers ([ADR 0016](adrs/0016-kotlin-toolchain-build.md)). There is no Gradle b
 - Tests: `<module>/test/`, packages directly under it (`test/nl/tankarena/…`).
 - Resources: `game-content/resources/`, `game-ui/resources/`,
   `game-ui/composeResources/drawable/` (Compose resources, accessors in `nl.tankarena.ui.resources`),
-  `game-sim/testResources/`, `app-desktop/testResources/`.
+  `game-sim/testResources/`, `game-ui/testResources/`.
 - Build output: `build/` (override with `--build-dir` or `KOTLIN_TOOLCHAIN_BUILD_DIR`).
 
 Products: `:game-protocol`, `:game-content`, `:game-sim` and `:game-ui` are `kmp/lib` with
@@ -40,7 +40,7 @@ they follow the toolchain defaults. For 0.13.0: Kotlin 2.4.20, Compose 1.12.1, k
 
 ```bash
 ./kotlin build                           # all modules
-./kotlin test                            # all tests (387 on 2026-10-20, each counted once)
+./kotlin test                            # all tests (401 on 2026-10-22)
 ./kotlin test -m game-sim                # one module
 ./kotlin run -m app-desktop              # the game (opens a window)
 ./kotlin build -m app-android            # the Android app: build/tasks/_app-android_buildAndroidDebug/*.apk

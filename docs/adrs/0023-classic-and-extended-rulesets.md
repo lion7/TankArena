@@ -1,10 +1,7 @@
-# ADR 0023: Two Rulesets — Classic and Extended
+# ADR 0023: Two Rulesets — Classic and Extended ("Next Kombat")
 
-- **Status:** Accepted (2026-10-19). Built the same day: `Ruleset`, a rules version per ruleset,
-  the first-start choice, the command-line options and a first Extended menu with replays (roadmap
-  phase 5). On 2026-10-20 Extended got its own look and screens (home, campaign, local game, replays
-  with naming, deleting and a free camera, settings, help), its first rule flags and its presentation
-  (fill the window, wide view, smooth motion).
+- **Status:** Accepted (2026-10-19). Extended is shown to players as **Tank Arena: Next Kombat**
+  (named 2026-10-21; the initials spell TANK).
 
 ## Context
 
@@ -12,44 +9,56 @@ The rewrite has two jobs that pull in different directions:
 
 - be a faithful reproduction of the original, checkable side by side against DOSBox
   ([ADR 0010](0010-port-the-original-rules.md), [ADR 0013](0013-original-presentation.md));
-- grow beyond it: networked play, four players, gamepads, Android, a friendlier menu, replays.
+- grow beyond it: networked play, four players, gamepads, mouse controls, Android, a friendlier menu,
+  replays.
 
-Building two games would double the work and let them drift. Sprinkling "modern" changes through the
+Building two games would double the work and let them drift. Sprinkling modern changes through the
 faithful code would erode the reference.
 
 ## Decision
 
-One game core with a **ruleset** chosen at start: **Classic** or **Extended**.
+One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:game-sim`):
 
 | | Classic | Extended |
 |---|---|---|
-| Rules | Exactly the original, faithful quirks included | Classic rules plus explicit, flagged changes |
-| Players | 1 or 2 on one screen | 1–4 local, and networked play |
-| Teams | Good and evil as in the original | Two teams ([ADR 0027](0027-four-players-two-teams.md)) |
-| Screen | 640 × 480 with the original window layout | Scalable, wider view, 2 × 2 split for four |
-| Menus | The original menus, unchanged | A new, clearer menu (below) |
-| Controls | The original keys and control modes | Remappable keys, gamepads, touch on Android |
+| Rules | Exactly the original, quirks included | Classic plus named rule flags |
+| Players | 1 or 2 on one screen | 1–4 on one screen in two teams, and network games |
+| Screen | 640 × 480, the original's window layout | Fills the window, wider view, 2 × 2 split for four |
+| Menus | The original's, in 320 × 200 | Its own look (dark, sand accent), mouse or keys |
+| Controls | The original's keys, modes and joysticks | Keyboard and mouse, twin-stick gamepads, touch |
 
-- **Choosing:** a screen on the first start (and a `--classic` / `--extended` command-line option),
-  remembered in `settings.json`, picks the ruleset. Extended's settings can switch back to Classic;
-  Classic's menu stays the original's, so from Classic only `--extended` switches. The map editor is a menu entry in both
-  ([ADR 0021](0021-editor-in-the-game.md)), not a separate choice.
-- **Classic menu:** stays exactly the original's (main menu, game modes, codes, options, help).
-- **Extended menu:** single player campaign (codes and a list of reached missions), local multiplayer
-  (2–4 players, teams, mode, map), network game (host, join, LAN list), **replays** (browse, watch,
-  rename, delete recorded matches, with pause, speed and free camera), map editor, settings
-  (controls per device, video, audio), help.
-- **Rule changes are flags** of the `Ruleset` object, each named and documented (for example
-  "stacked computer tanks do not destroy each other", "wider view"), never ad-hoc `if`s. Classic has
-  every flag off. The first two (2026-10-20, Extended rules v5, `RuleFlags`): computer-driven vehicles
-  that overlap do not destroy each other, and in player vs player each player gets one vehicle.
-- **Versions per ruleset:** recordings store the ruleset; `GAME_RULES_VERSION` exists per ruleset, so
-  an Extended-only change does not invalidate Classic recordings.
+- **Choosing:** a screen at the first start, `--classic` / `--extended` on the command line, "Switch
+  to Classic" on Extended's home screen and "Switch to Extended" in Classic's main menu (a deliberate
+  addition to the original's menu, [parity.md](../parity.md#intentional-deviations)). The choice is
+  kept in `settings.json`.
+- **Extended's menu** (`ui.compose.extended`): home with campaign (the reached codes with each
+  mission's world, size and briefing), local game (together against the computer, or against each
+  other on a map, with rounds, laps and the losers tank), network game
+  ([ADR 0024](0024-networking.md)), replays, map editor, settings on one page, help, quit. The
+  controls setup, the mission texts and the first-start choice have Extended's look; the tank
+  selection keeps the original's arena on purpose.
+- **Replays:** every recorded match, newest first, with mission, mode, result, length, date and rules;
+  naming and deleting; a viewer with pause, ¼× to 8× speed and a free camera (moved by keys or
+  dragging, zoomed ¼× to 4× by the wheel or Page Up/Down).
+- **Extended's presentation** (each a setting, on by default): the picture fills the window; on a
+  wide window the virtual screen grows to up to 1280 legacy pixels across, so the map windows show
+  more of the map; **smooth motion** draws vehicles, shots and cameras between the 33 steps a second,
+  one step (30 ms) late, snapping on jumps (`StepInterpolation`).
+- **Rule changes are flags** of `RuleFlags`, each named and documented, never ad-hoc `if`s. Classic has
+  every flag off. Extended has four:
+  - `stackedComputerVehiclesSurvive`: computer vehicles that overlap at the start do not destroy each
+    other;
+  - `oneVehiclePerPlayer`: in player vs player each player gets one vehicle, not one per pad;
+  - `teams`: up to four players as two teams ([ADR 0027](0027-four-players-two-teams.md));
+  - `pointerMarker`: the rocket marker follows the mouse ([ADR 0029](0029-extended-controls.md)).
+- **A rules version per ruleset:** `GAME_RULES_VERSION` (Classic) and `EXTENDED_RULES_VERSION`. A
+  Classic change bumps both; an Extended-only change bumps only Extended. Recordings store the
+  ruleset (older ones read as Classic).
 
 ## Consequences
 
-- Parity work, the DOSBox comparison and the recorded playthroughs target Classic. Extended may change
-  behaviour, but only through flags.
-- Network play, four players and gamepad-first menus exist only in Extended; Classic stays a museum
-  piece that is easy to verify.
-- Map files may carry Extended-only data in an optional section ([ADR 0022](0022-native-map-format.md)).
+- Parity work, the DOSBox comparison and the recordings target Classic.
+- Network play, four players, mouse and twin-stick controls and the replay viewer exist only in
+  Extended; Classic stays a museum piece that is easy to verify.
+- Extended's keys help is made from the current settings; the original's `KEYS.HLP` describes
+  Classic.

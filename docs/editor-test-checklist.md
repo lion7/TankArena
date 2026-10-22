@@ -1,7 +1,7 @@
 # Map editor: manual test checklist
 
-What to try by hand in the in-game map editor (roadmap phase 4,
-[ADR 0021](adrs/0021-editor-in-the-game.md)) and with maps exported to the original
+What to try by hand in the in-game map editor
+([ADR 0021](adrs/0021-editor-in-the-game.md)) and with maps exported to the original
 ([ADR 0022](adrs/0022-native-map-format.md), option C). The automated tests cover the editing rules,
 the round trips and the byte-exact export of the 69 original maps; this list covers what only a
 person at the screen or in DOSBox can check.

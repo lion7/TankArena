@@ -1,42 +1,44 @@
 # ADR 0021: Map Editor Inside the Game
 
-- **Status:** Accepted (2026-10-19).
-  First version built 2026-10-19: open, paint the picture layers, undo, save (roadmap phase 4).
-  2026-10-20: new maps, structures, the goal, bonus and men layers, objects, settings and texts.
-- **Supersedes:** [ADR 0004](0004-separate-editor-app.md) (separate editor app) and
-  [ADR 0009](0009-editor-wraps-kubriko-scene-editor.md) (editor on Kubriko's `SceneEditor`).
+- **Status:** Accepted (2026-10-19). Replaces the earlier plans for a separate editor application
+  (2026-04) and for an editor built on a generic scene editor (see [history](../history.md)).
 
 ## Context
 
-The original's editor (`original/src/edit/`) is linked into `TANK.EXE` and started from the main menu. The
-rewrite's `:game-editor` is a separate 73-line wrapper around Kubriko's `SceneEditor` that edits four
-object types and none of the tile layers or the header. Most of what an editor for Tank Arena needs —
-painting three structure layers with the structure library and links, the goal, bonus and men layers,
-the header, texts, the structure libraries — is specific to this game; a generic object inspector covers only
-a small part. Kubriko is removed ([ADR 0019](0019-plain-kotlin-no-kubriko.md)), and `:game-editor` with it.
+The original's editor (`original/src/edit/`) is linked into `TANK.EXE` and started from the main
+menu. Most of what a Tank Arena editor needs — painting three picture layers with each world's
+structure library and its links; the goal, bonus and men layers; the header and texts; every object
+with its own settings — is specific to this game. A generic object inspector covers only a small part
+of it.
 
 ## Decision
 
 - The editor is a **screen of the game**, started from the main menu ("Map editor") in both rulesets
-  ([ADR 0023](0023-classic-and-extended-rulesets.md)), as in the original. No separate application
-  and no launch switch.
-- It edits the native map document ([ADR 0022](0022-native-map-format.md)) directly and draws it with
-  the game's renderer, so what you edit is exactly what you play.
-- Scope (everything the original editor can do): new map from a world and size (empty, with a
-  barrier border, or all water); the three picture layers with the world's structure library
-  (`original/DATA/MAP_0..3.DAT`: ready-made linked cells, placed singly or over a region); the goal, bonus and men
-  layers; every object type with its properties, including computer-tank settings and waypoints, pad
-  weapons, lock and goal links, train setup; the header (codes, map type and contents, public and
-  random-bonus flags, world, night); mission texts; whole-map overview.
-- Additions over the original: validation (unreachable pads, broken links, goals that can never reach
-  100 %), undo, **play-test** (start a local match from the open document and return), import and
-  export of `.MAP` files.
-- Works with keyboard and mouse on desktop; Android gets it later with touch support.
+  ([ADR 0023](0023-classic-and-extended-rulesets.md)), as in the original. There is no separate
+  application and no launch switch.
+- It edits the native map document ([ADR 0022](0022-native-map-format.md)) and draws it with the
+  game's renderer, so what you edit is what you play. The editing rules live in `:game-sim`
+  (`MapEditor`, `MapObjects`, `sim.map`) and are tested without a screen; the screens are in
+  `:game-ui` (`EditorScreens`, `EditorMapPage`, `EditorObjects`).
+- **Scope: everything the original editor can do.** A new map from a world and size (empty, a barrier
+  border or all water); the three picture layers with a searchable palette and each world's structure
+  library (`original/DATA/MAP_0..3.DAT`, ready-made linked cells, placed singly or over a region); the
+  goal, bonus and men layers; every object kind the original editor adds, with its `make_*()`
+  defaults and the settings of the original's menus, including computer-vehicle settings and
+  waypoints, warp exits, lock and goal links, turret forbidden directions and trains; the header
+  (codes, map type and contents, public code, random bonuses, night); the mission texts.
+- **Additions:** undo and redo for every change; **play-test** from the open map (F5) and back with
+  the undo history; saving to the player's maps, which then appear in the game's lists (a saved map
+  replaces the shipped one of the same name, as saving over a file in the original's `MAPS` did);
+  **export to `.MAP`** (Ctrl+E); start pads for players 3 and 4 ([ADR 0027](0027-four-players-two-teams.md)).
+- Planned additions, not built: validation (unreachable pads, broken links, goals that can never
+  reach 100 %), a whole-map overview, `.MAP` import, touch editing on Android.
+- Left out on purpose: the original's structure-library editor (under F12, "not supposed to be used by
+  other people"); the libraries ship as they are.
 
 ## Consequences
 
-- `:game-editor` and its boundary-guard test are deleted. The rule "the editor never runs the
-  simulation" becomes "the editor only runs a match through the normal match host when play-testing".
-- The editor shares the renderer, picture atlas and map model with the game; no adapters.
-- It is the largest single parity item; it is planned after the plain-Kotlin core and the native map
-  format exist ([roadmap](../roadmap.md)).
+- The editor shares the renderer and the map model with the game; there are no adapters.
+- The editor only runs a match when play-testing, through the normal match client (unrecorded).
+- What only a person can check (the feel of the tools, exported maps in DOSBox) is in the
+  [manual test checklist](../editor-test-checklist.md).

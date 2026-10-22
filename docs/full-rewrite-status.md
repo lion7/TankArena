@@ -1,80 +1,72 @@
 # Tank Arena Rewrite Status
 
-As of **2026-10-20**, branch `rewrite`. This page states the current status only and
-points to the documents that hold the detail. It is updated whenever a milestone lands.
+As of **2026-10-22**, branch `main`. This page states the current status only and points to the
+documents that hold the detail. It is updated whenever something lands.
 
 ## In one paragraph
 
 The Kotlin rewrite plays all 69 maps of the original release in every mode, with the original's
 rules ported from the C source, its screen layout, pictures, fonts, night lighting, sounds and music,
-and it ships as self-contained Linux and Windows packages. Classic parity (roadmap phase 3) was finished on
-2026-10-20: the original's game step and timing, every listed rule difference and missing rule,
-supermarket mayhem, and the shell's keys, controls setup, cheats and exit question. What is left for
-full parity is the map editor (painting the picture layers works) and joysticks. It is plain Kotlin
-and Compose, with no game engine. All 324 automated tests pass, including a boot test of every map
-in every mode and nine reference renders; CI runs on GitHub Actions.
-
-The direction beyond parity was decided on 2026-10-19: plain Kotlin with no Kubriko, a readable
-native map format, the editor inside the game, and two rulesets — **Classic** (the original) and
-**Extended** (new menu, replays, up to four players in two teams, gamepads, networked play, Android).
-The [roadmap](roadmap.md) orders that work. Built so far: the native map format, the ruleset
-choice with a first Extended menu and a replay viewer, and a first version of the editor.
+and an in-game map editor that exports the original's `.MAP` files. It is plain Kotlin and Compose
+Multiplatform with no game engine; every runtime asset is converted from the original's files and
+bundled. Two rulesets share one core: **Classic** is the original as it was, and **Extended** (shown
+as *Tank Arena: Next Kombat*) adds its own menu, replays, keyboard-and-mouse and twin-stick controls,
+up to four players in two teams, network play over the LAN and through a public relay, and an Android
+app. Self-contained packages build for Linux, Windows and Android. All 401 automated tests pass.
 
 ## Status by area
 
 | Area | Status | Detail |
 |---|---|---|
-| Rules: vehicles, weapons, structures, objects, AI | Done (rules v14); one detail unverified | [parity.md](parity.md) |
+| Rules: vehicles, weapons, terrain, structures, objects, AI | Done (Classic rules v14); conveyors carry too few kinds of object; one detail unverified | [parity.md](parity.md) |
 | Modes: one player, two vs computer, player vs player (deathmatch, flags, race, rounds), supermarket mayhem | Done | [parity.md → Modes](parity.md#modes) |
-| Presentation: screen, HUD, radar, night, effects, debris | Done | [ADR 0013](adrs/0013-original-presentation.md) |
+| Presentation: screen, status display, radar, night, effects, debris | Done | [ADR 0013](adrs/0013-original-presentation.md) |
 | Audio and music | Done | [ADR 0018](adrs/0018-audio-and-music.md) |
-| Shell: intro, menus, codes, options, help, in-game keys, controls setup, cheats | Done; joysticks in phase 6 | [parity.md → Shell](parity.md#shell-and-meta-game) |
-| Map editor | Open, paint picture layers, undo, save, play-test; the rest missing | [roadmap phase 4](roadmap.md) |
-| Rulesets and Extended menu | Ruleset choice; Extended's own look: home, campaign, local game, replays (naming, deleting, free camera), settings; Extended plays like Classic | [roadmap phase 5](roadmap.md) |
-| Assets | All runtime assets converted and bundled | [assets.md](assets.md) |
-| Content | 69 maps as `.tamap` (2.3 MB), imported from `.MAP` without notes | [content-format.md](content-format.md) |
-| Tests | 324 green (server 250, client 65, content 9); recordings to be played again (rules v14); every map boots; 9 reference renders | [testing-strategy.md](testing-strategy.md) |
-| Build and packaging | Kotlin toolchain 0.13.0; Linux and Windows packages | [build.md](build.md), [ADR 0017](adrs/0017-desktop-packaging.md) |
-| CI | GitHub Actions on every push (green), nightly idle scan and tick benchmark | [testing-strategy.md](testing-strategy.md#continuous-integration) |
+| Shell: intro, menus, codes, options, help, in-game keys, controls setup, joysticks, cheats | Done | [parity.md → Shell](parity.md#shell-and-meta-game) |
+| Map editor | Everything the original's can do, plus undo, play-test and `.MAP` export; validation, overview and in-game import open | [ADR 0021](adrs/0021-editor-in-the-game.md) |
+| Extended menu, replays, presentation | Done; four rule flags (Extended rules v7) | [ADR 0023](adrs/0023-classic-and-extended-rulesets.md) |
+| Controls: input layer, gamepads, mouse, touch | Done | [ADR 0026](adrs/0026-input-and-gamepads.md), [ADR 0029](adrs/0029-extended-controls.md) |
+| Four players in two teams | Done (Extended) | [ADR 0027](adrs/0027-four-players-two-teams.md) |
+| Network play: LAN, dedicated server, relay | Built and tested; not yet tried between two real machines | [ADR 0024](adrs/0024-networking.md), [ADR 0028](adrs/0028-internet-relay-and-lobby.md) |
+| Android | Runs on the emulator; release signing and a real phone open | [ADR 0025](adrs/0025-multiplatform-modules-and-android.md) |
+| Assets | All runtime assets converted and bundled; sounds and backgrounds copied, not yet extracted by a tool | [assets.md](assets.md) |
+| Maps | 69 maps as `.tamap` (2.7 MB); every `.MAP` imports and exports byte for byte | [content-format.md](content-format.md) |
+| Tests | 401 green; no current recordings (the six v11 ones are obsolete); 143 map boots; 9 reference renders | [testing-strategy.md](testing-strategy.md) |
+| Build, packages, CI | Kotlin toolchain 0.13.0; Linux, Windows and Android packages (not published yet); GitHub Actions | [build.md](build.md), [ADR 0017](adrs/0017-desktop-packaging.md) |
+| Deployment | Relay at `wss://relay.tankarena.nl`; website www.tankarena.nl | [build.md → Relay image](build.md#relay-image) |
 
-Versions: `GAME_RULES_VERSION` 14 (Classic), `EXTENDED_RULES_VERSION` 4, `PROTOCOL_VERSION` 9,
-`MAP_FORMAT_VERSION` 1.
+Versions: `GAME_RULES_VERSION` 14 (Classic), `EXTENDED_RULES_VERSION` 7, `PROTOCOL_VERSION` 9,
+`NET_VERSION` 4, `MAP_FORMAT_VERSION` 1 ([architecture](architecture.md#versions)).
 
-## Open decisions
+## Open
 
-None. Decided on 2026-10-19: the legacy step for both rulesets
-([ADR 0002](adrs/0002-fixed-step-100hz.md)); `.MAP` export deferred to the editor work, then
-option C of [ADR 0022](adrs/0022-native-map-format.md).
+The [roadmap](roadmap.md) holds every open item. The most important:
 
-## Next steps
+1. **New recordings** under rules v14: without them no whole-mission regression test runs.
+2. **Conveyors** must carry mines, bonuses, flags and other small objects, as the original's do.
+3. **Exported maps tried in DOSBox**, and editor validation and overview.
+4. **Network play between two real machines**, and the Android release (signing, a real phone).
+5. **Publishing the packages** on the website.
 
-The [roadmap](roadmap.md) has the full plan. Next, in order:
-
-1. **Phase 0, safety net:** done except for recordings: the rules changed to v14, so BEGIN1–4, more
-   missions and player-vs-player matches need playing (the v11 ones are in `recordings/v11`).
-2. **Phases 1 to 3:** done — plain Kotlin ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md)),
-   the native map format ([ADR 0022](adrs/0022-native-map-format.md); `.MAP` export moves to
-   phase 4) and Classic parity ([parity.md](parity.md)).
-3. **Now, side by side:** the in-game editor (phase 4: objects, the other layers, header and texts,
-   new maps, `.MAP` export, validation) and the Extended menu (phase 5: the remaining screens in the new look, the presentation, the
-   first Extended rules).
-4. **Then:** input layer, gamepads and four players (phase 6), Android (7), networked play (8).
+No decisions are pending.
 
 ## Documents
 
-- [`architecture.md`](architecture.md) — modules, a match step by step, replication,
-  threads, switches, debt.
-- [`parity.md`](parity.md) — what matches the original, what does not, deviations and
-  exclusions.
-- [`roadmap.md`](roadmap.md) — phases from today to the Classic and Extended goals.
-- [`adrs/`](adrs/README.md) — decisions 0001–0027.
-- [`content-format.md`](content-format.md) — the `.tamap` map format and the importer.
-- [`assets.md`](assets.md) — every original asset and its converted form;
-  `tools-mapconv`.
-- [`build.md`](build.md) — building, running, packaging.
-- [`testing-strategy.md`](testing-strategy.md) — tests that exist and the plan.
+- [`architecture.md`](architecture.md) — modules, a match step by step, replication, threads,
+  versions, switches, debt.
+- [`adrs/`](adrs/README.md) — the decisions, 0001–0029.
+- [`parity.md`](parity.md) — what matches the original, what does not, deviations and exclusions.
+- [`roadmap.md`](roadmap.md) — what is left.
+- [`content-format.md`](content-format.md) — the `.tamap` map format and the converters.
+- [`assets.md`](assets.md) — every original asset and its converted form; `tools-mapconv`.
+- [`build.md`](build.md) — building, running, packaging, the relay image.
+- [`testing-strategy.md`](testing-strategy.md) — tests that exist and what is missing.
+- [`editor-test-checklist.md`](editor-test-checklist.md) — manual checks of the editor and of
+  exported maps in DOSBox.
+- [`performance.md`](performance.md) — measuring speed and memory; what was fixed and what is left.
 - [`risk-register.md`](risk-register.md) — risks and mitigations.
-- [`legacy-system-map.md`](legacy-system-map.md) — C source to Kotlin.
-- [`history.md`](history.md) — how the rewrite got here; deleted documents.
-- [`original/docs/`](../original/docs/) — the original game: overview, mechanics, vehicles, weapons, terrain, objects, AI,
-  map format. This is the parity spec, checked against `original/src/`.
+- [`legacy-system-map.md`](legacy-system-map.md) — the C source file by file, and where it lives in
+  Kotlin.
+- [`history.md`](history.md) — how the rewrite got here; deleted documents and withdrawn ADRs.
+- [`original/docs/`](../original/docs/) — the original game: overview, mechanics, vehicles, weapons,
+  terrain, objects, AI, map format. The parity spec, checked against `original/src/`.

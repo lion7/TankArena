@@ -1,14 +1,15 @@
 # Feature Parity
 
 What the rewrite does and does not yet do compared with the original game, checked against the code
-and the C source on 2026-10-20 (Classic parity, roadmap phase 3, finished). The original is described in [`original/docs/`](../original/docs/); where that
-text and `original/src/` disagree, `original/src/` wins ([ADR 0010](adrs/0010-port-the-original-rules.md)).
+and the C source on 2026-10-22. The original is described in [`original/docs/`](../original/docs/);
+where that text and `original/src/` disagree, `original/src/` wins
+([ADR 0010](adrs/0010-port-the-original-rules.md)).
 
 **Parity** means: the 69 original maps play as in the original, in every mode, with the original's
 rules, presentation, sound, controls and editor capabilities, except for the deviations and
 exclusions listed below. Parity is the goal of the **Classic** ruleset; the Extended ruleset builds on
-it with named, documented changes ([ADR 0023](adrs/0023-classic-and-extended-rulesets.md)). The order
-of the open work is in the [roadmap](roadmap.md) (phase 3 for rules, phase 4 for the editor).
+it with named, documented changes ([ADR 0023](adrs/0023-classic-and-extended-rulesets.md)); those
+are not parity differences. The open items are also in the [roadmap](roadmap.md).
 
 Legend: **done** (matches the original), **missing** (not built), **partial** (built, something
 missing), **differs** (built, behaves differently from the original and must be fixed), **unverified**
@@ -18,27 +19,27 @@ missing), **differs** (built, behaves differently from the original and must be 
 
 | Area | State |
 |---|---|
-| Engine, tick, game loop | Done (legacy step, `game_control()` order); one detail unverified |
+| Engine, tick, game loop | Done (legacy step, `game_control()` order); one detail unverified, object order within a step differs |
 | Vehicles and movement | Done |
 | Weapons | Done |
-| Terrain and structures | Done |
+| Terrain and structures | Done, except that conveyors carry only vehicles and soldiers |
 | Map objects | Done |
 | Computer AI | Done (port of `computer.c`) |
 | Modes | Done, supermarket mayhem included |
-| Shell, menus, options | Done; joysticks are gamepads (phase 6) |
+| Shell, menus, options | Done |
 | Status display, radar, presentation | Done |
 | Audio and music | Done |
-| Map editor | Layers, structures, objects, undo, save, play-test; header, texts and the rest in phase 4 |
-| Content and import | Done for the game; editor-only data not converted |
+| Map editor | Done; additions over the original partly open (validation, overview) |
+| Content and import | Done; `.MAP` export byte for byte |
 
 ## Intentional deviations
 
 Decided differences from the original. They are not parity bugs.
 
-- **Architecture:** authoritative server and render-only client, a simulation thread, JSON maps
-  ([ADR 0007](adrs/0007-authoritative-headless-kubriko-server.md),
+- **Architecture:** authoritative simulation and render-only screens, a simulation thread, JSON maps
+  ([ADR 0007](adrs/0007-authoritative-server.md),
   [ADR 0014](adrs/0014-simulation-thread-and-recordings.md),
-  [ADR 0008](adrs/0008-kubriko-and-scene-json.md)).
+  [ADR 0022](adrs/0022-native-map-format.md)).
 - **Player data as JSON** in the user's folders instead of `TANK.CFG` / `PASSWD.DAT`
   ([ADR 0020](adrs/0020-user-data-as-json.md)).
 - **Elimination fallback win** (`ALL_ENEMIES_ELIMINATED`): when a map's object contributions cannot
@@ -48,7 +49,10 @@ Decided differences from the original. They are not parity bugs.
 - **Match recordings** of every mission for regression tests ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
 - **Integer-scaled 640×480 window** on modern displays; no 320×200 or other video modes
   ([ADR 0013](adrs/0013-original-presentation.md)).
-- **Java MIDI synthesizer** instead of a sound card's ([ADR 0018](adrs/0018-audio-and-music.md)).
+- **The platform's MIDI synthesizer** instead of a sound card's
+  ([ADR 0018](adrs/0018-audio-and-music.md)).
+- **Screenshots as PNG:** PrtScr saves `TANK<n>.png` in the player's screenshots folder; the original
+  wrote `TANK<n>.BMP` into the game folder (`original/src/graph/grab.c`).
 - **Only the 69 maps of the original release** ([ADR 0015](adrs/0015-ship-the-original-69-maps.md)).
 - **Controls setup inside the game**, as "Controls setup" in the game options menu (decided 2026-10-20):
   the original had it only in a separate setup program (`TANK -SETUP`), which nobody starts from a
@@ -83,19 +87,20 @@ Kept because the original does the same ([ADR 0010](adrs/0010-port-the-original-
 Done: 100 ticks per second; legacy timers; deterministic seeded randomness; colour cycling; nuke
 flash; fades; grey view for the losing player.
 
-Open:
+In detail:
 
 - **done** — the game step: one step every 3 timer ticks like `game_control()`
   (`original/src/game/mainloop.c:17-21`), timers running out on steps like `tdone()`, per-step rules (rocket
   acceleration, steering noise, wagon spacing, explosions) once per step, the start and bonus shield as
   15 blinks of `tinit(5)` after the hold (rules v12, 2026-10-19). See
-  [ADR 0002](adrs/0002-fixed-step-100hz.md#the-originals-game-step-is-not-its-timer-tick).
+  [ADR 0002](adrs/0002-fixed-step-100hz.md).
 - **unverified** — a vehicle pushing against another re-collides once per step, as in the original;
   not compared with footage.
 - **done** — step order like `game_control()`: shots move and hit first (their damage counts in the same
   step), then vehicles on top of each other, then every object's control; shots fired in a step move
-  from the next one. Within the objects the rewrite groups by kind instead of the original's list
-  order by height.
+  from the next one.
+- **differs** — within the objects' control the rewrite runs kind by kind, not in the original's list
+  order by height; no difference has been seen in play, but it is not proven harmless.
 - **done** — draw order: below and above the top layer (height 4) as in `write_objects()`, and within
   each, vehicles by height, lowest first; effects keep the order they were made in.
 
@@ -108,7 +113,7 @@ crashes; overlap destruction at start; fuel per pixel; armor, shield key pool, s
 (take-off, lift, glide, runway landing, crashes), helicopters (hover, rotor guns); height layers for
 structure collisions; pits, ramps; turret modes; atomic tank.
 
-Open:
+In detail:
 
 - **done** — wrecks (`original/src/tanks/control.c:14-39,138-146`, `original/src/objects/player.c:71-86`): a vehicle
   becomes a wreck when its dying explosions end; it smokes, blows up when hit or after 3000 ticks while
@@ -128,7 +133,7 @@ chain gun with the extra-gun bonus; flamethrower; guided rocket with the player-
 and "INCOMING MISSILE"; mortar shell and plane bombs; A-bomb with shelters and flash; gunners,
 flamers and paratroopers; smoke screen; cloak; speed-up; light; all 14 bonuses.
 
-Open:
+In detail:
 
 - **done** — heavy mines fire eight small rockets (power 10, 100 px) that belong to nobody; light
   mines blow up with their imported power (`original/src/objects/mine.c:12-28`).
@@ -157,12 +162,14 @@ men drown); lava; runways and helipads; rails; bushes; structure strengths for n
 flame hits with linked pieces, ruins, the signed goal layer, bonuses and paratroopers from destroyed
 buildings; bridges turning into water; A-bomb boxes; force fields; shelters; night maps.
 
-Open:
+In detail:
 
 - **done** — conveyors (`T_LEFT/RIGHT/UP/DOWN`, 60 px/s) and turntables (`ROTATE_L/R`, a turn a second
   around the tile, heading unchanged) carry vehicles and soldiers below height 2; a vehicle that would
-  end up in another stays (`original/src/world/transp.c`). Mines, bonuses and other small objects are not
-  carried yet.
+  end up in another stays (`original/src/world/transp.c`).
+- **partial** — the original carries *every* object below height 2 except start pads
+  (`transp.c:23`): mines, bonuses, flags, products and A-bombs too. The rewrite leaves those where
+  they are.
 - **done** — debris (`original/src/world/parts.c`): burning pieces of fuel dumps fly in the simulation and
   burn vehicles (7) and structures (10), so dumps go up in chains; pixels from stopped shots (a
   chain-gun round one time in five), mortar specks and smoking pieces of wall (PARTA..F) from
@@ -183,7 +190,7 @@ enforcers; trains with rails, curves, bridges, wagons, the turret wagon and the 
 authored mines; start pads; turrets (nine kinds, side selection, forbidden directions, barrels,
 falling with their building); computer tanks.
 
-Open:
+In detail:
 
 - **done** — goal `who = 3`: the importer links the goal to its vehicle (WEAPON's five goals).
 - **done** — supermarket mayhem (`original/src/objects/product.c`, `original/src/world/status.c:162-232`,
@@ -201,7 +208,7 @@ Done: `ComputerTankAi` ports `control_computer_tank()`: activation, target choic
 `attack_tanks` / `attack_goals`, waypoints, attack waves, dangers, crash panic, fire and speed rules
 ([ADR 0012](adrs/0012-port-the-computer-ai.md)).
 
-Open:
+In detail:
 
 - **done** — computer vehicles refire after their imported `computer.fire_delay` (`original/src/tanks/fire.c:171`).
 - **done** — the radar as `write_radar()` draws it: no cloaked vehicles or wrecks, bombers and trains,
@@ -215,7 +222,7 @@ vs computer; player vs player with start pads and lives (last life when the pad 
 hunt, races with checkpoints and laps, best-of-N rounds with ROUND and score messages, YOU WIN, the
 losers tank option, and the tank selection arena (`SELECT.MAP` running live).
 
-Open:
+In detail:
 
 - **done** — supermarket mayhem (see map objects).
 - **done** — F1–F10 in two players vs computer select for player two (`id_select = 1`), Alt+F-key
@@ -236,7 +243,7 @@ map prompt for player vs player; briefing, success and failure texts; game optio
 losers tank, gamma, music and sound volume) with persistence; key help and arena info pages; the
 3-second run-on and fades after a mission; victory count and the THUNDER/VICTORY hooks.
 
-Open (in scope by decision of 2026-10-19):
+In detail (in scope by decision of 2026-10-19):
 
 - **done** — in-game keys (`original/src/game/controls.c`): P pauses until the next key, F11 steps the gamma
   with a "GAMMA CORRECTION / LEVEL n" message, F12 shows or hides the radar, = and - make the window
@@ -266,7 +273,7 @@ YOU WIN); opponent arrow; round radar with the original colours; lock marker; ni
 headlights, lamps and B52 lights; the night status display; shadows; effects (muzzle flash, sparks,
 flames, explosions, smoke, burning wrecks, blood, smoke screen, ruins).
 
-Open:
+In detail:
 
 - **done** — effects `DUST`, `LAVA_EFFECT`, `SPLASH` on terrain, `TELEPORT_SPARK`, rocket
   `EXHAUST`; dust and oil splashes lie under the vehicles.
@@ -277,7 +284,7 @@ Open:
 Done: the 29 original samples with distance, pan and pitch; per-player panning in split screen;
 music with the night tune and in-game volume ([ADR 0018](adrs/0018-audio-and-music.md)).
 
-Open:
+In detail:
 
 - **done** — `SND_SPLASH` on entering or leaving water; ricochets (`ricoc1`–`6`) for one chain-gun round
   in ten on walls and one in twenty on vehicles; the teleport sound.
@@ -287,45 +294,53 @@ Open:
 
 ## Map editor
 
-Target: an editor screen inside the game, started from the main menu as in the original, that does
-everything the original editor does plus validation, undo and play-test
-([ADR 0021](adrs/0021-editor-in-the-game.md)). Built (2026-10-19/20): open a map from both menus or
-make a new one; paint the three picture layers; the structure library; the goal, bonus and men layers;
-every object kind with its settings and points; the map's settings and texts; one undo history; save;
-play-test. This is roadmap
-phase 4.
+Done ([ADR 0021](adrs/0021-editor-in-the-game.md)): an editor screen inside the game, started from the
+main menu in both rulesets as in the original. New maps from a world and size; the three picture
+layers; each world's structure library; the goal, bonus and men layers; every object kind the
+original editor adds, with its `make_*()` defaults, its menus' settings and ranges, waypoints, links
+and turret directions; the map's codes, type, contents, flags and texts (lines over 51 characters
+flagged); saving works out the room for pads and flags and warns of start point conflicts, as
+`save_map()`. Every shipped map comes back unchanged when opened and saved. Additions: undo, play-test,
+`.MAP` export.
 
-Missing:
+Left out on purpose: the original's structure-library editor (under F12, "not supposed to be used by
+other people"); the libraries ship as they are.
 
-- Whole-map overview. (The original's structure-library editor under F12, "not supposed to be used
-  by other people", is left out on purpose: the libraries are shipped as they are.)
+Open, all additions over the original:
+
+- Whole-map overview.
 - Validation.
-- Exported `.MAP` files tried in the original (DOSBox); export itself is built
-  ([ADR 0022](adrs/0022-native-map-format.md)).
+- Exported `.MAP` files tried in the original under DOSBox
+  ([manual checklist](editor-test-checklist.md)).
 
 ## Content and import
 
 Done: all 69 maps import without notes; every header field, the 7 layers, the texts and objects of
 types 0–19 except the runtime-only ones are read.
 
-Open:
+In detail:
 
 - **done** — `computer.fire_delay` is imported (tank record offset 120).
 - **done** — placed men and bonuses are skipped with a note (see map objects).
-- **partial** — header fields `map_version`, `shareware` and `lock` are parsed but unused (only matters
-  for the editor writing maps).
+- **done** — header fields `map_version`, `shareware` and `lock` are read but play no part in the
+  game; export writes version 6, unlocked, and keeps the original bytes of imported maps in the
+  `legacy` section ([ADR 0022](adrs/0022-native-map-format.md)).
 - The per-type field offsets inside object records are only verified for the fields the game uses.
 
 ## Tooling and delivery
 
-Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage) and Windows (.zip, MSI) packages;
-324 automated tests; recorded-playthrough replays; every map booted in every mode; reference
-renders; idle scan of every map; tick benchmark; CI on GitHub Actions.
+Done: build with the Kotlin toolchain; Linux (.tar.gz, AppImage), Windows (.zip, MSI) and Android
+packages; 401 automated tests; every map booted in every mode; nine reference renders; idle scan of
+every map; tick benchmark; CI on GitHub Actions.
 
-Open: more recordings (BEGIN4, more missions, player vs player) and the other items in the
-[testing strategy](testing-strategy.md#what-is-not-there-yet).
+Open: recordings under the current rules (the committed ones are from rules v11 and no longer
+replayed) and the other items in the [testing strategy](testing-strategy.md#what-is-not-there-yet).
 
 ## Beyond parity
 
-Networked play, up to four players in two teams, gamepads, the Extended menu with replays, Android and
-later WASM belong to the Extended ruleset; see the [roadmap](roadmap.md) and ADRs 0023–0027.
+The Extended ruleset ("Next Kombat") goes beyond the original on purpose: its own menu and replays
+([ADR 0023](adrs/0023-classic-and-extended-rulesets.md)), keyboard-and-mouse and twin-stick controls
+([ADR 0029](adrs/0029-extended-controls.md)), four players in two teams
+([ADR 0027](adrs/0027-four-players-two-teams.md)), network play ([ADR 0024](adrs/0024-networking.md),
+[ADR 0028](adrs/0028-internet-relay-and-lobby.md)) and Android
+([ADR 0025](adrs/0025-multiplatform-modules-and-android.md)).

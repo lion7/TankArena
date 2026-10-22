@@ -1,7 +1,7 @@
 # ADR 0029: Extended Controls: Keyboard and Mouse, Twin-Stick Gamepads
 
-- **Status:** Accepted and built (2026-10-21). Extended ruleset only; Classic keeps the original's
-  controls ([ADR 0026](0026-input-and-gamepads.md)).
+- **Status:** Accepted (2026-10-21). Extended only; Classic keeps the original's controls
+  ([ADR 0026](0026-input-and-gamepads.md)).
 
 ## Context
 
@@ -48,6 +48,6 @@ one to aim.
 
 ## Consequences
 
-- Extended recordings are now v7; v6 ones still replay the same, but are labelled older.
-- Network games need no change beyond the new fields (network version 4).
+- The pointer position made the rules change of Extended rules v7; v6 recordings replay the same.
+- Network games carry the new fields (`NET_VERSION` 4).
 - The original's KEYS.HLP describes Classic; Extended's keys help is made from the current settings.

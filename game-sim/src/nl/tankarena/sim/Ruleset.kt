@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Which rules a match plays by (ADR 0023). [CLASSIC] is the original game; [EXTENDED] is Classic plus
- * named, documented changes (none yet). Each ruleset has its own rules version, so recordings of one
+ * named, documented changes ([RuleFlags]). Each ruleset has its own rules version, so recordings of one
  * are not invalidated by changes that only affect the other.
  */
 @Serializable

@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Terrain material classification derived from legacy picture type constants.
- * See docs/game/terrain.md and original/src/include/define.h.
+ * See original/docs/terrain.md and original/src/include/define.h.
  */
 @Serializable
 enum class TerrainMaterial {

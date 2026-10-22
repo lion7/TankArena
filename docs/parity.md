@@ -1,7 +1,7 @@
 # Feature Parity
 
 What the rewrite does and does not yet do compared with the original game, checked against the code
-and the C source on 2026-10-20 (Classic parity, roadmap phase 3, finished). The original is described in [`original/docs/game/`](../../original/docs/game/); where that
+and the C source on 2026-10-20 (Classic parity, roadmap phase 3, finished). The original is described in [`original/docs/`](../original/docs/); where that
 text and `original/src/` disagree, `original/src/` wins ([ADR 0010](adrs/0010-port-the-original-rules.md)).
 
 **Parity** means: the 69 original maps play as in the original, in every mode, with the original's

@@ -9,7 +9,7 @@ import nl.tankarena.protocol.snapshot.PlayerView
  * Computes distance-based volume attenuation and stereo panning based on the player's
  * camera position. Handles both single-player and dual-player (split-screen) modes.
  * 
- * Per docs/game/mechanics.md §"Sound System":
+ * Per original/docs/mechanics.md §"Sound System":
  * - Max range: 612 pixels
  * - Volume: full at d<100, linear falloff 100-612, silent at d>=612
  * - Pan: stereo panning based on relative player distances (dual mode)

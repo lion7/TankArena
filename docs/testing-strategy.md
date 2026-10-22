@@ -1,7 +1,7 @@
 # Testing Strategy
 
 How the rewrite is tested today, and what is planned. The parity target is the original game: the C
-source in `original/src/`, described in [`original/docs/game/`](../../original/docs/game/), and DOSBox footage of the original release.
+source in `original/src/`, described in [`original/docs/`](../original/docs/), and DOSBox footage of the original release.
 
 ## Principles
 

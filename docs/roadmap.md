@@ -1,6 +1,6 @@
 # Roadmap
 
-The order in which the rewrite gets from today (see [`full-rewrite-status.md`](../full-rewrite-status.md))
+The order in which the rewrite gets from today (see [`full-rewrite-status.md`](full-rewrite-status.md))
 to the goals decided on 2026-10-19:
 
 - a faithful **Classic** ruleset that matches the original, including its menus and editor;

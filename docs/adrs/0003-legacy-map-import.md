@@ -10,7 +10,7 @@
 ## Context
 
 The original ships its maps as binary `.MAP` files (format in
-[`original/docs/game/map-format.md`](../../../original/docs/game/map-format.md)). The rewrite plays converted files, currently
+[`original/docs/map-format.md`](../../original/docs/map-format.md)). The rewrite plays converted files, currently
 a Kubriko scene JSON plus a `MapSceneSidecar` ([content format](../content-format.md)), regenerated
 from `original/MAPS/*.MAP` by `tools-mapconv scene-all` (until 2026-10-19).
 

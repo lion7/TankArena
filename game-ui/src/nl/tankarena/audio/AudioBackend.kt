@@ -9,7 +9,7 @@ import nl.tankarena.protocol.snapshot.GameEvent
  * The client routes these to the backend with computed volume/pan values
  * based on distance from the player camera.
  * 
- * See docs/game/mechanics.md §"Sound System" for the audio formulas:
+ * See original/docs/mechanics.md §"Sound System" for the audio formulas:
  * - Max range: 612 pixels
  * - Volume: full at d<100, linear falloff 100-612, silent at d>=612
  * - Pan: stereo panning based on relative player distances (dual mode)

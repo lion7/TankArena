@@ -17,7 +17,7 @@ differently.
 
 ## Decision
 
-- **The C source in `original/src/` is the authority** for every gameplay rule and number. `original/docs/game/`
+- **The C source in `original/src/` is the authority** for every gameplay rule and number. `original/docs/`
   describes it in prose and is corrected when it disagrees with the source.
 - **Port the original's algorithms**, not approximations: `new_velocity()`/`new_position()` movement,
   `hitwall.c`/`overlap.c` structure collisions, `line_obj_hit_point()` shot hits, `computer.c` AI,

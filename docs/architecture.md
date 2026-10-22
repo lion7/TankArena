@@ -2,7 +2,7 @@
 
 This document describes how the Kotlin rewrite is built **today** (2026-10-19). Decisions and their
 reasons are in the [ADRs](adrs/); the original game it reproduces is described in
-[`original/docs/game/`](../../original/docs/game/) and the C source in `original/src/`.
+[`original/docs/`](../original/docs/) and the C source in `original/src/`.
 
 > **Planned changes.** Kubriko is gone since 2026-10-19 ([ADR 0019](adrs/0019-plain-kotlin-no-kubriko.md));
 > maps move to a native format ([ADR 0022](adrs/0022-native-map-format.md)), the editor moves into the

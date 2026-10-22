@@ -1,7 +1,7 @@
 # Tank Arena Rewrite — History
 
 How the rewrite got where it is. Nothing here describes the current state; for that see
-[`full-rewrite-status.md`](../full-rewrite-status.md). Deleted documents are still in git history.
+[`full-rewrite-status.md`](full-rewrite-status.md). Deleted documents are still in git history.
 
 ## Timeline
 

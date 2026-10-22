@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * Desktop audio backend implementing the legacy Tank Arena sound system.
  *
  * Implements distance attenuation, stereo panning, and pitch variation
- * per docs/game/mechanics.md §"Sound System":
+ * per original/docs/mechanics.md §"Sound System":
  *
  * - Distance attenuation:
  *   - d < 100: volume = 255 (full)

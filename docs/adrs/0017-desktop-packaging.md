@@ -23,7 +23,7 @@ operating system it runs on, and the game bundles that system's native Skia libr
 - All runtime assets come from the class path; player data goes to the user's own folders
   ([ADR 0020](0020-user-data-as-json.md)), never into the game folder.
 
-Details: [`packaging/README.md`](../../../packaging/README.md).
+Details: [`packaging/README.md`](../../packaging/README.md).
 
 ## Consequences
 

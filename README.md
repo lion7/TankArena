@@ -66,7 +66,7 @@ everything it needs, a JDK included. Android needs the Android SDK in `~/Android
 ./kotlin build -m app-android             # the Android debug APK
 ```
 
-More in [docs/rewrite/build.md](docs/rewrite/build.md).
+More in [docs/build.md](docs/build.md).
 
 ## The repository
 
@@ -79,22 +79,22 @@ More in [docs/rewrite/build.md](docs/rewrite/build.md).
 | `app-server`, `app-relay` | The dedicated server and the internet relay |
 | `tools-mapconv` | Converters from the original's files |
 | `packaging` | Package scripts for Linux, Windows and Android |
-| `docs/rewrite` | How the rewrite is built: architecture, decisions (ADRs), roadmap |
+| `docs` | How the rewrite is built: architecture, decisions (ADRs), roadmap |
 | `original` | The original game: C sources, data, maps, its readme and documentation |
 
 The original release lives on unchanged in [`original/`](original/). Its C source in
 [`original/src/`](original/src/) is the reference for every rule, and the rewrite's code points to
 it file by file (`original/src/game/mainloop.c` and so on). The original game is described in
-[`original/docs/game/`](original/docs/game/) and its own readme is
+[`original/docs/`](original/docs/) and its own readme is
 [`original/readme.txt`](original/readme.txt).
 
 ## Documentation
 
-- [Architecture](docs/rewrite/architecture.md) and the [decisions (ADRs)](docs/rewrite/adrs/README.md)
-- [Roadmap](docs/rewrite/roadmap.md): what is built and what is next
-- [Parity](docs/rewrite/parity.md): how closely Classic follows the original
-- [Testing](docs/rewrite/testing-strategy.md) and [performance](docs/rewrite/performance.md)
-- [Map format](docs/rewrite/content-format.md) and [assets](docs/rewrite/assets.md)
+- [Architecture](docs/architecture.md) and the [decisions (ADRs)](docs/adrs/README.md)
+- [Roadmap](docs/roadmap.md): what is built and what is next
+- [Parity](docs/parity.md): how closely Classic follows the original
+- [Testing](docs/testing-strategy.md) and [performance](docs/performance.md)
+- [Map format](docs/content-format.md) and [assets](docs/assets.md)
 
 ## Credits
 

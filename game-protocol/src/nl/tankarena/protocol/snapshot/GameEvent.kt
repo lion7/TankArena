@@ -7,7 +7,7 @@ enum class ExplosionKind { MINE, MORTAR, ROCKET, ABOMB }
 
 /**
  * Sound sample identifiers matching legacy Tank Arena sound system.
- * See docs/game/mechanics.md §"Sound System" for trigger conditions.
+ * See original/docs/mechanics.md §"Sound System" for trigger conditions.
  */
 @Serializable
 enum class SoundKind {

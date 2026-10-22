@@ -2,7 +2,7 @@
 
 How a map is stored and loaded in the rewrite: the native `.tamap` format of
 [ADR 0022](adrs/0022-native-map-format.md). Where the files come from and every other asset are in
-[assets.md](assets.md); the original `.MAP` format is in [`original/docs/game/map-format.md`](../../original/docs/game/map-format.md).
+[assets.md](assets.md); the original `.MAP` format is in [`original/docs/map-format.md`](../original/docs/map-format.md).
 
 ## One file per map
 

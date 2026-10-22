@@ -2,7 +2,7 @@
 
 A rewrite in Kotlin of **Tank Arena**, the 1997 DOS game by 3.14 Software: tanks, helicopters and
 planes on top-down maps, missions against the computer, and two players together or against each
-other. The rewrite runs on Linux, Windows, macOS and Android, and plays in two ways:
+other. The rewrite runs on Linux, Windows and Android, and plays in two ways:
 
 - **Classic**: the original game, as it was. Same rules, same menus in the original's 320×200 look,
   same keys. Recorded games of the original's missions replay to the same end.

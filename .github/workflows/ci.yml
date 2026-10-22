@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reference-renders
-          path: game-client/build/reference-renders/
+          path: game-ui/build/reference-renders/
           if-no-files-found: ignore
 
   nightly:
@@ -66,10 +66,10 @@ jobs:
 
       # How every single-player map ends with nobody playing (maps that win or lose by themselves).
       - name: Idle scan
-        run: IDLE_SCAN=30000 ./kotlin test -m game-server 2>&1 | tee idle-scan.log
+        run: IDLE_SCAN=30000 ./kotlin test -m game-sim 2>&1 | tee idle-scan.log
 
       - name: Tick benchmark
-        run: TICK_BENCH=1 ./kotlin test -m game-server 2>&1 | tee tick-benchmark.log
+        run: TICK_BENCH=1 ./kotlin test -m game-sim 2>&1 | tee tick-benchmark.log
 
       - uses: actions/upload-artifact@v4
         with:

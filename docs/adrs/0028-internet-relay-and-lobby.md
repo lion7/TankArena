@@ -1,12 +1,8 @@
 # ADR 0028: Internet Play Through a Relay and Lobby Server
 
-- **Status:** Accepted and built (2026-10-20). Step 3 of phase 8 in the [roadmap](../roadmap.md);
-  builds on [ADR 0024](0024-networking.md). Built as designed, with these choices: the relay
-  server is `RelayServer` in `:game-net` (so one test runs relay, host and guest together) and
-  `:app-relay` only starts it; TLS is left to a proxy in front of the relay (Caddy, nginx), the
-  game connects with `wss://` when the relay address says so; `app-server --relay` publishes a
-  dedicated server's games too. The public relay runs at `wss://relay.tankarena.nl` from the
-  container image in [build.md](../build.md#relay-image) (2026-10-22).
+- **Status:** Accepted (2026-10-20). The public relay runs at `wss://relay.tankarena.nl` since
+  2026-10-22.
+- **Builds on:** [ADR 0024](0024-networking.md).
 
 ## Context
 
@@ -20,7 +16,7 @@ down in two places:
 - **Finding a game.** UDP broadcast only reaches the local network, and an IP address is awkward to
   pass on.
 
-The game's connection is a WebSocket over TCP. `GameServer.serve()` already takes any
+The game's connection is a WebSocket over TCP. `GameServer.accept()` already takes any
 `DefaultWebSocketSession`: it does not care whether the host accepted the connection or opened it.
 
 ## Decision
@@ -45,7 +41,7 @@ cannot be reached directly. The game messages pass through unchanged; the relay 
 - **Join.** A guest connects to the relay at `/join/<code>`. The relay tells the host over its
   control connection: `incoming <tunnel id>`.
 - **Tunnel.** The host opens a second WebSocket to the relay at `/tunnel/<tunnel id>` and hands it to
-  `GameServer.serve()` exactly as if the guest had connected directly. From then on the relay copies
+  `GameServer.accept()` exactly as if the guest had connected directly. From then on the relay copies
   every binary message from one side to the other. Each hop negotiates its own deflate.
 - **Game list.** `GET /games` gives the public games (name, map, players, versions) as JSON; the join
   screen shows them under the LAN games, filtered by version. Private games are only reached by
@@ -53,24 +49,34 @@ cannot be reached directly. The game messages pass through unchanged; the relay 
 
 ### In the game
 
-- **Hosting:** the lobby gets a choice "Also on the internet": the host opens the control connection
-  and shows the game code next to its LAN addresses. Direct LAN joins keep working at the same time.
-- **Joining:** "Join a game" lists LAN games, then internet games, then "Type an address or a code…".
-  A typed code goes through the relay; an address connects directly as now.
-- **The relay's address** is a setting with a default (`wss://relay.tankarena.nl`, `DEFAULT_RELAY`);
-  a group can run its own relay.
+- **The relay's address** is a setting on the "Network game" screen, with a default
+  (`wss://relay.tankarena.nl`, `DEFAULT_RELAY`); empty keeps games on the local network, and a group
+  can run its own relay.
+- **Hosting:** with a relay set, a hosted game is published privately and the lobby shows its code
+  next to the LAN addresses; P lists it publicly or takes it off the list. Direct LAN joins keep
+  working at the same time. `app-server --relay <address>` (with `--public`) publishes a dedicated
+  server's games.
+- **Joining:** the join screen lists LAN games, then the relay's public games, then "Type an address
+  or a code…". A typed code goes through the relay; an address connects directly.
 
 ### The relay itself
 
-- Ktor CIO, a few hundred lines, a `jvm/app` module next to `app-server`; it shares `game-net`'s
-  version constants and nothing else.
-- `wss://` (TLS) on the public side; the game's own LAN connections stay plain `ws://`.
+- `RelayServer` lives in `:game-net`, so one test runs relay, host and guest together; `app-relay`
+  only starts it (port 47310). It is Ktor CIO, a few hundred lines, and shares `game-net`'s version
+  constants and nothing else.
+- TLS is left to a proxy in front of the relay; the game connects with `wss://` when the relay's
+  address says so. With `--behind-proxy` the relay takes the guest's address from `X-Forwarded-For`
+  (the proxy must drop any the guest sent); without a proxy it uses the connection's address.
 - State is in memory only: games by code, open tunnels. A restart drops the games and their players,
   as a host leaving does.
-- Limits per game: at most `MAX_NET_PLAYERS - 1` tunnels; codes are refused after five wrong guesses
-  from one address per minute; a tunnel that is not picked up by the host within 10 s is closed.
-- Bandwidth: 3–18 KB/s per guest each way through the relay; 100 games with three guests each is
-  about 5 MB/s, within one small virtual machine.
+- Codes are six characters from an alphabet without look-alikes (`ACDEFGHJKLMNPQRTUVWXY34679`),
+  shown as `K7Q-4MX`.
+- Limits per game: at most `MAX_NET_PLAYERS - 1` tunnels; an address that guessed five wrong codes
+  within a minute is refused; a tunnel the host does not pick up within 10 s is closed.
+- Bandwidth: 3–18 KB/s per guest each way; 100 games with three guests each is about 5 MB/s, within
+  one small virtual machine.
+- Deployment: the container image `ghcr.io/lion7/tankarena/relay`
+  ([build.md](../build.md#relay-image)).
 
 ### The protocol
 

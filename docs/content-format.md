@@ -8,8 +8,10 @@ How a map is stored and loaded in the rewrite: the native `.tamap` format of
 
 The shipped maps are `game-content/resources/maps/<name>.tamap`, listed in `index.txt` (69 entries,
 one per map of the original release, including `select`, the tank selection arena). `<name>` is the
-`.MAP` file name in lower case, with characters other than `a-z0-9_-` replaced by `_` (for example
-`3_vs_3.tamap`). All 69 maps take 2.3 MB.
+`.MAP` file name in lower case (`2FAST.MAP` becomes `2fast.tamap`); characters other than `a-z0-9_-`
+would be replaced by `_`, which none of the 69 needs. All 69 maps take 2.7 MB. Maps saved in the editor are `.tamap` files too, in the
+player's `maps/` folder ([ADR 0020](adrs/0020-user-data-as-json.md)); one with the name of a shipped
+map replaces it.
 
 A `.tamap` file is UTF-8 JSON, written so that people can read and diff it: one map row per line,
 short records on one line. Top-level fields, in file order:
@@ -25,6 +27,7 @@ short records on one line. Top-level fields, in file order:
 | `bonuses` | `{"at": [x, y], "bonus": n}` for every cell with a bonus |
 | `men` | `{"at": [x, y], "type": n, "count": n}`: paratroopers in a building |
 | `objects` | The map objects, in file order |
+| `legacy` | Imported maps only: the original bytes the rewrite does not model, for a byte-exact `.MAP` export (below) |
 
 Fields with their default value are left out (for example `night: false`).
 
@@ -59,7 +62,8 @@ Each object is a record whose `type` is one of `tank` (map tanks and start pads)
 `enforcer` and `zeppelin`. `at` is the object's top-left corner in pixels and `size` its box (left out
 for mines, which have none). The other fields are the object's own, by name (for a tank: `tankType`,
 `armor`, `ammo`, `power`, `controllerId`, `computer`, the `ai*` fields, `wayPoints`, …); fields with
-default values are left out.
+default values are left out. Start pads for players 3 and 4 (Extended) are tank records with
+`padPlayer` 2 or 3 ([ADR 0027](adrs/0027-four-players-two-teams.md)).
 
 Counts over the 69 shipped maps: 1,252 mines, 718 tanks, 672 turrets, 244 train cars, 148 locks,
 84 products, 70 warps, 42 flags, 36 goals, 6 B52s, 2 destroyers; enforcers and zeppelins exist as types
@@ -99,8 +103,9 @@ The client never reads `.MAP` files.
 
 ## Making the files
 
-The `.tamap` files are the source of the shipped maps ([ADR 0003](adrs/0003-legacy-map-import.md)).
-`.MAP` files are converted with:
+The `.tamap` files are the source of the shipped maps ([ADR 0003](adrs/0003-legacy-map-import.md)),
+changed with the in-game editor ([ADR 0021](adrs/0021-editor-in-the-game.md)). `.MAP` files are
+converted with:
 
 ```bash
 ./kotlin run -m tools-mapconv -- import <file.MAP> <out-dir>
@@ -114,10 +119,25 @@ objects → `MapConversion.toDocument` → `MapFile.write`.
 
 `MapDocumentTest` requires every `.MAP` of the original release to import without notes to exactly
 its committed `.tamap`, so a change to the importer shows up as a failing test until `import-all` is run
-and the new files are committed. Until the in-game editor exists ([ADR 0021](adrs/0021-editor-in-the-game.md)),
-maps are changed by changing the importer or the `.MAP` file, not by hand-editing `.tamap` files.
+and the new files are committed. Running `import-all` overwrites edits made to shipped maps in the
+editor, so after the first edit a shipped map should only be changed in the editor.
 
-Export back to `.MAP` is not built yet (see [ADR 0022](adrs/0022-native-map-format.md)).
+## Export to `.MAP`
+
+```bash
+./kotlin run -m tools-mapconv -- export <file.tamap> <file.MAP>
+```
+
+The editor does the same with Ctrl+E, into the player's `maps/export/` folder. `LegacyMapExport`
+writes a version 6 `.MAP`, not locked: the header, the seven layers, the texts and every object as a
+696-byte record that starts from the original editor's `make_*()` defaults with the map's values on
+top. Start pads for players 3 and 4 are left out.
+
+The `legacy` section of an imported map holds what the rewrite does not model, as byte runs
+`[offset, "hex"]` for the header (`head`) and per object (`objects`, by index), and the texts as they
+were in the file (`texts`). Export puts those bytes back, so every original map exports to exactly its
+own file. The editor drops the runs over bytes an edit changes; new objects have none
+([ADR 0022](adrs/0022-native-map-format.md)).
 
 ## Versioning
 

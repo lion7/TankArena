@@ -1,48 +1,62 @@
-# ADR 0024: Networked Play — Authoritative Server with Snapshots
+# ADR 0024: Networked Play — Authoritative Host Sending Frames
 
-- **Status:** Accepted (2026-10-19); partly implemented (2026-10-20: LAN play by address or from
-  the LAN list, deltas against the previous frame instead of an acknowledged one (the connection
-  is ordered), the dedicated server, and internet play through a relay, [ADR 0028](0028-internet-relay-and-lobby.md)). Extended ruleset only
+- **Status:** Accepted (2026-10-19). Extended ruleset only
   ([ADR 0023](0023-classic-and-extended-rulesets.md)).
+- **Related:** [ADR 0028](0028-internet-relay-and-lobby.md) (internet play through a relay).
 
 ## Context
 
-The simulation is deterministic and already separated from the client by `MatchClient`,
-`InputFrame` and `ServerFrame` ([ADR 0005](0005-network-ready-input-protocol-boundary.md)). Networked
-play must work between desktop and Android (and later the browser), for up to four players, and let a
-player join a waiting match.
+The simulation is deterministic and separated from the screen by `MatchClient`, `InputFrame` and
+`ServerFrame` ([ADR 0005](0005-network-ready-input-protocol-boundary.md)). Networked play must work
+between desktop and Android (and later perhaps the browser), for up to four players, and let players
+join a waiting game.
 
 Two families of netcode were considered:
 
-- **Lockstep or rollback** (only inputs are sent; every peer simulates): tiny bandwidth, but every
-  peer must compute bit-identical results. Floating-point maths can differ in the last bit between the
-  JVM, Android and WASM, which would desync the match, and late joining is hard.
-- **Authoritative server with snapshots**: one machine simulates; clients send inputs and draw the
-  snapshots they receive. More bandwidth, but tolerant of platform differences and simple to join.
+- **Lockstep or rollback** (only inputs are sent; every peer simulates): tiny bandwidth, but every peer
+  must compute bit-identical results. Floating-point maths can differ in the last bit between the JVM,
+  Android and WASM, which would desynchronise the match, and joining late is hard.
+- **An authoritative host sending the world**: one machine simulates; the others send inputs and draw
+  what they receive. More bandwidth, but tolerant of platform differences and simple to join.
 
 ## Decision
 
-- **Server authority.** One `MatchHost` simulates at 100 ticks per second. Clients send `InputFrame`s
-  stamped with the tick they are meant for; the server applies each at the latest tick it can.
-- **Snapshots** go to clients 20–30 times per second, delta-compressed against the last snapshot the
-  client acknowledged, and limited to what lies near that client's views (some maps have more than
-  1,000 mines and many changed tiles). Events (sounds, effects, messages) travel with them.
-- **Smoothing on the client:** other objects are drawn about 100 ms in the past and interpolated
-  between snapshots. Predicting the player's own vehicle (with correction) is added only if LAN tests
-  show it is needed for internet play.
-- **Transport:** Ktor WebSockets with kotlinx.serialization (CBOR or a compact binary form) — available
-  on the JVM, Android and in the browser.
-- **Hosting:** a *listen server* (one player hosts from the menu, others join) and a headless
-  `app-server` for dedicated hosting; both run the same `MatchHost`. LAN discovery by UDP broadcast;
-  internet play first by address, later through a small relay/lobby server. No host migration.
-- **Protocol versioning:** the handshake compares `PROTOCOL_VERSION` and the ruleset's
-  `GAME_RULES_VERSION`; mismatches are refused with a clear message.
+- **Host authority.** One machine runs the match (`HostedMatch`, a `LocalMatchClient` with the joined
+  players' latest controls). Guests send their players' controls once a step; the host applies the
+  latest it has.
+- **One frame per step** (33 a second) to every other machine, with the step's events and only that
+  machine's player views. Each frame is a **delta of the frame before** to that machine
+  (`DeltaEncoder` / `DeltaDecoder`: new or changed actors, removed ids, changed tiles; whole again
+  after a dropped frame). No acknowledgements are needed because the connection is ordered. The
+  WebSocket deflates frames with the context of the ones before (permessage-deflate). Median 99 bytes
+  a frame, SUBURBS 551: about 3 to 18 KB/s per guest, so frames are not limited to what is near the
+  views.
+- **Smoothing on the guest:** `RemoteMatchClient` plays the frames back about 100 ms (three steps)
+  behind the newest, catching up after a stall. Own-vehicle prediction is not built; it is added only
+  if play over the internet shows it is needed.
+- **Transport:** Ktor WebSockets (CIO) with CBOR messages (`NetMessages.kt`, `NetCodec`), on the JVM
+  and Android. Port 47300, path `/tankarena`.
+- **Lobby and seats:** `GameServer` admits machines after comparing `NET_VERSION`, `PROTOCOL_VERSION`
+  and the ruleset's rules version (a mismatch is refused with a message), gives their players the next
+  free places (at most `MAX_NET_PLAYERS`, 4, in two teams, [ADR 0027](0027-four-players-two-teams.md))
+  and starts the match with the map's `.tamap` text, so guests need not have the map.
+- **Games and rounds:** together against the computer (one mission and its result) or against each
+  other on a map. `NetSeries` runs player-vs-player rounds: every machine's players pick their
+  vehicles before a round (30 s, then the last or first allowed), rounds are counted until the match is
+  decided, and every machine shows the round's result.
+- **Hosting:** a *listen server* from Extended's "Network game" screen, or the headless `app-server`
+  (`--map`, `--mode`, `--players`, `--rounds`, `--port`, `--repeat`, `--name`, `--relay`, `--public`)
+  for dedicated hosting. No host migration.
+- **Finding games:** on the LAN a lobby announces itself once a second by UDP broadcast on port 47301
+  (`LanAnnouncer`, a CBOR `LanBeacon`); the join screen lists what `LanFinder` hears (only games of the
+  same versions) next to "Type an address…". Android holds a Wi-Fi multicast lock meanwhile. Over the
+  internet: by address, or by game code through the relay ([ADR 0028](0028-internet-relay-and-lobby.md)).
 
 ## Consequences
 
-- The deterministic core is still valuable (recordings, tests, replays), but networked play does not
-  depend on cross-platform bit-exactness.
-- The client gains snapshot interpolation, which also smooths local play at high display rates.
-- `RemoteMatchClient` implements `MatchClient`; menus and rendering do not care whether a match is
-  local or remote.
-- Cheating by modified clients is limited to what inputs can do.
+- Network play does not depend on cross-platform bit-exactness; determinism still serves recordings,
+  tests and replays.
+- Menus and rendering do not care whether a match is local or remote.
+- Cheating by a modified guest is limited to what its controls can do.
+- Not tried yet: a game between two real machines on a LAN, and a desktop host with an outside guest
+  (tests and the Android emulator joining this machine only).

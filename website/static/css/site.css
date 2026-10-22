@@ -1,0 +1,122 @@
+/* Tank Arena: dark, a little retro, nothing to build. */
+:root {
+  --bg: #12140f;
+  --panel: #1c2016;
+  --line: #333a28;
+  --text: #e4e6d8;
+  --muted: #9da38a;
+  --accent: #e8b72a;
+  --accent-dark: #a9821a;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  background-image: radial-gradient(circle at 50% 0, #2a301f 0, transparent 60%);
+  color: var(--text);
+  font: 17px/1.6 var(--font);
+}
+
+a { color: var(--accent); }
+a:hover { color: #ffd45a; }
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(18, 20, 15, 0.85);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.top nav { display: flex; gap: 20px; }
+.top nav a { color: var(--muted); text-decoration: none; }
+.top nav a:hover { color: var(--accent); }
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+}
+
+.hero { text-align: center; padding: 32px 0 16px; }
+.hero img { image-rendering: pixelated; filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.6)); }
+
+.hero h1 {
+  margin: 16px 0 8px;
+  font-family: var(--mono);
+  font-size: clamp(2.2rem, 7vw, 3.6rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.hero h1 span {
+  display: block;
+  color: var(--accent);
+  font-size: 0.45em;
+  letter-spacing: 0.4em;
+}
+
+.lead { color: var(--muted); font-size: 1.1rem; }
+
+.soon {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 16px;
+  border: 2px solid var(--accent-dark);
+  color: var(--accent);
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.text {
+  margin-top: 24px;
+  padding: 8px 28px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.text h1 { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; }
+
+strong { color: #fff3c8; }
+
+code { font-family: var(--mono); font-size: 0.92em; color: var(--accent); }
+
+footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .top { padding: 10px 16px; }
+  .brand span { display: none; }
+  .text { padding: 4px 16px; }
+}

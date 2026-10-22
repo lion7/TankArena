@@ -1,0 +1,18 @@
+# The packaging containers only need the build files and the modules (the project lists them all).
+*
+!kotlin
+!kotlin.bat
+!project.yaml
+!common.module-template.yaml
+!app-android
+!app-desktop
+!app-relay
+!app-server
+!game-content
+!game-net
+!game-protocol
+!game-sim
+!game-ui
+!tools-mapconv
+!packaging
+**/build

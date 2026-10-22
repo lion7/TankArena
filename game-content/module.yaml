@@ -1,0 +1,9 @@
+product:
+  type: kmp/lib
+  platforms: [jvm, android]
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-protocol

@@ -1,0 +1,11 @@
+{{ define "main" }}
+<section class="hero">
+  <img src="{{ "images/logo.png" | relURL }}" alt="Tank Arena" width="168" height="168">
+  <h1>Tank Arena<span>Next Kombat</span></h1>
+  <p class="lead">{{ site.Params.tagline }}</p>
+  <p class="soon">Coming soon</p>
+</section>
+<section class="text">
+  {{ .Content }}
+</section>
+{{ end }}

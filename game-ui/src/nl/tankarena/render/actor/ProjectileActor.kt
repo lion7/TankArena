@@ -1,0 +1,33 @@
+package nl.tankarena.render.actor
+
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import nl.tankarena.protocol.snapshot.ProjectileState
+import nl.tankarena.render.RuntimeSnapshot
+
+private const val PROJECTILE_BODY_SIZE = 3
+
+internal class ProjectileActor(
+    id: Long,
+    snapshot: RuntimeSnapshot,
+) : RenderActor(
+    id = id,
+    snapshot = snapshot,
+    width = PROJECTILE_BODY_SIZE,
+    height = PROJECTILE_BODY_SIZE,
+) {
+    fun sync(state: ProjectileState) {
+        setCenter(
+            x = snapshot.renderOffsetX + state.x,
+            y = snapshot.renderOffsetY + state.y,
+        )
+    }
+
+    override fun DrawScope.draw() {
+        val center = body.size.width / 2f
+        drawRect(Color.Black, Offset(center - 0.5f, center - 1.5f), Size(1f, 3f))
+        drawRect(Color.Black, Offset(center - 1.5f, center - 0.5f), Size(3f, 1f))
+    }
+}

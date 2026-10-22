@@ -1,0 +1,28 @@
+# The Tank Arena website, served from the Garage website bucket www.tankarena.nl behind garage-sites
+# (pegasus). Built and deployed by .github/workflows/website.yml; locally: hugo server.
+baseURL = "https://www.tankarena.nl/"
+title = "Tank Arena"
+locale = "en"
+disableHugoGeneratorInject = true
+disableKinds = ["taxonomy", "term", "RSS", "sitemap"]
+
+[params]
+  description = "Tank Arena: Next Kombat, a rewrite of the 1997 DOS game by 3.14 Software."
+  tagline = "A rewrite of the 1997 DOS game by 3.14 Software, for Linux, Windows, macOS and Android."
+  github = "https://github.com/lion7/TankArena"
+
+[deployment]
+  [[deployment.targets]]
+  name = "www.tankarena.nl"
+  url = "s3://www.tankarena.nl?endpoint=https://s3.ruddur.cloud&s3ForcePathStyle=true&region=garage"
+  # Packaged builds are uploaded to releases/ separately and linked from the downloads page;
+  # hugo deploy leaves them alone (neither uploads nor deletes there).
+  exclude = "releases/**"
+
+  [[deployment.matchers]]
+  pattern = "^.+\\.(css|js|png|jpg|svg|ico)$"
+  cacheControl = "max-age=86400, public"
+
+  [[deployment.matchers]]
+  pattern = "^.+\\.html$"
+  cacheControl = "max-age=300, public"

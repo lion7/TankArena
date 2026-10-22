@@ -1,0 +1,79 @@
+# Build and test on every push and pull request; the idle scan and the tick benchmark every night.
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+# bash -eo pipefail, so a failing command before a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Kotlin toolchain, its JDK and all Maven dependencies.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/JetBrains/Kotlin/cli
+            ~/.cache/JetBrains/Kotlin/download.cache
+            ~/.cache/JetBrains/Kotlin/extract.cache
+            ~/.cache/JetBrains/Kotlin/.m2.cache
+          key: kotlin-${{ runner.os }}-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml') }}
+          restore-keys: kotlin-${{ runner.os }}-
+
+      - name: Build
+        run: ./kotlin build
+
+      - name: Test
+        run: ./kotlin test
+
+      # Reference renders that no longer match are written here (ReferenceRenderTest).
+      - name: Upload differing renders
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-renders
+          path: game-client/build/reference-renders/
+          if-no-files-found: ignore
+
+  nightly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/JetBrains/Kotlin/cli
+            ~/.cache/JetBrains/Kotlin/download.cache
+            ~/.cache/JetBrains/Kotlin/extract.cache
+            ~/.cache/JetBrains/Kotlin/.m2.cache
+          key: kotlin-${{ runner.os }}-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml') }}
+          restore-keys: kotlin-${{ runner.os }}-
+
+      # How every single-player map ends with nobody playing (maps that win or lose by themselves).
+      - name: Idle scan
+        run: IDLE_SCAN=30000 ./kotlin test -m game-server 2>&1 | tee idle-scan.log
+
+      - name: Tick benchmark
+        run: TICK_BENCH=1 ./kotlin test -m game-server 2>&1 | tee tick-benchmark.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightly-reports
+          path: |
+            idle-scan.log
+            tick-benchmark.log

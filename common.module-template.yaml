@@ -1,0 +1,7 @@
+# Applied by every module (ADR 0016, ADR 0025): one group for all artifacts; the artifact id is the
+# module's name (game-protocol, game-sim, ...).
+settings:
+  kotlin:
+    serialization: json
+  publishing:
+    group: nl.tankarena

@@ -1,0 +1,13 @@
+# The relay and lobby for internet play (ADR 0028): hosts publish their games, guests join by code
+# through tunnels. Run it on a machine everyone can reach, behind a TLS proxy for wss://.
+product: jvm/app
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-net
+
+settings:
+  jvm:
+    mainClass: nl.tankarena.relay.MainKt

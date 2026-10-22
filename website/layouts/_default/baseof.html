@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="{{ site.Language.Locale | default "en" }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+  <link rel="icon" type="image/png" href="{{ "favicon.png" | relURL }}">
+  <link rel="stylesheet" href="{{ "css/site.css" | relURL }}">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="{{ "/" | relURL }}">
+      <img src="{{ "images/logo.png" | relURL }}" alt="" width="40" height="40">
+      <span>Tank Arena</span>
+    </a>
+    <nav>
+      <a href="{{ "downloads/" | relURL }}">Downloads</a>
+      <a href="{{ site.Params.github }}">Source</a>
+    </nav>
+  </header>
+  <main>
+    {{ block "main" . }}{{ end }}
+  </main>
+  <footer>
+    <p>Tank Arena © 1997 3.14 Software · Next Kombat is a rewrite in Kotlin · <a href="{{ site.Params.github }}">GitHub</a></p>
+  </footer>
+</body>
+</html>

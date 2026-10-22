@@ -1,0 +1,57 @@
+# Builds the relay's container image (packaging/relay.Dockerfile) and pushes it to GHCR when the relay or
+# what it is built from changes. Tags: sha-<commit>, latest, and the version for v* tags.
+name: Relay image
+
+on:
+  push:
+    branches: [master, rewrite]
+    tags: ["v*"]
+    paths:
+      - app-relay/**
+      - game-net/**
+      - game-protocol/**
+      - game-sim/**
+      - packaging/relay.Dockerfile
+      - project.yaml
+      - common.module-template.yaml
+      - kotlin
+      - .github/workflows/relay.yml
+  workflow_dispatch:
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/lion7/tankarena/relay
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ !startsWith(github.ref, 'refs/tags/') }}
+            type=semver,pattern={{version}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/relay.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=relay
+          cache-to: type=gha,scope=relay,mode=max

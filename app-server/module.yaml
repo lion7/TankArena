@@ -1,0 +1,13 @@
+# The dedicated server (ADR 0024): hosts network games without a screen or players of its own.
+product: jvm/app
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-content
+  - ../game-net
+
+settings:
+  jvm:
+    mainClass: nl.tankarena.server.MainKt

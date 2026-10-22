@@ -1,0 +1,12 @@
+product: jvm/app
+
+apply:
+  - ../common.module-template.yaml
+
+dependencies:
+  - ../game-content
+  - ../game-sim
+
+settings:
+  jvm:
+    mainClass: nl.tankarena.tools.mapconv.MainKt

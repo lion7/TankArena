@@ -1,0 +1,3 @@
+#!/bin/sh
+# AppImage entry point: start the jpackage launcher inside the image.
+exec "$(dirname "$(readlink -f "$0")")/usr/bin/TankArena" "$@"

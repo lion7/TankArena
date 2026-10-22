@@ -36,7 +36,7 @@ object Gamepads {
         fun axis(value: Float) = (value * 100).roundToInt().coerceIn(-100, 100)
         val buttons = listOf(state.a, state.b, state.x, state.y, state.lb, state.rb, state.back, state.start)
             .foldIndexed(0) { bit, mask, held -> if (held) mask or (1 shl bit) else mask }
-        // The D-pad pushes the stick all the way (Jamepad's sticks have up positive).
+        // The D-pad pushes the stick all the way (the badlogic Jamepad passes SDL's axes on: down positive).
         val x = when {
             state.dpadLeft -> -100
             state.dpadRight -> 100
@@ -45,13 +45,13 @@ object Gamepads {
         val y = when {
             state.dpadUp -> -100
             state.dpadDown -> 100
-            else -> -axis(state.leftStickY)
+            else -> axis(state.leftStickY)
         }
         fun trigger(value: Float) = (value * 100).roundToInt().coerceIn(0, 100)
         return PadReading(
             x, y, buttons,
             rightX = axis(state.rightStickX),
-            rightY = -axis(state.rightStickY),
+            rightY = axis(state.rightStickY),
             leftTrigger = trigger(state.leftTrigger),
             rightTrigger = trigger(state.rightTrigger),
         )

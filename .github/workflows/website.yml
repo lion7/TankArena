@@ -1,0 +1,45 @@
+# Builds the website (website/, Hugo) and deploys it to the Garage website bucket www.tankarena.nl
+# through the S3 API at s3.ruddur.cloud. The upload key comes from the repository secrets
+# AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (pegasus: ./garage-site.sh www.tankarena.nl tankarena-website);
+# without them the site is only built.
+name: Website
+
+on:
+  push:
+    branches: [master, rewrite]
+    paths:
+      - website/**
+      - .github/workflows/website.yml
+  workflow_dispatch:
+
+env:
+  HUGO_VERSION: 0.163.3
+
+jobs:
+  website:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      AWS_ENDPOINT_URL: https://s3.ruddur.cloud
+      AWS_DEFAULT_REGION: garage
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The "withdeploy" build has `hugo deploy`.
+      - name: Install Hugo
+        run: |
+          curl -fsSL "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_withdeploy_${HUGO_VERSION}_linux-amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" hugo
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: hugo --minify
+
+      - name: Deploy
+        if: env.AWS_ACCESS_KEY_ID != ''
+        run: hugo deploy --target www.tankarena.nl

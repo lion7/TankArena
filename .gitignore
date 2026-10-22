@@ -2,3 +2,5 @@
 build/
 !.dockerignore
 !.github/
+website/public/
+website/resources/

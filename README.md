@@ -78,7 +78,8 @@ More in [docs/build.md](docs/build.md).
 | `app-desktop`, `app-android` | The desktop and Android apps around it |
 | `app-server`, `app-relay` | The dedicated server and the internet relay |
 | `tools-mapconv` | Converters from the original's files |
-| `packaging` | Package scripts for Linux, Windows and Android |
+| `packaging` | Package scripts for Linux, Windows and Android, and the relay's container image |
+| `website` | The website at www.tankarena.nl (Hugo), deployed by GitHub Actions |
 | `docs` | How the rewrite is built: architecture, decisions (ADRs), roadmap |
 | `original` | The original game: C sources, data, maps, its readme and documentation |
 

@@ -79,7 +79,7 @@ jar is fine there) on a Java 25 runtime, and runs as an unprivileged user on por
   proxy, run it with `--port 47310` instead. The proxy must drop any `X-Forwarded-For` the client
   sent.
 - It runs at `wss://relay.tankarena.nl`, as the `tankarena` tenant of the pegasus cluster
-  (`kustomizations/tankarena/`).
+  (`kustomizations/tankarena/`). That is the game's default relay (`DEFAULT_RELAY` in `game-net`).
 
 ## IDE
 

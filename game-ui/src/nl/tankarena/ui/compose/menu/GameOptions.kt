@@ -15,6 +15,7 @@ import kotlin.math.roundToInt
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import nl.tankarena.app.AppDirs
+import nl.tankarena.net.DEFAULT_RELAY
 import nl.tankarena.sim.Ruleset
 import nl.tankarena.ui.compose.legacy.Mode13View
 
@@ -59,7 +60,7 @@ data class GameOptions(
     /** Extended: on a wide window the map windows grow across and show more of the map. */
     val wideView: Boolean = true,
     /** Extended network games: the internet relay's address (ADR 0028); empty for none. */
-    val relay: String = "",
+    val relay: String = DEFAULT_RELAY,
     /** Extended: player one's keys and steering (with the mouse). */
     val mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS,
     /** Extended: a second player on the keyboard (player two's keys), for those without a gamepad. */

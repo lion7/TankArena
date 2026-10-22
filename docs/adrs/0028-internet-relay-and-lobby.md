@@ -57,7 +57,8 @@ cannot be reached directly. The game messages pass through unchanged; the relay 
   and shows the game code next to its LAN addresses. Direct LAN joins keep working at the same time.
 - **Joining:** "Join a game" lists LAN games, then internet games, then "Type an address or a code…".
   A typed code goes through the relay; an address connects directly as now.
-- **The relay's address** is a setting with a default; a group can run its own relay.
+- **The relay's address** is a setting with a default (`wss://relay.tankarena.nl`, `DEFAULT_RELAY`);
+  a group can run its own relay.
 
 ### The relay itself
 

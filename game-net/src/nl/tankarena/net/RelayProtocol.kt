@@ -7,6 +7,9 @@ import kotlinx.serialization.json.Json
 /** The port a relay listens on unless told otherwise (ADR 0028). */
 const val RELAY_PORT: Int = 47_310
 
+/** The public relay the game uses unless the player sets another one (docs/build.md, "Relay image"). */
+const val DEFAULT_RELAY: String = "wss://relay.tankarena.nl"
+
 /** The relay's paths: a host's control connection, a guest joining by code, a host's tunnel, the game list. */
 object RelayPaths {
     const val HOST = "/host"

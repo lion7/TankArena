@@ -65,6 +65,22 @@ Self-contained Linux and Windows packages are built in containers with `packagin
 [`packaging/README.md`](../packaging/README.md). Do not ship `./kotlin package -f executable-jar`
 output: Compose 1.12's same-named jars collide in it.
 
+## Relay image
+
+The relay (ADR 0028) ships as a container image, `ghcr.io/lion7/tankarena/relay`, built from
+`packaging/relay.Dockerfile`. The image holds the relay's executable jar (it has no Compose, so the
+jar is fine there) on a Java 25 runtime, and runs as an unprivileged user on port 47310.
+
+- `.github/workflows/relay.yml` builds and pushes it when the relay or a module it uses changes on
+  `master` or `rewrite`. Tags: `sha-<commit>`, `latest`, and the version for `v*` tags.
+- `packaging/build-relay.sh` builds it locally; `PUSH=1` pushes it (after `docker login ghcr.io`).
+- The image starts the relay with `--behind-proxy`. Behind the TLS proxy, the relay takes the
+  guest's address from `X-Forwarded-For`, so it limits wrong code guesses per player. Without a
+  proxy, run it with `--port 47310` instead. The proxy must drop any `X-Forwarded-For` the client
+  sent.
+- It runs at `wss://relay.tankarena.nl`, as the `tankarena` tenant of the pegasus cluster
+  (`kustomizations/tankarena/`).
+
 ## IDE
 
 IntelliJ IDEA with the "Kotlin Toolchain" plugin.

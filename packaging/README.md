@@ -38,6 +38,17 @@ wins, so the game cannot start (`NoClassDefFoundError: androidx/compose/runtime/
 `jpackage` only builds for the system it runs on, and the game bundles that system's Skia library, which is why
 Windows needs a Windows builder.
 
+## The relay image
+
+```bash
+packaging/build-relay.sh                 # ghcr.io/lion7/tankarena/relay:<commit> and :latest, loaded locally
+PUSH=1 packaging/build-relay.sh          # and pushed (docker login ghcr.io first)
+```
+
+`relay.Dockerfile` builds the relay's executable jar (no Compose, so no name clash) and puts it on a Java 25
+runtime. GitHub Actions (`.github/workflows/relay.yml`) builds and pushes the same image on every relevant push.
+See [docs/build.md](../docs/build.md#relay-image).
+
 ## Android
 
 ```bash

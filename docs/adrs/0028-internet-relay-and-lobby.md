@@ -5,7 +5,8 @@
   server is `RelayServer` in `:game-net` (so one test runs relay, host and guest together) and
   `:app-relay` only starts it; TLS is left to a proxy in front of the relay (Caddy, nginx), the
   game connects with `wss://` when the relay address says so; `app-server --relay` publishes a
-  dedicated server's games too.
+  dedicated server's games too. The public relay runs at `wss://relay.tankarena.nl` from the
+  container image in [build.md](../build.md#relay-image) (2026-10-22).
 
 ## Context
 

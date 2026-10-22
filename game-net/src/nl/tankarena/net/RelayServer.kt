@@ -6,6 +6,7 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.cio.CIOApplicationEngine
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.forwardedheaders.XForwardedHeaders
 import io.ktor.server.plugins.origin
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -35,11 +36,14 @@ import kotlin.time.Duration.Companion.seconds
  * The relay and lobby (ADR 0028): hosts publish their games over a control connection and get a
  * code; a guest joining by code gets a tunnel that the host opens to the relay, and the relay copies
  * the game's messages both ways without reading them. Public games are listed at [RelayPaths.GAMES].
- * Everything is in memory.
+ * Everything is in memory. Behind a proxy ([behindProxy]) a guest's address comes from
+ * `X-Forwarded-For`, so guessing is limited per player instead of for everyone at once; the proxy
+ * must then drop the header the client sent itself.
  */
 class RelayServer(
     private val port: Int = RELAY_PORT,
     private val tunnelTimeoutMillis: Long = 10_000,
+    private val behindProxy: Boolean = false,
     private val log: (String) -> Unit = {},
 ) {
     private class Hosted(val control: DefaultWebSocketSession, @Volatile var game: RelayGame, @Volatile var public: Boolean) {
@@ -61,6 +65,7 @@ class RelayServer(
     /** Starts listening; returns the port (useful when [port] is 0, any free one). */
     fun start(): Int {
         val engine = embeddedServer(CIO, port = port) {
+            if (behindProxy) install(XForwardedHeaders)
             install(WebSockets) {
                 pingPeriod = 5.seconds
                 timeout = 15.seconds

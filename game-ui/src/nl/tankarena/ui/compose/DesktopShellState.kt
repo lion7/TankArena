@@ -142,6 +142,9 @@ sealed interface DesktopShellScreen {
     /** Hosting [mission] in [mode] begins: the server opens, then the lobby shows. */
     data class NetworkHostStart(val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
 
+    /** The host picks another map in the lobby, for the same players. */
+    data class NetworkHostMap(val session: nl.tankarena.app.NetworkSession.Hosting) : DesktopShellScreen
+
     /** Typing the address of a game to join. */
     data object NetworkAddress : DesktopShellScreen
 

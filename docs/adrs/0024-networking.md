@@ -42,8 +42,15 @@ Two families of netcode were considered:
   and starts the match with the map's `.tamap` text, so guests need not have the map.
 - **Games and rounds:** together against the computer (one mission and its result) or against each
   other on a map. `NetSeries` runs player-vs-player rounds: every machine's players pick their
-  vehicles before a round (30 s, then the last or first allowed), rounds are counted until the match is
-  decided, and every machine shows the round's result.
+  vehicles before a round (30 s, then the last or first allowed; the choice starts on the last),
+  rounds are counted until the match is decided, and every machine shows the round's result.
+- **Back to the lobby (`NET_VERSION` 5):** after a match, or when the host leaves a round or the
+  vehicle choice with ESC, the host and every connected machine go back to the lobby
+  (`GameServer.reopenLobby()`, a `Lobby` message with `open`); machines can join again and the host
+  may pick another map there (M). Against each other the rounds won count over every map as a series
+  (`NetSeries.seriesBefore`, shown in the lobby, the vehicle choice and the result); the losers tank
+  goes by it. A guest that leaves a round with ESC sits it out (`SitOut`, its vehicles stop) and
+  plays again from the next round.
 - **Hosting:** a *listen server* from Extended's "Network game" screen, or the headless `app-server`
   (`--map`, `--mode`, `--players`, `--rounds`, `--port`, `--repeat`, `--name`, `--relay`, `--public`)
   for dedicated hosting. No host migration.

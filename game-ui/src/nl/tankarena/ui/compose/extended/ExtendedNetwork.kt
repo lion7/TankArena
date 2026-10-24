@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -217,24 +218,34 @@ fun NetworkLobbyScreen(
     onTogglePublic: (() -> Unit)? = null,
     onStart: () -> Unit,
     onBack: () -> Unit,
+    /** The map the host picked (a guest's view). */
+    map: String = "",
+    /** Against each other: the rounds each side has won over every map so far. */
+    series: List<Int> = listOf(0, 0),
+    /** The host: M picks another map for the same players. */
+    onChangeMap: (() -> Unit)? = null,
+    /** A guest who left the round being played: they play again from the next one. */
+    sittingOut: Boolean = false,
 ) {
     val players = members.sumOf { it.seats.size }
     ExtendedPage(
         title = title,
-        subtitle = if (hosting) {
-            if (addresses.isEmpty()) "No network found on this machine" else "Others join at ${addresses.joinToString(" or ")}"
-        } else {
-            "Waiting for the host to start"
+        subtitle = when {
+            hosting -> if (addresses.isEmpty()) "No network found on this machine" else "Others join at ${addresses.joinToString(" or ")}"
+            sittingOut -> "You left the round; you play again from the next one"
+            map.isNotEmpty() -> "${map.uppercase()} · waiting for the host to start"
+            else -> "Waiting for the host to start"
         },
         onBack = onBack,
         footer = when {
             !hosting -> "ESC leaves"
-            players >= minPlayers -> "Enter starts · ESC stops the game"
-            else -> "Waiting for players · ESC stops the game"
+            players >= minPlayers -> "Enter starts · M another map · ESC stops the game"
+            else -> "Waiting for players · M another map · ESC stops the game"
         },
         onKey = { event ->
             when {
                 hosting && (event.key == Key.Enter || event.key == Key.NumPadEnter) && players >= minPlayers -> onStart()
+                event.key == Key.M && onChangeMap != null -> onChangeMap()
                 event.key == Key.P && onTogglePublic != null -> onTogglePublic()
                 else -> return@ExtendedPage false
             }
@@ -260,6 +271,9 @@ fun NetworkLobbyScreen(
                     }
                 }
             }
+            if (series.any { it > 0 }) {
+                Text("Series: team 1 ${series[0]} – ${series.getOrElse(1) { 0 }} team 2 (the losers tank goes by it)", color = ExtendedColors.text, fontSize = 18.sp)
+            }
             if (internet != null) Text(internet, color = ExtendedColors.text, fontSize = 18.sp)
         }
     }
@@ -282,6 +296,10 @@ fun VehicleChoiceScreen(
     status: String,
     onPick: (seat: Int, vehicle: Int) -> Unit,
     onBack: () -> Unit,
+    /** The vehicle a player drove last, to start their choice on; null for none. */
+    last: (seat: Int) -> Int? = { null },
+    /** The rounds each side has won over every map so far. */
+    series: List<Int> = wins,
 ) {
     val keys = remember { KeyRouter() }
     var picking by remember(round) { mutableIntStateOf(0) }
@@ -292,7 +310,8 @@ fun VehicleChoiceScreen(
     }
     ExtendedPage(
         title = "Round $round",
-        subtitle = "Team 1 ${wins.getOrElse(0) { 0 }} – ${wins.getOrElse(1) { 0 }} Team 2 · $secondsLeft s to pick",
+        subtitle = "Team 1 ${wins.getOrElse(0) { 0 }} – ${wins.getOrElse(1) { 0 }} Team 2" +
+            (if (series != wins) " (series ${series.getOrElse(0) { 0 }} – ${series.getOrElse(1) { 0 }})" else "") + " · $secondsLeft s to pick",
         onBack = onBack,
         footer = if (seat != null) "Enter picks · ESC leaves the game" else "ESC leaves the game",
         onKey = { event -> if (seat != null) keys.handle(event) else false },
@@ -301,15 +320,19 @@ fun VehicleChoiceScreen(
             Column {
                 Text("Player ${seat + 1} (team ${seat % 2 + 1}): your vehicle", color = ExtendedColors.accent, fontSize = 20.sp)
                 Spacer(Modifier.height(12.dp))
-                ExtendedList(
-                    entries,
-                    onPick = { vehicle ->
-                        onPick(seat, vehicle)
-                        picking++
-                    },
-                    initial = allowed.indexOfFirst { it }.coerceAtLeast(0),
-                    keys = keys,
-                )
+                // Each player's choice starts on what they drove last, if the map allows it.
+                val start = last(seat)?.takeIf { allowed.getOrNull(it) == true } ?: allowed.indexOfFirst { it }.coerceAtLeast(0)
+                key(seat) {
+                    ExtendedList(
+                        entries,
+                        onPick = { vehicle ->
+                            onPick(seat, vehicle)
+                            picking++
+                        },
+                        initial = start,
+                        keys = keys,
+                    )
+                }
             }
         } else {
             Text("Waiting for the others… $status", color = ExtendedColors.dim, fontSize = 18.sp)
@@ -346,12 +369,13 @@ fun NetworkResultScreen(
         title = if (result.missionWon != null) "Mission over" else "Round ${result.round}",
         onBack = onBack,
         footer = when {
-            result.matchOver -> "Enter goes back to the network menu"
+            hosting && result.matchOver -> "Enter goes back to the lobby · ESC ends the game"
             hosting -> "Enter: the next round · ESC ends the game"
+            result.matchOver -> "Waiting for the host to go back to the lobby · ESC leaves"
             else -> "Waiting for the host to start the next round · ESC leaves"
         },
         onKey = { event ->
-            if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && (hosting || result.matchOver)) {
+            if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && hosting) {
                 onNext()
                 true
             } else {
@@ -362,6 +386,9 @@ fun NetworkResultScreen(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(headline, color = ExtendedColors.accent, fontSize = 28.sp)
             if (matchLine != null) Text(matchLine, color = ExtendedColors.text, fontSize = 20.sp)
+            if (result.missionWon == null && result.series != result.wins) {
+                Text("Series over every map: team 1 ${result.series[0]} – ${result.series[1]} team 2", color = ExtendedColors.dim, fontSize = 18.sp)
+            }
         }
     }
 }

@@ -48,9 +48,17 @@ class GameServer(
     /** Where the lobby announces itself for [LanFinder]s; null not at all. */
     private val announceTo: List<java.net.InetSocketAddress>? = broadcastTargets(),
 ) {
-    /** The map the lobby announces (a host picks it first). */
+    /** The map the lobby announces (a host picks it first, and may change it in the lobby). */
     @Volatile
     var mapName: String = ""
+        set(value) {
+            field = value
+            if (server != null) publishMembers()
+        }
+
+    /** The rounds each side has won over every map of this game so far, shown in the lobby. */
+    @Volatile
+    var series: List<Int> = listOf(0, 0)
 
     private var announcer: LanAnnouncer? = null
 
@@ -140,13 +148,36 @@ class GameServer(
         hostPlayers + sessions.sumOf { it.seats.size }
     }.also { publishMembers() }
 
-    /** Against each other: the vehicle choice for [round] begins; [choices] fills as players pick. */
-    fun openChoice(round: Int, wins: List<Int>, allowed: List<Boolean>, seconds: Int) {
+    /**
+     * The round, or the match, is over and the host goes back to the lobby with everyone still
+     * connected: machines can join again, and the host may pick another map.
+     */
+    fun reopenLobby() {
+        synchronized(lock) { started = false }
+        for (seat in remoteInputs.keys) remoteInputs[seat] = InputFrame(playerId = seat, inputSequence = 0)
+        publishMembers()
+    }
+
+    /**
+     * Against each other: the vehicle choice for [round] begins; [choices] fills as players pick.
+     * [series] are the rounds won over every map, [last] the vehicle each player drove last.
+     */
+    fun openChoice(
+        round: Int,
+        wins: List<Int>,
+        allowed: List<Boolean>,
+        seconds: Int,
+        series: List<Int> = wins,
+        last: Map<Int, Int> = emptyMap(),
+    ) {
         closeLobby()
         this.allowed = allowed
         choicesFlow.value = emptyMap()
         val all = synchronized(lock) { sessions.toList() }
-        for (session in all) session.outgoing.trySend(ServerMessage.ChooseVehicles(round, wins, allowed, seconds, session.seats))
+        for (session in all) {
+            val lastOfSeats = session.seats.map { last[it] ?: -1 }
+            session.outgoing.trySend(ServerMessage.ChooseVehicles(round, wins, allowed, seconds, session.seats, lastOfSeats, series))
+        }
     }
 
     /** Player [seat] picks [vehicle] (the host's own players; the others' come in as messages). */
@@ -250,6 +281,8 @@ class GameServer(
                         for (input in message.frames) if (input.playerId in seats) remoteInputs[input.playerId] = input
                     }
                     is ClientMessage.ChooseVehicle -> if (message.seat in session.seats) choose(message.seat, message.vehicle)
+                    // Its vehicles stop for the rest of the round; it comes back with the next one.
+                    ClientMessage.SitOut -> for (seat in session.seats) remoteInputs[seat] = InputFrame(playerId = seat, inputSequence = 0)
                     ClientMessage.Leave -> break
                     else -> Unit
                 }
@@ -308,12 +341,15 @@ class GameServer(
     }
 
     private fun publishMembers() {
-        val (members, all) = synchronized(lock) {
-            (listOf(LobbyMember(hostName, (0 until hostPlayers).toList())) + sessions.map { LobbyMember(it.name, it.seats) }) to
-                sessions.toList()
+        val (members, all, open) = synchronized(lock) {
+            Triple(
+                listOf(LobbyMember(hostName, (0 until hostPlayers).toList())) + sessions.map { LobbyMember(it.name, it.seats) },
+                sessions.toList(),
+                !started,
+            )
         }
         membersFlow.value = members
-        for (session in all) session.outgoing.trySend(ServerMessage.Lobby(members))
+        for (session in all) session.outgoing.trySend(ServerMessage.Lobby(members, mapName, series, open))
     }
 
     private companion object {

@@ -25,8 +25,19 @@ import kotlin.time.Duration.Companion.seconds
 sealed interface ClientState {
     data object Connecting : ClientState
 
-    /** In the lobby: [seats] are this machine's players' ids for now. */
-    data class InLobby(val hostName: String, val seats: List<Int>, val members: List<LobbyMember>) : ClientState
+    /**
+     * In the lobby: [seats] are this machine's players' ids for now, [map] the host's pick and
+     * [series] the rounds won over every map so far. [sittingOut]: this machine left the round
+     * being played and waits for the next.
+     */
+    data class InLobby(
+        val hostName: String,
+        val seats: List<Int>,
+        val members: List<LobbyMember>,
+        val map: String = "",
+        val series: List<Int> = listOf(0, 0),
+        val sittingOut: Boolean = false,
+    ) : ClientState
 
     /** Against each other: this machine's players pick their vehicles for the next round. */
     data class Choosing(val choice: ServerMessage.ChooseVehicles) : ClientState
@@ -131,6 +142,21 @@ class GameClient(
         }
     }
 
+    /**
+     * This machine's players leave the round being played (ESC) and wait in the lobby for the next
+     * round; the others play on.
+     */
+    fun sitOut() {
+        send(ClientMessage.SitOut)
+        val current = stateFlow.value
+        (current as? ClientState.Playing)?.match?.end("You left the round.")
+        if (current !is ClientState.Out) stateFlow.value = lobby.copy(seats = seats, sittingOut = true)
+    }
+
+    /** The lobby as last heard of. */
+    @Volatile
+    private var lobby = ClientState.InLobby("", emptyList(), emptyList())
+
     /** This machine's player [seat] picks [vehicle] for the coming round. */
     fun choose(seat: Int, vehicle: Int) = send(ClientMessage.ChooseVehicle(seat, vehicle))
 
@@ -143,14 +169,26 @@ class GameClient(
         when (message) {
             is ServerMessage.Welcome -> {
                 seats = message.seats
-                stateFlow.value = ClientState.InLobby(message.hostName, message.seats, emptyList())
+                lobby = ClientState.InLobby(message.hostName, message.seats, emptyList())
+                stateFlow.value = lobby
                 answered.complete(true)
             }
             is ServerMessage.Refused -> {
                 stateFlow.value = ClientState.Out(message.reason)
                 answered.complete(false)
             }
-            is ServerMessage.Lobby -> if (current is ClientState.InLobby) stateFlow.value = current.copy(members = message.members)
+            is ServerMessage.Lobby -> {
+                lobby = lobby.copy(members = message.members, map = message.map, series = message.series)
+                when {
+                    // Before a round, or sitting one out: who is there now.
+                    current is ClientState.InLobby -> stateFlow.value = current.copy(members = message.members, map = message.map, series = message.series)
+                    // The host went back to the lobby: the round (or its result) is over for everyone.
+                    message.open -> {
+                        (current as? ClientState.Playing)?.match?.end("The host went back to the lobby.")
+                        stateFlow.value = lobby.copy(seats = seats)
+                    }
+                }
+            }
             is ServerMessage.MatchStart -> {
                 seats = message.firstFrame.playerViews.map { it.playerId }
                 stateFlow.value = ClientState.Playing(RemoteMatchClient(message, this))

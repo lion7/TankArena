@@ -406,6 +406,17 @@ fun TankArenaApp(
                         }
                     }
 
+                    is DesktopShellScreen.NetworkHostMap -> missions?.let { all ->
+                        NetworkHostScreen(
+                            missions = all,
+                            onPick = { mission, mode ->
+                                current.session.changeMap(mission, mode)
+                                screen = DesktopShellScreen.NetworkLobby(current.session)
+                            },
+                            onBack = { screen = DesktopShellScreen.NetworkLobby(current.session) },
+                        )
+                    }
+
                     is DesktopShellScreen.NetworkHostStart -> LaunchedEffect(current) {
                         val local = useNetworkSeats()
                         val server = GameServer(platform.deviceName, local, Ruleset.EXTENDED.rulesVersion)
@@ -503,11 +514,14 @@ fun TankArenaApp(
                                         listed = it.public
                                     }
                                 },
+                                series = session.versusSeries,
+                                onChangeMap = { screen = DesktopShellScreen.NetworkHostMap(session) },
                                 onStart = {
                                     val series = NetSeries(
                                         session.server, session.mission.baseName, session.mission.document, session.mode.toMatchMode(),
                                         rounds = options.rounds, raceLaps = options.raceLaps, losersTank = options.losersTank,
                                         recordAs = session.mission.baseName,
+                                        seriesBefore = session.versusSeries, lastVehicles = session.lastVehicles,
                                     )
                                     session.series = series
                                     screen = if (series.versus) {
@@ -539,6 +553,9 @@ fun TankArenaApp(
                                     teams = false,
                                     onStart = {},
                                     onBack = leave,
+                                    map = now.map,
+                                    series = now.series,
+                                    sittingOut = now.sittingOut,
                                 )
                                 is ClientState.Choosing -> {
                                     val choice = now.choice
@@ -559,6 +576,8 @@ fun TankArenaApp(
                                         status = "",
                                         onPick = session.client::choose,
                                         onBack = leave,
+                                        last = { seat -> choice.last.getOrNull(choice.seats.indexOf(seat))?.takeIf { it >= 0 } },
+                                        series = choice.series,
                                     )
                                 }
                                 is ClientState.Playing -> if (now.match === current.finished) {
@@ -580,11 +599,12 @@ fun TankArenaApp(
                                         )
                                     }
                                 }
+                                // The host goes on: the next round's choice, or back to the lobby.
                                 is ClientState.RoundResult -> NetworkResultScreen(
                                     result = now.result,
                                     mySide = session.client.seatsSide(),
                                     hosting = false,
-                                    onNext = leave,
+                                    onNext = {},
                                     onBack = leave,
                                 )
                                 is ClientState.Out -> LaunchedEffect(now) {
@@ -616,10 +636,13 @@ fun TankArenaApp(
                             secondsLeft = secondsLeft,
                             status = "${picked.size} of ${session.server.seatsInGame().size} have picked",
                             onPick = session.server::choose,
+                            // Back to the lobby with everyone; the rounds played so far count for the series.
                             onBack = {
-                                session.close()
-                                screen = DesktopShellScreen.NetworkMenu
+                                session.backToLobby()
+                                screen = DesktopShellScreen.NetworkLobby(session)
                             },
+                            last = series::lastVehicle,
+                            series = series.seriesWins,
                         )
                     }
 
@@ -632,8 +655,9 @@ fun TankArenaApp(
                             onNext = {
                                 val series = session.series!!
                                 screen = if (current.result.matchOver) {
-                                    session.close()
-                                    DesktopShellScreen.NetworkMenu
+                                    // The same players stay; the host may pick another map.
+                                    session.backToLobby()
+                                    DesktopShellScreen.NetworkLobby(session)
                                 } else {
                                     series.openChoice()
                                     DesktopShellScreen.NetworkChoose(session)
@@ -920,14 +944,20 @@ fun TankArenaApp(
                             val session = current.session
                             val lost = (current.match as? RemoteMatchClient)?.endedReason
                             screen = when {
-                                // Left with ESC (or the host is gone): the game is over for this machine.
-                                outcome == null && lost != null -> {
-                                    session.close()
-                                    DesktopShellScreen.Message(lost.uppercase(), DesktopShellScreen.NetworkMenu)
+                                // The host left the round with ESC: everyone goes back to the lobby.
+                                outcome == null && session is NetworkSession.Hosting -> {
+                                    session.backToLobby()
+                                    DesktopShellScreen.NetworkLobby(session)
                                 }
+                                // A guest left with ESC: it sits the round out in the lobby; or the host went back to it.
+                                outcome == null && session is NetworkSession.Joined && (lost == null || session.client.state.value is ClientState.InLobby) -> {
+                                    if (lost == null) session.client.sitOut()
+                                    DesktopShellScreen.NetworkLobby(session)
+                                }
+                                // The host is gone or the connection broke.
                                 outcome == null -> {
                                     session.close()
-                                    DesktopShellScreen.NetworkMenu
+                                    DesktopShellScreen.Message(lost.orEmpty().ifEmpty { "THE GAME IS OVER" }.uppercase(), DesktopShellScreen.NetworkMenu)
                                 }
                                 session is NetworkSession.Hosting -> {
                                     // In player vs player WON means team 1 won the round.

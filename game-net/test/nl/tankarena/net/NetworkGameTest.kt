@@ -186,6 +186,60 @@ class NetworkGameTest {
         }
     }
 
+    @Test
+    fun `after a match everyone goes back to the lobby, and the series and vehicles carry over to the next map`() {
+        val (server, port) = server()
+        val guest = client()
+        assertTrue(runBlocking { guest.join("127.0.0.1", port) })
+        waitFor("the lobby") { server.members.value.size == 2 }
+        val map = ShippedMaps.loadAll().first { it.baseName == "flagisle" }.document
+        val lastVehicles = HashMap<Int, Int>()
+        val first = NetSeries(server, "flagisle", map, MatchMode.DUAL, rounds = 1, lastVehicles = lastVehicles)
+        first.openChoice()
+        val vehicle = waitForState<ClientState.Choosing>(guest).choice.allowed.indexOfLast { it }
+        guest.choose(1, vehicle)
+        first.choose(0)
+        waitFor("both picks") { first.choiceDone() }
+        first.startRound().dispose()
+        assertTrue(first.roundEnded(winner = 1, missionWon = null).matchOver)
+        waitForState<ClientState.RoundResult>(guest)
+
+        // The host goes back to the lobby: the guest is still in the game, and sees the series.
+        server.series = first.seriesWins
+        server.reopenLobby()
+        val lobby = waitForState<ClientState.InLobby>(guest)
+        waitFor("the series") { (guest.state.value as? ClientState.InLobby)?.series == listOf(0, 1) }
+        assertEquals(listOf(1), lobby.seats)
+        assertEquals(2, server.members.value.size)
+
+        // The next map: a new match, the series goes on, and the guest's choice starts on its last vehicle.
+        val second = NetSeries(server, "flagisle", map, MatchMode.DUAL, rounds = 1, seriesBefore = first.seriesWins, lastVehicles = lastVehicles)
+        second.openChoice()
+        val choice = waitForState<ClientState.Choosing>(guest).choice
+        assertEquals(1, choice.round)
+        assertEquals(listOf(0, 0), choice.wins)
+        assertEquals(listOf(0, 1), choice.series)
+        assertEquals(listOf(vehicle), choice.last)
+    }
+
+    @Test
+    fun `a guest who leaves a round sits it out and its vehicle stops`() {
+        val (server, port) = server()
+        val guest = client()
+        assertTrue(runBlocking { guest.join("127.0.0.1", port) })
+        waitFor("the lobby") { server.members.value.size == 2 }
+        val map = ShippedMaps.loadAll().first { it.baseName == "flagisle" }.document
+        val hosted = server.startMatch("flagisle", map, MatchMode.DUAL, ruleset = Ruleset.EXTENDED)
+        val playing = waitForState<ClientState.Playing>(guest)
+        server.remoteInputs[1] = nl.tankarena.protocol.InputFrame(playerId = 1, inputSequence = 5, forward = true)
+        guest.sitOut()
+        assertTrue(assertIs<ClientState.InLobby>(guest.state.value).sittingOut)
+        assertTrue(playing.match.endedReason != null, "its view of the round ends")
+        waitFor("the stop") { server.remoteInputs[1]?.forward == false }
+        assertEquals(2, server.members.value.size, "still in the game")
+        hosted.dispose()
+    }
+
     private inline fun <reified T : ClientState> waitForState(client: GameClient): T {
         waitFor(T::class.simpleName!!) { client.state.value is T }
         return client.state.value as T

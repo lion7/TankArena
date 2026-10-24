@@ -201,7 +201,7 @@ A network guest replaces steps 2–5 with `RemoteMatchClient`, which receives th
 | `GAME_RULES_VERSION` | 14 | `game-sim/…/sim/MatchRecording.kt` | Recordings; network handshake (Classic) |
 | `EXTENDED_RULES_VERSION` | 7 | `game-sim/…/sim/Ruleset.kt` | Recordings; network handshake |
 | `PROTOCOL_VERSION` | 9 | `game-protocol/…/snapshot/WorldSnapshot.kt` | Network handshake, LAN beacon |
-| `NET_VERSION` | 4 | `game-net/…/net/NetMessages.kt` | Network handshake, LAN beacon, relay |
+| `NET_VERSION` | 5 | `game-net/…/net/NetMessages.kt` | Network handshake, LAN beacon, relay |
 | `MAP_FORMAT_VERSION` | 1 | `game-sim/…/sim/map/MapDocument.kt` | `MapFile.read` refuses newer maps |
 
 ## Threads

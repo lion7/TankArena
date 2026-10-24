@@ -14,7 +14,7 @@ import nl.tankarena.sim.Ruleset
  * Version of the messages below. The frames inside carry [nl.tankarena.protocol.snapshot.PROTOCOL_VERSION];
  * the handshake compares both, and the rules version, and refuses a mismatch (ADR 0024).
  */
-const val NET_VERSION: Int = 4
+const val NET_VERSION: Int = 5
 
 /** The port a game listens on unless told otherwise. */
 const val DEFAULT_PORT: Int = 47_300
@@ -52,6 +52,14 @@ sealed interface ClientMessage {
     @SerialName("choose")
     data class ChooseVehicle(val seat: Int, val vehicle: Int) : ClientMessage
 
+    /**
+     * The machine's players leave the round being played and wait in the lobby for the next one;
+     * their vehicles stop where they are.
+     */
+    @Serializable
+    @SerialName("sit-out")
+    data object SitOut : ClientMessage
+
     /** The client leaves the lobby or the match. */
     @Serializable
     @SerialName("leave")
@@ -71,10 +79,19 @@ sealed interface ServerMessage {
     @SerialName("refused")
     data class Refused(val reason: String) : ServerMessage
 
-    /** Who is in the game before it starts, the host first. */
+    /**
+     * Who is in the game, the host first, with the map the host picked and the rounds each side has
+     * won so far over every map ([series]). [open]: the lobby is open (before the first round, or
+     * the host went back to it); everyone in a round or a result goes back to the lobby then.
+     */
     @Serializable
     @SerialName("lobby")
-    data class Lobby(val members: List<LobbyMember>) : ServerMessage
+    data class Lobby(
+        val members: List<LobbyMember>,
+        val map: String = "",
+        val series: List<Int> = listOf(0, 0),
+        val open: Boolean = true,
+    ) : ServerMessage
 
     /**
      * The match begins: [map] is the map's `.tamap` text, so any map can be played, also one only
@@ -105,7 +122,8 @@ sealed interface ServerMessage {
     /**
      * Against each other: the players pick their vehicles for round [round] (legacy select_tanks()),
      * from those [allowed]; who has not picked in [seconds] gets the first allowed. [seats] are this
-     * machine's players' ids, final from now on.
+     * machine's players' ids, final from now on; [last] the vehicle each of them drove last (-1:
+     * none yet), to start the choice on. [series]: the rounds won over every map so far.
      */
     @Serializable
     @SerialName("choose-vehicles")
@@ -115,12 +133,14 @@ sealed interface ServerMessage {
         val allowed: List<Boolean>,
         val seconds: Int,
         val seats: List<Int>,
+        val last: List<Int> = emptyList(),
+        val series: List<Int> = wins,
     ) : ServerMessage
 
     /**
      * A round is over. Against each other [winner] is the side that won it (0: players 1 and 3,
      * 1: players 2 and 4) and [wins] the score; together [missionWon] says how the mission went.
-     * [matchOver]: no round follows.
+     * [matchOver]: no round follows on this map. [series]: the rounds won over every map so far.
      */
     @Serializable
     @SerialName("round-over")
@@ -130,6 +150,7 @@ sealed interface ServerMessage {
         val wins: List<Int>,
         val missionWon: Boolean?,
         val matchOver: Boolean,
+        val series: List<Int> = wins,
     ) : ServerMessage
 
     /** The match or the lobby is over (the host left or stopped it). */

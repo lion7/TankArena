@@ -23,6 +23,13 @@ class NetSeries(
     private val losersTank: Int = 0,
     /** The name recordings get; null not recorded. */
     private val recordAs: String? = null,
+    /** The rounds each side won on the maps the same players played before this one. */
+    private val seriesBefore: List<Int> = listOf(0, 0),
+    /**
+     * The vehicle each player drove last, by player id: a player who does not pick keeps it, and
+     * the choice starts on it. Shared by the maps of one game.
+     */
+    private val lastVehicles: MutableMap<Int, Int> = HashMap(),
 ) {
     val versus: Boolean get() = mode == MatchMode.DUAL
 
@@ -34,8 +41,12 @@ class NetSeries(
     var wins: List<Int> = listOf(0, 0)
         private set
 
-    /** The vehicle each player drove last, by player id (a player who does not pick keeps it). */
-    private val lastVehicles = HashMap<Int, Int>()
+    /** The rounds each side has won over every map, this one's included: the losers tank goes by these. */
+    val seriesWins: List<Int> get() = wins.zip(seriesBefore) { a, b -> a + b }
+
+    /** The vehicle player [seat] drove last, or null. */
+    fun lastVehicle(seat: Int): Int? = lastVehicles[seat]
+
     private var choiceDeadline = 0L
     private var allowed: List<Boolean> = emptyList()
 
@@ -44,9 +55,9 @@ class NetSeries(
 
     /** Against each other: the vehicle choice for the next round opens, for [CHOICE_SECONDS]. */
     fun openChoice(now: Long = System.currentTimeMillis()) {
-        allowed = DualVehicles.allowed(mapContents, wins, losersTank)
+        allowed = DualVehicles.allowed(mapContents, seriesWins, losersTank)
         choiceDeadline = now + CHOICE_SECONDS * 1_000L
-        server.openChoice(round, wins, allowed, CHOICE_SECONDS)
+        server.openChoice(round, wins, allowed, CHOICE_SECONDS, seriesWins, lastVehicles.toMap())
     }
 
     /** The vehicles the round being chosen for allows. */
@@ -64,7 +75,7 @@ class NetSeries(
         val players = server.closeLobby()
         val dual = if (versus) {
             val picked = List(players) { seat -> server.choices.value[seat] ?: lastVehicles[seat] ?: 0 }
-            val vehicles = DualVehicles.autoSelect(picked, allowed.ifEmpty { DualVehicles.allowed(mapContents, wins, losersTank) })
+            val vehicles = DualVehicles.autoSelect(picked, allowed.ifEmpty { DualVehicles.allowed(mapContents, seriesWins, losersTank) })
             vehicles.forEachIndexed { seat, vehicle -> lastVehicles[seat] = vehicle }
             DualSetup(tankTypes = vehicles, raceLaps = raceLaps, round = round, wins = wins)
         } else {
@@ -80,7 +91,8 @@ class NetSeries(
     fun roundEnded(winner: Int?, missionWon: Boolean?): ServerMessage.RoundOver {
         if (winner != null) wins = wins.mapIndexed { side, n -> if (side == winner) n + 1 else n }
         val over = !versus || winner == null || (rounds != ENDLESS_ROUNDS && wins.any { it > rounds / 2 })
-        val result = ServerMessage.RoundOver(round, winner, wins, missionWon, over)
+        val result = ServerMessage.RoundOver(round, winner, wins, missionWon, over, seriesWins)
+        server.series = seriesWins
         server.roundOver(result)
         round++
         return result

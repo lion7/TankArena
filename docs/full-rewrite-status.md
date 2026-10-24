@@ -36,7 +36,7 @@ app. Self-contained packages build for Linux, Windows and Android. All 401 autom
 | Deployment | Relay at `wss://relay.tankarena.nl`; website www.tankarena.nl | [build.md → Relay image](build.md#relay-image) |
 
 Versions: `GAME_RULES_VERSION` 14 (Classic), `EXTENDED_RULES_VERSION` 7, `PROTOCOL_VERSION` 9,
-`NET_VERSION` 4, `MAP_FORMAT_VERSION` 1 ([architecture](architecture.md#versions)).
+`NET_VERSION` 5, `MAP_FORMAT_VERSION` 1 ([architecture](architecture.md#versions)).
 
 ## Open
 

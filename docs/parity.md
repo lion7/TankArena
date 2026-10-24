@@ -42,7 +42,7 @@ Decided differences from the original. They are not parity bugs.
   [ADR 0022](adrs/0022-native-map-format.md)).
 - **Extended asks before leaving a game:** ESC (or the touch screen's exit) shows "Leave the game?";
   Enter or A leaves, ESC or B plays on. A local game stands still meanwhile. Classic leaves at once
-  like the original.
+  like the original. A paused game (P) shows "Paused" the same way; Classic shows nothing.
 - **Player data as JSON** in the user's folders instead of `TANK.CFG` / `PASSWD.DAT`
   ([ADR 0020](adrs/0020-user-data-as-json.md)).
 - **Elimination fallback win** (`ALL_ENEMIES_ELIMINATED`): when a map's object contributions cannot

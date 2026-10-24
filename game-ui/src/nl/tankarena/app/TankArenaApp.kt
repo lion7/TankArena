@@ -1147,6 +1147,7 @@ private fun GameplayScreen(
             onExit = controls::askToLeave,
         )
     }
+    if (controls.extended) PausedOverlay(controls, platform::gamepads)
     LeaveQuestion(controls, platform::gamepads, network = host !is LocalMatchClient)
     }
 }

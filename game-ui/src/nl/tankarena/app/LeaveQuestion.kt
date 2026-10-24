@@ -26,33 +26,59 @@ private const val PAD_B = 1 shl 1
 /**
  * Extended: ESC (or the touch screen's exit) in a game first asks whether to leave. A local game
  * stands still meanwhile; a network game runs on. Enter or A leaves, ESC or B plays on (the keys
- * come through [answerLeaveKey]); every gamepad can answer.
+ * come through the game's key handling); every gamepad can answer.
  */
 @Composable
 internal fun LeaveQuestion(controls: DesktopControls, pads: () -> List<PadReading>, network: Boolean) {
     if (!controls.leaveAsked) return
+    PadPresses(pads, active = { controls.leaveAsked }) { pressed ->
+        when {
+            pressed and PAD_A != 0 -> controls.answerLeave(leave = true)
+            pressed and PAD_B != 0 -> controls.answerLeave(leave = false)
+        }
+    }
+    GameOverlay("Leave the game?", if (network) "The game goes on meanwhile" else null, "Enter or A leaves · ESC or B plays on")
+}
+
+/** Extended: the game stands still (P, or the touch screen's pause) until a key or A or B. */
+@Composable
+internal fun PausedOverlay(controls: DesktopControls, pads: () -> List<PadReading>) {
+    if (!controls.paused || controls.leaveAsked) return
+    PadPresses(pads, active = { controls.paused }) { pressed ->
+        if (pressed and (PAD_A or PAD_B) != 0) {
+            controls.paused = false
+            controls.resetAll()
+        }
+    }
+    GameOverlay("Paused", null, "Any key or A goes on")
+}
+
+/** Calls [onPress] with the gamepad buttons newly pressed in each frame while [active]; held ones do not count. */
+@Composable
+private fun PadPresses(pads: () -> List<PadReading>, active: () -> Boolean, onPress: (Int) -> Unit) {
     LaunchedEffect(Unit) {
-        // Only presses from now on count: the button that is held already does not.
         var held = pads().fold(0) { mask, pad -> mask or pad.buttons }
-        while (controls.leaveAsked) {
+        while (active()) {
             val buttons = withFrameNanos { pads().fold(0) { mask, pad -> mask or pad.buttons } }
             val pressed = buttons and held.inv()
             held = buttons
-            when {
-                pressed and PAD_A != 0 -> controls.answerLeave(leave = true)
-                pressed and PAD_B != 0 -> controls.answerLeave(leave = false)
-            }
+            if (pressed != 0) onPress(pressed)
         }
     }
+}
+
+/** The game dimmed, with a small panel in the middle. */
+@Composable
+private fun GameOverlay(title: String, note: String?, keys: String) {
     Box(modifier = Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier.background(ExtendedColors.panel, RoundedCornerShape(10.dp)).padding(horizontal = 32.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Leave the game?", color = ExtendedColors.accent, fontSize = 24.sp)
-            if (network) Text("The game goes on meanwhile", color = ExtendedColors.dim, fontSize = 14.sp)
-            Text("Enter or A leaves · ESC or B plays on", color = ExtendedColors.text, fontSize = 16.sp)
+            Text(title, color = ExtendedColors.accent, fontSize = 24.sp)
+            if (note != null) Text(note, color = ExtendedColors.dim, fontSize = 14.sp)
+            Text(keys, color = ExtendedColors.text, fontSize = 16.sp)
         }
     }
 }

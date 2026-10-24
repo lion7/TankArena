@@ -147,9 +147,8 @@ internal class DesktopControls {
         if (leave) exitRequested = true
     }
 
-    /** Legacy `game_pause` (P): the game stands still until the next key. */
-    @Volatile
-    var paused = false
+    /** Legacy `game_pause` (P): the game stands still until the next key (Extended shows it). */
+    var paused: Boolean by mutableStateOf(false)
 
     @Volatile
     private var message: Pair<HudMessage, Long>? = null

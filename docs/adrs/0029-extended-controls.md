@@ -24,6 +24,10 @@ one to aim.
   - while fire is held with rockets or soldiers selected, the marker goes where the pointer is
     (within its range): a rule change, Extended rules v7 (`RuleFlags.pointerMarker`). Without a
     pointed position the keys steer the marker as before, so older inputs play the same.
+  - while aiming that way the view holds still (the original's camera follows the marker, which
+    would then run away from under the pointer): it scrolls only while the pointer is in the outer
+    20% of the view, faster nearer the edge, up to the marker's range from the vehicle, and moves
+    along when the keys steer the marker out of sight. Client only (`AimCamera`): no rule change.
 - **Players two to four play with gamepads as twin sticks:** the left stick drives the way it points,
   the right stick aims, the right trigger (or A) fires, the left trigger (or X) shields, LB and RB
   switch weapons. The original's joystick behaviour stays as a setting.

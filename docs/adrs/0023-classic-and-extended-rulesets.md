@@ -32,8 +32,9 @@ One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:gam
   addition to the original's menu, [parity.md](../parity.md#intentional-deviations)). The choice is
   kept in `settings.json`.
 - **Extended's menu** (`ui.compose.extended`): home with campaign (the reached codes with each
-  mission's world, size and briefing), local game (first the choice: against each other, then a map
-  with rounds, laps and the losers tank, or together against the computer), network game
+  mission's world, size and briefing), local game (first the choice: against each other or together
+  against the computer, then who plays, then a map with rounds, laps and the losers tank, or a
+  mission; after a game the list comes back with the same players), network game
   ([ADR 0024](0024-networking.md)), replays, map editor, settings on one page, help, quit. The
   controls setup, the mission texts and the first-start choice have Extended's look; the tank
   selection keeps the original's arena on purpose.

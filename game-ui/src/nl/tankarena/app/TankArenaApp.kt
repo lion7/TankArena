@@ -208,8 +208,9 @@ fun TankArenaApp(
     }
 
     /**
-     * Extended local games ask who plays first: player one has the keyboard and mouse, the others
-     * join with a gamepad (or as the second keyboard player, when that is switched on).
+     * Extended local games ask who plays first, before the map or mission: player one has the
+     * keyboard and mouse, the others join with a gamepad (or as the second keyboard player, when
+     * that is switched on).
      */
     fun joinFirst(next: DesktopShellScreen, back: DesktopShellScreen = DesktopShellScreen.LocalGame): DesktopShellScreen =
         DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS, back = back)
@@ -338,8 +339,9 @@ fun TankArenaApp(
                     )
 
                     DesktopShellScreen.LocalGame -> LocalGameScreen(
-                        onVersus = { screen = DesktopShellScreen.LocalVersus.also { extendedReturn = it } },
-                        onTogether = { screen = joinFirst(DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER)) },
+                        // Who plays first, then the map or mission; after a game the list comes back with the same players.
+                        onVersus = { screen = joinFirst(DesktopShellScreen.LocalVersus.also { extendedReturn = it }) },
+                        onTogether = { screen = joinFirst(DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER).also { extendedReturn = it }) },
                         onBack = {
                             extendedReturn = null
                             screen = DesktopShellScreen.MainMenu
@@ -358,7 +360,7 @@ fun TankArenaApp(
                                 onOptions = settings::update,
                                 onVersus = { map ->
                                     lastMode = GameMode.PLAYER_VS_PLAYER
-                                    screen = joinFirst(missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER), back = DesktopShellScreen.LocalVersus)
+                                    screen = missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER)
                                 },
                                 onBack = { screen = DesktopShellScreen.LocalGame.also { extendedReturn = it } },
                             )

@@ -35,6 +35,8 @@ internal class KeyBinding(
     val shield: Key?,
     val weaponLeft: Key?,
     val weaponRight: Key?,
+    /** Extended only. */
+    val nextTank: Key? = null,
 ) {
     companion object {
         fun of(controls: PlayerControls) = KeyBinding(
@@ -48,6 +50,7 @@ internal class KeyBinding(
             shield = controls.key(ControlAction.SHIELD),
             weaponLeft = controls.key(ControlAction.WEAPON_LEFT),
             weaponRight = controls.key(ControlAction.WEAPON_RIGHT),
+            nextTank = controls.key(ControlAction.NEXT_VEHICLE),
         )
 
         /** Extended: the arrow keys also drive player one when no second player is on the keyboard. */
@@ -71,6 +74,11 @@ internal class HeldKeys {
     var weaponRight = false
     /** One-shot F1–F10 request; cleared once sent. */
     var selectTankId = 0
+    /** One-shot next-vehicle request; cleared once sent. */
+    var nextTank = false
+    /** The next-vehicle key and pad button held, so that holding them asks only once. */
+    var nextTankKeyHeld = false
+    var nextTankPadHeld = false
 
     fun state() = InputState(
         up = forward, down = reverse, left = turnLeft, right = turnRight, aimLeft = aimLeft, aimRight = aimRight,
@@ -242,6 +250,16 @@ internal class DesktopControls {
             return true
         }
         var handled = false
+        if (extended) {
+            for (playerId in players.indices) {
+                if (bindingsFor(playerId).none { it.nextTank == event.key }) continue
+                val p = players[playerId]
+                if (pressed && !p.nextTankKeyHeld) p.nextTank = true
+                p.nextTankKeyHeld = pressed
+                handled = true
+            }
+            if (handled) return true
+        }
         for (playerId in players.indices) {
             for (binding in bindingsFor(playerId)) {
                 if (players[playerId].apply(binding, event.key, pressed)) handled = true
@@ -259,6 +277,8 @@ internal class DesktopControls {
         val p = players[playerId]
         val selectTankId = p.selectTankId
         p.selectTankId = 0
+        var nextTank = p.nextTank
+        p.nextTank = false
         val controls = controlsFor(playerId)
         val devices = seats?.getOrNull(playerId)
         val pad = padFor(playerId)?.let { reading -> if (extended && twinSticks && devices != null) reading.twinStick() else reading.inputState(controls!!) }
@@ -266,10 +286,15 @@ internal class DesktopControls {
         // A touch screen's controller is player one's.
         if (playerId == 0) touch?.state()?.let { state = state.and(it) }
         if (devices?.mouse == true) state = withMouse(state, ownTank(seat, frame))
+        // The pad's button asks once when pressed; Classic has only F1–F10.
+        val padNext = extended && pad?.nextTank == true
+        if (padNext && !p.nextTankPadHeld) nextTank = true
+        p.nextTankPadHeld = padNext
         return ControlMapping.frame(
             state, seat, inputSequence, controls?.mode ?: ControlMode.RELATIVE, heading(seat, frame),
             sensitivity = controls?.sensitivity ?: ControlMapping.DEFAULT_SENSITIVITY,
             selectTankId = selectTankId,
+            nextTank = nextTank,
         )
     }
 
@@ -361,6 +386,9 @@ internal class DesktopControls {
             p.weaponLeft = false
             p.weaponRight = false
             p.selectTankId = 0
+            p.nextTank = false
+            p.nextTankKeyHeld = false
+            p.nextTankPadHeld = false
         }
     }
 }

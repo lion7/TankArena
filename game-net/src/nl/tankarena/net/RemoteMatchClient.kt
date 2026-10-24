@@ -118,6 +118,7 @@ private infix fun InputFrame.latch(next: InputFrame) = next.copy(
     cycleWeaponLeft = cycleWeaponLeft || next.cycleWeaponLeft,
     cycleWeaponRight = cycleWeaponRight || next.cycleWeaponRight,
     selectTankId = if (next.selectTankId != 0) next.selectTankId else selectTankId,
+    nextTank = nextTank || next.nextTank,
     pointX = if (next.pointX >= 0) next.pointX else pointX,
     pointY = if (next.pointX >= 0) next.pointY else pointY,
 )

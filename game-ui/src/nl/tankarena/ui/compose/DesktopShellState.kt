@@ -118,6 +118,9 @@ sealed interface DesktopShellScreen {
     /** Extended: two players at one keyboard, together or against each other. */
     data object LocalGame : DesktopShellScreen
 
+    /** Extended: a local game against each other, its map and match options. */
+    data object LocalVersus : DesktopShellScreen
+
     /** Extended: the missions reached in [mode] (one player, or two against the computer). */
     data class Campaign(val mode: GameMode) : DesktopShellScreen
 

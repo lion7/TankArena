@@ -121,6 +121,7 @@ fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean):
                 "Fire" to "left mouse button or ${keys(one, ControlAction.FIRE)}",
                 "Shield" to "right mouse button or ${keys(one, ControlAction.SHIELD)}",
                 "Weapons" to "mouse wheel or ${keys(one, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}",
+                "Next vehicle" to keys(one, ControlAction.NEXT_VEHICLE),
             )
         }
         pad && options.twinSticks -> listOf(
@@ -129,6 +130,7 @@ fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean):
             "Fire" to "right trigger or A",
             "Shield" to "left trigger or X",
             "Weapons" to "LB / RB",
+            "Next vehicle" to "Y",
         )
         pad -> options.controls.getOrNull(place.coerceAtMost(1))?.let { joystick ->
             listOf(
@@ -137,6 +139,7 @@ fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean):
                 "Fire" to padButtonsText(joystick.buttons(JoystickAction.FIRE)),
                 "Shield" to padButtonsText(joystick.buttons(JoystickAction.SHIELD)),
                 "Weapons" to padButtonsText(joystick.buttons(JoystickAction.WEAPON)),
+                "Next vehicle" to "BACK",
             )
         }.orEmpty()
         else -> options.controls.getOrNull(seat.keys ?: return emptyList())?.let { set ->
@@ -146,6 +149,7 @@ fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean):
                 "Fire" to keys(set, ControlAction.FIRE),
                 "Shield" to keys(set, ControlAction.SHIELD),
                 "Weapons" to keys(set, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT),
+                "Next vehicle" to keys(set, ControlAction.NEXT_VEHICLE),
             )
         }.orEmpty()
     }
@@ -183,7 +187,8 @@ fun extendedKeysText(options: GameOptions): String {
         appendLine()
         appendLine("IN A GAME")
         appendLine()
-        appendLine("F1-F10 take over a friendly tank, P pauses (not in a network game), ESC leaves,")
-        appendLine("F11 gamma, F12 radar, - and = window size, PrtScr saves a screenshot.")
+        appendLine("Next vehicle (or F1-F10 by its number) takes over a friendly tank; not against each other.")
+        appendLine("P pauses (not in a network game), ESC leaves, F11 gamma, F12 radar, - and = window size,")
+        appendLine("PrtScr saves a screenshot.")
     }
 }

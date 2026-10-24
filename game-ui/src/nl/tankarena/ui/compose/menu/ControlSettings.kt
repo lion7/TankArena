@@ -24,8 +24,11 @@ val PAD_BUTTONS: List<String> = listOf("A", "B", "X", "Y", "LB", "RB", "BACK", "
 fun padButtonsText(mask: Int): String =
     PAD_BUTTONS.indices.filter { mask and (1 shl it) != 0 }.joinToString("+") { PAD_BUTTONS[it] }.ifEmpty { "-" }
 
-/** Legacy `keys[i][...]`: the ten keys of a player, in the setup program's order. */
-enum class ControlAction(val label: String) {
+/**
+ * Legacy `keys[i][...]`: the ten keys of a player, in the setup program's order, and Extended's
+ * own ([classic] false: Classic's setup does not show them and its games do not use them).
+ */
+enum class ControlAction(val label: String, val classic: Boolean = true) {
     UP("UP"),
     DOWN("DOWN"),
     LEFT("LEFT"),
@@ -36,6 +39,14 @@ enum class ControlAction(val label: String) {
     WEAPON_LEFT("WEAPON LEFT"),
     WEAPON_RIGHT("WEAPON RIGHT"),
     SHIELD("SHIELD"),
+    /** Extended: the next friendly vehicle. */
+    NEXT_VEHICLE("NEXT VEHICLE", classic = false),
+    ;
+
+    companion object {
+        /** The original's ten. */
+        val CLASSIC: List<ControlAction> = entries.filter { it.classic }
+    }
 }
 
 /**
@@ -67,25 +78,27 @@ data class PlayerControls(
 /**
  * The default keys. Player one: K , M . drive, Z fire, X/C turret, S/D weapon, A shield (legacy
  * controls.c). Player two (and the single player): the grey cursor block, as original/DATA/KEYS.HLP shows.
+ * Extended's next vehicle: Enter for player two's keys (the second keyboard player), none for player one's.
  */
 val DEFAULT_CONTROLS: List<PlayerControls> = listOf(
     PlayerControls(
-        keys = listOf(Key.K, Key.Comma, Key.M, Key.Period, Key.Z, Key.X, Key.C, Key.S, Key.D, Key.A).map { it.keyCode },
+        keys = listOf(Key.K, Key.Comma, Key.M, Key.Period, Key.Z, Key.X, Key.C, Key.S, Key.D, Key.A).map { it.keyCode } + 0L,
     ),
     PlayerControls(
         keys = listOf(
             Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight, Key.Delete,
-            Key.MoveEnd, Key.PageDown, Key.MoveHome, Key.PageUp, Key.Insert,
+            Key.MoveEnd, Key.PageDown, Key.MoveHome, Key.PageUp, Key.Insert, Key.Enter,
         ).map { it.keyCode },
     ),
 )
 
 /**
  * Extended's player one (keyboard and mouse): WASD drives the way it is pressed, Space fires, Shift
- * shields, Q and E switch weapons, Z and C turn the turret for those without a mouse.
+ * shields, Q and E switch weapons, Z and C turn the turret for those without a mouse, Tab takes the
+ * next vehicle.
  */
 val MOUSE_PLAYER_CONTROLS: PlayerControls = PlayerControls(
-    keys = listOf(Key.W, Key.S, Key.A, Key.D, Key.Spacebar, Key.Z, Key.C, Key.Q, Key.E, Key.ShiftLeft).map { it.keyCode },
+    keys = listOf(Key.W, Key.S, Key.A, Key.D, Key.Spacebar, Key.Z, Key.C, Key.Q, Key.E, Key.ShiftLeft, Key.Tab).map { it.keyCode },
     mode = ControlMode.DIRECT,
 )
 
@@ -106,6 +119,16 @@ fun List<PlayerControls>.withKey(player: Int, action: ControlAction, key: Key?):
             },
         )
     }
+}
+
+/**
+ * Settings saved before a key was added get its default ([defaults]), unless that key is taken
+ * already by one of [others] or by these controls; then it has none.
+ */
+fun PlayerControls.withNewKeys(defaults: PlayerControls, others: List<PlayerControls> = emptyList()): PlayerControls {
+    if (keys.size >= defaults.keys.size) return this
+    val taken = (others.flatMap { it.keys } + keys).filter { it != 0L }.toSet()
+    return copy(keys = keys + defaults.keys.drop(keys.size).map { if (it in taken) 0L else it })
 }
 
 fun List<PlayerControls>.withMode(player: Int, mode: ControlMode): List<PlayerControls> =

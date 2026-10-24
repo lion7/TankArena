@@ -154,6 +154,12 @@ data class GameOptions(
     }
 }
 
+/** Saved settings from before a key was added get its default where that key is free. */
+internal fun GameOptions.withNewKeys(): GameOptions {
+    val players = controls.mapIndexed { i, c -> DEFAULT_CONTROLS.getOrNull(i)?.let { c.withNewKeys(it, listOf(mouseControls)) } ?: c }
+    return copy(controls = players, mouseControls = mouseControls.withNewKeys(MOUSE_PLAYER_CONTROLS, players))
+}
+
 private const val CONTROLS_SETUP = "Controls setup"
 
 /**
@@ -162,7 +168,7 @@ private const val CONTROLS_SETUP = "Controls setup"
  */
 class GameOptionsStore(private val file: File = File(AppDirs.config, "settings.json")) {
     fun load(): GameOptions = try {
-        if (file.isFile) json.decodeFromString(GameOptions.serializer(), file.readText()) else GameOptions()
+        if (file.isFile) json.decodeFromString(GameOptions.serializer(), file.readText()).withNewKeys() else GameOptions()
     } catch (e: Exception) {
         System.err.println("Cannot read settings from $file: ${e.message}")
         GameOptions()

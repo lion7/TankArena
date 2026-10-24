@@ -66,6 +66,17 @@ class ControlAndObjectivesTest {
     }
 
     @Test
+    fun `nextTank takes the next friendly tank and wraps round`() {
+        val match = start(map(humanTank(id = 1, tileX = 1), humanTank(id = 2, tileX = 4), humanTank(id = 3, tileX = 7), enemyTank(tileX = 12)))
+        val seen = (1..4).map {
+            match.tick(mapOf(0 to PlayerIntentFrame(nextTank = true)))
+            repeat(2) { match.tick() }
+            match.playerTankForTest(0)?.controllerId
+        }
+        assertEquals(listOf(2, 3, 1, 2), seen)
+    }
+
+    @Test
     fun `shooting down the building under a turret brings the turret down and its goal contribution wins`() {
         val match = start(
             map(

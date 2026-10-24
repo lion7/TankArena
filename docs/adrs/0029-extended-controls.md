@@ -24,11 +24,20 @@ one to aim.
   - while fire is held with rockets or soldiers selected, the marker goes where the pointer is
     (within its range): a rule change, Extended rules v7 (`RuleFlags.pointerMarker`). Without a
     pointed position the keys steer the marker as before, so older inputs play the same.
+  - while aiming that way the view holds still (the original's camera follows the marker, which
+    would then run away from under the pointer): it scrolls only while the pointer is in the outer
+    20% of the view, faster nearer the edge, up to the marker's range from the vehicle, and moves
+    along when the keys steer the marker out of sight. Client only (`AimCamera`): no rule change.
 - **Players two to four play with gamepads as twin sticks:** the left stick drives the way it points,
   the right stick aims, the right trigger (or A) fires, the left trigger (or X) shields, LB and RB
   switch weapons. The original's joystick behaviour stays as a setting.
 - **A second keyboard player** (player two's keys, the cursor block by default) can be switched on for
   those without a gamepad; then the arrow keys are theirs, not player one's.
+- **Next vehicle:** besides F1–F10 (which pick a vehicle by its number), each player has one control
+  that takes the next friendly vehicle nobody else has picked, round to the first: Tab for player one,
+  Enter for the second keyboard player (both changeable on Extended's controls page, an 11th key that
+  Classic's setup does not show), Y on a twin-stick pad and BACK on a pad as the original's joystick. Like F1–F10 it does nothing when the players play
+  against each other. Classic keeps F1–F10 only.
 - **Joining:** before a local game player one's place is taken; the others press A, or the second
   keyboard player its fire key.
 - **On a touch screen** the virtual controller stays player one's; a mouse there works as on the
@@ -45,6 +54,10 @@ one to aim.
   player's vehicle (the same `aimX`/`aimY` the touch controls use), the wheel one weapon switch per
   notch. `PadReading` has the right stick and the triggers (Jamepad on the desktop, the motion axes
   on Android).
+- `InputFrame` and `PlayerIntentFrame` carry `nextTank`, a one-shot request (`DesktopControls` sends
+  it once per press of the key or button); the simulation turns it into the next id for
+  `switchToTank` (`switchToNextTank`). It is not a rule change: Classic never sends it, and older
+  peers ignore the field.
 
 ## Consequences
 

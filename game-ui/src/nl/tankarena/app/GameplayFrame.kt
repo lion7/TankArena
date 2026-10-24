@@ -170,10 +170,26 @@ private fun PlayerPane(
 ) {
     var viewportRect by remember { mutableStateOf(Rect.Zero) }
     var viewportGeometry by remember { mutableStateOf<ViewportGeometry?>(null) }
-    Box(modifier = modifier) {
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    val aimCamera = remember { AimCamera() }
+    // The mouse player's view holds still while they aim; the cursor near its edge scrolls it.
+    val aimed = if (mouse == null || viewportRect == Rect.Zero) null else {
+        val scale = viewportRect.width / playfieldWidth
+        val cursor = mouse.cursor?.minus(origin)?.takeIf(viewportRect::contains)?.let { (it - viewportRect.center) / scale }
+        aimCamera.follow(
+            playerView, cursor, playfieldWidth / 2f, playfieldHeight / 2f, worldWidth, worldHeight, System.nanoTime(),
+        )
+    }
+    val shownFrame = if (aimed == null) serverFrame else serverFrame.copy(
+        playerViews = serverFrame.playerViews.map { view ->
+            if (view.playerId != playerView.playerId) view
+            else view.copy(cameraCenterX = aimed.x.roundToInt(), cameraCenterY = aimed.y.roundToInt())
+        },
+    )
+    Box(modifier = modifier.onGloballyPositioned { origin = it.positionInRoot() }) {
         TankArenaViewport(
             sidecar = mission.sidecar,
-            serverFrame = serverFrame,
+            serverFrame = shownFrame,
             playerId = playerView.playerId,
             worldWidth = worldWidth,
             worldHeight = worldHeight,

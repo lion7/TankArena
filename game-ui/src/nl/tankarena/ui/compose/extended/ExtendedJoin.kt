@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -78,6 +79,8 @@ fun JoinScreen(
     first: Seat? = null,
     /** The key sets that may join with their fire key. */
     keyboardSets: Set<Int> = keySets.indices.toSet(),
+    /** What the player in a place plays with, as label and controls, given everyone who plays. */
+    controlsOf: (place: Int, seat: Seat, seats: List<Seat>) -> List<Pair<String, String>> = { _, _, _ -> emptyList() },
 ) {
     val state = remember { JoinState(maxPlayers, first) }
     var seats by remember { mutableStateOf(state.seats) }
@@ -125,8 +128,8 @@ fun JoinScreen(
                 val seat = seats.getOrNull(place)
                 Column(
                     modifier = Modifier
-                        .width(260.dp)
-                        .height(140.dp)
+                        .width(320.dp)
+                        .height(300.dp)
                         .background(if (seat != null) ExtendedColors.selected else ExtendedColors.panel, RoundedCornerShape(10.dp))
                         .padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -139,6 +142,20 @@ fun JoinScreen(
                         else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { keyName(it) } ?: "-"})"
                     }
                     Text(text, color = if (seat != null) ExtendedColors.text else ExtendedColors.dim, fontSize = 16.sp)
+                    // The bottom half: what this player plays with.
+                    if (seat != null) {
+                        Column(
+                            modifier = Modifier.padding(top = 14.dp).fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            for ((label, controls) in controlsOf(place, seat, seats)) {
+                                Row {
+                                    Text(label, color = ExtendedColors.dim, fontSize = 14.sp, modifier = Modifier.width(76.dp))
+                                    Text(controls, color = ExtendedColors.text, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

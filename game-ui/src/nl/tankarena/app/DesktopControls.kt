@@ -22,6 +22,7 @@ import nl.tankarena.ui.compose.menu.ControlAction
 import nl.tankarena.ui.compose.menu.ControlMode
 import nl.tankarena.ui.compose.menu.DEFAULT_CONTROLS
 import nl.tankarena.ui.compose.menu.PlayerControls
+import nl.tankarena.ui.compose.menu.SelectionKey
 
 internal class KeyBinding(
     val forward: Key?,
@@ -150,6 +151,15 @@ internal class DesktopControls {
     @Volatile
     var extended: Boolean = false
 
+    /**
+     * Who plays with what from now on: the arrow keys are player one's too while nobody plays with a
+     * key set, as in the campaign.
+     */
+    fun useSeats(seats: List<Seat>) {
+        this.seats = seats
+        mouseArrows = seats.none { it.keys != null }
+    }
+
     /** Extended's player one's keys and steering ([Seat.mouse]). */
     @Volatile
     var mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS
@@ -188,6 +198,30 @@ internal class DesktopControls {
         if (seat != null && seat.keys == null) return emptyList()
         val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
         return listOf(own)
+    }
+
+    /**
+     * The vehicle selection's move for [key] and whose it is (legacy select_tanks(): each player moves
+     * their marker with their own drive keys and confirms with fire). Classic has both key sets; with
+     * [seats] only the keys of those who play, so a gamepad player's cursor does not move from the keyboard.
+     */
+    fun selectionKey(key: Key): Pair<Int, SelectionKey>? {
+        val bindings: (Int) -> List<KeyBinding> =
+            if (seats == null) { playerId -> listOfNotNull(settings.take(2).getOrNull(playerId)?.let(KeyBinding::of)) } else ::bindingsFor
+        for (playerId in players.indices) {
+            for (binding in bindings(playerId)) {
+                val action = when (key) {
+                    binding.forward -> SelectionKey.UP
+                    binding.reverse -> SelectionKey.DOWN
+                    binding.turnLeft -> SelectionKey.LEFT
+                    binding.turnRight -> SelectionKey.RIGHT
+                    binding.fire -> SelectionKey.FIRE
+                    else -> null
+                }
+                if (action != null) return playerId to action
+            }
+        }
+        return null
     }
 
     @Synchronized

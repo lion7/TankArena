@@ -424,6 +424,12 @@ class Tank(state: State) :
     internal var aiTargetX: Int = -1
     internal var aiTargetY: Int = -1
     private var dyingTicks: Int = 0
+
+    /**
+     * Legacy control_tank() `o->h == lowest && tdone(contr.disable)`: destroyed, on the ground (or at
+     * the bottom of a pit) and done exploding; only then does its player get another vehicle.
+     */
+    internal val doneDying: Boolean get() = armor <= 0 && dyingTicks <= 0
     private var smokeCooldownTicks: Int = 0
 
     private var pendingIntent: PlayerIntentFrame = PlayerIntentFrame()
@@ -1792,8 +1798,11 @@ class Tank(state: State) :
 
     /** Legacy control_tank()/control_wreck(): explosions while dying, then occasional smoke from the wreck. */
     private fun stepWreck() {
-        // A tank that fell into a pit lies at the bottom without burning.
-        if (height < 1) return
+        // A tank that fell into a pit lies at the bottom without burning; its time to die still runs.
+        if (height < 1) {
+            dyingTicks = dyingTicks.afterStep()
+            return
+        }
         if (wreckGone) return
         if (dyingTicks > 0) {
             // Legacy control_tank(): an explosion on every step until `contr.disable` runs out.

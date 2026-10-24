@@ -78,6 +78,9 @@ class ShippedSceneMatchTest {
         val destroyed = (0 until 60).any { _ -> match.tick().events.any { it is GameEvent.TankDestroyed } }
         assertTrue(destroyed, "a tank in the middle of a pit falls in")
         assertEquals(-4, player.height)
+        // Its time to die runs at the bottom too, so a player would get their next vehicle.
+        repeat(110) { match.tick() }
+        assertTrue(player.doneDying, "done dying at the bottom of the pit")
     }
 
     @Test

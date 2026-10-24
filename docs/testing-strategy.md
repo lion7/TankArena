@@ -80,7 +80,7 @@ normal play (the game saves every match) and are tied to their ruleset's rules v
 ([ADR 0014](adrs/0014-simulation-thread-and-recordings.md)).
 
 **No current recordings.** The six committed ones (BEGIN1 ×2, BEGIN2 won and lost, BEGIN3, COMBAT1
-lost) were played under Classic rules v11. Rules v12–v14 changed how every match plays out, so they
+lost) were played under Classic rules v11. Rules v12–v15 changed how every match plays out, so they
 were moved to `recordings/v11/`, where only the reference renders use them as input. Until new ones
 are played, the scripted BEGIN2 recording is the only replay check.
 

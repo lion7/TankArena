@@ -33,12 +33,16 @@ class ControlAndObjectivesTest {
         }
 
     @Test
-    fun `losing the controlled tank hands control to the next friendly tank`() {
+    fun `losing the controlled tank hands control to the next friendly tank once it has gone up`() {
         val match = start(map(humanTank(id = 1, tileX = 1), humanTank(id = 2, tileX = 4), enemyTank(tileX = 12)))
         assertEquals(1, match.playerTankForTest(0)?.controllerId)
 
         match.queueDamageForTest(0, 999)
-        val events = (0 until 3).flatMap { match.tick().events }
+        // Legacy control_tank(): the player watches it explode for `contr.disable` (100 ticks) first.
+        val events = (0 until 90).flatMap { match.tick().events }.toMutableList()
+        assertEquals(1, match.playerTankForTest(0)?.controllerId, "still on the exploding tank")
+        assertTrue(events.none { it is GameEvent.ControlSwitched })
+        events += (0 until 20).flatMap { match.tick().events }
 
         assertEquals(2, match.playerTankForTest(0)?.controllerId)
         assertTrue(events.any { it is GameEvent.ControlSwitched && it.playerId == 0 })
@@ -50,10 +54,22 @@ class ControlAndObjectivesTest {
     fun `losing the last friendly tank loses the mission`() {
         val match = start(map(humanTank(id = 1, tileX = 1), humanTank(id = 2, tileX = 4), enemyTank(tileX = 12)))
         match.queueDamageForTest(0, 999)
-        repeat(3) { match.tick() }
+        repeat(110) { match.tick() }
         match.queueDamageForTest(0, 999)
         repeat(3) { match.tick() }
         assertEquals(Match.MissionStatus.LOST, match.mission)
+    }
+
+    @Test
+    fun `a tank of the same id takes over only once the destroyed one has gone up`() {
+        val match = start(map(humanTank(id = 1, tileX = 1), humanTank(id = 1, tileX = 4), enemyTank(tileX = 12)))
+        val first = match.playerTankForTest(0)
+        match.queueDamageForTest(0, 999)
+        repeat(90) { match.tick() }
+        assertTrue(match.playerTankForTest(0) === first, "still on the exploding tank")
+        repeat(20) { match.tick() }
+        val next = match.playerTankForTest(0)
+        assertTrue(next !== first && next?.controllerId == 1 && next.armor > 0, "the other tank of id 1")
     }
 
     @Test

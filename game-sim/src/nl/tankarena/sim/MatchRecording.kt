@@ -40,8 +40,9 @@ import kotlinx.serialization.json.Json
  *     rockets at any object, warps for every kind; conveyors, turntables, burning fuel-dump pieces,
  *     ground effects; supermarket mayhem; linked goals; cheats.
  * 14: rockets in flight and mines can be hit by flames, shots, blasts, bombs and burning pieces.
+ * 15: a destroyed player's vehicle is handed over only once it is done dying (legacy control_tank()).
  */
-const val GAME_RULES_VERSION: Int = 14
+const val GAME_RULES_VERSION: Int = 15
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

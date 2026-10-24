@@ -225,6 +225,9 @@ losers tank option, and the tank selection arena (`SELECT.MAP` running live).
 In detail:
 
 - **done** — supermarket mayhem (see map objects).
+- **done** — hand-over on death waits like the original (rules v15): the player keeps the destroyed
+  vehicle, and its view, until it is done dying (`contr.disable`, 100 ticks, and an aircraft on the
+  ground), then gets another of the same id or the next id (`original/src/tanks/control.c:139-173`).
 - **done** — F1–F10 in two players vs computer select for player two (`id_select = 1`), Alt+F-key
   for player one (`original/src/game/controls.c:38,163-168`).
 - **done** — known codes ([ADR 0020](adrs/0020-user-data-as-json.md)): Classic lists every known

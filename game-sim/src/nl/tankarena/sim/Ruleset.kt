@@ -70,5 +70,6 @@ data class RuleFlags(
  * 5: the first flags: stacked computer vehicles survive, one vehicle per player in player vs player.
  * 6: four players as two teams.
  * 7: the rocket marker follows the mouse.
+ * 8: Classic v15 (hand-over once the destroyed vehicle is done dying).
  */
-const val EXTENDED_RULES_VERSION: Int = 7
+const val EXTENDED_RULES_VERSION: Int = 8

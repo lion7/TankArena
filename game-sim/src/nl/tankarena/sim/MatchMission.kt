@@ -229,12 +229,14 @@ internal fun Match.modifyGoalCounter(percentage: Int) {
 
 /**
  * Legacy control.c: the camera follows another living tank of the player's group, and when
- * the whole group is gone for good control moves to another group of human-drivable tanks.
+ * the whole group is gone for good control moves to another group of human-drivable tanks. Both
+ * wait until the destroyed vehicle is done dying (control_tank() hands over when it becomes a
+ * wreck), so the player sees it go up first.
  */
 internal fun Match.handOverDeadPlayers() {
     val tanks = allTanks
     for ((playerIndex, primary) in tanksByPlayerIndex.toMap()) {
-        if (primary.armor > 0 && primary.playerIndex == playerIndex) continue
+        if (primary.playerIndex == playerIndex && (primary.armor > 0 || !primary.doneDying)) continue
         val group = tanks.filter { it.playerIndex == playerIndex }
         group.firstOrNull { it.armor > 0 }?.let {
             tanksByPlayerIndex[playerIndex] = it

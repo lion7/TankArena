@@ -1,6 +1,7 @@
 package nl.tankarena.sim
 
 import nl.tankarena.content.GameModeCompatibility
+import nl.tankarena.protocol.snapshot.RadarColor
 import nl.tankarena.sim.map.ShippedMaps
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,6 +73,19 @@ class TeamsTest {
             assertEquals(4, players.size, name)
             val spots = players.map { it.positionX to it.positionY }
             assertEquals(4, spots.toSet().size, "$name: ${players.map { "p${it.playerIndex} ${it.positionX},${it.positionY}" }}")
+        }
+    }
+
+    @Test
+    fun `on the radar the other side is red and a team mate white`() {
+        val map = firstMap(GameModeCompatibility.DUAL)
+        for (players in listOf(2, 4)) {
+            val match = match(map, MatchMode.DUAL, players)
+            val radar = match.buildPlayerViews().first { it.playerId == 0 }.radar.associate { it.actorId to it.color }
+            for (tank in match.tanksForTest().filter { it.playerIndex > 0 && it.armor > 0 }) {
+                val expected = if (tank.playerIndex == 2) RadarColor.FRIEND else RadarColor.ENEMY
+                assertEquals(expected, radar[match.actorIds[tank]], "$players players: player ${tank.playerIndex} on player 1's radar")
+            }
         }
     }
 

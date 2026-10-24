@@ -60,7 +60,9 @@ internal fun Match.buildRadar(
         if (tank.armor <= 0 || tank.cloaked) continue
         val color = when {
             tank === self -> RadarColor.SELF
-            dual -> if (tank.team == self.team) RadarColor.FRIEND else RadarColor.ENEMY
+            // Legacy write_radar(): in player vs player the other player's (`contr.num`) are red; with
+            // teams (ADR 0027) a team mate's are white.
+            dual -> if (tank.playerIndex >= 0 && tank.playerIndex.side == self.playerIndex.side) RadarColor.FRIEND else RadarColor.ENEMY
             tank.computer && tank.team != 0 -> RadarColor.ENEMY
             else -> RadarColor.FRIEND
         }

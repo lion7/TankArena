@@ -40,6 +40,9 @@ Decided differences from the original. They are not parity bugs.
   ([ADR 0007](adrs/0007-authoritative-server.md),
   [ADR 0014](adrs/0014-simulation-thread-and-recordings.md),
   [ADR 0022](adrs/0022-native-map-format.md)).
+- **Extended asks before leaving a game:** ESC (or the touch screen's exit) shows "Leave the game?";
+  Enter or A leaves, ESC or B plays on. A local game stands still meanwhile. Classic leaves at once
+  like the original.
 - **Player data as JSON** in the user's folders instead of `TANK.CFG` / `PASSWD.DAT`
   ([ADR 0020](adrs/0020-user-data-as-json.md)).
 - **Elimination fallback win** (`ALL_ENEMIES_ELIMINATED`): when a map's object contributions cannot
@@ -216,7 +219,8 @@ In detail:
 
 - **done** — computer vehicles refire after their imported `computer.fire_delay` (`original/src/tanks/fire.c:171`).
 - **done** — the radar as `write_radar()` draws it: no cloaked vehicles or wrecks, bombers and trains,
-  colours per viewer, turrets by `shootat` (`original/src/game/radar.c`).
+  colours per viewer, turrets by `shootat` (`original/src/game/radar.c`). In player vs player the other
+  player's vehicles are red (`contr.num`; with Extended's teams the other side's), fixed 2026-10-24.
 
 ## Modes
 

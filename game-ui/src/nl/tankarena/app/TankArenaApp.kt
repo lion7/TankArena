@@ -1058,6 +1058,7 @@ private fun GameplayScreen(
         // One player at a network machine plays with the single player's keys.
         controls.mode = if (network != null && players == 1) GameMode.SINGLE_PLAYER_VS_COMPUTER else mode
         controls.exitRequested = false
+        controls.answerLeave(leave = false)
         controls.paused = false
         // Extended: player one has the keyboard and mouse (and the first gamepad when alone); the
         // arrow keys are theirs too unless a second player is on the keyboard.
@@ -1141,9 +1142,10 @@ private fun GameplayScreen(
                 controls.paused = !controls.paused
             },
             // Legacy ESC: the game ends (with Extended's question first).
-            onExit = { controls.exitRequested = true },
+            onExit = controls::askToLeave,
         )
     }
+    LeaveQuestion(controls, platform::gamepads, network = host !is LocalMatchClient)
     }
 }
 
@@ -1180,7 +1182,7 @@ private fun gameplayStep(
     val fadeTotal = (GAME_FADE_MILLIS / FixedStepClock.MILLIS_PER_TICK).coerceAtLeast(1)
     return step@{
         // Legacy P: the game stands still (the timer does not count) until a key is pressed; not in a network game.
-        if (controls.paused && host is LocalMatchClient) return@step true
+        if ((controls.paused || controls.leaveAsked) && host is LocalMatchClient) return@step true
         for ((local, playerId) in playerIds.withIndex()) {
             host.submitInput(controls.toInputFrame(playerId = local, inputSequence = inputSequence, frame = published.get().frame, seat = playerId))
         }
@@ -1241,11 +1243,20 @@ private fun handleGlobalKeys(
         }
         return true
     }
+    // Extended's question whether to leave takes every key until it is answered.
+    if (controls.leaveAsked) {
+        if (down) when (event.key) {
+            Key.Enter, Key.NumPadEnter, Key.Y -> controls.answerLeave(leave = true)
+            Key.Escape, Key.N -> controls.answerLeave(leave = false)
+            else -> {}
+        }
+        return true
+    }
     if (!down) return controls.handle(event)
     val options = settings.options
     when (event.key) {
-        // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends.
-        Key.Escape -> controls.exitRequested = true
+        // Legacy controls.c: ESC sets game.exit_game, the game fades out and ends (Extended asks first).
+        Key.Escape -> controls.askToLeave()
         // A network game does not stand still for one player.
         Key.P -> if (screen !is DesktopShellScreen.NetworkPlaying) {
             controls.resetAll()

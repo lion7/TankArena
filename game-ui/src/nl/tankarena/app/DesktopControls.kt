@@ -1,6 +1,9 @@
 package nl.tankarena.app
 
 import nl.tankarena.ui.compose.menu.MOUSE_PLAYER_CONTROLS
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -124,6 +127,25 @@ internal class DesktopControls {
     /** ESC during a game (legacy `game.exit_game`); read by the simulation thread. */
     @Volatile
     var exitRequested = false
+
+    /** Extended: ESC asked whether to leave; a local game stands still until it is answered. */
+    var leaveAsked: Boolean by mutableStateOf(false)
+        private set
+
+    /** ESC: Classic leaves at once (legacy `game.exit_game`), Extended asks first. */
+    fun askToLeave() {
+        if (!extended) {
+            exitRequested = true
+            return
+        }
+        resetAll()
+        leaveAsked = true
+    }
+
+    fun answerLeave(leave: Boolean) {
+        leaveAsked = false
+        if (leave) exitRequested = true
+    }
 
     /** Legacy `game_pause` (P): the game stands still until the next key. */
     @Volatile

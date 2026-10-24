@@ -142,6 +142,7 @@ internal fun Match.drainRocketExplosions() {
         for (tank in tanks) {
             if ((tank.armor <= 0 && !tank.isWreck) || tank.wreckGone) continue
             if (!withinRadius(tank.positionX, tank.positionY, explosion.x, explosion.y, maxOf(ROCKET_BLAST_RADIUS_PX, tank.spec.radius))) continue
+            if (ruleset.flags.sheltersStopRockets && inShelter(tank)) continue
             tank.queueUnshieldableDamage(actor.damage)
             pendingEvents += GameEvent.Effect(EffectKind.LEXPLOSION, explosion.x, explosion.y)
             pendingEvents += GameEvent.Sound(nl.tankarena.protocol.snapshot.SoundKind.EXPLODE, explosion.x, explosion.y)
@@ -201,6 +202,7 @@ internal fun Match.rocketFromRequest(
             damage = request.damage,
             targetX = request.targetX,
             targetY = request.targetY,
+            rangeLeft = (if (ruleset.flags.shortRockets) ROCKET_SHORT_RANGE_PX else ROCKET_RANGE_PX).toFloat(),
         ),
     )
     rocket.ownerRef = owner

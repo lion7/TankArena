@@ -27,7 +27,10 @@ enum class Ruleset {
     val flags: RuleFlags
         get() = when (this) {
             CLASSIC -> RuleFlags()
-            EXTENDED -> RuleFlags(stackedComputerVehiclesSurvive = true, oneVehiclePerPlayer = true, teams = true, pointerMarker = true)
+            EXTENDED -> RuleFlags(
+                stackedComputerVehiclesSurvive = true, oneVehiclePerPlayer = true, teams = true, pointerMarker = true,
+                shortRockets = true, sheltersStopRockets = true,
+            )
         }
 }
 
@@ -58,6 +61,13 @@ data class RuleFlags(
      * nothing is pointed at.
      */
     val pointerMarker: Boolean = false,
+    /**
+     * A rocket gives up after [ROCKET_SHORT_RANGE_PX] (about 8 s at full speed) instead of the
+     * original's [ROCKET_RANGE_PX] (about 24 s), so a tower's rocket does not chase a vehicle across the map.
+     */
+    val shortRockets: Boolean = false,
+    /** A vehicle on a SHELTER tile takes no damage from a rocket, as the original's shelters keep out A-bombs. */
+    val sheltersStopRockets: Boolean = false,
 )
 
 /**
@@ -72,5 +82,6 @@ data class RuleFlags(
  * 7: the rocket marker follows the mouse.
  * 8: Classic v15 (hand-over once the destroyed vehicle is done dying).
  * 9: Classic v16 (destroyed structures without a ruined picture are gone).
+ * 10: rockets fly 1200 px and do not hurt in a shelter.
  */
-const val EXTENDED_RULES_VERSION: Int = 9
+const val EXTENDED_RULES_VERSION: Int = 10

@@ -24,7 +24,7 @@ app. Self-contained packages build for Linux, Windows and Android. All 401 autom
 | Audio and music | Done | [ADR 0018](adrs/0018-audio-and-music.md) |
 | Shell: intro, menus, codes, options, help, in-game keys, controls setup, joysticks, cheats | Done | [parity.md → Shell](parity.md#shell-and-meta-game) |
 | Map editor | Everything the original's can do, plus undo, play-test and `.MAP` export; validation, overview and in-game import open | [ADR 0021](adrs/0021-editor-in-the-game.md) |
-| Extended menu, replays, presentation | Done; four rule flags (Extended rules v9) | [ADR 0023](adrs/0023-classic-and-extended-rulesets.md) |
+| Extended menu, replays, presentation | Done; six rule flags (Extended rules v10) | [ADR 0023](adrs/0023-classic-and-extended-rulesets.md) |
 | Controls: input layer, gamepads, mouse, touch | Done | [ADR 0026](adrs/0026-input-and-gamepads.md), [ADR 0029](adrs/0029-extended-controls.md) |
 | Four players in two teams | Done (Extended) | [ADR 0027](adrs/0027-four-players-two-teams.md) |
 | Network play: LAN, dedicated server, relay | Built and tested; not yet tried between two real machines | [ADR 0024](adrs/0024-networking.md), [ADR 0028](adrs/0028-internet-relay-and-lobby.md) |

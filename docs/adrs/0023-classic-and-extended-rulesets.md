@@ -50,12 +50,14 @@ One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:gam
   more of the map; **smooth motion** draws vehicles, shots and cameras between the 33 steps a second,
   one step (30 ms) late, snapping on jumps (`StepInterpolation`).
 - **Rule changes are flags** of `RuleFlags`, each named and documented, never ad-hoc `if`s. Classic has
-  every flag off. Extended has four:
+  every flag off. Extended has six:
   - `stackedComputerVehiclesSurvive`: computer vehicles that overlap at the start do not destroy each
     other;
   - `oneVehiclePerPlayer`: in player vs player each player gets one vehicle, not one per pad;
   - `teams`: up to four players as two teams ([ADR 0027](0027-four-players-two-teams.md));
   - `pointerMarker`: the rocket marker follows the mouse ([ADR 0029](0029-extended-controls.md)).
+  - `shortRockets`: a rocket gives up after 1200 px (about 8 s) instead of 3300 px (about 24 s);
+  - `sheltersStopRockets`: a vehicle on a shelter tile takes no damage from a rocket.
 - **A rules version per ruleset:** `GAME_RULES_VERSION` (Classic) and `EXTENDED_RULES_VERSION`. A
   Classic change bumps both; an Extended-only change bumps only Extended. Recordings store the
   ruleset (older ones read as Classic).

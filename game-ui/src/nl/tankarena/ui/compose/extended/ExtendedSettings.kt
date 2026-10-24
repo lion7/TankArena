@@ -51,7 +51,7 @@ fun ExtendedSettingsPage(
 ) {
     val keys = remember { KeyRouter() }
     val entries: List<Pair<ListEntry, () -> Unit>> = ExtendedSetting.entries.map { setting ->
-        when (setting) {
+        val (entry, pick) = when (setting) {
             ExtendedSetting.CONTROLS -> ListEntry("Controls", "keyboard and mouse, gamepads, a second keyboard player") to onControls
             ExtendedSetting.WINDOW_SIZE -> ListEntry("Window size", "${100 - options.windowSize * 5}%") to {
                 onChange(if (options.windowSize >= GameOptions.MAX_WINDOW_SIZE) options.copy(windowSize = 0) else options.smallerWindow())
@@ -73,11 +73,13 @@ fun ExtendedSettingsPage(
             ExtendedSetting.LAPS -> ListEntry("Race laps", options.raceLaps.toString()) to { onChange(options.nextLaps()) }
             ExtendedSetting.LOSERS_TANK -> ListEntry("Losers tank", losersTankText(options.losersTank)) to { onChange(options.nextLosersTank()) }
         }
+        // Every setting but the controls has its < > for the mouse and touch.
+        entry.copy(steppable = setting != ExtendedSetting.CONTROLS) to pick
     }
     ExtendedPage(
         title = "Settings",
         onBack = onBack,
-        footer = "Left/Right change a setting, Enter goes round; settings are kept for next time",
+        footer = "Left/Right or < > change a setting, Enter or a tap goes round; settings are kept for next time",
         onKey = keys::handle,
     ) {
         ExtendedList(

@@ -2,22 +2,21 @@ package nl.tankarena.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import nl.tankarena.input.PadReading
-import nl.tankarena.ui.compose.extended.ExtendedColors
+import nl.tankarena.ui.compose.extended.RetroBox
+import nl.tankarena.ui.compose.extended.RetroColors
+import nl.tankarena.ui.compose.extended.RetroFont
+import nl.tankarena.ui.compose.extended.RetroScaled
+import nl.tankarena.ui.compose.extended.RetroText
+import nl.tankarena.ui.compose.extended.retroDp
 
 /** Pad buttons in [nl.tankarena.ui.compose.menu.PAD_BUTTONS] order. */
 private const val PAD_A = 1
@@ -67,18 +66,16 @@ private fun PadPresses(pads: () -> List<PadReading>, active: () -> Boolean, onPr
     }
 }
 
-/** The game dimmed, with a small panel in the middle. */
+/** The game dimmed, with a box of the original's prompts in the middle. */
 @Composable
 private fun GameOverlay(title: String, note: String?, keys: String) {
-    Box(modifier = Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.background(ExtendedColors.panel, RoundedCornerShape(10.dp)).padding(horizontal = 32.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(title, color = ExtendedColors.accent, fontSize = 24.sp)
-            if (note != null) Text(note, color = ExtendedColors.dim, fontSize = 14.sp)
-            Text(keys, color = ExtendedColors.text, fontSize = 16.sp)
+    RetroScaled(modifier = Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+        RetroBox(padding = 10) {
+            Column(verticalArrangement = Arrangement.spacedBy(retroDp(6)), horizontalAlignment = Alignment.CenterHorizontally) {
+                RetroText(title.uppercase(), color = RetroColors.high, font = RetroFont.TITLE)
+                if (note != null) RetroText(note, color = RetroColors.dim, font = RetroFont.SMALL)
+                RetroText(keys, color = RetroColors.normal)
+            }
         }
     }
 }

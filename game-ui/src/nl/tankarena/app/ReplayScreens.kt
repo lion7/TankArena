@@ -2,6 +2,7 @@ package nl.tankarena.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,8 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,7 +49,15 @@ import nl.tankarena.sim.ReplayMatchClient
 import nl.tankarena.sim.SimulationLoop
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.MissionOutcome
-import nl.tankarena.ui.compose.extended.ExtendedColors
+import nl.tankarena.ui.compose.extended.PageAction
+import nl.tankarena.ui.compose.extended.RetroBox
+import nl.tankarena.ui.compose.extended.RetroButton
+import nl.tankarena.ui.compose.extended.RetroColors
+import nl.tankarena.ui.compose.extended.RetroFont
+import nl.tankarena.ui.compose.extended.RetroScaled
+import nl.tankarena.ui.compose.extended.RetroText
+import nl.tankarena.ui.compose.extended.RetroTextField
+import nl.tankarena.ui.compose.extended.retroDp
 import nl.tankarena.ui.compose.extended.ExtendedList
 import nl.tankarena.ui.compose.extended.ExtendedPage
 import nl.tankarena.ui.compose.extended.KeyRouter
@@ -112,6 +120,24 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
         selected = selected.coerceAtMost((entries.size - 1).coerceAtLeast(0))
     }
 
+    fun startRenaming() {
+        name = details?.recording?.title ?: ""
+        renaming = true
+    }
+
+    fun saveName() {
+        val recording = details?.recording ?: return
+        entries[selected].file.writeText(recording.copy(title = name.trim().ifEmpty { null }).toJson())
+        renaming = false
+        reload()
+    }
+
+    fun delete() {
+        entries.getOrNull(selected)?.file?.delete()
+        deleting = false
+        reload()
+    }
+
     ExtendedPage(
         title = "Replays",
         subtitle = "Your recorded games, newest first",
@@ -128,17 +154,19 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
             entries.isEmpty() -> "Every game you finish is recorded here"
             else -> "Enter watches   F2 names   Delete removes"
         },
+        actions = when {
+            deleting -> listOf(PageAction("Yes, delete", ::delete), PageAction("Keep") { deleting = false })
+            renaming -> listOf(PageAction("Save", ::saveName))
+            entries.isEmpty() -> emptyList()
+            else -> listOf(PageAction("Watch") { onWatch(entries[selected]) }, PageAction("Name", ::startRenaming), PageAction("Delete") { deleting = true })
+        },
         onKey = { event ->
             val entry = entries.getOrNull(selected)
             when {
                 renaming -> false
                 deleting -> {
                     when (event.key) {
-                        Key.Y -> {
-                            entry?.file?.delete()
-                            deleting = false
-                            reload()
-                        }
+                        Key.Y -> delete()
                         Key.N -> deleting = false
                         else -> return@ExtendedPage false
                     }
@@ -149,8 +177,7 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
                     true
                 }
                 entry != null && event.key == Key.F2 -> {
-                    name = details?.recording?.title ?: ""
-                    renaming = true
+                    startRenaming()
                     true
                 }
                 else -> keys.handle(event)
@@ -158,7 +185,7 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
         },
     ) {
         if (entries.isEmpty()) {
-            Text("No replays yet — play a game first.", color = ExtendedColors.dim, fontSize = 18.sp)
+            RetroText("No replays yet — play a game first.", color = RetroColors.dim)
             return@ExtendedPage
         }
         ListWithDetails(
@@ -177,34 +204,21 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
                 Column {
                     val recording = details?.recording
                     if (recording == null) {
-                        Text("This file cannot be read: ${details?.error}", color = ExtendedColors.dim, fontSize = 15.sp)
+                        RetroText("This file cannot be read: ${details?.error}", color = RetroColors.dim)
                         return@Column
                     }
                     if (renaming) {
                         LaunchedEffect(Unit) { nameFocus.requestFocus() }
-                        OutlinedTextField(
+                        RetroTextField(
                             value = name,
                             onValueChange = { name = it.take(40) },
-                            label = { Text("Name") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(nameFocus)
-                                .onPreviewKeyEvent { event ->
-                                    if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
-                                        val entry = entries[selected]
-                                        entry.file.writeText(recording.copy(title = name.trim().ifEmpty { null }).toJson())
-                                        renaming = false
-                                        reload()
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                },
+                            label = "Name",
+                            onDone = ::saveName,
+                            modifier = Modifier.fillMaxWidth().focusRequester(nameFocus),
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(retroDp(8)))
                     }
-                    Text(recording.title ?: recording.mission.uppercase(), color = ExtendedColors.accent, fontSize = 22.sp)
+                    RetroText(recording.title ?: recording.mission.uppercase(), color = RetroColors.accent)
                     val mode = when (recording.mode) {
                         MatchMode.SINGLE -> "one player"
                         MatchMode.DUAL_VS_COMPUTER -> "two players against the computer"
@@ -216,18 +230,14 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
                         null -> "not finished"
                     }
                     val seconds = recording.ticks / 100
-                    Text("${recording.mission.uppercase()} — $mode", color = ExtendedColors.dim, fontSize = 14.sp)
-                    Spacer(Modifier.height(16.dp))
-                    Text("$result after ${seconds / 60}:${"%02d".format(seconds % 60)}", color = ExtendedColors.text, fontSize = 16.sp)
-                    Text("recorded ${entries[selected].label.substringAfter(' ').substringBeforeLast(' ')}", color = ExtendedColors.text, fontSize = 16.sp)
-                    Text("${recording.ruleset.name.lowercase()} rules v${recording.rulesVersion}", color = ExtendedColors.dim, fontSize = 14.sp)
+                    RetroText("${recording.mission.uppercase()} — $mode", color = RetroColors.dim, font = RetroFont.SMALL)
+                    Spacer(Modifier.height(retroDp(8)))
+                    RetroText("$result after ${seconds / 60}:${"%02d".format(seconds % 60)}")
+                    RetroText("recorded ${entries[selected].label.substringAfter(' ').substringBeforeLast(' ')}")
+                    RetroText("${recording.ruleset.name.lowercase()} rules v${recording.rulesVersion}", color = RetroColors.dim, font = RetroFont.SMALL)
                     if (recording.rulesVersion != recording.ruleset.rulesVersion) {
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            "Played under older rules: it will not play out as it was recorded.",
-                            color = ExtendedColors.accent,
-                            fontSize = 14.sp,
-                        )
+                        Spacer(Modifier.height(retroDp(6)))
+                        RetroText("Played under older rules: it will not play out as it was recorded.", color = RetroColors.accent)
                     }
                 }
             },
@@ -449,40 +459,46 @@ internal fun ReplayScreen(
                 )
             }
         }
-        if (view.finished) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.75f))
-                    .padding(horizontal = 32.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("END OF REPLAY", color = Color.White, fontSize = 28.sp)
-                val result = when (view.banner) {
-                    MissionOutcome.WON -> "The mission was won."
-                    MissionOutcome.LOST -> "The mission was lost."
-                    null -> "The recording stops here."
+        RetroScaled(modifier = Modifier.fillMaxSize()) {
+            if (view.finished) {
+                RetroBox(modifier = Modifier.align(Alignment.Center), padding = 10) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(retroDp(6))) {
+                        RetroText("END OF REPLAY", color = RetroColors.high, font = RetroFont.TITLE)
+                        val result = when (view.banner) {
+                            MissionOutcome.WON -> "The mission was won."
+                            MissionOutcome.LOST -> "The mission was lost."
+                            null -> "The recording stops here."
+                        }
+                        RetroText(result)
+                        Row(horizontalArrangement = Arrangement.spacedBy(retroDp(10))) {
+                            RetroButton("Again", {
+                                run++
+                                paused = false
+                                control.paused = false
+                            })
+                            RetroButton("Free camera", { freeCamera = if (freeCamera == null) startCamera() else null })
+                            RetroButton("Back", onClose)
+                        }
+                    }
                 }
-                Text(result, color = Color.LightGray, fontSize = 16.sp)
-                Text("R watch again    C free camera    Esc back", color = Color.LightGray, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
             }
+            val rate = SPEED_QUARTERS[speed].let { if (it >= 4) "${it / 4}x" else "1/${4 / it}x" }
+            val state = when {
+                view.finished -> "end"
+                paused -> "paused"
+                else -> rate
+            }
+            RetroText(
+                text = "REPLAY ${recording.title ?: recording.mission.uppercase()}  $state" +
+                    (if (freeCamera != null) "  free camera ${"%.2f".format(zoom)}x   arrows or drag move, wheel or PgUp/PgDn zoom" else "") +
+                    "   Space pause  +/- speed  C free camera  Esc back",
+                color = RetroColors.high,
+                font = RetroFont.SMALL,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
         }
-        val rate = SPEED_QUARTERS[speed].let { if (it >= 4) "${it / 4}x" else "1/${4 / it}x" }
-        val state = when {
-            view.finished -> "end"
-            paused -> "paused"
-            else -> rate
-        }
-        Text(
-            text = "REPLAY ${recording.title ?: recording.mission.uppercase()}  $state" +
-                (if (freeCamera != null) "  free camera ${"%.2f".format(zoom)}x   arrows or drag move, wheel or PgUp/PgDn zoom" else "") +
-                "   Space pause  +/- speed  C free camera  Esc back",
-            color = Color.White,
-            fontSize = 13.sp,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(horizontal = 8.dp, vertical = 2.dp),
-        )
     }
 }

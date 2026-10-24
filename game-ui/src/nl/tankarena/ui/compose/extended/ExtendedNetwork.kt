@@ -44,6 +44,9 @@ import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.menu.MissionCodes
 import nl.tankarena.ui.compose.menu.MissionEntry
 import nl.tankarena.ui.compose.menu.playableIn
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 
 /** Extended's network game (ADR 0024): host a game on this machine or join one. */
 @Composable
@@ -116,18 +119,18 @@ fun NetworkHostScreen(
                     if (choice != null) {
                         val (map, mode) = choice
                         val metadata = map.sidecar.metadata
-                        Text(map.baseName.uppercase(), color = ExtendedColors.accent, fontSize = 22.sp)
-                        Text(
+                        RetroText(map.baseName.uppercase(), color = RetroColors.accent)
+                        RetroText(
                             "${if (mode == GameMode.PLAYER_VS_PLAYER) "against each other" else "together"} — " +
                                 "${metadata.world.name.lowercase()}${if (metadata.night) ", night" else ""} — ${metadata.widthTiles}×${metadata.heightTiles}",
-                            color = ExtendedColors.dim,
-                            fontSize = 14.sp,
+                            color = RetroColors.dim,
+                            font = RetroFont.SMALL,
                         )
                         if (mode == GameMode.PLAYER_VS_PLAYER) {
-                            scoreOf(map.baseName)?.let { Text("This series: ${it.text()}", color = ExtendedColors.text, fontSize = 15.sp) }
+                            scoreOf(map.baseName)?.let { RetroText("This series: ${it.text()}", color = RetroColors.normal) }
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Text(map.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
+                        Spacer(Modifier.height(retroDp(8)))
+                        RetroText(map.sidecar.missionText.briefing.trim())
                     }
                 }
             },
@@ -166,31 +169,22 @@ fun NetworkAddressScreen(
         subtitle = if (typing) "The host's address or its game code; the host's lobby shows both" else "Games on this network and the internet, or an address",
         onBack = { if (typing) typing = false else onBack() },
         footer = if (typing) "Enter joins · ESC goes back to the list" else "Enter joins · ESC goes back",
+        actions = if (typing) listOf(PageAction("Join") { if (typed.isNotBlank() && !connecting) onConnect(typed) }) else emptyList(),
         onKey = { event -> if (typing || connecting) false else keys.handle(event) },
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(retroDp(8))) {
             if (typing) {
                 LaunchedEffect(Unit) { fieldFocus.requestFocus() }
-                OutlinedTextField(
+                RetroTextField(
                     value = typed,
                     onValueChange = { typed = it.trim().take(MAX_ADDRESS_LENGTH) },
-                    label = { Text("Address or game code") },
-                    singleLine = true,
+                    label = "Address or game code",
+                    onDone = { if (typed.isNotBlank() && !connecting) onConnect(typed) },
                     enabled = !connecting,
-                    modifier = Modifier
-                        .width(420.dp)
-                        .focusRequester(fieldFocus)
-                        .onPreviewKeyEvent { event ->
-                            if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
-                                if (typed.isNotBlank() && !connecting) onConnect(typed)
-                                true
-                            } else {
-                                false
-                            }
-                        },
+                    modifier = Modifier.widthIn(max = retroDp(420)).fillMaxWidth().focusRequester(fieldFocus),
                 )
             } else {
-                Column(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     ExtendedList(
                         entries,
                         onPick = { index ->
@@ -205,8 +199,8 @@ fun NetworkAddressScreen(
                 }
             }
             when {
-                connecting -> Text("Connecting…", color = ExtendedColors.dim, fontSize = 16.sp)
-                error != null -> Text(error, color = ExtendedColors.accent, fontSize = 16.sp)
+                connecting -> RetroText("Connecting…", color = RetroColors.dim)
+                error != null -> RetroText(error, color = RetroColors.accent)
             }
         }
     }
@@ -257,6 +251,11 @@ fun NetworkLobbyScreen(
             players >= minPlayers -> "Enter starts · M another map · ESC stops the game"
             else -> "Waiting for players · M another map · ESC stops the game"
         },
+        actions = buildList {
+            if (hosting && players >= minPlayers) add(PageAction("Start", onStart))
+            onChangeMap?.let { add(PageAction("Map", it)) }
+            onTogglePublic?.let { add(PageAction("Public", it)) }
+        },
         onKey = { event ->
             when {
                 hosting && (event.key == Key.Enter || event.key == Key.NumPadEnter) && players >= minPlayers -> onStart()
@@ -267,30 +266,19 @@ fun NetworkLobbyScreen(
             true
         },
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                for (place in 0 until MAX_NET_PLAYERS) {
-                    val member = members.firstOrNull { place in it.seats }
-                    Column(
-                        modifier = Modifier
-                            .width(220.dp)
-                            .height(120.dp)
-                            .background(if (member != null) ExtendedColors.selected else ExtendedColors.panel, RoundedCornerShape(10.dp))
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("Player ${place + 1}", color = ExtendedColors.accent, fontSize = 20.sp)
-                        Text(member?.name ?: "free", color = if (member != null) ExtendedColors.text else ExtendedColors.dim, fontSize = 16.sp)
-                        // Extended teams (ADR 0027): players 1 and 3 against 2 and 4.
-                        if (teams) Text(if (place % 2 == 0) "team 1" else "team 2", color = ExtendedColors.dim, fontSize = 13.sp)
-                    }
-                }
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(retroDp(10))) {
+            PlaceBoxes(MAX_NET_PLAYERS) { place ->
+                val member = members.firstOrNull { place in it.seats }
+                RetroText("Player ${place + 1}", color = if (member != null) RetroColors.high else RetroColors.normal, maxLines = 1)
+                RetroText(member?.name ?: "free", color = if (member != null) RetroColors.text else RetroColors.dim, maxLines = 2)
+                // Extended teams (ADR 0027): players 1 and 3 against 2 and 4.
+                if (teams) RetroText(if (place % 2 == 0) "team 1" else "team 2", color = RetroColors.dim, font = RetroFont.SMALL)
             }
-            if (mapScore != null && map.isNotEmpty()) Text("${map.uppercase()}: ${mapScore.text()}", color = ExtendedColors.text, fontSize = 18.sp)
+            if (mapScore != null && map.isNotEmpty()) RetroText("${map.uppercase()}: ${mapScore.text()}")
             if (series.any { it > 0 }) {
-                Text("Series: team 1 ${series[0]} – ${series.getOrElse(1) { 0 }} team 2 (the losers tank goes by it)", color = ExtendedColors.text, fontSize = 18.sp)
+                RetroText("Series: team 1 ${series[0]} – ${series.getOrElse(1) { 0 }} team 2 (the losers tank goes by it)")
             }
-            if (internet != null) Text(internet, color = ExtendedColors.text, fontSize = 18.sp)
+            if (internet != null) RetroText(internet, color = RetroColors.accent)
         }
     }
 }
@@ -334,8 +322,8 @@ fun VehicleChoiceScreen(
     ) {
         if (seat != null) {
             Column {
-                Text("Player ${seat + 1} (team ${seat % 2 + 1}): your vehicle", color = ExtendedColors.accent, fontSize = 20.sp)
-                Spacer(Modifier.height(12.dp))
+                RetroText("Player ${seat + 1} (team ${seat % 2 + 1}): your vehicle", color = RetroColors.accent)
+                Spacer(Modifier.height(retroDp(6)))
                 // Each player's choice starts on what they drove last, if the map allows it.
                 val start = last(seat)?.takeIf { allowed.getOrNull(it) == true } ?: allowed.indexOfFirst { it }.coerceAtLeast(0)
                 key(seat) {
@@ -351,7 +339,7 @@ fun VehicleChoiceScreen(
                 }
             }
         } else {
-            Text("Waiting for the others… $status", color = ExtendedColors.dim, fontSize = 18.sp)
+            RetroText("Waiting for the others… $status", color = RetroColors.dim)
         }
     }
 }
@@ -390,6 +378,7 @@ fun NetworkResultScreen(
             result.matchOver -> "Waiting for the host to go back to the lobby · ESC leaves"
             else -> "Waiting for the host to start the next round · ESC leaves"
         },
+        actions = if (hosting) listOf(PageAction(if (result.matchOver) "Lobby" else "Next round", onNext)) else emptyList(),
         onKey = { event ->
             if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && hosting) {
                 onNext()
@@ -399,11 +388,11 @@ fun NetworkResultScreen(
             }
         },
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(headline, color = ExtendedColors.accent, fontSize = 28.sp)
-            if (matchLine != null) Text(matchLine, color = ExtendedColors.text, fontSize = 20.sp)
+        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(retroDp(8), Alignment.CenterVertically)) {
+            RetroText(headline, color = RetroColors.high, font = RetroFont.TITLE, centred = true, modifier = Modifier.fillMaxWidth())
+            if (matchLine != null) RetroText(matchLine, centred = true, modifier = Modifier.fillMaxWidth())
             if (result.missionWon == null && result.series != result.wins) {
-                Text("Series over every map: team 1 ${result.series[0]} – ${result.series[1]} team 2", color = ExtendedColors.dim, fontSize = 18.sp)
+                RetroText("Series over every map: team 1 ${result.series[0]} – ${result.series[1]} team 2", color = RetroColors.dim, centred = true, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -422,27 +411,18 @@ fun RelaySettingScreen(current: String, onSave: (String) -> Unit, onBack: () -> 
         subtitle = "Hosts publish their games there and get a code; others join with the code",
         onBack = onBack,
         footer = "Enter saves (empty: no relay) · ESC goes back",
+        actions = listOf(PageAction("Save") { onSave(typed) }),
     ) {
         LaunchedEffect(Unit) { fieldFocus.requestFocus() }
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(
+        Column(verticalArrangement = Arrangement.spacedBy(retroDp(8))) {
+            RetroTextField(
                 value = typed,
                 onValueChange = { typed = it.trim().take(MAX_ADDRESS_LENGTH) },
-                label = { Text("Relay address") },
-                singleLine = true,
-                modifier = Modifier
-                    .width(520.dp)
-                    .focusRequester(fieldFocus)
-                    .onPreviewKeyEvent { event ->
-                        if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
-                            onSave(typed)
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                label = "Relay address",
+                onDone = { onSave(typed) },
+                modifier = Modifier.widthIn(max = retroDp(520)).fillMaxWidth().focusRequester(fieldFocus),
             )
-            Text("Run one with: ./kotlin run -m app-relay", color = ExtendedColors.dim, fontSize = 14.sp)
+            RetroText("Run one with: ./kotlin run -m app-relay", color = RetroColors.dim, font = RetroFont.SMALL)
         }
     }
 }

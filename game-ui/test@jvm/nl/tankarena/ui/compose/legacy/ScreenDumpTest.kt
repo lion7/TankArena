@@ -57,6 +57,17 @@ class ScreenDumpTest {
                 "", false, null, {}, {},
             )
         }
+        // Extended's menus in the original's look, on a desktop window and on a phone.
+        val home = nl.tankarena.ui.compose.extended.ExtendedHomeActions({}, {}, {}, {}, {}, {}, {}, {}, {})
+        still(out, "ext-home.png") { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
+        still(out, "ext-settings.png") { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }
+        val codes = listOf("FLAGISLE", "BEGIN1", "BEGIN3")
+        still(out, "ext-campaign.png") { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
+        still(out, "ext-versus.png") { nl.tankarena.ui.compose.extended.VersusMapsScreen(missions, GameOptions(), "flagisle", {}, {}, {}) }
+        still(out, "phone-home.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
+        still(out, "phone-campaign.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
+        still(out, "phone-upright-campaign.png", 1080, 2340, 2.75f) { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
+        still(out, "phone-settings.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }
         still(out, "net-lobby.png") {
             nl.tankarena.ui.compose.extended.NetworkLobbyScreen(
                 "FLAGISLE",
@@ -67,8 +78,8 @@ class ScreenDumpTest {
         }
     }
 
-    private fun still(out: String, name: String, content: @androidx.compose.runtime.Composable () -> Unit) {
-        ImageComposeScene(1280, 960, content = content).use { scene ->
+    private fun still(out: String, name: String, width: Int = 1280, height: Int = 960, density: Float = 1f, content: @androidx.compose.runtime.Composable () -> Unit) {
+        ImageComposeScene(width, height, density = androidx.compose.ui.unit.Density(density), content = content).use { scene ->
             val start = System.nanoTime()
             repeat(40) {
                 scene.render(System.nanoTime() - start)

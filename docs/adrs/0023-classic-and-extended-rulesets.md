@@ -24,7 +24,7 @@ One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:gam
 | Rules | Exactly the original, quirks included | Classic plus named rule flags |
 | Players | 1 or 2 on one screen | 1–4 on one screen in two teams, and network games |
 | Screen | 640 × 480, the original's window layout | Fills the window, wider view, 2 × 2 split for four |
-| Menus | The original's, in 320 × 200 | Its own look (dark, sand accent), mouse or keys |
+| Menus | The original's, in 320 × 200 | The original's look (panel, bitmap fonts) at window size; keys, mouse, pad, touch |
 | Controls | The original's keys, modes and joysticks | Keyboard and mouse, twin-stick gamepads, touch |
 
 - **Choosing:** a screen at the first start, `--classic` / `--extended` on the command line, "Switch
@@ -42,6 +42,13 @@ One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:gam
   ([ADR 0024](0024-networking.md)), replays, map editor, settings on one page, help, quit. The
   controls setup, the mission texts and the first-start choice have Extended's look; the tank
   selection keeps the original's arena on purpose.
+- **Extended's look** (`RetroSkin.kt`, since 2026-10-24): the original's menus at window
+  resolution: the panel pattern, a black box in a brighter band, the 8×16 and 5×5 fonts, the
+  selected entry white in a frame, the page fading in. A legacy pixel is a whole number of window
+  pixels (`retroPixel`: about 400 rows, the big font at least 16 dp high on a phone). Everything a
+  key does can also be tapped or clicked: rows, `<` `>` beside a setting, Back and the page's
+  actions along the bottom; the mouse pointer selects what it is over; lists scroll by dragging;
+  text fields are real ones, so the soft keyboard works.
 - **Replays:** every recorded match, newest first, with mission, mode, result, length, date and rules;
   naming and deleting; a viewer with pause, ¼× to 8× speed and a free camera (moved by keys or
   dragging, zoomed ¼× to 4× by the wheel or Page Up/Down).

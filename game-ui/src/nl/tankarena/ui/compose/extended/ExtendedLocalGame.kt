@@ -5,15 +5,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import nl.tankarena.sim.MapScore
 import nl.tankarena.ui.compose.menu.GameOptions
 import nl.tankarena.ui.compose.menu.MissionCodes
@@ -60,9 +57,9 @@ fun VersusMapsScreen(
         MissionCodes.selectableMaps(missions).mapNotNull { name -> missions.firstOrNull { it.baseName.equals(name, ignoreCase = true) } }
     }
     val fixed = listOf(
-        ListEntry("Rounds", if (options.rounds == GameOptions.ENDLESS) "endless" else options.rounds.toString()),
-        ListEntry("Race laps", options.raceLaps.toString()),
-        ListEntry("Losers tank", losersTankText(options.losersTank)),
+        ListEntry("Rounds", if (options.rounds == GameOptions.ENDLESS) "endless" else options.rounds.toString(), steppable = true),
+        ListEntry("Race laps", options.raceLaps.toString(), steppable = true),
+        ListEntry("Losers tank", losersTankText(options.losersTank), steppable = true),
         ListEntry("Maps:", enabled = false),
     )
     val entries = fixed + maps.map { map ->
@@ -118,17 +115,17 @@ fun VersusMapsScreen(
                     }
                     if (map != null) {
                         val metadata = map.sidecar.metadata
-                        Text(map.baseName.uppercase(), color = ExtendedColors.accent, fontSize = 22.sp)
-                        Text(
+                        RetroText(map.baseName.uppercase(), color = RetroColors.accent)
+                        RetroText(
                             "${metadata.world.name.lowercase()}${if (metadata.night) ", night" else ""} — ${metadata.widthTiles}×${metadata.heightTiles} — ${contentsText(metadata.mapContents)}",
-                            color = ExtendedColors.dim,
-                            fontSize = 14.sp,
+                            color = RetroColors.dim,
+                            font = RetroFont.SMALL,
                         )
-                        scoreOf(map.baseName)?.let { Text("This series: ${it.text()}", color = ExtendedColors.text, fontSize = 15.sp) }
-                        Spacer(Modifier.height(16.dp))
-                        Text(map.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
+                        scoreOf(map.baseName)?.let { RetroText("This series: ${it.text()}", color = RetroColors.normal) }
+                        Spacer(Modifier.height(retroDp(8)))
+                        RetroText(map.sidecar.missionText.briefing.trim())
                     } else {
-                        Text(text.orEmpty(), color = ExtendedColors.dim, fontSize = 16.sp)
+                        RetroText(text.orEmpty(), color = RetroColors.dim)
                     }
                 }
             },

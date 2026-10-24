@@ -275,6 +275,22 @@ internal fun Match.switchToTank(playerIndex: Int, controllerId: Int) {
     pendingEvents += GameEvent.ControlSwitched(playerIndex, actorIds[primary] ?: 0L)
 }
 
+/**
+ * Extended: [switchToTank] with the next id after the player's own that has a living human vehicle
+ * nobody else has picked, round to the lowest; nothing when there is none.
+ */
+internal fun Match.switchToNextTank(playerIndex: Int) {
+    val taken = players.filter { it != playerIndex }.mapNotNull { selectedIds[it] }.toSet()
+    val ids = allTanks
+        .filter { it.armor > 0 && !it.computer && it.team == 0 && it.controllerId >= 0 && it.controllerId !in taken }
+        .map { it.controllerId }
+        .distinct()
+        .sorted()
+    val current = selectedIds[playerIndex] ?: -1
+    val next = ids.firstOrNull { it > current } ?: ids.firstOrNull() ?: return
+    switchToTank(playerIndex, next)
+}
+
 internal fun Match.transferControl(playerIndex: Int, controllerId: Int, tanks: List<Tank>) {
     for (tank in tanks) {
         if (tank.playerIndex == playerIndex) tank.playerIndex = -1

@@ -89,6 +89,7 @@ private fun InputFrame.toIntent(): PlayerIntentFrame = PlayerIntentFrame(
     cycleWeaponLeft = cycleWeaponLeft,
     cycleWeaponRight = cycleWeaponRight,
     selectTankId = selectTankId,
+    nextTank = nextTank,
     pointX = pointX,
     pointY = pointY,
 )

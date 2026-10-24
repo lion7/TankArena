@@ -128,8 +128,8 @@ fun JoinScreen(
                 val seat = seats.getOrNull(place)
                 Column(
                     modifier = Modifier
-                        .width(320.dp)
-                        .height(300.dp)
+                        .width(344.dp)
+                        .height(320.dp)
                         .background(if (seat != null) ExtendedColors.selected else ExtendedColors.panel, RoundedCornerShape(10.dp))
                         .padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -150,7 +150,7 @@ fun JoinScreen(
                         ) {
                             for ((label, controls) in controlsOf(place, seat, seats)) {
                                 Row {
-                                    Text(label, color = ExtendedColors.dim, fontSize = 14.sp, modifier = Modifier.width(76.dp))
+                                    Text(label, color = ExtendedColors.dim, fontSize = 14.sp, modifier = Modifier.width(100.dp))
                                     Text(controls, color = ExtendedColors.text, fontSize = 14.sp)
                                 }
                             }

@@ -19,6 +19,8 @@ data class InputFrame(
     val cycleWeaponRight: Boolean = false,
     /** Legacy F1–F10: switch control to the friendly tank with this id (0 = no request). */
     val selectTankId: Int = 0,
+    /** Extended: switch control to the next friendly tank, as F1–F10 would by its id. */
+    val nextTank: Boolean = false,
     /**
      * Extended (mouse): the map position the player points at, in world pixels, while it matters
      * (the rocket marker); -1 for none.

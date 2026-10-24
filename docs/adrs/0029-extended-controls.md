@@ -29,6 +29,11 @@ one to aim.
   switch weapons. The original's joystick behaviour stays as a setting.
 - **A second keyboard player** (player two's keys, the cursor block by default) can be switched on for
   those without a gamepad; then the arrow keys are theirs, not player one's.
+- **Next vehicle:** besides F1–F10 (which pick a vehicle by its number), each player has one control
+  that takes the next friendly vehicle nobody else has picked, round to the first: Tab for player one
+  (and Enter while the arrow keys are theirs), Enter for the second keyboard player, Y on a twin-stick
+  pad and BACK on a pad as the original's joystick. Like F1–F10 it does nothing when the players play
+  against each other. Classic keeps F1–F10 only.
 - **Joining:** before a local game player one's place is taken; the others press A, or the second
   keyboard player its fire key.
 - **On a touch screen** the virtual controller stays player one's; a mouse there works as on the
@@ -45,6 +50,10 @@ one to aim.
   player's vehicle (the same `aimX`/`aimY` the touch controls use), the wheel one weapon switch per
   notch. `PadReading` has the right stick and the triggers (Jamepad on the desktop, the motion axes
   on Android).
+- `InputFrame` and `PlayerIntentFrame` carry `nextTank`, a one-shot request (`DesktopControls` sends
+  it once per press of the key or button); the simulation turns it into the next id for
+  `switchToTank` (`switchToNextTank`). It is not a rule change: Classic never sends it, and older
+  peers ignore the field.
 
 ## Consequences
 

@@ -248,6 +248,7 @@ class Match private constructor(
         cycleWeaponLeft = cycleWeaponLeft || next.cycleWeaponLeft,
         cycleWeaponRight = cycleWeaponRight || next.cycleWeaponRight,
         selectTankId = if (next.selectTankId > 0) next.selectTankId else selectTankId,
+        nextTank = nextTank || next.nextTank,
         // The latest place pointed at counts.
         pointX = if (next.pointX >= 0) next.pointX else pointX,
         pointY = if (next.pointX >= 0) next.pointY else pointY,
@@ -258,6 +259,7 @@ class Match private constructor(
         if (intents.isNotEmpty()) {
             for ((playerIndex, intent) in intents) {
                 if (intent.selectTankId > 0) switchToTank(playerIndex, intent.selectTankId)
+                else if (intent.nextTank) switchToNextTank(playerIndex)
             }
             // Every tank in a player's group obeys that player's controls (legacy control_tank()).
             for (tank in allTanks) {

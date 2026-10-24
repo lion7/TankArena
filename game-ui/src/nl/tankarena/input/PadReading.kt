@@ -23,7 +23,7 @@ data class PadReading(
     /**
      * Extended's twin sticks: the left stick drives the way it points, the right stick turns the turret
      * that way; the right trigger (or A) fires, the left trigger (or X) shields, LB and RB switch
-     * weapons.
+     * weapons, Y takes the next friendly vehicle.
      */
     fun twinStick(): InputState = InputState(
         stickX = stickX,
@@ -35,9 +35,13 @@ data class PadReading(
         shield = leftTrigger > TRIGGER_PRESSED || pressed(BUTTON_X),
         weaponLeft = pressed(BUTTON_LB),
         weaponRight = pressed(BUTTON_RB),
+        nextTank = pressed(BUTTON_Y),
     )
 
-    /** The pad as a player's joystick (legacy read_controls()): the weapon button stops the fire button. */
+    /**
+     * The pad as a player's joystick (legacy read_controls()): the weapon button stops the fire button.
+     * Back takes the next friendly vehicle (Extended only).
+     */
     fun inputState(controls: PlayerControls): InputState {
         val weapon = pressed(controls.buttons(JoystickAction.WEAPON))
         return InputState(
@@ -47,6 +51,7 @@ data class PadReading(
             weaponHeld = weapon,
             shield = pressed(controls.buttons(JoystickAction.SHIELD)),
             fire = pressed(controls.buttons(JoystickAction.FIRE)) && !weapon,
+            nextTank = pressed(BUTTON_BACK),
         )
     }
 }
@@ -57,5 +62,7 @@ private const val TRIGGER_PRESSED = 50
 /** Buttons in [nl.tankarena.ui.compose.menu.PAD_BUTTONS] order. */
 private const val BUTTON_A = 1
 private const val BUTTON_X = 1 shl 2
+private const val BUTTON_Y = 1 shl 3
 private const val BUTTON_LB = 1 shl 4
 private const val BUTTON_RB = 1 shl 5
+private const val BUTTON_BACK = 1 shl 6

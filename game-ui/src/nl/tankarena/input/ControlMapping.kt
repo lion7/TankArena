@@ -33,6 +33,8 @@ data class InputState(
     /** The map position pointed at with a mouse (the rocket marker), world pixels; -1 for none. */
     val pointX: Int = -1,
     val pointY: Int = -1,
+    /** Extended: the button for the next friendly vehicle, held. */
+    val nextTank: Boolean = false,
 ) {
     val hasStick: Boolean get() = stickX != 0 || stickY != 0 || aimHeld || weaponHeld
 
@@ -57,6 +59,7 @@ data class InputState(
         directStick = directStick || other.directStick,
         pointX = if (other.pointX >= 0) other.pointX else pointX,
         pointY = if (other.pointX >= 0) other.pointY else pointY,
+        nextTank = nextTank || other.nextTank,
     )
 }
 
@@ -80,6 +83,7 @@ object ControlMapping {
         heading: Heading? = null,
         sensitivity: Int = DEFAULT_SENSITIVITY,
         selectTankId: Int = 0,
+        nextTank: Boolean = false,
     ): InputFrame {
         val base = InputFrame(
             playerId = playerId,
@@ -91,6 +95,7 @@ object ControlMapping {
             aimLeft = state.aimLeft,
             aimRight = state.aimRight,
             selectTankId = selectTankId,
+            nextTank = nextTank,
             pointX = state.pointX,
             pointY = state.pointY,
         )

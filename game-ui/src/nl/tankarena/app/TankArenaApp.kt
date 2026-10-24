@@ -687,6 +687,15 @@ fun TankArenaApp(
                                 mode = current.mode,
                                 title = if (current.mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) "Campaign" else "Two against the computer",
                                 recordOf = { mission -> missionGate.stats.of(current.mode, mission.baseName) },
+                                // A mission played alone and together keeps two records; the other one is shown under it.
+                                otherRecordOf = { mission ->
+                                    val (other, way) = if (current.mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) {
+                                        GameMode.DUAL_PLAYER_VS_COMPUTER to "Together"
+                                    } else {
+                                        GameMode.SINGLE_PLAYER_VS_COMPUTER to "Alone"
+                                    }
+                                    missionGate.stats.of(other, mission.baseName)?.let { way to it }
+                                },
                                 onStart = { code ->
                                     lastMode = current.mode
                                     screen = missionGate.submit(all, code, current.mode)

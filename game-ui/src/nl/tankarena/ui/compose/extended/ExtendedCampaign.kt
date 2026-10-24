@@ -46,6 +46,11 @@ fun CampaignScreen(
     title: String = "Campaign",
     /** A mission's record (kept across restarts), null when it was never played. */
     recordOf: (MissionEntry) -> MissionRecord? = { null },
+    /**
+     * The record of a mission that is also played the other way (alone or together), with the
+     * name of that way; null when there is none. Shown apart, under this campaign's own.
+     */
+    otherRecordOf: (MissionEntry) -> Pair<String, MissionRecord>? = { null },
 ) {
     val keys = remember { KeyRouter() }
     var entering by remember { mutableStateOf(false) }
@@ -112,6 +117,9 @@ fun CampaignScreen(
                             fontSize = 14.sp,
                         )
                         Text(recordOf(mission)?.text() ?: "Not played yet", color = ExtendedColors.text, fontSize = 15.sp)
+                        otherRecordOf(mission)?.let { (way, record) ->
+                            Text("$way: ${record.text().replaceFirstChar { it.lowercase() }}", color = ExtendedColors.dim, fontSize = 14.sp)
+                        }
                         Spacer(Modifier.height(16.dp))
                         Text(mission.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
                     }

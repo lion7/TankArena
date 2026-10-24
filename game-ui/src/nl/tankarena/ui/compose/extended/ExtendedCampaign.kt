@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.menu.MissionEntry
+import nl.tankarena.ui.compose.menu.MissionRecord
 import nl.tankarena.ui.compose.menu.findByCode
 
 /**
@@ -43,6 +44,8 @@ fun CampaignScreen(
     onBack: () -> Unit,
     mode: GameMode = GameMode.SINGLE_PLAYER_VS_COMPUTER,
     title: String = "Campaign",
+    /** A mission's record (kept across restarts), null when it was never played. */
+    recordOf: (MissionEntry) -> MissionRecord? = { null },
 ) {
     val keys = remember { KeyRouter() }
     var entering by remember { mutableStateOf(false) }
@@ -50,7 +53,9 @@ fun CampaignScreen(
     val reached = codes.mapNotNull { code -> missions.findByCode(code)?.let { code to it } }
     val entries = listOf(ListEntry("Enter a code…")) + reached.map { (code, mission) ->
         val name = mission.sidecar.metadata.name.ifBlank { mission.baseName.uppercase() }
-        ListEntry(code, if (name.equals(code, ignoreCase = true)) "" else name)
+        // A mission ever won is ticked.
+        val won = if ((recordOf(mission)?.won ?: 0) > 0) "✓ " else ""
+        ListEntry(code, won + if (name.equals(code, ignoreCase = true)) "" else name)
     }
     val initial = reached.indexOfFirst { it.first.equals(lastCode, ignoreCase = true) }.let { if (it >= 0) it + 1 else 0 }
     var selected by remember { mutableIntStateOf(initial) }
@@ -106,6 +111,7 @@ fun CampaignScreen(
                             color = ExtendedColors.dim,
                             fontSize = 14.sp,
                         )
+                        Text(recordOf(mission)?.text() ?: "Not played yet", color = ExtendedColors.text, fontSize = 15.sp)
                         Spacer(Modifier.height(16.dp))
                         Text(mission.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
                     }

@@ -49,7 +49,9 @@ Two families of netcode were considered:
   (`GameServer.reopenLobby()`, a `Lobby` message with `open`); machines can join again and the host
   may pick another map there (M). Against each other the rounds won count over every map as a series
   (`NetSeries.seriesBefore`, shown in the lobby, the vehicle choice and the result); the losers tank
-  goes by it. A guest that leaves a round with ESC sits it out (`SitOut`, its vehicles stop) and
+  goes by it. The host keeps each map's record in the series (`VersusScores`: matches played,
+  matches and rounds won per team), shows it in its map pick and sends the lobby's map's record to
+  every machine (`Lobby.mapScore`). A guest that leaves a round with ESC sits it out (`SitOut`, its vehicles stop) and
   plays again from the next round.
 - **Hosting:** a *listen server* from Extended's "Network game" screen, or the headless `app-server`
   (`--map`, `--mode`, `--players`, `--rounds`, `--port`, `--repeat`, `--name`, `--relay`, `--public`)

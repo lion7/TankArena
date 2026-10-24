@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import nl.tankarena.protocol.snapshot.PROTOCOL_VERSION
+import nl.tankarena.sim.MapScore
 import kotlin.time.Duration.Companion.seconds
 
 /** Where a joining machine is: in the lobby, in the match, or out. */
@@ -37,6 +38,8 @@ sealed interface ClientState {
         val map: String = "",
         val series: List<Int> = listOf(0, 0),
         val sittingOut: Boolean = false,
+        /** Against each other: the map's record in this game's series; null when not played. */
+        val mapScore: MapScore? = null,
     ) : ClientState
 
     /** Against each other: this machine's players pick their vehicles for the next round. */
@@ -178,10 +181,11 @@ class GameClient(
                 answered.complete(false)
             }
             is ServerMessage.Lobby -> {
-                lobby = lobby.copy(members = message.members, map = message.map, series = message.series)
+                lobby = lobby.copy(members = message.members, map = message.map, series = message.series, mapScore = message.mapScore)
                 when {
                     // Before a round, or sitting one out: who is there now.
-                    current is ClientState.InLobby -> stateFlow.value = current.copy(members = message.members, map = message.map, series = message.series)
+                    current is ClientState.InLobby -> stateFlow.value =
+                        current.copy(members = message.members, map = message.map, series = message.series, mapScore = message.mapScore)
                     // The host went back to the lobby: the round (or its result) is over for everyone.
                     message.open -> {
                         (current as? ClientState.Playing)?.match?.end("The host went back to the lobby.")

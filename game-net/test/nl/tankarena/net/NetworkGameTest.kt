@@ -206,9 +206,11 @@ class NetworkGameTest {
 
         // The host goes back to the lobby: the guest is still in the game, and sees the series.
         server.series = first.seriesWins
+        server.mapScore = nl.tankarena.sim.MapScore(played = 1, matchWins = listOf(0, 1), roundWins = listOf(0, 1))
         server.reopenLobby()
         val lobby = waitForState<ClientState.InLobby>(guest)
         waitFor("the series") { (guest.state.value as? ClientState.InLobby)?.series == listOf(0, 1) }
+        assertEquals(1, (guest.state.value as ClientState.InLobby).mapScore?.played, "the map's record reaches the guest")
         assertEquals(listOf(1), lobby.seats)
         assertEquals(2, server.members.value.size)
 

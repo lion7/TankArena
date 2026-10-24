@@ -27,6 +27,7 @@ import nl.tankarena.protocol.snapshot.PROTOCOL_VERSION
 import nl.tankarena.protocol.snapshot.ServerFrame
 import nl.tankarena.sim.DualSetup
 import nl.tankarena.sim.LocalMatchClient
+import nl.tankarena.sim.MapScore
 import nl.tankarena.sim.MatchMode
 import nl.tankarena.sim.Ruleset
 import nl.tankarena.sim.map.MapDocument
@@ -59,6 +60,10 @@ class GameServer(
     /** The rounds each side has won over every map of this game so far, shown in the lobby. */
     @Volatile
     var series: List<Int> = listOf(0, 0)
+
+    /** Against each other: the lobby's map's record in this game's series; null when not played. */
+    @Volatile
+    var mapScore: MapScore? = null
 
     private var announcer: LanAnnouncer? = null
 
@@ -349,7 +354,7 @@ class GameServer(
             )
         }
         membersFlow.value = members
-        for (session in all) session.outgoing.trySend(ServerMessage.Lobby(members, mapName, series, open))
+        for (session in all) session.outgoing.trySend(ServerMessage.Lobby(members, mapName, series, open, mapScore))
     }
 
     private companion object {

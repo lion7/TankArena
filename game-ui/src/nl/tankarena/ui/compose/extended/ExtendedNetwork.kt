@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import nl.tankarena.net.LanGame
 import nl.tankarena.net.ServerMessage
 import nl.tankarena.sim.LegacyVehicles
+import nl.tankarena.sim.MapScore
 import nl.tankarena.net.LobbyMember
 import nl.tankarena.net.MAX_NET_PLAYERS
 import nl.tankarena.ui.compose.GameMode
@@ -69,7 +70,13 @@ fun NetworkMenuScreen(relay: String, onHost: () -> Unit, onJoin: () -> Unit, onR
  * they play against each other on.
  */
 @Composable
-fun NetworkHostScreen(missions: List<MissionEntry>, onPick: (MissionEntry, GameMode) -> Unit, onBack: () -> Unit) {
+fun NetworkHostScreen(
+    missions: List<MissionEntry>,
+    onPick: (MissionEntry, GameMode) -> Unit,
+    onBack: () -> Unit,
+    /** Against each other: a map's record in this game's series, null when it has not been played. */
+    scoreOf: (String) -> MapScore? = { null },
+) {
     val keys = remember { KeyRouter() }
     val together = remember(missions) { missions.playableIn(GameMode.DUAL_PLAYER_VS_COMPUTER) }
     val versus = remember(missions) {
@@ -80,7 +87,10 @@ fun NetworkHostScreen(missions: List<MissionEntry>, onPick: (MissionEntry, GameM
         add(ListEntry("Together against the computer:", enabled = false))
         together.forEach { add(ListEntry(it.code, it.sidecar.metadata.world.name.lowercase())) }
         add(ListEntry("Against each other, on:", enabled = false))
-        versus.forEach { add(ListEntry(it.baseName.uppercase(), it.sidecar.metadata.world.name.lowercase())) }
+        versus.forEach { map ->
+            val played = scoreOf(map.baseName)?.played?.takeIf { it > 0 }?.let { " · $it×" }.orEmpty()
+            add(ListEntry(map.baseName.uppercase(), map.sidecar.metadata.world.name.lowercase() + played))
+        }
     }
     // Entry index to choice: the two headings are not choices.
     fun choiceAt(index: Int): Pair<MissionEntry, GameMode>? = when {
@@ -113,6 +123,9 @@ fun NetworkHostScreen(missions: List<MissionEntry>, onPick: (MissionEntry, GameM
                             color = ExtendedColors.dim,
                             fontSize = 14.sp,
                         )
+                        if (mode == GameMode.PLAYER_VS_PLAYER) {
+                            scoreOf(map.baseName)?.let { Text("This series: ${it.text()}", color = ExtendedColors.text, fontSize = 15.sp) }
+                        }
                         Spacer(Modifier.height(16.dp))
                         Text(map.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
                     }
@@ -226,6 +239,8 @@ fun NetworkLobbyScreen(
     onChangeMap: (() -> Unit)? = null,
     /** A guest who left the round being played: they play again from the next one. */
     sittingOut: Boolean = false,
+    /** Against each other: the current map's record in this series. */
+    mapScore: MapScore? = null,
 ) {
     val players = members.sumOf { it.seats.size }
     ExtendedPage(
@@ -271,6 +286,7 @@ fun NetworkLobbyScreen(
                     }
                 }
             }
+            if (mapScore != null && map.isNotEmpty()) Text("${map.uppercase()}: ${mapScore.text()}", color = ExtendedColors.text, fontSize = 18.sp)
             if (series.any { it > 0 }) {
                 Text("Series: team 1 ${series[0]} – ${series.getOrElse(1) { 0 }} team 2 (the losers tank goes by it)", color = ExtendedColors.text, fontSize = 18.sp)
             }

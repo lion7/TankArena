@@ -7,6 +7,7 @@ import kotlinx.serialization.cbor.Cbor
 import nl.tankarena.protocol.InputFrame
 import nl.tankarena.protocol.snapshot.ServerFrame
 import nl.tankarena.sim.DualSetup
+import nl.tankarena.sim.MapScore
 import nl.tankarena.sim.MatchMode
 import nl.tankarena.sim.Ruleset
 
@@ -81,8 +82,9 @@ sealed interface ServerMessage {
 
     /**
      * Who is in the game, the host first, with the map the host picked and the rounds each side has
-     * won so far over every map ([series]). [open]: the lobby is open (before the first round, or
-     * the host went back to it); everyone in a round or a result goes back to the lobby then.
+     * won so far over every map ([series]), and that map's record in the series ([mapScore], null
+     * when not played). [open]: the lobby is open (before the first round, or the host went back to
+     * it); everyone in a round or a result goes back to the lobby then.
      */
     @Serializable
     @SerialName("lobby")
@@ -91,6 +93,7 @@ sealed interface ServerMessage {
         val map: String = "",
         val series: List<Int> = listOf(0, 0),
         val open: Boolean = true,
+        val mapScore: MapScore? = null,
     ) : ServerMessage
 
     /**

@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import nl.tankarena.sim.MapScore
 import nl.tankarena.ui.compose.menu.GameOptions
 import nl.tankarena.ui.compose.menu.MissionCodes
 import nl.tankarena.ui.compose.menu.MissionEntry
@@ -51,6 +52,8 @@ fun VersusMapsScreen(
     onBack: () -> Unit,
     /** The rounds each side has won on the maps played so far with these players. */
     series: List<Int> = listOf(0, 0),
+    /** A map's record in this series, null when it has not been played. */
+    scoreOf: (String) -> MapScore? = { null },
 ) {
     val keys = remember { KeyRouter() }
     val maps = remember(missions) {
@@ -62,7 +65,10 @@ fun VersusMapsScreen(
         ListEntry("Losers tank", losersTankText(options.losersTank)),
         ListEntry("Maps:", enabled = false),
     )
-    val entries = fixed + maps.map { ListEntry(it.baseName.uppercase(), it.sidecar.metadata.world.name.lowercase()) }
+    val entries = fixed + maps.map { map ->
+        val played = scoreOf(map.baseName)?.played?.takeIf { it > 0 }?.let { " · $it×" }.orEmpty()
+        ListEntry(map.baseName.uppercase(), map.sidecar.metadata.world.name.lowercase() + played)
+    }
     val initial = maps.indexOfFirst { it.baseName.equals(lastMap, ignoreCase = true) }.let { if (it >= 0) it + fixed.size else 0 }
     var selected by remember { mutableIntStateOf(initial) }
     ExtendedPage(
@@ -118,6 +124,7 @@ fun VersusMapsScreen(
                             color = ExtendedColors.dim,
                             fontSize = 14.sp,
                         )
+                        scoreOf(map.baseName)?.let { Text("This series: ${it.text()}", color = ExtendedColors.text, fontSize = 15.sp) }
                         Spacer(Modifier.height(16.dp))
                         Text(map.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
                     } else {

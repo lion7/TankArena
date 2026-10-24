@@ -367,6 +367,7 @@ fun TankArenaApp(
                                 },
                                 onBack = { screen = DesktopShellScreen.LocalGame.also { extendedReturn = it } },
                                 series = missionGate.versusSeries,
+                                scoreOf = missionGate.versusScores::of,
                             )
                         }
                     }
@@ -414,6 +415,7 @@ fun TankArenaApp(
                                 screen = DesktopShellScreen.NetworkLobby(current.session)
                             },
                             onBack = { screen = DesktopShellScreen.NetworkLobby(current.session) },
+                            scoreOf = current.session.scores::of,
                         )
                     }
 
@@ -515,6 +517,8 @@ fun TankArenaApp(
                                     }
                                 },
                                 series = session.versusSeries,
+                                map = session.mission.baseName,
+                                mapScore = session.scores.of(session.mission.baseName).takeIf { session.mode == GameMode.PLAYER_VS_PLAYER },
                                 onChangeMap = { screen = DesktopShellScreen.NetworkHostMap(session) },
                                 onStart = {
                                     val series = NetSeries(
@@ -523,7 +527,7 @@ fun TankArenaApp(
                                         recordAs = session.mission.baseName,
                                         seriesBefore = session.versusSeries, lastVehicles = session.lastVehicles,
                                     )
-                                    session.series = series
+                                    session.matchStarted(series)
                                     screen = if (series.versus) {
                                         series.openChoice()
                                         DesktopShellScreen.NetworkChoose(session)
@@ -556,6 +560,7 @@ fun TankArenaApp(
                                     map = now.map,
                                     series = now.series,
                                     sittingOut = now.sittingOut,
+                                    mapScore = now.mapScore,
                                 )
                                 is ClientState.Choosing -> {
                                     val choice = now.choice
@@ -681,6 +686,7 @@ fun TankArenaApp(
                                 lastCode = missionGate.currentCode(current.mode),
                                 mode = current.mode,
                                 title = if (current.mode == GameMode.SINGLE_PLAYER_VS_COMPUTER) "Campaign" else "Two against the computer",
+                                recordOf = { mission -> missionGate.stats.of(current.mode, mission.baseName) },
                                 onStart = { code ->
                                     lastMode = current.mode
                                     screen = missionGate.submit(all, code, current.mode)
@@ -966,6 +972,7 @@ fun TankArenaApp(
                                         winner = if (versus) (if (outcome == MissionOutcome.WON) 0 else 1) else null,
                                         missionWon = if (versus) null else outcome == MissionOutcome.WON,
                                     )
+                                    session.roundPlayed(result)
                                     DesktopShellScreen.NetworkResult(session, result)
                                 }
                                 else -> DesktopShellScreen.NetworkLobby(session, finished = current.match)

@@ -35,7 +35,9 @@ One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:gam
   mission's world, size and briefing), local game (first the choice: against each other or together
   against the computer, then who plays, then a map with rounds, laps and the losers tank, or a
   mission; after a game the list comes back with the same players, and against each other the
-  rounds each side has won over every map count as a series: the losers tank goes by it), network game
+  rounds each side has won over every map count as a series: the losers tank goes by it; each map
+  shows its record in the series, matches played and matches and rounds won per team, and each
+  campaign mission its record kept across restarts, played, won and lost), network game
   ([ADR 0024](0024-networking.md)), replays, map editor, settings on one page, help, quit. The
   controls setup, the mission texts and the first-start choice have Extended's look; the tank
   selection keeps the original's arena on purpose.

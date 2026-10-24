@@ -24,6 +24,8 @@ purpose for the rewrite.
     (keys, RELATIVE or DIRECT, keyboard or joystick, buttons, sensitivity), Extended's screen and
     control options, and the relay address;
   - `passwd.json` (`PasswordStore`, a port of `original/src/game/passwd.c`): the reached mission codes.
+  - `mission-stats.json` (`MissionStatsStore`, not in the original): per way of playing and mission,
+    how often it was played, won and lost (a mission left with ESC counts as played only).
 - Data folder (`~/.local/share/tankarena/`): `maps/` (maps saved in the editor; exported `.MAP`
   files in `maps/export/`), `recordings/` ([ADR 0014](0014-simulation-thread-and-recordings.md)) and
   `screenshots/` (`TANK<n>.png`).

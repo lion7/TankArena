@@ -4,6 +4,8 @@ import nl.tankarena.net.GameClient
 import nl.tankarena.net.GameServer
 import nl.tankarena.net.NetSeries
 import nl.tankarena.net.RelayHost
+import nl.tankarena.net.ServerMessage
+import nl.tankarena.sim.VersusScores
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.menu.MissionEntry
 
@@ -29,8 +31,14 @@ sealed interface NetworkSession {
         /** The rounds on the current map, once the host started them. */
         var series: NetSeries? = null
 
-        /** Against each other: the rounds each side has won over every map of this game. */
-        var versusSeries: List<Int> = listOf(0, 0)
+        /** Against each other: the record of this game's series, per map and over every map. */
+        val scores = VersusScores()
+
+        /** The rounds each side has won over every map of this game; the losers tank goes by these. */
+        val versusSeries: List<Int> get() = scores.rounds
+
+        /** The current map's match has been counted (decided, or left after a round). */
+        private var matchCounted = false
 
         /** The vehicle each player drove last, by player id, over every map of this game. */
         val lastVehicles: MutableMap<Int, Int> = HashMap()
@@ -40,19 +48,42 @@ sealed interface NetworkSession {
          * series, and the next start begins a new match.
          */
         fun backToLobby() {
-            series?.let { if (it.versus) versusSeries = it.seriesWins }
+            // A match left after a round counts as played.
+            series?.let { if (it.versus && !matchCounted && it.round > 1) scores.matchEnded(mission.baseName, null) }
             series = null
-            server.series = versusSeries
+            publishScores()
             server.reopenLobby()
+        }
+
+        /** A new match on the current map begins. */
+        fun matchStarted(series: NetSeries) {
+            this.series = series
+            matchCounted = false
+        }
+
+        /** Against each other: a round on the current map ended as [result] says. */
+        fun roundPlayed(result: ServerMessage.RoundOver) {
+            val winner = result.winner ?: return
+            scores.round(mission.baseName, winner)
+            if (result.matchOver) {
+                scores.matchEnded(mission.baseName, result.wins.indices.maxBy { result.wins[it] })
+                matchCounted = true
+            }
+        }
+
+        private fun publishScores() {
+            server.series = versusSeries
+            server.mapScore = scores.of(mission.baseName)
         }
 
         /** The host picked another map (or way of playing) in the lobby. */
         fun changeMap(mission: MissionEntry, mode: GameMode) {
             // The series is against each other; another way of playing starts a new one.
-            if (mode != this.mode) versusSeries = listOf(0, 0)
+            if (mode != this.mode) scores.clear()
             this.mission = mission
             this.mode = mode
             server.series = versusSeries
+            server.mapScore = scores.of(mission.baseName)
             server.mapName = mission.baseName
         }
 

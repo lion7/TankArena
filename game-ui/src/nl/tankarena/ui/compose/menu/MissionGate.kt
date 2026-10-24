@@ -1,6 +1,7 @@
 package nl.tankarena.ui.compose.menu
 
 import nl.tankarena.sim.Ruleset
+import nl.tankarena.sim.VersusScores
 import nl.tankarena.ui.compose.DesktopShellScreen
 import nl.tankarena.ui.compose.DualMatch
 import nl.tankarena.ui.compose.GameMode
@@ -12,18 +13,23 @@ import nl.tankarena.ui.compose.MissionOutcome
  * `dual_v_computer_code`, `dual_map_name`, kept in `settings.json` as the original keeps them in
  * TANK.CFG) and the reached codes in [PasswordStore].
  */
-class MissionGate(private val passwords: PasswordStore, private val settings: GameSettings = GameSettings()) {
+class MissionGate(
+    private val passwords: PasswordStore,
+    private val settings: GameSettings = GameSettings(),
+    /** Every campaign mission's record, kept across restarts. */
+    val stats: MissionStatsStore = MissionStatsStore(),
+) {
     /**
-     * Extended: the rounds each side has won against each other since the players last joined, over
-     * every map; the losers tank goes by these. Classic's matches stand alone, like the original.
+     * Extended: the record of the series against each other since the players last joined, per map
+     * and over every map. Classic's matches stand alone, like the original.
      */
-    var versusSeries: List<Int> = listOf(0, 0)
-        private set
+    val versusScores = VersusScores()
+
+    /** The rounds each side has won in the series over every map; the losers tank goes by these. */
+    val versusSeries: List<Int> get() = versusScores.rounds
 
     /** The players have joined anew: a new series. */
-    fun newSeries() {
-        versusSeries = listOf(0, 0)
-    }
+    fun newSeries() = versusScores.clear()
 
     /** The text the prompt starts with: the last entered or reached code of [mode], kept across restarts. */
     fun currentCode(mode: GameMode): String = settings.options.lastCodes[mode.name] ?: MissionCodes.defaultCode(mode)
@@ -79,6 +85,7 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
      * Every fifth mission won plays THUNDER.FLI before the text.
      */
     fun missionEnded(mission: MissionEntry, mode: GameMode, outcome: MissionOutcome?): DesktopShellScreen {
+        if (mode != GameMode.PLAYER_VS_PLAYER) stats.record(mode, mission.baseName, outcome)
         if (mode == GameMode.PLAYER_VS_PLAYER || outcome == null) return DesktopShellScreen.GameModeSelect
         var thunder = false
         if (outcome == MissionOutcome.WON) {
@@ -99,9 +106,18 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
      * decided VICTORY.FLI and the game mode menu. ESC ([winner] null) ends the whole match.
      */
     fun roundEnded(match: DualMatch, winner: Int?): DesktopShellScreen {
-        if (winner == null) return DesktopShellScreen.GameModeSelect
+        val extended = settings.options.ruleset == Ruleset.EXTENDED
+        val map = match.mission.baseName
+        if (winner == null) {
+            // Left with ESC: a match of which a round was played counts as played.
+            if (extended && match.round > 1) versusScores.matchEnded(map, null)
+            return DesktopShellScreen.GameModeSelect
+        }
         val next = match.afterRound(winner)
-        if (settings.options.ruleset == Ruleset.EXTENDED) versusSeries = next.seriesWins
+        if (extended) {
+            versusScores.round(map, winner)
+            if (next.decided) versusScores.matchEnded(map, next.wins.indices.maxBy { next.wins[it] })
+        }
         return if (next.decided) DesktopShellScreen.Animation(VICTORY_FLI, DesktopShellScreen.GameModeSelect) else DesktopShellScreen.TankSelect(next)
     }
 

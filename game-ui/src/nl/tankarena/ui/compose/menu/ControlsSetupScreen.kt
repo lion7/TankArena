@@ -39,7 +39,7 @@ fun ControlsSetupScreen(
     var waitingForButtons by remember { mutableStateOf(false) }
     var adjusting by remember { mutableStateOf(false) }
     var askingToSave by remember { mutableStateOf(false) }
-    val rows = if (joystickPage) JoystickAction.entries.size + 1 else ControlAction.entries.size + 2
+    val rows = if (joystickPage) JoystickAction.entries.size + 1 else ControlAction.CLASSIC.size + 2
 
     // Legacy configure_joy(): the buttons pressed together, taken once they are all let go.
     if (waitingForButtons) {
@@ -68,7 +68,7 @@ fun ControlsSetupScreen(
                 }
                 waitingForKey -> {
                     if (event.key != Key.Escape) {
-                        controls = controls.withKey(player, ControlAction.entries[row - 2], event.key)
+                        controls = controls.withKey(player, ControlAction.CLASSIC[row - 2], event.key)
                     }
                     waitingForKey = false
                 }
@@ -103,7 +103,7 @@ fun ControlsSetupScreen(
                     }
                     Key.Delete -> when {
                         joystickPage && row < JoystickAction.entries.size -> controls = controls.withJoystickButtons(player, JoystickAction.entries[row], 0)
-                        !joystickPage && row >= 2 -> controls = controls.withKey(player, ControlAction.entries[row - 2], null)
+                        !joystickPage && row >= 2 -> controls = controls.withKey(player, ControlAction.CLASSIC[row - 2], null)
                     }
                     Key.Escape -> askingToSave = true
                     else -> return@Mode13View false
@@ -134,8 +134,8 @@ fun ControlsSetupScreen(
                     when (r) {
                         0 -> "CONTROL" to c.device.name
                         1 -> "MODE" to c.mode.name
-                        else -> ControlAction.entries[r - 2].label to
-                            if (selected && waitingForKey) "PRESS.." else c.key(ControlAction.entries[r - 2])?.let(::legacyKeyName) ?: "-"
+                        else -> ControlAction.CLASSIC[r - 2].label to
+                            if (selected && waitingForKey) "PRESS.." else c.key(ControlAction.CLASSIC[r - 2])?.let(::legacyKeyName) ?: "-"
                     }
                 }
                 val color = if (selected) LegacyColors.HIGH else LegacyColors.NORMAL

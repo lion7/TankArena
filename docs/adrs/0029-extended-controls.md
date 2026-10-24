@@ -34,9 +34,9 @@ one to aim.
 - **A second keyboard player** (player two's keys, the cursor block by default) can be switched on for
   those without a gamepad; then the arrow keys are theirs, not player one's.
 - **Next vehicle:** besides F1–F10 (which pick a vehicle by its number), each player has one control
-  that takes the next friendly vehicle nobody else has picked, round to the first: Tab for player one
-  (and Enter while the arrow keys are theirs), Enter for the second keyboard player, Y on a twin-stick
-  pad and BACK on a pad as the original's joystick. Like F1–F10 it does nothing when the players play
+  that takes the next friendly vehicle nobody else has picked, round to the first: Tab for player one,
+  Enter for the second keyboard player (both changeable on Extended's controls page, an 11th key that
+  Classic's setup does not show), Y on a twin-stick pad and BACK on a pad as the original's joystick. Like F1–F10 it does nothing when the players play
   against each other. Classic keeps F1–F10 only.
 - **Joining:** before a local game player one's place is taken; the others press A, or the second
   keyboard player its fire key.

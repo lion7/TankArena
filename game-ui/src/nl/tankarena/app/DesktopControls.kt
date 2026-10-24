@@ -35,6 +35,8 @@ internal class KeyBinding(
     val shield: Key?,
     val weaponLeft: Key?,
     val weaponRight: Key?,
+    /** Extended only. */
+    val nextTank: Key? = null,
 ) {
     companion object {
         fun of(controls: PlayerControls) = KeyBinding(
@@ -48,6 +50,7 @@ internal class KeyBinding(
             shield = controls.key(ControlAction.SHIELD),
             weaponLeft = controls.key(ControlAction.WEAPON_LEFT),
             weaponRight = controls.key(ControlAction.WEAPON_RIGHT),
+            nextTank = controls.key(ControlAction.NEXT_VEHICLE),
         )
 
         /** Extended: the arrow keys also drive player one when no second player is on the keyboard. */
@@ -110,10 +113,6 @@ private const val WHEEL_CYCLE_TICKS = 18
 /** Legacy msg_control(): 29 steps of tinit(10), 12 ticks each on legacy steps. */
 private const val MESSAGE_STEPS = 29
 private const val MESSAGE_STEP_NANOS = 120_000_000L
-
-/** Extended: player one's key for the next friendly vehicle, and the second keyboard player's. */
-private val NEXT_TANK_KEY: Key = Key.Tab
-private val SECOND_NEXT_TANK_KEYS: List<Key> = listOf(Key.Enter, Key.NumPadEnter)
 
 private val TANK_SELECT_KEYS: List<Key> = listOf(
     Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10,
@@ -250,34 +249,23 @@ internal class DesktopControls {
             }
             return true
         }
-        nextTankPlayer(event.key)?.let { player ->
-            val p = players[player]
-            if (pressed && !p.nextTankKeyHeld) p.nextTank = true
-            p.nextTankKeyHeld = pressed
-            return true
-        }
         var handled = false
+        if (extended) {
+            for (playerId in players.indices) {
+                if (bindingsFor(playerId).none { it.nextTank == event.key }) continue
+                val p = players[playerId]
+                if (pressed && !p.nextTankKeyHeld) p.nextTank = true
+                p.nextTankKeyHeld = pressed
+                handled = true
+            }
+            if (handled) return true
+        }
         for (playerId in players.indices) {
             for (binding in bindingsFor(playerId)) {
                 if (players[playerId].apply(binding, event.key, pressed)) handled = true
             }
         }
         return handled
-    }
-
-    /**
-     * Extended: whose next-vehicle key [key] is. Tab is player one's; Enter the second keyboard
-     * player's, or player one's while the arrow keys are theirs.
-     */
-    private fun nextTankPlayer(key: Key): Int? {
-        val seats = seats?.takeIf { extended } ?: return null
-        val player = when (key) {
-            NEXT_TANK_KEY -> seats.indexOfFirst { it.mouse }
-            in SECOND_NEXT_TANK_KEYS -> seats.indexOfFirst { !it.mouse && it.keys != null }
-                .takeIf { it >= 0 } ?: seats.indexOfFirst { it.mouse }.takeIf { mouseArrows }
-            else -> null
-        }
-        return player?.takeIf { it in players.indices }
     }
 
     /**

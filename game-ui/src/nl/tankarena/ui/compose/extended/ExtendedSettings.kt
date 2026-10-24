@@ -121,7 +121,7 @@ fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean):
                 "Fire" to "left mouse button or ${keys(one, ControlAction.FIRE)}",
                 "Shield" to "right mouse button or ${keys(one, ControlAction.SHIELD)}",
                 "Weapons" to "mouse wheel or ${keys(one, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}",
-                "Next vehicle" to if (arrows) "Tab or Enter" else "Tab",
+                "Next vehicle" to keys(one, ControlAction.NEXT_VEHICLE),
             )
         }
         pad && options.twinSticks -> listOf(
@@ -149,7 +149,7 @@ fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean):
                 "Fire" to keys(set, ControlAction.FIRE),
                 "Shield" to keys(set, ControlAction.SHIELD),
                 "Weapons" to keys(set, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT),
-                "Next vehicle" to "Enter",
+                "Next vehicle" to keys(set, ControlAction.NEXT_VEHICLE),
             )
         }.orEmpty()
     }

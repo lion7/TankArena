@@ -7,6 +7,8 @@ import kotlinx.serialization.json.Json
 
 /** Legacy `rck.dist`: a rocket that has flown this far without reaching its target blows up. */
 internal const val ROCKET_RANGE_PX: Int = 3300
+/** [RuleFlags.shortRockets]: Extended's rocket range. */
+internal const val ROCKET_SHORT_RANGE_PX: Int = 1200
 /** Legacy `rck.v` cap in px per second; the rocket starts at 0 and gains 1 px/s every tick. */
 internal const val ROCKET_MAX_SPEED_PX_PER_SECOND: Int = 150
 /** Legacy control_rocket(): the rocket detonates once it is closer than this to its target. */

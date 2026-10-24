@@ -163,6 +163,43 @@ class RocketTest {
         assertTrue(puffs.zipWithNext { a, b -> (b - a) * STEP_TICKS }.all { it in 12..30 }, "puffs at steps $puffs")
     }
 
+    @Test
+    fun `Extended rockets give up after 1200 px instead of 3300`() {
+        for ((ruleset, range) in listOf(Ruleset.CLASSIC to ROCKET_RANGE_PX, Ruleset.EXTENDED to ROCKET_SHORT_RANGE_PX)) {
+            val prototype = Match.fromCanonicalMap(soloTankMap(direction = 4), ruleset = ruleset)
+            prototype.initialize()
+            prototype.selectWeaponForTest(WEAPON_ROCKET)
+            val shooter = prototype.playerTankForTest(0)!!
+            steerMarkerTo(prototype, { shooter.positionX + 200 }, { shooter.positionY })
+            prototype.stepForTest(mapOf(0 to PlayerIntentFrame()))
+            val rocket = prototype.snapshotRockets().single()
+            assertTrue(rocket.rangeLeft in range - 10f..range.toFloat(), "$ruleset: ${rocket.rangeLeft} px to go")
+            prototype.dispose()
+        }
+    }
+
+    @Test
+    fun `Extended - a vehicle in a shelter takes no damage from a rocket`() {
+        for ((ruleset, hurt) in listOf(Ruleset.CLASSIC to true, Ruleset.EXTENDED to false)) {
+            val prototype = Match.fromCanonicalMap(shelteredTankMap(), ruleset = ruleset)
+            prototype.initialize()
+            prototype.selectWeaponForTest(WEAPON_ROCKET)
+            val shooter = prototype.playerTankForTest(0)!!
+            val before = shooter.armor
+            // The marker comes out on the tank itself: released at once, the rocket comes down on it.
+            prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
+            prototype.stepForTest(mapOf(0 to PlayerIntentFrame()))
+            var exploded = false
+            repeat(100) {
+                if (!exploded) exploded = prototype.stepForTest().events.any { it is GameEvent.Explosion && it.kind == ExplosionKind.ROCKET }
+            }
+            prototype.stepForTest()
+            assertTrue(exploded, "$ruleset: the rocket should go off")
+            assertEquals(hurt, shooter.armor < before, "$ruleset: armour ${shooter.armor}, was $before")
+            prototype.dispose()
+        }
+    }
+
     private fun steerMarkerTo(prototype: Match, x: () -> Int, y: () -> Int) {
         val shooter = prototype.playerTankForTest(0)!!
         prototype.stepForTest(mapOf(0 to PlayerIntentFrame(firePrimary = true)))
@@ -201,6 +238,26 @@ class RocketTest {
                     x = 4 * LEGACY_TILE_SIZE,
                     y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
                     properties = mapOf("direction" to direction.toString(), "lives" to "3"),
+                ),
+            ),
+        )
+    }
+
+    /** A lone tank on a SHELTER tile (desert picture 20, @HELTHA). */
+    private fun shelteredTankMap(): CanonicalMapDefinition {
+        val widthTiles = 6
+        val heightTiles = 5
+        return canonicalMap(
+            widthTiles,
+            heightTiles,
+            solid = MutableList(widthTiles * heightTiles) { if (it == 2 + 2 * widthTiles) 20 else -1 },
+            players = listOf(
+                AuthoredObject(
+                    id = "p1",
+                    kind = ObjectKinds.PLAYER_START,
+                    x = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    y = 2 * LEGACY_TILE_SIZE + LEGACY_TILE_SIZE / 2,
+                    properties = mapOf("direction" to "0", "lives" to "3"),
                 ),
             ),
         )

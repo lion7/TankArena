@@ -89,6 +89,7 @@ import nl.tankarena.ui.compose.extended.ExtendedSettingsPage
 import nl.tankarena.ui.compose.extended.ExtendedTextPage
 import nl.tankarena.ui.compose.extended.JoinScreen
 import nl.tankarena.ui.compose.extended.LocalGameScreen
+import nl.tankarena.ui.compose.extended.VersusMapsScreen
 import nl.tankarena.ui.compose.extended.RulesetChoicePage
 import nl.tankarena.ui.compose.gammaCorrection
 import nl.tankarena.ui.compose.menu.ControlsSetupScreen
@@ -210,7 +211,8 @@ fun TankArenaApp(
      * Extended local games ask who plays first: player one has the keyboard and mouse, the others
      * join with a gamepad (or as the second keyboard player, when that is switched on).
      */
-    fun joinFirst(next: DesktopShellScreen): DesktopShellScreen = DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS)
+    fun joinFirst(next: DesktopShellScreen, back: DesktopShellScreen = DesktopShellScreen.LocalGame): DesktopShellScreen =
+        DesktopShellScreen.Join(next, minPlayers = 2, maxPlayers = MAX_PLAYERS, back = back)
 
     /**
      * The players at this machine for a network game: those who joined on the join screen, else one
@@ -335,25 +337,30 @@ fun TankArenaApp(
                         onBack = { screen = current.back },
                     )
 
-                    DesktopShellScreen.LocalGame -> {
+                    DesktopShellScreen.LocalGame -> LocalGameScreen(
+                        onVersus = { screen = DesktopShellScreen.LocalVersus.also { extendedReturn = it } },
+                        onTogether = { screen = joinFirst(DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER)) },
+                        onBack = {
+                            extendedReturn = null
+                            screen = DesktopShellScreen.MainMenu
+                        },
+                    )
+
+                    DesktopShellScreen.LocalVersus -> {
                         LaunchedEffect(Unit) {
                             if (missions == null) missions = MissionCatalog.load(UserMapStore::loadAll)
                         }
                         missions?.let { all ->
-                            LocalGameScreen(
+                            VersusMapsScreen(
                                 missions = all,
                                 options = options,
                                 lastMap = missionGate.currentCode(GameMode.PLAYER_VS_PLAYER),
                                 onOptions = settings::update,
-                                onTogether = { screen = joinFirst(DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER)) },
                                 onVersus = { map ->
                                     lastMode = GameMode.PLAYER_VS_PLAYER
-                                    screen = joinFirst(missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER))
+                                    screen = joinFirst(missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER), back = DesktopShellScreen.LocalVersus)
                                 },
-                                onBack = {
-                                    extendedReturn = null
-                                    screen = DesktopShellScreen.MainMenu
-                                },
+                                onBack = { screen = DesktopShellScreen.LocalGame.also { extendedReturn = it } },
                             )
                         }
                     }

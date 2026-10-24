@@ -27,17 +27,26 @@ private fun contentsText(contents: Int): String = buildList {
     if (contents and 16 != 0) add("flag hunt")
 }.joinToString(", ").ifEmpty { "any vehicle" }
 
-/**
- * Extended local games for two at one keyboard: together against the computer (its own mission
- * list), or against each other on a map, with the match options changed in place.
- */
+/** Extended local games: first whether the players play against each other or together. */
 @Composable
-fun LocalGameScreen(
+fun LocalGameScreen(onVersus: () -> Unit, onTogether: () -> Unit, onBack: () -> Unit) {
+    val keys = remember { KeyRouter() }
+    val entries = listOf(
+        ListEntry("Against each other", "player vs player, on a map of your choice") to onVersus,
+        ListEntry("Together against the computer", "co-op, through missions of their own") to onTogether,
+    )
+    ExtendedPage(title = "Local game", subtitle = "Player one with keyboard and mouse, the others with gamepads", onBack = onBack, onKey = keys::handle) {
+        ExtendedList(entries.map { it.first }, onPick = { entries[it].second() }, keys = keys)
+    }
+}
+
+/** Extended local games against each other: the map, with the match options changed in place. */
+@Composable
+fun VersusMapsScreen(
     missions: List<MissionEntry>,
     options: GameOptions,
     lastMap: String,
     onOptions: (GameOptions) -> Unit,
-    onTogether: () -> Unit,
     onVersus: (String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -46,18 +55,17 @@ fun LocalGameScreen(
         MissionCodes.selectableMaps(missions).mapNotNull { name -> missions.firstOrNull { it.baseName.equals(name, ignoreCase = true) } }
     }
     val fixed = listOf(
-        ListEntry("Together against the computer", "two players, one side"),
         ListEntry("Rounds", if (options.rounds == GameOptions.ENDLESS) "endless" else options.rounds.toString()),
         ListEntry("Race laps", options.raceLaps.toString()),
         ListEntry("Losers tank", losersTankText(options.losersTank)),
-        ListEntry("Against each other, on:", enabled = false),
+        ListEntry("Maps:", enabled = false),
     )
     val entries = fixed + maps.map { ListEntry(it.baseName.uppercase(), it.sidecar.metadata.world.name.lowercase()) }
     val initial = maps.indexOfFirst { it.baseName.equals(lastMap, ignoreCase = true) }.let { if (it >= 0) it + fixed.size else 0 }
     var selected by remember { mutableIntStateOf(initial) }
     ExtendedPage(
-        title = "Local game",
-        subtitle = "Player one with keyboard and mouse, the others with gamepads",
+        title = "Against each other",
+        subtitle = "Pick a map; the match options are changed here too",
         onBack = onBack,
         footer = "Enter picks; on the options Left/Right change them",
         onKey = keys::handle,
@@ -68,10 +76,9 @@ fun LocalGameScreen(
                     entries,
                     onPick = { index ->
                         when (index) {
-                            0 -> onTogether()
-                            1 -> onOptions(options.nextRounds())
-                            2 -> onOptions(options.nextLaps())
-                            3 -> onOptions(options.nextLosersTank())
+                            0 -> onOptions(options.nextRounds())
+                            1 -> onOptions(options.nextLaps())
+                            2 -> onOptions(options.nextLosersTank())
                             else -> maps.getOrNull(index - fixed.size)?.let { onVersus(it.baseName) }
                         }
                     },
@@ -80,9 +87,9 @@ fun LocalGameScreen(
                     keys = keys,
                     onStep = { index, up ->
                         when (index) {
-                            1 -> onOptions(options.stepped(ExtendedSetting.ROUNDS, up))
-                            2 -> onOptions(options.stepped(ExtendedSetting.LAPS, up))
-                            3 -> onOptions(options.stepped(ExtendedSetting.LOSERS_TANK, up))
+                            0 -> onOptions(options.stepped(ExtendedSetting.ROUNDS, up))
+                            1 -> onOptions(options.stepped(ExtendedSetting.LAPS, up))
+                            2 -> onOptions(options.stepped(ExtendedSetting.LOSERS_TANK, up))
                         }
                     },
                 )
@@ -92,10 +99,9 @@ fun LocalGameScreen(
                     val map = maps.getOrNull(selected - fixed.size)
                     val text = when {
                         map != null -> null
-                        selected == 0 -> "Both players drive on the same side through missions of their own."
-                        selected == 1 -> "A match is won by winning more than half of its rounds."
-                        selected == 2 -> "How many laps a race has."
-                        selected == 3 -> "The player who is behind gets a stronger vehicle."
+                        selected == 0 -> "A match is won by winning more than half of its rounds."
+                        selected == 1 -> "How many laps a race has."
+                        selected == 2 -> "The player who is behind gets a stronger vehicle."
                         else -> ""
                     }
                     if (map != null) {

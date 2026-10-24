@@ -3,13 +3,18 @@ package nl.tankarena.app
 import androidx.compose.ui.input.key.Key
 import nl.tankarena.input.PadReading
 import nl.tankarena.input.Seat
+import nl.tankarena.input.keyName
 import nl.tankarena.protocol.snapshot.HudState
 import nl.tankarena.protocol.snapshot.PlayerView
 import nl.tankarena.protocol.snapshot.ServerFrame
 import nl.tankarena.protocol.snapshot.TankState
 import nl.tankarena.protocol.snapshot.WorldSnapshot
+import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.extended.JoinState
+import nl.tankarena.ui.compose.extended.seatControls
 import nl.tankarena.ui.compose.menu.DEFAULT_CONTROLS
+import nl.tankarena.ui.compose.menu.GameOptions
+import nl.tankarena.ui.compose.menu.SelectionKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -103,5 +108,48 @@ class ExtendedControlsTest {
         assertEquals(Seat(keys = 1, pad = null), join.seats.last())
         assertTrue(join.pad(0))
         assertEquals(3, join.seats.size)
+    }
+
+    @Test
+    fun `in the vehicle selection a gamepad player's cursor does not move from the keyboard`() {
+        val controls = DesktopControls().apply {
+            extended = true
+            useSeats(listOf(mouseSeat, Seat(keys = null, pad = 0)))
+        }
+        assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.W))
+        assertEquals(0 to SelectionKey.FIRE, controls.selectionKey(Key.Spacebar))
+        assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.DirectionUp), "the arrows are player one's, as in the campaign")
+        assertEquals(null, controls.selectionKey(Key.Delete), "player two's fire key is nobody's")
+        assertEquals(null, controls.selectionKey(Key.K))
+    }
+
+    @Test
+    fun `in the vehicle selection a second keyboard player has the second key set`() {
+        val controls = DesktopControls().apply {
+            extended = true
+            useSeats(listOf(mouseSeat, Seat(keys = 1, pad = null)))
+        }
+        assertEquals(1 to SelectionKey.UP, controls.selectionKey(Key.DirectionUp))
+        assertEquals(1 to SelectionKey.FIRE, controls.selectionKey(Key.Delete))
+        assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.W))
+    }
+
+    @Test
+    fun `Classic's vehicle selection has both key sets`() {
+        val controls = DesktopControls().apply { mode = GameMode.PLAYER_VS_PLAYER }
+        assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.K))
+        assertEquals(1 to SelectionKey.UP, controls.selectionKey(Key.DirectionUp))
+        assertEquals(null, controls.selectionKey(Key.W))
+    }
+
+    @Test
+    fun `the join screen shows what each player plays with`() {
+        val options = GameOptions(keyboardSecond = true)
+        val mouse = seatControls(mouseSeat, 0, options, arrows = true).toMap()
+        assertTrue(mouse.getValue("Drive").startsWith("W A S D") && mouse.getValue("Drive").endsWith("or the arrow keys"))
+        assertFalse(seatControls(mouseSeat, 0, options, arrows = false).toMap().getValue("Drive").contains("arrow"))
+        assertEquals("left stick", seatControls(Seat(keys = null, pad = 0), 1, options, arrows = true).toMap()["Drive"])
+        val keys = seatControls(Seat(keys = 1, pad = null), 1, options, arrows = false).toMap()
+        assertEquals(keyName(Key.Delete), keys["Fire"])
     }
 }

@@ -1,5 +1,6 @@
 package nl.tankarena.ui.compose.extended
 
+import nl.tankarena.input.Seat
 import nl.tankarena.input.keyName
 import nl.tankarena.ui.compose.menu.ControlMode
 import nl.tankarena.ui.compose.menu.ControlAction
@@ -7,6 +8,8 @@ import nl.tankarena.ui.compose.menu.PlayerControls
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import nl.tankarena.ui.compose.menu.GameOptions
+import nl.tankarena.ui.compose.menu.JoystickAction
+import nl.tankarena.ui.compose.menu.padButtonsText
 
 private fun volumeText(volume: Int) = listOf("off", "low", "medium", "high")[(volume / 85).coerceIn(0, 3)]
 
@@ -99,22 +102,67 @@ fun ExtendedHelpPage(onArenaInfo: () -> Unit, onKeys: () -> Unit, onBack: () -> 
     }
 }
 
+private fun keys(controls: PlayerControls, vararg actions: ControlAction) =
+    actions.joinToString(" ") { action -> controls.key(action)?.let { keyName(it) } ?: "-" }
+
+/**
+ * What [seat] plays with, as label and controls, for the join screen and the keys help. [place] is the
+ * player's place (an original joystick's buttons are those of player one's or two's settings); with
+ * [arrows] the arrow keys drive the keyboard-and-mouse player too (nobody plays with a key set).
+ */
+fun seatControls(seat: Seat, place: Int, options: GameOptions, arrows: Boolean): List<Pair<String, String>> {
+    val pad = seat.pad != null && seat.keys == null
+    return when {
+        seat.mouse -> options.mouseControls.let { one ->
+            listOf(
+                "Drive" to keys(one, ControlAction.UP, ControlAction.LEFT, ControlAction.DOWN, ControlAction.RIGHT) +
+                    if (arrows) " or the arrow keys" else "",
+                "Aim" to "the mouse pointer, or ${keys(one, ControlAction.AIM_LEFT, ControlAction.AIM_RIGHT)}",
+                "Fire" to "left mouse button or ${keys(one, ControlAction.FIRE)}",
+                "Shield" to "right mouse button or ${keys(one, ControlAction.SHIELD)}",
+                "Weapons" to "mouse wheel or ${keys(one, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}",
+            )
+        }
+        pad && options.twinSticks -> listOf(
+            "Drive" to "left stick",
+            "Aim" to "right stick",
+            "Fire" to "right trigger or A",
+            "Shield" to "left trigger or X",
+            "Weapons" to "LB / RB",
+        )
+        pad -> options.controls.getOrNull(place.coerceAtMost(1))?.let { joystick ->
+            listOf(
+                "Drive" to "the stick",
+                "Aim" to "hold ${padButtonsText(joystick.buttons(JoystickAction.AIM))}",
+                "Fire" to padButtonsText(joystick.buttons(JoystickAction.FIRE)),
+                "Shield" to padButtonsText(joystick.buttons(JoystickAction.SHIELD)),
+                "Weapons" to padButtonsText(joystick.buttons(JoystickAction.WEAPON)),
+            )
+        }.orEmpty()
+        else -> options.controls.getOrNull(seat.keys ?: return emptyList())?.let { set ->
+            listOf(
+                "Drive" to keys(set, ControlAction.UP, ControlAction.LEFT, ControlAction.DOWN, ControlAction.RIGHT),
+                "Aim" to keys(set, ControlAction.AIM_LEFT, ControlAction.AIM_RIGHT),
+                "Fire" to keys(set, ControlAction.FIRE),
+                "Shield" to keys(set, ControlAction.SHIELD),
+                "Weapons" to keys(set, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT),
+            )
+        }.orEmpty()
+    }
+}
+
 /** Extended's keys help, from the current settings (the original's KEYS.HLP describes Classic). */
 fun extendedKeysText(options: GameOptions): String {
-    fun keys(controls: PlayerControls, vararg actions: ControlAction) =
-        actions.joinToString(" ") { action -> controls.key(action)?.let { keyName(it) } ?: "-" }
     val one = options.mouseControls
     val two = options.controls[1]
+    fun StringBuilder.lines(seat: Seat) {
+        for ((label, controls) in seatControls(seat, place = 1, options, arrows = !options.keyboardSecond)) appendLine("$label: $controls")
+    }
     return buildString {
         appendLine("PLAYER ONE: KEYBOARD AND MOUSE")
         appendLine()
-        appendLine("Drive: ${keys(one, ControlAction.UP, ControlAction.LEFT, ControlAction.DOWN, ControlAction.RIGHT)}" +
-            if (options.keyboardSecond) "" else "  (or the arrow keys)")
+        lines(Seat(keys = null, pad = null, mouse = true))
         appendLine("Steering: " + if (one.mode == ControlMode.DIRECT) "the vehicle drives the way you press" else "turn and drive, as the original")
-        appendLine("Aim: the turret turns to the mouse pointer (${keys(one, ControlAction.AIM_LEFT, ControlAction.AIM_RIGHT)} without a mouse)")
-        appendLine("Fire: left mouse button or ${keys(one, ControlAction.FIRE)}")
-        appendLine("Shield: right mouse button or ${keys(one, ControlAction.SHIELD)}")
-        appendLine("Weapons: mouse wheel or ${keys(one, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}")
         appendLine("Rocket marker: while fire is held it follows the pointer; let go to launch")
         appendLine()
         appendLine("Vehicles without a turret of their own fire straight ahead: aim by driving.")
@@ -122,11 +170,7 @@ fun extendedKeysText(options: GameOptions): String {
         appendLine("GAMEPADS: PLAYERS TWO TO FOUR (press A on the join screen)")
         appendLine()
         if (options.twinSticks) {
-            appendLine("Left stick: drive the way it points")
-            appendLine("Right stick: aim")
-            appendLine("Right trigger: fire (or A)")
-            appendLine("Left trigger: shield (or X)")
-            appendLine("LB / RB: weapons")
+            lines(Seat(keys = null, pad = 0))
         } else {
             appendLine("As the original's joystick: the stick steers, with the buttons set in the controls.")
         }
@@ -134,9 +178,7 @@ fun extendedKeysText(options: GameOptions): String {
             appendLine()
             appendLine("SECOND KEYBOARD PLAYER (joins with ${keys(two, ControlAction.FIRE)})")
             appendLine()
-            appendLine("Drive ${keys(two, ControlAction.UP, ControlAction.LEFT, ControlAction.DOWN, ControlAction.RIGHT)}, " +
-                "fire ${keys(two, ControlAction.FIRE)}, aim ${keys(two, ControlAction.AIM_LEFT, ControlAction.AIM_RIGHT)}, " +
-                "weapons ${keys(two, ControlAction.WEAPON_LEFT, ControlAction.WEAPON_RIGHT)}, shield ${keys(two, ControlAction.SHIELD)}")
+            lines(Seat(keys = 1, pad = null))
         }
         appendLine()
         appendLine("IN A GAME")

@@ -1,6 +1,7 @@
 package nl.tankarena.app
 
 import nl.tankarena.ui.compose.extended.extendedKeysText
+import nl.tankarena.ui.compose.extended.seatControls
 import nl.tankarena.ui.compose.extended.RelaySettingScreen
 import nl.tankarena.net.GameCodes
 import nl.tankarena.net.RelayDirectory
@@ -326,8 +327,9 @@ fun TankArenaApp(
                         first = Seat(keys = null, pad = null, mouse = true),
                         keyboardSets = if (options.keyboardSecond) setOf(SECOND_KEYBOARD_SET) else emptySet(),
                         readPadButtons = { platform.gamepads().map { it.buttons } },
+                        controlsOf = { place, seat, seats -> seatControls(seat, place, options, arrows = seats.none { it.keys != null }) },
                         onStart = { seats ->
-                            controls.seats = seats
+                            controls.useSeats(seats)
                             screen = current.next
                         },
                         onBack = { screen = current.back },
@@ -831,7 +833,7 @@ fun TankArenaApp(
                         match = current.match,
                         selectMap = missions.orEmpty().firstOrNull { it.baseName.equals("select", ignoreCase = true) },
                         initial = playerTanks,
-                        keyFor = { key -> selectionKeyFor(key, settings.options.controls) },
+                        keyFor = controls::selectionKey,
                         players = sessionPlayers(GameMode.PLAYER_VS_PLAYER),
                         padActions = remember(current) {
                             val pads = List(MAX_PLAYERS) { GamepadMenuKeys() }
@@ -1265,23 +1267,4 @@ private fun saveScreenshot(platform: GamePlatform, settings: GameSettings) {
     val file = java.io.File(AppDirs.data, "screenshots/TANK$number.png")
     file.parentFile?.mkdirs()
     if (platform.screenshot(file)) settings.update(settings.options.copy(screenshotNumber = number + 1))
-}
-
-/**
- * Legacy select_tanks(): each player moves their marker with their own drive keys and confirms
- * with fire (`keys[i][PLAYER_UP]` ...). Player 1 uses the left-hand keys, player 2 the cursor block.
- */
-private fun selectionKeyFor(key: Key, controls: List<PlayerControls>): Pair<Int, SelectionKey>? {
-    for ((player, binding) in controls.take(2).map(KeyBinding::of).withIndex()) {
-        val action = when (key) {
-            binding.forward -> SelectionKey.UP
-            binding.reverse -> SelectionKey.DOWN
-            binding.turnLeft -> SelectionKey.LEFT
-            binding.turnRight -> SelectionKey.RIGHT
-            binding.fire -> SelectionKey.FIRE
-            else -> null
-        }
-        if (action != null) return player to action
-    }
-    return null
 }

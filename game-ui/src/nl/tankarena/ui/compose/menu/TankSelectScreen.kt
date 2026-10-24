@@ -89,7 +89,8 @@ fun TankSelectScreen(
     /** Extended's teams (ADR 0027): up to four players, the frame in their side's colour. */
     players: Int = 2,
 ) {
-    val allowed = remember(match) { allowedTanks(match.mission.sidecar.metadata.mapContents, match.wins, match.options.losersTank) }
+    // The losers tank goes by the series (Extended: every map the same players played).
+    val allowed = remember(match) { allowedTanks(match.mission.sidecar.metadata.mapContents, match.seriesWins, match.options.losersTank) }
     var chosen by remember(match) { mutableStateOf(autoSelect(List(players) { initial.getOrElse(it) { initial.getOrElse(it and 1) { 0 } } }, allowed)) }
     val everyone = (1 shl players) - 1
     var confirmed by remember(match) { mutableIntStateOf(0) }
@@ -134,7 +135,7 @@ fun TankSelectScreen(
     fun canConfirm(player: Int): Boolean {
         val tank = chosen[player]
         val side = player and 1
-        return allowed[tank] && (tank != CHOICES - 1 || match.wins[side] < match.wins[side xor 1])
+        return allowed[tank] && (tank != CHOICES - 1 || match.seriesWins[side] < match.seriesWins[side xor 1])
     }
 
     fun act(player: Int, action: SelectionKey) {

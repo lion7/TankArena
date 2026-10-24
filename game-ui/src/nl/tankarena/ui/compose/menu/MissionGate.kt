@@ -13,6 +13,18 @@ import nl.tankarena.ui.compose.MissionOutcome
  * TANK.CFG) and the reached codes in [PasswordStore].
  */
 class MissionGate(private val passwords: PasswordStore, private val settings: GameSettings = GameSettings()) {
+    /**
+     * Extended: the rounds each side has won against each other since the players last joined, over
+     * every map; the losers tank goes by these. Classic's matches stand alone, like the original.
+     */
+    var versusSeries: List<Int> = listOf(0, 0)
+        private set
+
+    /** The players have joined anew: a new series. */
+    fun newSeries() {
+        versusSeries = listOf(0, 0)
+    }
+
     /** The text the prompt starts with: the last entered or reached code of [mode], kept across restarts. */
     fun currentCode(mode: GameMode): String = settings.options.lastCodes[mode.name] ?: MissionCodes.defaultCode(mode)
 
@@ -53,7 +65,8 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
      */
     fun afterBriefing(mission: MissionEntry, mode: GameMode): DesktopShellScreen =
         if (mode == GameMode.PLAYER_VS_PLAYER) {
-            DesktopShellScreen.TankSelect(DualMatch(mission, options = settings.options))
+            val series = if (settings.options.ruleset == Ruleset.EXTENDED) versusSeries else listOf(0, 0)
+            DesktopShellScreen.TankSelect(DualMatch(mission, options = settings.options, seriesBefore = series))
         } else {
             DesktopShellScreen.Playing(mission, mode)
         }
@@ -88,6 +101,7 @@ class MissionGate(private val passwords: PasswordStore, private val settings: Ga
     fun roundEnded(match: DualMatch, winner: Int?): DesktopShellScreen {
         if (winner == null) return DesktopShellScreen.GameModeSelect
         val next = match.afterRound(winner)
+        if (settings.options.ruleset == Ruleset.EXTENDED) versusSeries = next.seriesWins
         return if (next.decided) DesktopShellScreen.Animation(VICTORY_FLI, DesktopShellScreen.GameModeSelect) else DesktopShellScreen.TankSelect(next)
     }
 

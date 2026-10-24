@@ -16,14 +16,19 @@ enum class MissionOutcome { WON, LOST }
 /**
  * Legacy dual_game() (original/src/game/dual.c): the rounds of one player-vs-player match on [mission].
  * [round] is 1-based; [wins] counts the rounds each player has won (`game.wins`). [options]
- * are the game options the match was started with (rounds, laps, the losers tank).
+ * are the game options the match was started with (rounds, laps, the losers tank). [seriesBefore]
+ * (Extended): the rounds each side won on the maps the same players played before this one.
  */
 data class DualMatch(
     val mission: MissionEntry,
     val round: Int = 1,
     val wins: List<Int> = listOf(0, 0),
     val options: GameOptions = GameOptions(),
+    val seriesBefore: List<Int> = listOf(0, 0),
 ) {
+    /** The rounds each side has won in the series so far, this map's included: the losers tank goes by these. */
+    val seriesWins: List<Int> get() = wins.zip(seriesBefore) { a, b -> a + b }
+
     /** The match after a round [winner] won. */
     fun afterRound(winner: Int): DualMatch =
         copy(round = round + 1, wins = wins.mapIndexed { player, n -> if (player == winner) n + 1 else n })

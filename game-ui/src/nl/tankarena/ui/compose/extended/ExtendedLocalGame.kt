@@ -49,6 +49,8 @@ fun VersusMapsScreen(
     onOptions: (GameOptions) -> Unit,
     onVersus: (String) -> Unit,
     onBack: () -> Unit,
+    /** The rounds each side has won on the maps played so far with these players. */
+    series: List<Int> = listOf(0, 0),
 ) {
     val keys = remember { KeyRouter() }
     val maps = remember(missions) {
@@ -65,7 +67,11 @@ fun VersusMapsScreen(
     var selected by remember { mutableIntStateOf(initial) }
     ExtendedPage(
         title = "Against each other",
-        subtitle = "Pick a map; the match options are changed here too",
+        subtitle = if (series.any { it > 0 }) {
+            "Series: team 1 ${series[0]} – ${series[1]} team 2 (the losers tank goes by it). Pick the next map"
+        } else {
+            "Pick a map; the match options are changed here too"
+        },
         onBack = onBack,
         footer = "Enter picks; on the options Left/Right change them",
         onKey = keys::handle,

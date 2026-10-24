@@ -340,7 +340,10 @@ fun TankArenaApp(
 
                     DesktopShellScreen.LocalGame -> LocalGameScreen(
                         // Who plays first, then the map or mission; after a game the list comes back with the same players.
-                        onVersus = { screen = joinFirst(DesktopShellScreen.LocalVersus.also { extendedReturn = it }) },
+                        onVersus = {
+                            missionGate.newSeries()
+                            screen = joinFirst(DesktopShellScreen.LocalVersus.also { extendedReturn = it })
+                        },
                         onTogether = { screen = joinFirst(DesktopShellScreen.Campaign(GameMode.DUAL_PLAYER_VS_COMPUTER).also { extendedReturn = it }) },
                         onBack = {
                             extendedReturn = null
@@ -363,6 +366,7 @@ fun TankArenaApp(
                                     screen = missionGate.submit(all, map, GameMode.PLAYER_VS_PLAYER)
                                 },
                                 onBack = { screen = DesktopShellScreen.LocalGame.also { extendedReturn = it } },
+                                series = missionGate.versusSeries,
                             )
                         }
                     }

@@ -164,6 +164,10 @@ buildings; bridges turning into water; A-bomb boxes; force fields; shelters; nig
 
 In detail:
 
+- **done** — a destroyed structure whose picture row has no ruined picture (168 of them: `SHIP2`,
+  `SHIP3`, `ABOX`, the walls, the supermarket's goods ...) disappears and shows what lies under it;
+  `load_pictures()` leaves that picture NULL, which nothing draws or hits (`world/under.c:70`,
+  `check/hitwall.c:44`). Rules v16: shots and aircraft pass through such a destroyed top layer.
 - **done** — conveyors (`T_LEFT/RIGHT/UP/DOWN`, 60 px/s) and turntables (`ROTATE_L/R`, a turn a second
   around the tile, heading unchanged) carry vehicles and soldiers below height 2; a vehicle that would
   end up in another stays (`original/src/world/transp.c`).

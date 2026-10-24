@@ -9,11 +9,13 @@ data class LegacyPictureRecord(
     val nameVariants: List<String>,
 ) {
     val primaryName: String get() = nameVariants.first()
-    fun nameForVariant(variant: LegacyPictureVariant): String {
-        // The legacy engine falls back through the variant list when later
-        // entries are missing (e.g. tiles that never become "dead").
-        return nameVariants.getOrNull(variant.ordinal) ?: nameVariants.last()
-    }
+    /**
+     * The picture for [variant], or null when the row has none: legacy load_pictures() leaves that
+     * `ptr[]` NULL and the drawing routines skip it, so a destroyed structure without a ruined
+     * picture simply disappears.
+     */
+    fun nameForVariant(variant: LegacyPictureVariant): String? =
+        nameVariants.getOrNull(variant.ordinal)?.takeIf { it.isNotEmpty() }
 }
 
 enum class LegacyPictureVariant {

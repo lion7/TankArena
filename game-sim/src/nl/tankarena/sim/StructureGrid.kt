@@ -91,7 +91,8 @@ class StructureGrid(
 
     private fun mask(pictureIndex: Int, variant: Int): PictureMasks.Mask? {
         val names = PictureCatalog.pictureNames(world, pictureIndex) ?: return null
-        return PictureMasks.mask(names.getOrElse(variant) { names.last() })
+        // Legacy load_pictures(): a variant the row does not name is a NULL picture, which nothing hits.
+        return names.getOrNull(variant)?.takeIf { it.isNotEmpty() }?.let(PictureMasks::mask)
     }
 
     /**

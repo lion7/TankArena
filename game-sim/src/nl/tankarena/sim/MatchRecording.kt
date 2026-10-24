@@ -41,8 +41,9 @@ import kotlinx.serialization.json.Json
  *     ground effects; supermarket mayhem; linked goals; cheats.
  * 14: rockets in flight and mines can be hit by flames, shots, blasts, bombs and burning pieces.
  * 15: a destroyed player's vehicle is handed over only once it is done dying (legacy control_tank()).
+ * 16: a destroyed top layer without a ruined picture is gone: shots and aircraft pass through it.
  */
-const val GAME_RULES_VERSION: Int = 15
+const val GAME_RULES_VERSION: Int = 16
 
 /**
  * A played mission as the server saw it: what every player pressed on every tick, plus how the

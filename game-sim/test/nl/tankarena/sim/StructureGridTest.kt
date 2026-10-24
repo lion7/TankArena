@@ -1,11 +1,14 @@
 package nl.tankarena.sim
 
+import nl.tankarena.content.LEGACY_TILE_SIZE
 import nl.tankarena.content.PictureCatalog
+import nl.tankarena.content.PictureMasks
 import nl.tankarena.content.TankArenaWorld
 import nl.tankarena.content.TileLayers
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** The legacy structure model (strength[2][3][], hit_wall()) on the desert pictures of original/src/data/pictures.c. */
@@ -79,6 +82,21 @@ class StructureGridTest {
         assertEquals("BRIDGE_H", destroyed.single().legacyType)
         assertEquals("WATER", PictureCatalog.legacyRow(TankArenaWorld.DESERT, grid.base[10])?.type)
         assertEquals(-1, grid.solid[10])
+    }
+
+    @Test
+    fun `a destroyed top layer without a ruined picture is gone`() {
+        // Desert ABOX has no ruined picture (pictures.c `{{"ABOX"}, ...}`): once destroyed, nothing of it is hit.
+        val abox = (0 until 600).first { PictureCatalog.pictureNames(TankArenaWorld.DESERT, it) == listOf("ABOX") }
+        val grid = grid(10 to 8, top = mapOf(10 to abox))
+        val shape = assertNotNull(PictureMasks.mask("ABOX"))
+        val left = 2 * LEGACY_TILE_SIZE
+        val top = LEGACY_TILE_SIZE
+        assertTrue(grid.overlapTop(shape, left, top) > 0, "the standing box is in the way")
+        grid.hit(2, 1, StructureLayer.TOP, HitKind.NORMAL, 1000)
+        assertFalse(grid.isTopIntact(2, 1))
+        assertTrue(grid.isStanding(2, 1), "the building under it still stands")
+        assertEquals(0, grid.overlapTop(shape, left, top))
     }
 
     @Test

@@ -8,7 +8,7 @@ Android and network play; the nine phases that got it there are summarised in th
 
 ## 1. Safety net
 
-- [ ] **Play new recordings** under Classic rules v15: BEGIN1–4, more single-player missions, a
+- [ ] **Play new recordings** under Classic rules v16: BEGIN1–4, more single-player missions, a
       two-vs-computer mission, player-vs-player matches (deathmatch, flag hunt, race), and copy them
       to `game-sim/testResources/recordings/`. Then some Extended ones (four players, mouse). Until
       then no committed recording is replayed by `RecordedPlaythroughTest`

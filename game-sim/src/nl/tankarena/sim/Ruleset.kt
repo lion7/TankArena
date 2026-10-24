@@ -71,5 +71,6 @@ data class RuleFlags(
  * 6: four players as two teams.
  * 7: the rocket marker follows the mouse.
  * 8: Classic v15 (hand-over once the destroyed vehicle is done dying).
+ * 9: Classic v16 (destroyed structures without a ruined picture are gone).
  */
-const val EXTENDED_RULES_VERSION: Int = 8
+const val EXTENDED_RULES_VERSION: Int = 9

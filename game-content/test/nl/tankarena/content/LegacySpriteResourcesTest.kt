@@ -18,6 +18,16 @@ class LegacySpriteResourcesTest {
     }
 
     @Test
+    fun structures_without_a_ruined_picture_have_none() {
+        // Legacy load_pictures(): the missing name is a NULL picture, so the destroyed structure is not drawn.
+        assertNull(LegacyPictureRecord(listOf("ABOX")).nameForVariant(LegacyPictureVariant.DAMAGED))
+        assertNull(LegacyPictureRecord(listOf("SHIP2")).nameForVariant(LegacyPictureVariant.DAMAGED))
+        assertEquals("SHIP2", LegacyPictureRecord(listOf("SHIP2")).nameForVariant(LegacyPictureVariant.INTACT))
+        assertEquals("@HIPV", LegacyPictureRecord(listOf("SHIPV", "@HIPV")).nameForVariant(LegacyPictureVariant.DAMAGED))
+        assertNull(LegacyPictureRecord(listOf("SHIPV", "@HIPV")).nameForVariant(LegacyPictureVariant.DEAD))
+    }
+
+    @Test
     fun unknown_legacy_names_return_null_resource_key() {
         assertNull(LegacySpriteResources.resourceKey("SOMETHING_THAT_DOES_NOT_EXIST"))
     }

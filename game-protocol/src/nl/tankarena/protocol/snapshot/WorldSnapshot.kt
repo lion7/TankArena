@@ -126,6 +126,8 @@ data class HudState(
     val mayhem: MayhemHud? = null,
     /** The radar is not shown (supermarket mayhem). */
     val radarHidden: Boolean = false,
+    /** Extended's next vehicle has somewhere to go: another friendly vehicle nobody else has (the touch NEXT). */
+    val otherVehicle: Boolean = false,
 )
 
 /** Legacy status.c in supermarket mayhem: products still needed, time left, cash and what was bought. */

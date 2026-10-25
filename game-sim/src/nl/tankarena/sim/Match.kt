@@ -375,6 +375,7 @@ class Match private constructor(
                 alive = false,
                 mayhem = mayhemHud(),
                 radarHidden = true,
+                otherVehicle = nextTankId(playerIndex) != null,
             ),
         )
     }
@@ -516,6 +517,7 @@ class Match private constructor(
                     mayhem = mayhemHud(),
                     // Legacy write_screen(): no radar in supermarket mayhem.
                     radarHidden = mayhem,
+                    otherVehicle = nextTankId(playerIndex) != null,
                 ),
                 viewerX = tank.positionX,
                 viewerY = tank.positionY,

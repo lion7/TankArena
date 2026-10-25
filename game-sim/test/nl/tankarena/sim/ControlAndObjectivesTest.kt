@@ -12,6 +12,7 @@ import nl.tankarena.sim.legacy.ObjectKinds
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -90,6 +91,14 @@ class ControlAndObjectivesTest {
             match.playerTankForTest(0)?.controllerId
         }
         assertEquals(listOf(2, 3, 1, 2), seen)
+    }
+
+    @Test
+    fun `the HUD tells whether the next vehicle has somewhere to go`() {
+        val two = start(map(humanTank(id = 1, tileX = 1), humanTank(id = 2, tileX = 4), enemyTank(tileX = 12)))
+        assertTrue(two.buildPlayerViews().single { it.playerId == 0 }.hud.otherVehicle)
+        val alone = start(map(humanTank(id = 1, tileX = 1), enemyTank(tileX = 12)))
+        assertFalse(alone.buildPlayerViews().single { it.playerId == 0 }.hud.otherVehicle)
     }
 
     @Test

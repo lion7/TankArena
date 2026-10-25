@@ -50,7 +50,10 @@ internal fun LeaveQuestion(controls: DesktopControls, pads: () -> List<PadReadin
     )
 }
 
-/** Extended: the game stands still (P, or the touch screen's pause) until a key, A or B, or a tap. */
+/**
+ * Extended: the game stands still (P, or the touch screen's pause) until a key, A or B, or a tap;
+ * Leave ends it (on a touch screen the pause is the way out).
+ */
 @Composable
 internal fun PausedOverlay(controls: DesktopControls, pads: () -> List<PadReading>) {
     if (!controls.paused || controls.leaveAsked) return
@@ -61,7 +64,12 @@ internal fun PausedOverlay(controls: DesktopControls, pads: () -> List<PadReadin
     PadPresses(pads, active = { controls.paused }) { pressed ->
         if (pressed and (PAD_A or PAD_B) != 0) goOn()
     }
-    GameOverlay("Paused", null, "Any key or A goes on", buttons = listOf(PageAction("Go on", goOn)), onTap = goOn)
+    val leave = {
+        controls.paused = false
+        controls.resetAll()
+        controls.answerLeave(leave = true)
+    }
+    GameOverlay("Paused", null, "Any key or A goes on", buttons = listOf(PageAction("Go on", goOn), PageAction("Leave", leave)), onTap = goOn)
 }
 
 /** Calls [onPress] with the gamepad buttons newly pressed in each frame while [active]; held ones do not count. */

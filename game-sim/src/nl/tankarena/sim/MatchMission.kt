@@ -282,6 +282,11 @@ internal fun Match.switchToTank(playerIndex: Int, controllerId: Int) {
  * nobody else has picked, round to the lowest; nothing when there is none.
  */
 internal fun Match.switchToNextTank(playerIndex: Int) {
+    switchToTank(playerIndex, nextTankId(playerIndex) ?: return)
+}
+
+/** The id [switchToNextTank] goes to; null when there is none, or only the player's own. */
+internal fun Match.nextTankId(playerIndex: Int): Int? {
     val taken = players.filter { it != playerIndex }.mapNotNull { selectedIds[it] }.toSet()
     val ids = allTanks
         .filter { it.armor > 0 && !it.computer && it.team == 0 && it.controllerId >= 0 && it.controllerId !in taken }
@@ -289,8 +294,8 @@ internal fun Match.switchToNextTank(playerIndex: Int) {
         .distinct()
         .sorted()
     val current = selectedIds[playerIndex] ?: -1
-    val next = ids.firstOrNull { it > current } ?: ids.firstOrNull() ?: return
-    switchToTank(playerIndex, next)
+    val next = ids.firstOrNull { it > current } ?: ids.firstOrNull() ?: return null
+    return next.takeIf { it != current }
 }
 
 internal fun Match.transferControl(playerIndex: Int, controllerId: Int, tanks: List<Tank>) {

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
@@ -25,6 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger
 class MousePointer {
     /** Where the cursor is in the window, or null when it is not over the game (drawn as a crosshair). */
     var cursor: Offset? by mutableStateOf(null)
+
+    /** The player's map window in the window, once laid out: the touch controls go beside it. */
+    var view: Rect? by mutableStateOf(null)
 
     @Volatile
     var worldX: Int = -1

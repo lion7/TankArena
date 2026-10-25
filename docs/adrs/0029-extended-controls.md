@@ -43,7 +43,9 @@ one to aim.
   F1–F10 it does nothing when the players play against each other. Classic keeps F1–F10 only.
 - **Joining:** before a local game player one's place is taken; the others press A on their pad.
 - **On a touch screen** the virtual controller stays player one's; a mouse there works as on the
-  desktop.
+  desktop. A finger on the map works as the mouse does: the turret turns there, it fires, and the
+  rocket marker follows the finger (`MousePointer` fed by `TouchControls`;
+  [ADR 0025](0025-multiplatform-modules-and-android.md) has the controller's layout).
 
 ## How it works
 

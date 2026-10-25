@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Hearing the games announced on the Wi-Fi. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- The touch controller's buzz on firing and hits. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:label="Tank Arena"

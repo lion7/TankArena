@@ -42,8 +42,16 @@ game-protocol <- game-content <- game-sim <- game-net <- game-ui <- app-desktop,
 - **Android:** min SDK 26. The night, colour-cycling and gamma shaders need Android 13 (API 33);
   older versions draw without them. Gamepads come from key and motion events (A and START are Enter,
   B, BACK and the back button Esc in menus). On a touch screen without a pad, player one gets a
-  virtual controller over the game (`TouchControls`: a floating move stick that steers directly, an
-  aim stick, FIRE, SHIELD, weapon buttons, in Extended NEXT for the next vehicle, PAUSE and EXIT);
+  virtual controller over the game (`TouchControls`, reworked 2026-10-25):
+  - sizes in dp (a stick 120 dp across, buttons at least 48 dp; a size setting, capped by the
+    screen's height), in the strips beside the map window when there is room, else in the corners;
+    the original's palette and 5×5 font; idle at a set visibility, lit while held;
+  - two floating sticks with a 15% dead zone (the vehicles drive or not, so no half speed); the aim
+    stick pushed past 70% fires too (a setting);
+  - in Extended a finger on the map aims and fires there like the mouse (the rocket marker follows
+    it); FIRE, SHIELD, the weapon buttons showing the weapon they switch to, NEXT only when there is
+    another vehicle; PAUSE opens the pause box with Go on and Leave (in a network game the leave
+    question); a left-handed mirror; a short buzz on firing and hits (Android, a setting);
   other players need gamepads. Taps go through the intro, texts, messages, yes/no questions, the
   tank selection and every Extended page; Classic is played with the keyboard.
 - **Packages:** `packaging/package-android.sh` makes debug and release APKs and a release bundle

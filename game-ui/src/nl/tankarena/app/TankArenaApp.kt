@@ -100,6 +100,7 @@ import nl.tankarena.ui.compose.menu.FliScreen
 import nl.tankarena.ui.compose.menu.GameModeMenuScreen
 import nl.tankarena.ui.compose.menu.GameOptionsScreen
 import nl.tankarena.ui.compose.menu.GameOptionsStore
+import nl.tankarena.ui.compose.menu.TouchSettings
 import nl.tankarena.ui.compose.menu.GameSettings
 import nl.tankarena.ui.compose.menu.HelpFile
 import nl.tankarena.ui.compose.menu.IntroStep
@@ -907,6 +908,7 @@ fun TankArenaApp(
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
                         smoothMotion = extended && options.smoothMotion,
+                        touch = options.touch,
                         fill = extended && options.fillWindow,
                         wide = extended && options.wideView,
                         ruleset = options.ruleset,
@@ -936,6 +938,7 @@ fun TankArenaApp(
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
                         smoothMotion = options.smoothMotion,
+                        touch = options.touch,
                         fill = options.fillWindow,
                         wide = options.wideView,
                         ruleset = Ruleset.EXTENDED,
@@ -984,6 +987,7 @@ fun TankArenaApp(
                         windowSize = options.windowSize,
                         showRadar = options.showRadar,
                         smoothMotion = extended && options.smoothMotion,
+                        touch = options.touch,
                         fill = extended && options.fillWindow,
                         wide = extended && options.wideView,
                         ruleset = options.ruleset,
@@ -1078,6 +1082,8 @@ private fun GameplayScreen(
     showRadar: Boolean = true,
     /** Extended's presentation: movement between steps, filling the window, a wider view. */
     smoothMotion: Boolean = false,
+    /** Extended's touch controller: its size, hand, feel. */
+    touch: TouchSettings = TouchSettings(),
     fill: Boolean = false,
     wide: Boolean = false,
     /** Player vs player: the round's vehicles and score. */
@@ -1112,6 +1118,7 @@ private fun GameplayScreen(
         )
     }
     val audio = remember { AudioManager(platform.audioBackend()) }
+    val haptics = remember { Haptics(platform::vibrate) }
     SideEffect { audio.soundVolume = soundVolume }
     DisposableEffect(audio) { onDispose(audio::dispose) }
     val eventQueues = remember(host) { List(MAX_PLAYERS) { ViewportEventQueue() } }
@@ -1123,7 +1130,7 @@ private fun GameplayScreen(
     val missionEndBanner = view.banner
 
     DisposableEffect(host) {
-        val loop = SimulationLoop(gameplayStep(host, controls, playerIds, eventQueues, audio, published))
+        val loop = SimulationLoop(gameplayStep(host, controls, playerIds, eventQueues, audio, published, haptics))
         PerfLog.start(mission.baseName)
         loop.start()
         onDispose {
@@ -1155,7 +1162,10 @@ private fun GameplayScreen(
     // A touch screen without a gamepad: player one's virtual controller over the game.
     val touchPad = remember { TouchPad() }
     val touchControls = platform.touchScreen && platform.gamepads().isEmpty()
-    SideEffect { controls.touch = touchPad.takeIf { touchControls } }
+    SideEffect {
+        controls.touch = touchPad.takeIf { touchControls }
+        haptics.enabled = touchControls && controls.extended && touch.vibration
+    }
     Box(modifier = Modifier.fillMaxSize().then(if (controls.extended) Modifier.mouseInput(controls.mouse) else Modifier)) {
     GameplayFrame(
         mission = mission,
@@ -1174,16 +1184,30 @@ private fun GameplayScreen(
         mousePlayerId = controls.seats?.indexOfFirst { it is Seat.Own }?.let { playerIds.getOrNull(it) },
     )
     if (touchControls) {
+        val network = host !is LocalMatchClient
         TouchControls(
             pad = touchPad,
             onPause = {
-                // Legacy P: the game stands still; the button again goes on.
-                controls.resetAll()
-                controls.paused = !controls.paused
+                when {
+                    // Classic: legacy P, the game stands still until the button again.
+                    !controls.extended -> {
+                        controls.resetAll()
+                        controls.paused = !controls.paused
+                    }
+                    // A network game does not stand still: the button asks whether to leave.
+                    network -> controls.askToLeave()
+                    // Extended: paused, with Go on and Leave.
+                    else -> {
+                        controls.resetAll()
+                        controls.paused = true
+                    }
+                }
             },
-            // Legacy ESC: the game ends (with Extended's question first).
-            onExit = controls::askToLeave,
+            settings = if (controls.extended) touch else TouchSettings(),
+            hud = view.frame.playerViews.firstOrNull { it.playerId == playerIds.first() }?.hud,
+            night = mission.sidecar.metadata.night,
             nextVehicle = controls.extended,
+            mouse = controls.mouse.takeIf { controls.extended },
         )
     }
     if (controls.extended) PausedOverlay(controls, platform::gamepads)
@@ -1215,6 +1239,7 @@ private fun gameplayStep(
     eventQueues: List<ViewportEventQueue>,
     audio: AudioManager,
     published: AtomicReference<GameplayView>,
+    haptics: Haptics,
 ): () -> Boolean {
     var inputSequence = 0L
     var outcome: MissionOutcome? = null
@@ -1234,6 +1259,7 @@ private fun gameplayStep(
         PerfLog.tick(System.nanoTime() - tickStart, tickStart)
         eventQueues.forEach { it.push(frame.world.events) }
         audio.processEvents(frame.world.events, frame.playerViews)
+        haptics.step(frame, playerIds.first())
         if (outcome == null) {
             outcome = frame.world.events.firstNotNullOfOrNull { event ->
                 when (event) {

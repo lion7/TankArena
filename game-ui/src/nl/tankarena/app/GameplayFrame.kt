@@ -431,6 +431,7 @@ private fun MouseLayer(mouse: MousePointer, geometry: ViewportGeometry?, viewpor
     var origin by remember { mutableStateOf<Offset?>(null) }
     val at = origin?.let { o -> mouse.cursor?.minus(o) }
     SideEffect {
+        origin?.let { o -> if (viewportRect != Rect.Zero) mouse.view = viewportRect.translate(o) }
         if (at == null || geometry == null || viewportRect == Rect.Zero || !viewportRect.contains(at)) {
             mouse.away()
         } else {

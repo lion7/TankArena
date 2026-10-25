@@ -42,6 +42,19 @@ class AndroidPlatform(private val activity: Activity) : GamePlatform {
     override val touchScreen: Boolean = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
 
     override fun quit() = activity.finishAndRemoveTask()
+
+    private val vibrator: android.os.Vibrator? =
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            activity.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            activity.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        }
+
+    override fun vibrate(millis: Int, strength: Int) {
+        val vibrator = vibrator?.takeIf { it.hasVibrator() } ?: return
+        vibrator.vibrate(android.os.VibrationEffect.createOneShot(millis.toLong(), strength.coerceIn(1, 255)))
+    }
 }
 
 /** The mixer's output on an AudioTrack: 16-bit stereo, streamed; write blocks while it is full. */

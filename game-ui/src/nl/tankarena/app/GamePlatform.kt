@@ -30,6 +30,9 @@ interface GamePlatform {
     /** A touch screen: the game shows its virtual controller and takes taps (Android). */
     val touchScreen: Boolean get() = false
 
+    /** A short buzz of [millis] at [strength] (1..255) where the device can (Android); called from any thread. */
+    fun vibrate(millis: Int, strength: Int) {}
+
     /** This machine's name for the others in a network game. */
     val deviceName: String get() = System.getProperty("user.name")?.takeIf { it.isNotBlank() } ?: "Player"
 

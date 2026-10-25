@@ -175,6 +175,13 @@ internal fun retroLines(codes: String, columns: Int, maxLines: Int = Int.MAX_VAL
 }
 
 /** [lines] drawn in [font] and [color] at one pixel per legacy pixel, each line centred if [centred]. */
+/**
+ * [text] in [font] on one line as a picture of legacy pixels, for drawing on a canvas at a whole
+ * multiple of [RetroFont.scale] with `FilterQuality.None`; null when there is nothing to draw.
+ */
+fun retroTextImage(text: String, font: RetroFont, color: Color): ImageBitmap? =
+    renderLines(listOf(retroCodes(text, font)), font, color, centred = false)
+
 private fun renderLines(lines: List<String>, font: RetroFont, color: Color, centred: Boolean): ImageBitmap? {
     val columns = lines.maxOfOrNull { it.length } ?: 0
     if (columns == 0) return null

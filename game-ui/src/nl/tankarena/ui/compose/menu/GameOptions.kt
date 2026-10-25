@@ -66,6 +66,8 @@ data class GameOptions(
     val mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS,
     /** Extended: gamepads as twin sticks; off: as the original's joystick (player two's pad buttons). */
     val twinSticks: Boolean = true,
+    /** Extended's touch controller ([TouchSettings]). */
+    val touch: TouchSettings = TouchSettings(),
 ) {
     /** Legacy read_controls(): `=` makes the window bigger, `-` smaller. */
     fun biggerWindow(): GameOptions = copy(windowSize = (windowSize - 1).coerceAtLeast(0))
@@ -155,6 +157,22 @@ data class GameOptions(
 
 private const val CONTROLS_SETUP = "Controls setup"
 
+/** Extended's touch controller: its size and how visible it is idle (percent), which hand aims, and the feel. */
+@Serializable
+data class TouchSettings(
+    val size: Int = 100,
+    val visibility: Int = 40,
+    val leftHanded: Boolean = false,
+    /** The aim stick pushed far fires as well. */
+    val aimFires: Boolean = true,
+    val vibration: Boolean = true,
+) {
+    companion object {
+        val SIZES = listOf(75, 100, 125, 150)
+        val VISIBILITIES = listOf(20, 40, 60, 80)
+    }
+}
+
 /** Shared by both rulesets: what is about the player's ears and screen, and the screenshots' numbering. */
 @Serializable
 data class SharedSettings(
@@ -196,6 +214,7 @@ data class ExtendedSettings(
     val fillWindow: Boolean = true,
     val wideView: Boolean = true,
     val relay: String = DEFAULT_RELAY,
+    val touch: TouchSettings = TouchSettings(),
 )
 
 /**
@@ -230,6 +249,7 @@ data class SavedSettings(
                     raceLaps = raceLaps, rounds = rounds, losersTank = losersTank, victoryCount = victoryCount,
                     lastCodes = lastCodes, showRadar = showRadar, windowSize = windowSize, mouseControls = mouseControls,
                     twinSticks = twinSticks, smoothMotion = smoothMotion, fillWindow = fillWindow, wideView = wideView, relay = relay,
+                    touch = touch,
                 )
             }
         }
@@ -245,7 +265,7 @@ data class SavedSettings(
             Ruleset.EXTENDED -> kept.copy(
                 extended = ExtendedSettings(
                     raceLaps, rounds, losersTank, victoryCount, lastCodes, showRadar, windowSize,
-                    mouseControls, twinSticks, smoothMotion, fillWindow, wideView, relay,
+                    mouseControls, twinSticks, smoothMotion, fillWindow, wideView, relay, touch,
                 ),
             )
         }

@@ -8,6 +8,8 @@ import nl.tankarena.ui.compose.menu.PlayerControls
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import nl.tankarena.ui.compose.menu.GameOptions
+import nl.tankarena.ui.compose.menu.TouchSettings
+import nl.tankarena.app.LocalTouchScreen
 import nl.tankarena.ui.compose.menu.JoystickAction
 import nl.tankarena.ui.compose.menu.padButtonsText
 
@@ -29,12 +31,31 @@ internal fun GameOptions.stepped(setting: ExtendedSetting, up: Boolean): GameOpt
         ExtendedSetting.ROUNDS -> copy(rounds = along(listOf(1, 3, 5, 7, 9, GameOptions.ENDLESS), rounds))
         ExtendedSetting.LAPS -> copy(raceLaps = (raceLaps + if (up) 1 else -1).coerceIn(1, 6))
         ExtendedSetting.LOSERS_TANK -> copy(losersTank = (losersTank + if (up) 1 else -1).coerceIn(0, 2))
+        ExtendedSetting.TOUCH_SIZE -> copy(touch = touch.copy(size = along(TouchSettings.SIZES, touch.size)))
+        ExtendedSetting.TOUCH_VISIBILITY -> copy(touch = touch.copy(visibility = along(TouchSettings.VISIBILITIES, touch.visibility)))
+        ExtendedSetting.TOUCH_HAND -> copy(touch = touch.copy(leftHanded = !touch.leftHanded))
+        ExtendedSetting.TOUCH_AIM_FIRES -> copy(touch = touch.copy(aimFires = !touch.aimFires))
+        ExtendedSetting.VIBRATION -> copy(touch = touch.copy(vibration = !touch.vibration))
         ExtendedSetting.CONTROLS -> this
     }
 }
 
-/** The settings on Extended's settings page, in order. */
-internal enum class ExtendedSetting { CONTROLS, WINDOW_SIZE, SMOOTH_MOTION, PICTURE, WIDE_VIEW, GAMMA, RADAR, MUSIC, SOUND, ROUNDS, LAPS, LOSERS_TANK }
+/** Enter on a setting: the next value, round to the first. */
+private fun GameOptions.nextOf(setting: ExtendedSetting): GameOptions {
+    fun <T> round(values: List<T>, current: T): T = values[(values.indexOf(current) + 1) % values.size]
+    return when (setting) {
+        ExtendedSetting.TOUCH_SIZE -> copy(touch = touch.copy(size = round(TouchSettings.SIZES, touch.size)))
+        ExtendedSetting.TOUCH_VISIBILITY -> copy(touch = touch.copy(visibility = round(TouchSettings.VISIBILITIES, touch.visibility)))
+        else -> stepped(setting, up = true)
+    }
+}
+
+/** The settings on Extended's settings page, in order; [touchOnly] ones only on a touch screen. */
+internal enum class ExtendedSetting(val touchOnly: Boolean = false) {
+    CONTROLS, WINDOW_SIZE, SMOOTH_MOTION, PICTURE, WIDE_VIEW, GAMMA, RADAR, MUSIC, SOUND, ROUNDS, LAPS, LOSERS_TANK,
+    TOUCH_SIZE(touchOnly = true), TOUCH_VISIBILITY(touchOnly = true), TOUCH_HAND(touchOnly = true),
+    TOUCH_AIM_FIRES(touchOnly = true), VIBRATION(touchOnly = true),
+}
 
 internal fun losersTankText(value: Int) = listOf("off", "after 1 lost round", "after 3 lost rounds")[value.coerceIn(0, 2)]
 
@@ -48,11 +69,13 @@ fun ExtendedSettingsPage(
     onChange: (GameOptions) -> Unit,
     onControls: () -> Unit,
     onBack: () -> Unit,
+    touch: Boolean = LocalTouchScreen.current,
 ) {
     val keys = remember { KeyRouter() }
-    val entries: List<Pair<ListEntry, () -> Unit>> = ExtendedSetting.entries.map { setting ->
+    val shown = ExtendedSetting.entries.filter { touch || !it.touchOnly }
+    val entries: List<Pair<ListEntry, () -> Unit>> = shown.map { setting ->
         val (entry, pick) = when (setting) {
-            ExtendedSetting.CONTROLS -> ListEntry("Controls", "keyboard and mouse, gamepads, a second keyboard player") to onControls
+            ExtendedSetting.CONTROLS -> ListEntry("Controls", "keyboard and mouse, gamepads") to onControls
             ExtendedSetting.WINDOW_SIZE -> ListEntry("Window size", "${100 - options.windowSize * 5}%") to {
                 onChange(if (options.windowSize >= GameOptions.MAX_WINDOW_SIZE) options.copy(windowSize = 0) else options.smallerWindow())
             }
@@ -72,6 +95,13 @@ fun ExtendedSettingsPage(
             }
             ExtendedSetting.LAPS -> ListEntry("Race laps", options.raceLaps.toString()) to { onChange(options.nextLaps()) }
             ExtendedSetting.LOSERS_TANK -> ListEntry("Losers tank", losersTankText(options.losersTank)) to { onChange(options.nextLosersTank()) }
+            ExtendedSetting.TOUCH_SIZE -> ListEntry("Touch controls", "${options.touch.size}% size") to { onChange(options.nextOf(setting)) }
+            ExtendedSetting.TOUCH_VISIBILITY -> ListEntry("Touch controls idle", "${options.touch.visibility}% visible") to { onChange(options.nextOf(setting)) }
+            ExtendedSetting.TOUCH_HAND -> ListEntry("Aiming hand", if (options.touch.leftHanded) "left" else "right") to { onChange(options.nextOf(setting)) }
+            ExtendedSetting.TOUCH_AIM_FIRES -> ListEntry("Aim stick", if (options.touch.aimFires) "fires when pushed far" else "aims only") to {
+                onChange(options.nextOf(setting))
+            }
+            ExtendedSetting.VIBRATION -> ListEntry("Vibration", if (options.touch.vibration) "on firing and hits" else "off") to { onChange(options.nextOf(setting)) }
         }
         // Every setting but the controls has its < > for the mouse and touch.
         entry.copy(steppable = setting != ExtendedSetting.CONTROLS) to pick
@@ -86,7 +116,7 @@ fun ExtendedSettingsPage(
             entries.map { it.first },
             onPick = { entries[it].second() },
             keys = keys,
-            onStep = { index, up -> onChange(options.stepped(ExtendedSetting.entries[index], up)) },
+            onStep = { index, up -> onChange(options.stepped(shown[index], up)) },
         )
     }
 }

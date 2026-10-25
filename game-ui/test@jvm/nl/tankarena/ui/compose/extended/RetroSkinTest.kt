@@ -17,6 +17,7 @@ class RetroSkinTest {
         assertEquals("a - b...", retroCodes("a — b…", RetroFont.BIG))
         assertEquals("code?", retroCodes("code€", RetroFont.BIG), "the euro sign is not in code page 437")
         assertEquals("SMALL", retroCodes("small", RetroFont.SMALL), "the 5×5 font is upper case")
+        assertEquals("ENTER - ESC", retroCodes("Enter · ESC", RetroFont.SMALL), "the 5×5 font writes a separating dot as a dash")
     }
 
     @Test

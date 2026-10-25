@@ -84,7 +84,7 @@ private fun PadPresses(pads: () -> List<PadReading>, active: () -> Boolean, onPr
  * buttons goes to [onTap]. The keys are not shown on a touch screen.
  */
 @Composable
-private fun GameOverlay(title: String, note: String?, keys: String, buttons: List<PageAction>, onTap: () -> Unit = {}) {
+internal fun GameOverlay(title: String, note: String?, keys: String, buttons: List<PageAction>, onTap: () -> Unit = {}) {
     val touch = LocalTouchScreen.current
     RetroScaled(
         modifier = Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(onTap) { detectTapGestures { onTap() } },
@@ -96,7 +96,7 @@ private fun GameOverlay(title: String, note: String?, keys: String, buttons: Lis
                 if (note != null) RetroText(note, color = RetroColors.dim, font = RetroFont.SMALL)
                 if (!touch) RetroText(keys, color = RetroColors.dim, font = RetroFont.SMALL)
                 Row(horizontalArrangement = Arrangement.spacedBy(retroDp(12))) {
-                    for (button in buttons) RetroButton(button.label, button.onClick)
+                    for (button in buttons) RetroButton(button.label, button.onClick, framed = true)
                 }
             }
         }

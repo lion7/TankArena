@@ -79,7 +79,7 @@ fun ExtendedSettingsPage(
     ExtendedPage(
         title = "Settings",
         onBack = onBack,
-        footer = "Left/Right or < > change a setting, Enter or a tap goes round; settings are kept for next time",
+        footer = "Left/Right change a setting, Enter goes round; settings are kept for next time",
         onKey = keys::handle,
     ) {
         ExtendedList(

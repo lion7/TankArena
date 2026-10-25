@@ -148,10 +148,15 @@ internal fun ReplayListScreen(onWatch: (ReplayEntry) -> Unit, onBack: () -> Unit
                 else -> onBack()
             }
         },
-        footer = when {
-            deleting -> "Delete this replay? Y deletes, N keeps it"
-            renaming -> "Enter keeps the name, ESC cancels"
+        note = when {
+            deleting -> "Delete this replay?"
             entries.isEmpty() -> "Every game you finish is recorded here"
+            else -> null
+        },
+        footer = when {
+            deleting -> "Y deletes, N keeps it"
+            renaming -> "Enter keeps the name, ESC cancels"
+            entries.isEmpty() -> null
             else -> "Enter watches   F2 names   Delete removes"
         },
         actions = when {

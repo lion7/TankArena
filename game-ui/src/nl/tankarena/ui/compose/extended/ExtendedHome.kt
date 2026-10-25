@@ -3,7 +3,6 @@ package nl.tankarena.ui.compose.extended
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import nl.tankarena.app.LocalTouchScreen
 
 /** Where the Extended home screen leads; null for what is not there yet. */
 class ExtendedHomeActions(
@@ -32,15 +31,15 @@ fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifi
         ListEntry("Map editor", "", enabled = actions.mapEditor != null) to (actions.mapEditor ?: {}),
         ListEntry("Settings", "controls, video, sound, match rules") to actions.settings,
         ListEntry("Help", "how to play, the keys") to actions.help,
-        ListEntry("Quit") to actions.quit,
     )
     ExtendedPage(
         title = "TANK ARENA",
         // Extended's name: its initials spell TANK.
         subtitle = "Next Kombat",
         onBack = actions.quit,
-        // Classic is played with the keyboard, so only a keyboard switches to it.
-        footer = if (LocalTouchScreen.current) null else "Up/Down and Enter, or the mouse · Ctrl+Shift+M: Classic",
+        backLabel = "Quit",
+        // Classic is played with the keyboard, so only a keyboard switches to it (not shown on a touch screen).
+        footer = "Up/Down and Enter, or the mouse · Ctrl+Shift+M: Classic",
         onKey = keys::handle,
         modifier = modifier,
     ) {

@@ -47,6 +47,7 @@ import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import nl.tankarena.app.LocalTouchScreen
 import nl.tankarena.ui.compose.MODE13_FADE_MILLIS
 import nl.tankarena.ui.compose.refocusOnTouch
 import nl.tankarena.ui.compose.rememberFadeIn
@@ -56,10 +57,11 @@ class PageAction(val label: String, val onClick: () -> Unit)
 
 /**
  * A full-screen Extended page in the original's look (ADR 0023): the panel pattern, and on it, like
- * legacy `menu()`, a black box in a brighter band with [title] centred at the top, [content] below
- * and [footer] (the keys) at the bottom. The page fades in like the 320×200 screens. ESC (Android's
- * Back, a pad's B) calls [onBack]; [onKey] sees every other key first. [actions] and Back are also
- * labels along the bottom to tap or click.
+ * legacy `menu()`, a black box in a brighter band with [title] centred at the top, [content] below,
+ * then [note] (what the player should know) and [footer] (the keys; not on a touch screen, which
+ * has none) at the bottom. The page fades in like the 320×200 screens. ESC (Android's Back, a pad's
+ * B) calls [onBack]; [onKey] sees every other key first. [actions] and Back (named [backLabel]) are
+ * also labels along the bottom to tap or click.
  */
 @Composable
 fun ExtendedPage(
@@ -70,8 +72,11 @@ fun ExtendedPage(
     footer: String? = null,
     onKey: (KeyEvent) -> Boolean = { false },
     actions: List<PageAction> = emptyList(),
+    note: String? = null,
+    backLabel: String = "< Back",
     content: @Composable () -> Unit,
 ) {
+    val keys = footer.takeUnless { LocalTouchScreen.current }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     val fade = rememberFadeIn(MODE13_FADE_MILLIS)
@@ -116,14 +121,15 @@ fun ExtendedPage(
                         }
                         Spacer(Modifier.heightIn(min = retroDp(10)))
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) { content() }
-                        val labels = listOfNotNull(onBack?.let { PageAction("< Back", it) }) + actions
-                        if (labels.isNotEmpty() || footer != null) Spacer(Modifier.heightIn(min = retroDp(6)))
+                        val labels = listOfNotNull(onBack?.let { PageAction(backLabel, it) }) + actions
+                        if (labels.isNotEmpty() || note != null || keys != null) Spacer(Modifier.heightIn(min = retroDp(6)))
                         if (labels.isNotEmpty()) {
                             Row(horizontalArrangement = Arrangement.spacedBy(retroDp(12)), verticalAlignment = Alignment.CenterVertically) {
                                 for (action in labels) RetroButton(action.label, action.onClick)
                             }
                         }
-                        if (footer != null) RetroText(footer, color = RetroColors.dim, font = RetroFont.SMALL, maxLines = 3)
+                        if (note != null) RetroText(note, color = RetroColors.normal, font = RetroFont.SMALL, maxLines = 2)
+                        if (keys != null) RetroText(keys, color = RetroColors.dim, font = RetroFont.SMALL, maxLines = 3)
                     }
                 }
             }
@@ -142,10 +148,11 @@ private val TOUCH_TARGET = 44.dp
 
 /**
  * A label to tap or click: grey, white when the mouse is over it or it is pressed, framed like a
- * selected entry.
+ * selected entry. A [framed] one has the frame all the time, so it shows as a button where there is
+ * no list around it (the questions over a game).
  */
 @Composable
-fun RetroButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun RetroButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, framed: Boolean = false) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val pressed by interaction.collectIsPressedAsState()
@@ -153,10 +160,10 @@ fun RetroButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
     Box(
         modifier = modifier
             .heightIn(min = TOUCH_TARGET)
-            .then(if (lit) Modifier.retroFrame(2) else Modifier)
+            .then(if (lit || framed) Modifier.retroFrame(2) else Modifier)
             .hoverable(interaction)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .padding(horizontal = retroDp(6)),
+            .padding(horizontal = retroDp(if (framed) 10 else 6)),
         contentAlignment = Alignment.Center,
     ) {
         RetroText(label.uppercase(), color = if (!enabled) RetroColors.disabled else if (lit) RetroColors.high else RetroColors.normal, maxLines = 1)

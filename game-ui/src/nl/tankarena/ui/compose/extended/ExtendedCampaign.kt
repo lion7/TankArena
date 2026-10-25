@@ -60,7 +60,7 @@ fun CampaignScreen(
         title = title,
         subtitle = if (mode == GameMode.DUAL_PLAYER_VS_COMPUTER) "Two players against the computer" else "Your missions, one after another",
         onBack = { if (entering) entering = false else onBack() },
-        footer = if (entering) "Enter starts the mission, ESC goes back" else "Enter plays the mission; the list holds every code you have reached",
+        footer = if (entering) "Enter starts the mission, ESC goes back" else "Enter plays the mission",
         actions = if (entering) listOf(PageAction("Start") { if (typed.isNotBlank()) onStart(typed.trim()) }) else emptyList(),
         onKey = { event -> if (entering) false else keys.handle(event) },
     ) {

@@ -246,10 +246,11 @@ fun NetworkLobbyScreen(
             else -> "Waiting for the host to start"
         },
         onBack = onBack,
+        note = "Waiting for players".takeIf { hosting && players < minPlayers },
         footer = when {
             !hosting -> "ESC leaves"
             players >= minPlayers -> "Enter starts · M another map · ESC stops the game"
-            else -> "Waiting for players · M another map · ESC stops the game"
+            else -> "M another map · ESC stops the game"
         },
         actions = buildList {
             if (hosting && players >= minPlayers) add(PageAction("Start", onStart))
@@ -372,11 +373,15 @@ fun NetworkResultScreen(
     ExtendedPage(
         title = if (result.missionWon != null) "Mission over" else "Round ${result.round}",
         onBack = onBack,
+        note = when {
+            hosting -> null
+            result.matchOver -> "Waiting for the host to go back to the lobby"
+            else -> "Waiting for the host to start the next round"
+        },
         footer = when {
             hosting && result.matchOver -> "Enter goes back to the lobby · ESC ends the game"
             hosting -> "Enter: the next round · ESC ends the game"
-            result.matchOver -> "Waiting for the host to go back to the lobby · ESC leaves"
-            else -> "Waiting for the host to start the next round · ESC leaves"
+            else -> "ESC leaves"
         },
         actions = if (hosting) listOf(PageAction(if (result.matchOver) "Lobby" else "Next round", onNext)) else emptyList(),
         onKey = { event ->
@@ -410,7 +415,8 @@ fun RelaySettingScreen(current: String, onSave: (String) -> Unit, onBack: () -> 
         title = "Internet relay",
         subtitle = "Hosts publish their games there and get a code; others join with the code",
         onBack = onBack,
-        footer = "Enter saves (empty: no relay) · ESC goes back",
+        note = "Empty: no relay",
+        footer = "Enter saves · ESC goes back",
         actions = listOf(PageAction("Save") { onSave(typed) }),
     ) {
         LaunchedEffect(Unit) { fieldFocus.requestFocus() }

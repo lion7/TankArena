@@ -130,6 +130,8 @@ internal fun retroCodes(text: String, font: RetroFont): String = buildString {
                 c == '\n' -> '\n'.code
                 c.code in 32..126 -> c.code
                 font != RetroFont.SMALL && CP437_HIGH.indexOf(c) >= 0 -> 128 + CP437_HIGH.indexOf(c)
+                // The 5×5 font has nothing above ASCII; a separating dot becomes a dash.
+                c == '·' -> '-'.code
                 else -> '?'.code
             }
             append(if (font == RetroFont.SMALL) code.toChar().uppercaseChar() else code.toChar())

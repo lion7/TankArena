@@ -38,6 +38,9 @@ import nl.tankarena.ui.compose.menu.withMode
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.LaunchedEffect
 
 /**
  * A mission's briefing, or its success or failure text, in the Extended look. Enter, Space or ESC
@@ -50,6 +53,7 @@ fun ExtendedTextPage(title: String, text: String, onClose: () -> Unit, footer: S
     ExtendedPage(
         title = title,
         onBack = onClose,
+        backLabel = "Go on",
         footer = footer,
         onKey = { event ->
             when (event.key) {
@@ -88,6 +92,15 @@ private val COLUMNS: List<List<ControlRow>> = listOf(
     listOf(ControlRow.Plays, ControlRow.Steering) + ControlAction.entries.map { ControlRow.KeyRow(it) },
 )
 
+/** What player one's mouse does (ADR 0029). */
+private val MOUSE: List<Pair<String, String>> = listOf(
+    "Turret" to "turns to the pointer",
+    "Fire" to "left button",
+    "Shield" to "right button",
+    "Weapons" to "the wheel",
+    "Rocket marker" to "the pointer, while fire is held",
+)
+
 /**
  * Extended's controls: player one plays with the keyboard and the mouse, the others with gamepads
  * (twin sticks, or the original's joystick); a second player on the keyboard can be switched on for
@@ -124,14 +137,14 @@ fun ExtendedControlsPage(
     }
     ExtendedPage(
         title = "Controls",
-        subtitle = "Mouse: the turret turns to the pointer, left button fires, right button shields, the wheel switches " +
-            "weapons; while fire is held the rocket marker follows the pointer. Gamepads join as the other players.",
+        subtitle = "Gamepads join as the other players",
         onBack = { if (waiting) waiting = false else onBack() },
-        footer = if (waiting && row is ControlRow.KeyRow) {
+        note = if (waiting && row is ControlRow.KeyRow) {
             "Press the key for ${row.action.label.lowercase()}, or ESC"
         } else {
-            "Arrows move, Enter or a tap changes, Delete clears. Direct steering: the vehicle drives the way you press."
+            "Direct steering: the vehicle drives the way you press"
         },
+        footer = "Arrows move, Enter changes, Delete clears",
         actions = if (row is ControlRow.KeyRow && !waiting) listOf(PageAction("Clear") { changed(pair.withKey(column, row.action, null)) }) else emptyList(),
         onKey = { event ->
             if (waiting) {
@@ -160,6 +173,9 @@ fun ExtendedControlsPage(
             // Side by side, or one under the other on a screen higher than wide.
             val upright = maxWidth < maxHeight
             val scroll = rememberScrollState()
+            // Keys and pads bring the selected row into view; a finger or the wheel scrolls freely.
+            val selectedRow = remember { BringIntoViewRequester() }
+            LaunchedEffect(column, index) { selectedRow.bringIntoView() }
             val columns: @Composable (Modifier) -> Unit = { each ->
                 for (c in 0..1) {
                     Column(modifier = each) {
@@ -178,7 +194,7 @@ fun ExtendedControlsPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 36.dp)
-                                    .then(if (selected) Modifier.retroFrame(2) else Modifier)
+                                    .then(if (selected) Modifier.retroFrame(2).bringIntoViewRequester(selectedRow) else Modifier)
                                     .clickable(indication = null, interactionSource = null) {
                                         if (selected) {
                                             activate()
@@ -195,6 +211,16 @@ fun ExtendedControlsPage(
                                 RetroText(value, color = if (selected) RetroColors.high else RetroColors.dim, maxLines = 1)
                             }
                         }
+                        // The mouse is player one's and has no keys to set: what it does, below the keys.
+                        if (c == 0) {
+                            RetroText("Mouse", color = RetroColors.accent, maxLines = 1, modifier = Modifier.padding(top = retroDp(8)))
+                            for ((label, value) in MOUSE) {
+                                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = retroDp(6), vertical = retroDp(2))) {
+                                    RetroText(label, color = RetroColors.normal, maxLines = 1, modifier = Modifier.weight(1f))
+                                    RetroText(value, color = RetroColors.dim, maxLines = 1)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -203,6 +229,8 @@ fun ExtendedControlsPage(
             } else {
                 Row(modifier = Modifier.verticalScroll(scroll), horizontalArrangement = Arrangement.spacedBy(retroDp(16))) { columns(Modifier.weight(1f)) }
             }
+            if (scroll.canScrollBackward) RetroText("^", color = RetroColors.high, modifier = Modifier.align(Alignment.TopEnd))
+            if (scroll.canScrollForward) RetroText("v", color = RetroColors.high, modifier = Modifier.align(Alignment.BottomEnd))
         }
     }
 }

@@ -115,7 +115,8 @@ fun JoinScreen(
             else -> "Press fire on your keys or A on a gamepad to join"
         },
         onBack = onBack,
-        footer = if (seats.size >= minPlayers) "Enter or START begins · Delete or B takes the last one out" else "At least $minPlayers players",
+        note = "At least $minPlayers players".takeIf { seats.size < minPlayers },
+        footer = if (seats.size >= minPlayers) "Enter or START begins · Delete or B takes the last one out" else "Delete or B takes the last one out",
         actions = listOfNotNull(
             PageAction("Begin") { begin() }.takeIf { seats.size >= minPlayers },
             PageAction("Take out") {

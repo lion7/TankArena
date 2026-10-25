@@ -63,8 +63,6 @@ data class GameOptions(
     val relay: String = DEFAULT_RELAY,
     /** Extended: player one's keys and steering (with the mouse). */
     val mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS,
-    /** Extended: a second player on the keyboard (player two's keys), for those without a gamepad. */
-    val keyboardSecond: Boolean = false,
     /** Extended: gamepads as twin sticks; off: as the original's joystick (player two's pad buttons). */
     val twinSticks: Boolean = true,
 ) {

@@ -31,15 +31,17 @@ one to aim.
 - **Players two to four play with gamepads as twin sticks:** the left stick drives the way it points,
   the right stick aims, the right trigger (or A) fires, the left trigger (or X) shields, LB and RB
   switch weapons. The original's joystick behaviour stays as a setting.
-- **A second keyboard player** (player two's keys, the cursor block by default) can be switched on for
-  those without a gamepad; then the arrow keys are theirs, not player one's.
+- **One device per player** (since 2026-10-25): player one has this machine's keyboard, mouse and
+  touch screen (alone, also the first gamepad), every other player a gamepad. The arrow keys always
+  drive player one. A second keyboard player was a setting until then; it was dropped because the
+  mouse is player one's (a keyboard player two never aims with a pointer), keyboards lose keys when
+  two players hold several, and Classic already is the two-on-one-keyboard game.
 - **Next vehicle:** besides F1–F10 (which pick a vehicle by its number), each player has one control
-  that takes the next friendly vehicle nobody else has picked, round to the first: Tab for player one,
-  Enter for the second keyboard player (both changeable on Extended's controls page, an 11th key that
-  Classic's setup does not show), Y on a twin-stick pad and BACK on a pad as the original's joystick. Like F1–F10 it does nothing when the players play
-  against each other. Classic keeps F1–F10 only.
-- **Joining:** before a local game player one's place is taken; the others press A, or the second
-  keyboard player its fire key.
+  that takes the next friendly vehicle nobody else has picked, round to the first: Tab for player one
+  (changeable on Extended's controls page, an 11th key that Classic's setup does not show), NEXT on
+  the touch controller, Y on a twin-stick pad and BACK on a pad as the original's joystick. Like
+  F1–F10 it does nothing when the players play against each other. Classic keeps F1–F10 only.
+- **Joining:** before a local game player one's place is taken; the others press A on their pad.
 - **On a touch screen** the virtual controller stays player one's; a mouse there works as on the
   desktop.
 
@@ -50,7 +52,8 @@ one to aim.
   `RuleFlags.pointerMarker`.
 - The game screen reads the mouse before the touch controls on top of it (`Modifier.mouseInput`); the
   player's view turns the cursor into a map position and draws a crosshair (`MouseLayer`).
-- `DesktopControls` combines a seat's keys, mouse and pad: the mouse becomes an aim direction from the
+- A `Seat` is `Own(pad)` (player one) or `Pad(n)`. `DesktopControls` combines player one's keys,
+  mouse, touch and (alone) pad: the mouse becomes an aim direction from the
   player's vehicle (the same `aimX`/`aimY` the touch controls use), the wheel one weapon switch per
   notch. `PadReading` has the right stick and the triggers (Jamepad on the desktop, the motion axes
   on Android).

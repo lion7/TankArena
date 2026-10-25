@@ -216,14 +216,14 @@ fun TankArenaApp(
      * with the single player's keys and the first gamepad if there is one. Returns how many.
      */
     fun useNetworkSeats(): Int {
-        if (controls.seats == null) controls.seats = listOf(Seat(keys = null, pad = 0.takeIf { platform.gamepads().isNotEmpty() }, mouse = true))
+        if (controls.seats == null) controls.seats = listOf(Seat.Own(pad = 0.takeIf { platform.gamepads().isNotEmpty() }))
         return controls.seats!!.size
     }
 
     /** With gamepads connected, who plays at this machine is asked first (up to three; one place stays for the others). */
     fun netJoinFirst(next: DesktopShellScreen, back: DesktopShellScreen): DesktopShellScreen {
         controls.seats = null
-        val others = platform.gamepads().isNotEmpty() || options.keyboardSecond
+        val others = platform.gamepads().isNotEmpty()
         return if (!others) next else DesktopShellScreen.Join(next, minPlayers = 1, maxPlayers = MAX_NET_PLAYERS - 1, back = back)
     }
 
@@ -314,13 +314,11 @@ fun TankArenaApp(
                         title = "Who plays?",
                         minPlayers = current.minPlayers,
                         maxPlayers = current.maxPlayers,
-                        keySets = options.controls,
-                        first = Seat(keys = null, pad = null, mouse = true),
-                        keyboardSets = if (options.keyboardSecond) setOf(SECOND_KEYBOARD_SET) else emptySet(),
+                        first = Seat.Own(),
                         readPadButtons = { platform.gamepads().map { it.buttons } },
-                        controlsOf = { place, seat, seats -> seatControls(seat, place, options, arrows = seats.none { it.keys != null }) },
+                        controlsOf = { place, seat -> seatControls(seat, place, options) },
                         onStart = { seats ->
-                            controls.useSeats(seats)
+                            controls.seats = soloWithPad(seats, platform.gamepads().isNotEmpty())
                             screen = current.next
                         },
                         onBack = { screen = current.back },
@@ -1045,8 +1043,12 @@ fun TankArenaApp(
     }
 }
 
-/** The second keyboard player plays with player two's keys (the cursor block by default). */
-private const val SECOND_KEYBOARD_SET = 1
+/**
+ * Player one alone after the join screen also plays with the first gamepad, when there is one (the
+ * campaign at a laptop with a pad); with others, the pads are theirs.
+ */
+internal fun soloWithPad(seats: List<Seat>, padConnected: Boolean): List<Seat> =
+    if (seats.size == 1 && seats[0] is Seat.Own && padConnected) listOf(Seat.Own(pad = 0)) else seats
 
 private fun MatchMode.toGameMode(): GameMode = when (this) {
     MatchMode.SINGLE -> GameMode.SINGLE_PLAYER_VS_COMPUTER
@@ -1102,9 +1104,8 @@ private fun GameplayScreen(
         // Extended: player one has the keyboard and mouse (and the first gamepad when alone); the
         // arrow keys are theirs too unless a second player is on the keyboard.
         if (controls.extended && controls.seats == null) {
-            controls.seats = listOf(Seat(keys = null, pad = 0.takeIf { platform.gamepads().isNotEmpty() }, mouse = true))
+            controls.seats = listOf(Seat.Own(pad = 0.takeIf { platform.gamepads().isNotEmpty() }))
         }
-        controls.mouseArrows = controls.seats?.none { it.keys != null } ?: true
         network ?: LocalMatchClient.fromMap(
             mission.document, mode.toMatchMode(), recordAs = mission.baseName.takeIf { record }, dual = dual ?: DualSetup(),
             ruleset = ruleset, cheats = cheats, players = players,
@@ -1170,7 +1171,7 @@ private fun GameplayScreen(
         fill = fill,
         wide = wide,
         mouse = controls.mouse.takeIf { controls.extended },
-        mousePlayerId = controls.seats?.indexOfFirst { it.mouse }?.let { playerIds.getOrNull(it) },
+        mousePlayerId = controls.seats?.indexOfFirst { it is Seat.Own }?.let { playerIds.getOrNull(it) },
     )
     if (touchControls) {
         TouchControls(

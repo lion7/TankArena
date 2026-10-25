@@ -24,16 +24,13 @@ import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.tankarena.input.Seat
-import nl.tankarena.input.keyName
-import nl.tankarena.ui.compose.menu.ControlAction
-import nl.tankarena.ui.compose.menu.PlayerControls
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Spacer
 
 /**
- * "Press to join" (ADR 0026): players take the free places in order, each with a key set (by pressing
- * its fire key) or a gamepad (by pressing A). A key set or pad joins once.
+ * "Press to join" (ADR 0026): players take the free places in order, each with a gamepad (by pressing
+ * A). A pad joins once; player one (keyboard and mouse) may hold the first place from the start.
  */
 class JoinState(
     val maxPlayers: Int,
@@ -43,14 +40,8 @@ class JoinState(
     var seats: List<Seat> = listOfNotNull(first)
         private set
 
-    /** The key set whose fire key is [key] joins, if it is one of [allowed]; true when it did. */
-    fun key(key: Key, keySets: List<PlayerControls>, allowed: Set<Int> = keySets.indices.toSet()): Boolean {
-        val set = keySets.indexOfFirst { it.key(ControlAction.FIRE) == key }.takeIf { it >= 0 && it in allowed } ?: return false
-        return join(Seat(keys = set, pad = null)) { it.keys == set }
-    }
-
     /** Pad [index] joins; true when it did. */
-    fun pad(index: Int): Boolean = join(Seat(keys = null, pad = index)) { it.pad == index }
+    fun pad(index: Int): Boolean = join(Seat.Pad(index)) { it is Seat.Pad && it.pad == index }
 
     /** The last one to join leaves again. */
     fun leave() {
@@ -66,7 +57,7 @@ class JoinState(
 
 /**
  * The join screen before a local game: [minPlayers] to [maxPlayers] places; [readPadButtons] gives
- * each connected pad's buttons. A on a pad or a key set's fire key joins, B or DELETE takes the last
+ * each connected pad's buttons. A on a pad joins, B or DELETE takes the last
  * one out again, START or ENTER begins once there are enough, ESC goes back.
  */
 @Composable
@@ -74,16 +65,13 @@ fun JoinScreen(
     title: String,
     minPlayers: Int,
     maxPlayers: Int,
-    keySets: List<PlayerControls>,
     readPadButtons: () -> List<Int>,
     onStart: (List<Seat>) -> Unit,
     onBack: () -> Unit,
     /** Player one's place, taken from the start (Extended: keyboard and mouse). */
     first: Seat? = null,
-    /** The key sets that may join with their fire key. */
-    keyboardSets: Set<Int> = keySets.indices.toSet(),
-    /** What the player in a place plays with, as label and controls, given everyone who plays. */
-    controlsOf: (place: Int, seat: Seat, seats: List<Seat>) -> List<Pair<String, String>> = { _, _, _ -> emptyList() },
+    /** What the player in a place plays with, as label and controls. */
+    controlsOf: (place: Int, seat: Seat) -> List<Pair<String, String>> = { _, _ -> emptyList() },
 ) {
     val state = remember { JoinState(maxPlayers, first) }
     var seats by remember { mutableStateOf(state.seats) }
@@ -109,13 +97,9 @@ fun JoinScreen(
     }
     ExtendedPage(
         title = title,
-        subtitle = when {
-            keyboardSets.isEmpty() -> "Press A on a gamepad to join"
-            first != null -> "Press A on a gamepad to join, or ${keySets.getOrNull(keyboardSets.first())?.key(ControlAction.FIRE)?.let { keyName(it) } ?: "fire"} for the second keyboard player"
-            else -> "Press fire on your keys or A on a gamepad to join"
-        },
+        subtitle = "Press A on a gamepad to join",
         onBack = onBack,
-        note = "At least $minPlayers players".takeIf { seats.size < minPlayers },
+        note = "At least $minPlayers players: a gamepad for each player after the first".takeIf { seats.size < minPlayers },
         footer = if (seats.size >= minPlayers) "Enter or START begins · Delete or B takes the last one out" else "Delete or B takes the last one out",
         actions = listOfNotNull(
             PageAction("Begin") { begin() }.takeIf { seats.size >= minPlayers },
@@ -128,7 +112,7 @@ fun JoinScreen(
             when (event.key) {
                 Key.Enter, Key.NumPadEnter -> begin()
                 Key.Delete, Key.Backspace -> state.leave()
-                else -> if (!state.key(event.key, keySets, keyboardSets)) return@ExtendedPage false
+                else -> return@ExtendedPage false
             }
             seats = state.seats
             true
@@ -137,17 +121,16 @@ fun JoinScreen(
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) { PlaceBoxes(maxPlayers) { place ->
             val seat = seats.getOrNull(place)
             RetroText("Player ${place + 1}", color = if (seat != null) RetroColors.high else RetroColors.normal, maxLines = 1)
-            val text = when {
-                seat == null -> if (place < minPlayers) "waiting…" else "free"
-                seat.mouse -> "keyboard and mouse"
-                seat.pad != null -> "gamepad ${seat.pad + 1}"
-                else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { keyName(it) } ?: "-"})"
+            val text = when (seat) {
+                null -> if (place < minPlayers) "waiting…" else "free"
+                is Seat.Own -> "keyboard and mouse"
+                is Seat.Pad -> "gamepad ${seat.pad + 1}"
             }
             RetroText(text, color = if (seat != null) RetroColors.text else RetroColors.dim)
             // The bottom half: what this player plays with.
             if (seat != null) {
                 Spacer(Modifier.height(retroDp(4)))
-                for ((label, controls) in controlsOf(place, seat, seats)) {
+                for ((label, controls) in controlsOf(place, seat)) {
                     RetroText(label, color = RetroColors.dim, font = RetroFont.SMALL)
                     RetroText(controls, color = RetroColors.text)
                 }

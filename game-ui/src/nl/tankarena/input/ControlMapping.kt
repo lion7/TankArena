@@ -165,7 +165,16 @@ object ControlMapping {
 }
 
 /**
- * One player's devices for a session (ADR 0026): a key set (index into the controls settings) and a
- * pad; Extended's player one has the [mouse] and its own keys instead of a key set.
+ * What one player at this machine plays with in Extended (ADR 0026, ADR 0029): one device each.
+ * Classic shares the keyboard, as the original, and has no seats.
  */
-data class Seat(val keys: Int?, val pad: Int?, val mouse: Boolean = false)
+sealed interface Seat {
+    /** The gamepad the player has, if any. */
+    val pad: Int?
+
+    /** Player one: this machine's keyboard, mouse and touch screen; alone, also the first gamepad. */
+    data class Own(override val pad: Int? = null) : Seat
+
+    /** Every other player: gamepad [pad]. */
+    data class Pad(override val pad: Int) : Seat
+}

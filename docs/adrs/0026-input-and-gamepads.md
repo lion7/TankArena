@@ -27,9 +27,9 @@ the same `InputFrame` ([ADR 0005](0005-network-ready-input-protocol-boundary.md)
 - **Classic** treats a pad as the original's joystick: the stick drives, a button turns it into aiming.
 - **Menus with a pad** (both rulesets, outside games, `GamepadMenuKeys`): stick or D-pad are the arrow
   keys with repeat, A and START Enter, B and BACK Esc, LB and RB Page Up and Down.
-- **Assigning players** (Extended): before a local game a "press to join" screen gives each pad (or a
-  keyboard set) the next free place; the `Seat`s hold for the session, and the tank selection reads
-  each player's pad.
+- **Assigning players** (Extended): before a local game a "press to join" screen gives each pad the
+  next free place after player one (keyboard and mouse, [ADR 0029](0029-extended-controls.md)); the
+  `Seat`s hold for the session, and the tank selection reads each player's pad.
 
 ## Consequences
 

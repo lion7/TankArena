@@ -3,7 +3,6 @@ package nl.tankarena.app
 import androidx.compose.ui.input.key.Key
 import nl.tankarena.input.PadReading
 import nl.tankarena.input.Seat
-import nl.tankarena.input.keyName
 import nl.tankarena.protocol.snapshot.HudState
 import nl.tankarena.protocol.snapshot.PlayerView
 import nl.tankarena.protocol.snapshot.ServerFrame
@@ -12,7 +11,6 @@ import nl.tankarena.protocol.snapshot.WorldSnapshot
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.extended.JoinState
 import nl.tankarena.ui.compose.extended.seatControls
-import nl.tankarena.ui.compose.menu.DEFAULT_CONTROLS
 import nl.tankarena.ui.compose.menu.GameOptions
 import nl.tankarena.ui.compose.menu.SelectionKey
 import kotlin.test.Test
@@ -22,7 +20,7 @@ import kotlin.test.assertTrue
 
 /** Extended's controls: player one with keyboard and mouse, the others with twin-stick gamepads. */
 class ExtendedControlsTest {
-    private val mouseSeat = Seat(keys = null, pad = null, mouse = true)
+    private val mouseSeat = Seat.Own()
 
     /** A frame with player [seat]'s tank at (200, 200), body facing [body] and turret [turret]. */
     private fun frame(seat: Int = 0, body: Int = 0, turret: Int = 0) = ServerFrame(
@@ -90,48 +88,42 @@ class ExtendedControlsTest {
 
         // As player two: drives north with the left stick and aims east with the right one.
         val pads = listOf(PadReading(stickX = 0, stickY = -100, buttons = 0, rightX = 100, rightY = 0))
-        val controls = controls(mouseSeat, Seat(keys = null, pad = 0)).apply { this.pads = { pads } }
+        val controls = controls(mouseSeat, Seat.Pad(0)).apply { this.pads = { pads } }
         val two = controls.toInputFrame(1, 0, frame(seat = 1, body = 4, turret = 0), seat = 1)
         assertTrue(two.forward && two.turnLeft, "turns from east to north and drives")
         assertTrue(two.aimRight, "the turret turns from north to east")
     }
 
     @Test
-    fun `player one keeps their place on the join screen and the second keyboard player joins only when allowed`() {
+    fun `player one keeps their place on the join screen and the others join with a gamepad`() {
         val join = JoinState(maxPlayers = 4, first = mouseSeat)
         assertEquals(listOf(mouseSeat), join.seats)
         join.leave()
         assertEquals(listOf(mouseSeat), join.seats, "player one cannot leave")
-        val fire = Key(DEFAULT_CONTROLS[1].keys[4])
-        assertFalse(join.key(fire, DEFAULT_CONTROLS, allowed = emptySet()))
-        assertTrue(join.key(fire, DEFAULT_CONTROLS, allowed = setOf(1)))
-        assertEquals(Seat(keys = 1, pad = null), join.seats.last())
         assertTrue(join.pad(0))
-        assertEquals(3, join.seats.size)
+        assertFalse(join.pad(0), "a pad joins once")
+        assertEquals(listOf(mouseSeat, Seat.Pad(0)), join.seats)
+    }
+
+    @Test
+    fun `player one alone also plays with the first gamepad`() {
+        assertEquals(listOf(Seat.Own(pad = 0)), soloWithPad(listOf(Seat.Own()), padConnected = true))
+        assertEquals(listOf(Seat.Own()), soloWithPad(listOf(Seat.Own()), padConnected = false))
+        val two = listOf(Seat.Own(), Seat.Pad(0))
+        assertEquals(two, soloWithPad(two, padConnected = true), "with others the pads are theirs")
     }
 
     @Test
     fun `in the vehicle selection a gamepad player's cursor does not move from the keyboard`() {
         val controls = DesktopControls().apply {
             extended = true
-            useSeats(listOf(mouseSeat, Seat(keys = null, pad = 0)))
+            seats = listOf(mouseSeat, Seat.Pad(0))
         }
         assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.W))
         assertEquals(0 to SelectionKey.FIRE, controls.selectionKey(Key.Spacebar))
         assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.DirectionUp), "the arrows are player one's, as in the campaign")
-        assertEquals(null, controls.selectionKey(Key.Delete), "player two's fire key is nobody's")
+        assertEquals(null, controls.selectionKey(Key.Delete), "a pad player has no keys")
         assertEquals(null, controls.selectionKey(Key.K))
-    }
-
-    @Test
-    fun `in the vehicle selection a second keyboard player has the second key set`() {
-        val controls = DesktopControls().apply {
-            extended = true
-            useSeats(listOf(mouseSeat, Seat(keys = 1, pad = null)))
-        }
-        assertEquals(1 to SelectionKey.UP, controls.selectionKey(Key.DirectionUp))
-        assertEquals(1 to SelectionKey.FIRE, controls.selectionKey(Key.Delete))
-        assertEquals(0 to SelectionKey.UP, controls.selectionKey(Key.W))
     }
 
     @Test
@@ -144,12 +136,9 @@ class ExtendedControlsTest {
 
     @Test
     fun `the join screen shows what each player plays with`() {
-        val options = GameOptions(keyboardSecond = true)
-        val mouse = seatControls(mouseSeat, 0, options, arrows = true).toMap()
+        val options = GameOptions()
+        val mouse = seatControls(mouseSeat, 0, options).toMap()
         assertTrue(mouse.getValue("Drive").startsWith("W A S D") && mouse.getValue("Drive").endsWith("or the arrow keys"))
-        assertFalse(seatControls(mouseSeat, 0, options, arrows = false).toMap().getValue("Drive").contains("arrow"))
-        assertEquals("left stick", seatControls(Seat(keys = null, pad = 0), 1, options, arrows = true).toMap()["Drive"])
-        val keys = seatControls(Seat(keys = 1, pad = null), 1, options, arrows = false).toMap()
-        assertEquals(keyName(Key.Delete), keys["Fire"])
+        assertEquals("left stick", seatControls(Seat.Pad(0), 1, options).toMap()["Drive"])
     }
 }

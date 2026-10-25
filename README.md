@@ -17,7 +17,7 @@ menu switches between the two (or start with `--classic`).
 
 - **Controls:** player one plays with the keyboard and the mouse. WASD drives the way you press, the
   turret turns to the pointer, and the rocket marker follows it. Players two to four use gamepads as
-  twin sticks. A second player on the keyboard is a setting.
+  twin sticks, one each. Two players on one keyboard is what Classic is for.
 - **Up to four players** on one screen, as two teams, on the original maps.
 - **Network games:** host or join on the local network, over the internet by address, or by a game
   code through a relay for hosts behind a router. A dedicated server hosts games without a screen.

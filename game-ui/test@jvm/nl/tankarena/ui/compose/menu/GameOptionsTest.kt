@@ -82,6 +82,13 @@ class GameOptionsTest {
     }
 
     @Test
+    fun `settings with the dropped second keyboard player still load`() {
+        val file = Files.createTempDirectory("settings").resolve("settings.json").toFile()
+        file.writeText("""{"raceLaps":4,"keyboardSecond":true,"twinSticks":false}""")
+        assertEquals(GameOptions(raceLaps = 4, twinSticks = false), GameSettings(GameOptionsStore(file)).options)
+    }
+
+    @Test
     fun `every fifth mission won plays THUNDER before the success text`() {
         val mission = MissionEntry(
             "BEGIN1", "begin1", "",

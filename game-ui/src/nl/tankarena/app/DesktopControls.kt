@@ -56,7 +56,7 @@ internal class KeyBinding(
             nextTank = controls.key(ControlAction.NEXT_VEHICLE),
         )
 
-        /** Extended: the arrow keys also drive player one when no second player is on the keyboard. */
+        /** Extended: the arrow keys drive player one too (the keyboard is theirs alone). */
         val ARROWS = KeyBinding(
             forward = Key.DirectionUp, reverse = Key.DirectionDown, turnLeft = Key.DirectionLeft, turnRight = Key.DirectionRight,
             aimLeft = null, aimRight = null, fire = null, shield = null, weaponLeft = null, weaponRight = null,
@@ -167,8 +167,8 @@ internal class DesktopControls {
     private val players = List(MAX_PLAYERS) { HeldKeys() }
 
     /**
-     * Who plays with what this session (Extended's join screen, ADR 0026): per player a key set
-     * (index into [settings]) and a pad, either may be missing. Null: the settings decide (Classic).
+     * Who plays with what this session (Extended's join screen, ADR 0026): player one this machine's
+     * keyboard and mouse, the others a gamepad each. Null: the settings decide (Classic).
      */
     @Volatile
     var seats: List<Seat>? = null
@@ -180,22 +180,9 @@ internal class DesktopControls {
     @Volatile
     var extended: Boolean = false
 
-    /**
-     * Who plays with what from now on: the arrow keys are player one's too while nobody plays with a
-     * key set, as in the campaign.
-     */
-    fun useSeats(seats: List<Seat>) {
-        this.seats = seats
-        mouseArrows = seats.none { it.keys != null }
-    }
-
-    /** Extended's player one's keys and steering ([Seat.mouse]). */
+    /** Extended's player one's keys and steering ([Seat.Own]). */
     @Volatile
     var mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS
-
-    /** Extended: the arrow keys drive player one too (nobody else is on the keyboard). */
-    @Volatile
-    var mouseArrows: Boolean = true
 
     /** Extended: gamepads are twin sticks, not the original's joystick. */
     @Volatile
@@ -213,26 +200,29 @@ internal class DesktopControls {
      * single player game"); two players have their own.
      */
     private fun controlsFor(playerId: Int): PlayerControls? = seats?.let { seats ->
-        val seat = seats.getOrNull(playerId) ?: return null
-        if (seat.mouse) mouseControls else settings.getOrNull(seat.keys ?: playerId.coerceAtMost(1))
+        // A pad in the original's joystick mode has the buttons of player one's or two's settings.
+        when (seats.getOrNull(playerId) ?: return null) {
+            is Seat.Own -> mouseControls
+            is Seat.Pad -> settings.getOrNull(playerId.coerceAtMost(1))
+        }
     } ?: when {
         mode == GameMode.SINGLE_PLAYER_VS_COMPUTER -> if (playerId == 0) settings.getOrNull(1) else null
         else -> settings.getOrNull(playerId)
     }
 
     private fun bindingsFor(playerId: Int): List<KeyBinding> {
-        val seat = seats?.getOrNull(playerId)
-        if (seat?.mouse == true) return listOfNotNull(KeyBinding.of(mouseControls), KeyBinding.ARROWS.takeIf { mouseArrows })
-        // A seat without keys plays with its pad only.
-        if (seat != null && seat.keys == null) return emptyList()
-        val own = controlsFor(playerId)?.let(KeyBinding::of) ?: return emptyList()
-        return listOf(own)
+        val seats = seats ?: return listOfNotNull(controlsFor(playerId)?.let(KeyBinding::of))
+        // Extended: the keyboard is player one's, the arrow keys too; a pad player has no keys.
+        return when (seats.getOrNull(playerId)) {
+            is Seat.Own -> listOf(KeyBinding.of(mouseControls), KeyBinding.ARROWS)
+            else -> emptyList()
+        }
     }
 
     /**
      * The vehicle selection's move for [key] and whose it is (legacy select_tanks(): each player moves
      * their marker with their own drive keys and confirms with fire). Classic has both key sets; with
-     * [seats] only the keys of those who play, so a gamepad player's cursor does not move from the keyboard.
+     * [seats] only player one's keys, so a gamepad player's cursor does not move from the keyboard.
      */
     fun selectionKey(key: Key): Pair<Int, SelectionKey>? {
         val bindings: (Int) -> List<KeyBinding> =
@@ -309,7 +299,7 @@ internal class DesktopControls {
             touchPad.state()?.let { state = state.and(it) }
             if (extended && touchPad.takeNext()) nextTank = true
         }
-        if (devices?.mouse == true) state = withMouse(state, ownTank(seat, frame))
+        if (devices is Seat.Own) state = withMouse(state, ownTank(seat, frame))
         // The pad's button asks once when pressed; Classic has only F1–F10.
         val padNext = extended && pad?.nextTank == true
         if (padNext && !p.nextTankPadHeld) nextTank = true

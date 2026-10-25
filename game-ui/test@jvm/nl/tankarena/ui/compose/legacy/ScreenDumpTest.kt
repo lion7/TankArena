@@ -39,7 +39,7 @@ class ScreenDumpTest {
         still(out, "credits.png") { CreditsScreen("credits.bmp", 70, 40, Credits.CREDITS, {}) }
         still(out, "thanks.png") { CreditsScreen("credits2.bmp", 160, 100, Credits.THANKS, {}) }
         // Extended's controls and keys help.
-        val withSecond = nl.tankarena.ui.compose.menu.GameOptions(keyboardSecond = true)
+        val withSecond = nl.tankarena.ui.compose.menu.GameOptions()
         still(out, "ext-controls.png") { nl.tankarena.ui.compose.extended.ExtendedControlsPage(withSecond, {}, {}) }
         still(out, "ext-leave.png") {
             nl.tankarena.app.GameOverlay("Leave the game?", null, "Enter or A leaves · ESC or B plays on", listOf(nl.tankarena.ui.compose.extended.PageAction("Leave") {}, nl.tankarena.ui.compose.extended.PageAction("Play on") {}))

@@ -32,9 +32,7 @@ import nl.tankarena.input.keyName
 import nl.tankarena.sim.Ruleset
 import nl.tankarena.ui.compose.menu.ControlAction
 import nl.tankarena.ui.compose.menu.ControlMode
-import nl.tankarena.ui.compose.menu.PlayerControls
 import nl.tankarena.ui.compose.menu.withKey
-import nl.tankarena.ui.compose.menu.withMode
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
@@ -80,17 +78,13 @@ private suspend fun androidx.compose.foundation.ScrollState.animateScrollBy(by: 
 
 /** The rows of Extended's controls page. */
 private sealed interface ControlRow {
-    data object Plays : ControlRow
     data object Steering : ControlRow
     data class KeyRow(val action: ControlAction) : ControlRow
     data object Gamepads : ControlRow
 }
 
-/** Player one (keyboard and mouse) and, in the second column, the second keyboard player. */
-private val COLUMNS: List<List<ControlRow>> = listOf(
-    listOf(ControlRow.Steering) + ControlAction.entries.map { ControlRow.KeyRow(it) } + ControlRow.Gamepads,
-    listOf(ControlRow.Plays, ControlRow.Steering) + ControlAction.entries.map { ControlRow.KeyRow(it) },
-)
+/** Player one's steering and keys, then how the gamepads play. */
+private val ROWS: List<ControlRow> = listOf(ControlRow.Steering) + ControlAction.entries.map { ControlRow.KeyRow(it) } + ControlRow.Gamepads
 
 /** What player one's mouse does (ADR 0029). */
 private val MOUSE: List<Pair<String, String>> = listOf(
@@ -98,14 +92,13 @@ private val MOUSE: List<Pair<String, String>> = listOf(
     "Fire" to "left button",
     "Shield" to "right button",
     "Weapons" to "the wheel",
-    "Rocket marker" to "the pointer, while fire is held",
+    "Rocket marker" to "pointer, fire held",
 )
 
 /**
- * Extended's controls: player one plays with the keyboard and the mouse, the others with gamepads
- * (twin sticks, or the original's joystick); a second player on the keyboard can be switched on for
- * those without a gamepad. Arrows move, Enter changes or waits for a key (taken from the other
- * player), Delete clears; changes count at once.
+ * Extended's controls (ADR 0029): player one plays with the keyboard and the mouse, the others with a
+ * gamepad each (twin sticks, or the original's joystick). Up/Down move, Enter changes or waits for a
+ * key (taken from the action that had it), Delete clears; changes count at once.
  */
 @Composable
 fun ExtendedControlsPage(
@@ -113,24 +106,17 @@ fun ExtendedControlsPage(
     onChange: (GameOptions) -> Unit,
     onBack: () -> Unit,
 ) {
-    var column by remember { mutableIntStateOf(0) }
     var index by remember { mutableIntStateOf(0) }
     var waiting by remember { mutableStateOf(false) }
-    val rows = COLUMNS[column]
-    val row = rows[index.coerceIn(0, rows.lastIndex)]
-    // The two players' keys, kept apart like the original's setup does for its two players.
-    val pair = listOf(options.mouseControls, options.controls[1])
-    fun changed(players: List<PlayerControls>) = onChange(
-        options.copy(mouseControls = players[0], controls = options.controls.mapIndexed { i, c -> if (i == 1) players[1] else c }),
-    )
+    val row = ROWS[index]
+    val controls = options.mouseControls
+    fun changed(action: ControlAction, key: Key?) = onChange(options.copy(mouseControls = listOf(controls).withKey(0, action, key)[0]))
     // Enter, or a tap on the selected row: change it, or wait for a key.
     fun activate() {
         when (row) {
-            ControlRow.Plays -> onChange(options.copy(keyboardSecond = !options.keyboardSecond))
-            ControlRow.Steering -> {
-                val mode = pair[column].mode
-                changed(pair.withMode(column, if (mode == ControlMode.RELATIVE) ControlMode.DIRECT else ControlMode.RELATIVE))
-            }
+            ControlRow.Steering -> onChange(
+                options.copy(mouseControls = controls.copy(mode = if (controls.mode == ControlMode.RELATIVE) ControlMode.DIRECT else ControlMode.RELATIVE)),
+            )
             ControlRow.Gamepads -> onChange(options.copy(twinSticks = !options.twinSticks))
             is ControlRow.KeyRow -> waiting = true
         }
@@ -145,89 +131,87 @@ fun ExtendedControlsPage(
             "Direct steering: the vehicle drives the way you press"
         },
         footer = "Arrows move, Enter changes, Delete clears",
-        actions = if (row is ControlRow.KeyRow && !waiting) listOf(PageAction("Clear") { changed(pair.withKey(column, row.action, null)) }) else emptyList(),
+        actions = if (row is ControlRow.KeyRow && !waiting) listOf(PageAction("Clear") { changed(row.action, null) }) else emptyList(),
         onKey = { event ->
             if (waiting) {
                 if (event.key == Key.Escape) return@ExtendedPage false
                 if (row is ControlRow.KeyRow) {
-                    changed(pair.withKey(column, row.action, event.key))
+                    changed(row.action, event.key)
                     waiting = false
                 }
                 return@ExtendedPage true
             }
             when (event.key) {
-                Key.DirectionUp -> index = (index - 1 + rows.size) % rows.size
-                Key.DirectionDown -> index = (index + 1) % rows.size
-                Key.DirectionLeft, Key.DirectionRight -> {
-                    column = 1 - column
-                    index = index.coerceAtMost(COLUMNS[column].lastIndex)
-                }
+                Key.DirectionUp -> index = (index - 1 + ROWS.size) % ROWS.size
+                Key.DirectionDown -> index = (index + 1) % ROWS.size
                 Key.Enter, Key.NumPadEnter -> activate()
-                Key.Delete -> if (row is ControlRow.KeyRow) changed(pair.withKey(column, row.action, null))
+                Key.Delete -> if (row is ControlRow.KeyRow) changed(row.action, null)
                 else -> return@ExtendedPage false
             }
             true
         },
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            // Side by side, or one under the other on a screen higher than wide.
-            val upright = maxWidth < maxHeight
-            val scroll = rememberScrollState()
             // Keys and pads bring the selected row into view; a finger or the wheel scrolls freely.
+            val scroll = rememberScrollState()
             val selectedRow = remember { BringIntoViewRequester() }
-            LaunchedEffect(column, index) { selectedRow.bringIntoView() }
-            val columns: @Composable (Modifier) -> Unit = { each ->
-                for (c in 0..1) {
-                    Column(modifier = each) {
-                        RetroText(if (c == 0) "Player one: keyboard and mouse" else "Second keyboard player", color = RetroColors.accent, maxLines = 1)
-                        val controls = pair[c]
-                        for ((r, item) in COLUMNS[c].withIndex()) {
-                            val selected = c == column && r == index
-                            val (label, value) = when (item) {
-                                ControlRow.Plays -> "Plays" to if (options.keyboardSecond) "yes, joins with its fire key" else "no"
-                                ControlRow.Steering -> "Steering" to if (controls.mode == ControlMode.RELATIVE) "turn and drive" else "direct"
-                                is ControlRow.KeyRow -> item.action.label.lowercase().replaceFirstChar { it.uppercase() } to
-                                    (if (selected && waiting) "press a key…" else controls.key(item.action)?.let { keyName(it) } ?: "-")
-                                ControlRow.Gamepads -> "Gamepads" to if (options.twinSticks) "twin sticks" else "the original's joystick"
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 36.dp)
-                                    .then(if (selected) Modifier.retroFrame(2).bringIntoViewRequester(selectedRow) else Modifier)
-                                    .clickable(indication = null, interactionSource = null) {
-                                        if (selected) {
-                                            activate()
-                                        } else {
-                                            column = c
-                                            index = r
-                                            waiting = false
-                                        }
-                                    }
-                                    .padding(horizontal = retroDp(6), vertical = retroDp(2)),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RetroText(label, color = if (selected) RetroColors.high else RetroColors.normal, maxLines = 1, modifier = Modifier.weight(1f))
-                                RetroText(value, color = if (selected) RetroColors.high else RetroColors.dim, maxLines = 1)
+            LaunchedEffect(index) { selectedRow.bringIntoView() }
+            val entry: @Composable (Int) -> Unit = { r ->
+                val item = ROWS[r]
+                val selected = r == index
+                val (label, value) = when (item) {
+                    ControlRow.Steering -> "Steering" to if (controls.mode == ControlMode.RELATIVE) "turn and drive" else "direct"
+                    is ControlRow.KeyRow -> item.action.label.lowercase().replaceFirstChar { it.uppercase() } to
+                        (if (selected && waiting) "press a key…" else controls.key(item.action)?.let { keyName(it) } ?: "-")
+                    ControlRow.Gamepads -> "Gamepads" to if (options.twinSticks) "twin sticks" else "the original's joystick"
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 36.dp)
+                        .then(if (selected) Modifier.retroFrame(2).bringIntoViewRequester(selectedRow) else Modifier)
+                        .clickable(indication = null, interactionSource = null) {
+                            if (selected) {
+                                activate()
+                            } else {
+                                index = r
+                                waiting = false
                             }
                         }
-                        // The mouse is player one's and has no keys to set: what it does, below the keys.
-                        if (c == 0) {
-                            RetroText("Mouse", color = RetroColors.accent, maxLines = 1, modifier = Modifier.padding(top = retroDp(8)))
-                            for ((label, value) in MOUSE) {
-                                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = retroDp(6), vertical = retroDp(2))) {
-                                    RetroText(label, color = RetroColors.normal, maxLines = 1, modifier = Modifier.weight(1f))
-                                    RetroText(value, color = RetroColors.dim, maxLines = 1)
-                                }
-                            }
-                        }
+                        .padding(horizontal = retroDp(6), vertical = retroDp(2)),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RetroText(label, color = if (selected) RetroColors.high else RetroColors.normal, maxLines = 1, modifier = Modifier.weight(1f))
+                    RetroText(value, color = if (selected) RetroColors.high else RetroColors.dim, maxLines = 1)
+                }
+            }
+            val keys: @Composable () -> Unit = {
+                RetroText("Player one: keyboard", color = RetroColors.accent, maxLines = 1)
+                for (r in 0 until ROWS.lastIndex) entry(r)
+            }
+            // The mouse has no keys to set: what it does, with how the gamepads play.
+            val others: @Composable () -> Unit = {
+                RetroText("Other players", color = RetroColors.accent, maxLines = 1)
+                entry(ROWS.lastIndex)
+                RetroText("Mouse (player one)", color = RetroColors.accent, maxLines = 1, modifier = Modifier.padding(top = retroDp(8)))
+                for ((label, value) in MOUSE) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = retroDp(6), vertical = retroDp(2))) {
+                        RetroText(label, color = RetroColors.normal, maxLines = 1, modifier = Modifier.weight(1f))
+                        RetroText(value, color = RetroColors.dim, maxLines = 1)
                     }
                 }
             }
-            if (upright) {
-                Column(modifier = Modifier.verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(retroDp(10))) { columns(Modifier.fillMaxWidth()) }
+            // The keys and the rest side by side, or one under the other on a screen higher than wide.
+            if (maxWidth > maxHeight) {
+                Row(modifier = Modifier.verticalScroll(scroll), horizontalArrangement = Arrangement.spacedBy(retroDp(16))) {
+                    Column(modifier = Modifier.weight(1f)) { keys() }
+                    Column(modifier = Modifier.weight(1f)) { others() }
+                }
             } else {
-                Row(modifier = Modifier.verticalScroll(scroll), horizontalArrangement = Arrangement.spacedBy(retroDp(16))) { columns(Modifier.weight(1f)) }
+                Column(modifier = Modifier.verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(retroDp(10))) {
+                    Column { keys() }
+                    Column { others() }
+                }
             }
             if (scroll.canScrollBackward) RetroText("^", color = RetroColors.high, modifier = Modifier.align(Alignment.TopEnd))
             if (scroll.canScrollForward) RetroText("v", color = RetroColors.high, modifier = Modifier.align(Alignment.BottomEnd))

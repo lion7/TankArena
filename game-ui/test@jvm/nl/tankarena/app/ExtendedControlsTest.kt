@@ -52,6 +52,17 @@ class ExtendedControlsTest {
     }
 
     @Test
+    fun `without a mouse the touch controller's aim stick turns the turret`() {
+        val touch = TouchPad().apply { set(nl.tankarena.input.InputState(aimX = 100, aimY = 0)) }
+        val controls = controls(mouseSeat).apply { this.touch = touch }
+        // The turret faces north (0); the stick points east: turn right.
+        assertTrue(controls.toInputFrame(0, 0, frame(turret = 0)).aimRight)
+        // A mouse pointing somewhere decides instead.
+        controls.mouse.pointAt(100, 200)
+        assertTrue(controls.toInputFrame(0, 1, frame(turret = 0)).aimLeft)
+    }
+
+    @Test
     fun `the buttons fire and shield, and only while firing is the pointed place sent`() {
         val controls = controls(mouseSeat)
         controls.mouse.pointAt(250, 260)

@@ -346,8 +346,9 @@ internal class DesktopControls {
      * goes where it points.
      */
     private fun withMouse(state: InputState, tank: TankState?): InputState {
-        var aimX = 0
-        var aimY = 0
+        // Without a mouse direction the aim stays what a stick gave (the touch controller, a pad).
+        var aimX = state.aimX
+        var aimY = state.aimY
         if (mouse.pointing && tank != null) {
             val dx = (mouse.worldX - tank.x).toDouble()
             val dy = (mouse.worldY - tank.y).toDouble()

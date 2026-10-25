@@ -41,6 +41,10 @@ class ScreenDumpTest {
         // Extended's controls and keys help.
         val withSecond = nl.tankarena.ui.compose.menu.GameOptions(keyboardSecond = true)
         still(out, "ext-controls.png") { nl.tankarena.ui.compose.extended.ExtendedControlsPage(withSecond, {}, {}) }
+        still(out, "ext-leave.png") {
+            nl.tankarena.app.GameOverlay("Leave the game?", null, "Enter or A leaves · ESC or B plays on", listOf(nl.tankarena.ui.compose.extended.PageAction("Leave") {}, nl.tankarena.ui.compose.extended.PageAction("Play on") {}))
+        }
+        still(out, "wide-controls.png", 1920, 1040) { nl.tankarena.ui.compose.extended.ExtendedControlsPage(withSecond, {}, {}) }
         still(out, "ext-keys.png") {
             nl.tankarena.ui.compose.extended.ExtendedTextPage("Keys", nl.tankarena.ui.compose.extended.extendedKeysText(withSecond), {})
         }
@@ -57,6 +61,17 @@ class ScreenDumpTest {
                 "", false, null, {}, {},
             )
         }
+        // Extended's menus in the original's look, on a desktop window and on a phone.
+        val home = nl.tankarena.ui.compose.extended.ExtendedHomeActions({}, {}, {}, {}, {}, {}, {}, {})
+        still(out, "ext-home.png") { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
+        still(out, "ext-settings.png") { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }
+        val codes = listOf("FLAGISLE", "BEGIN1", "BEGIN3")
+        still(out, "ext-campaign.png") { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
+        still(out, "ext-versus.png") { nl.tankarena.ui.compose.extended.VersusMapsScreen(missions, GameOptions(), "flagisle", {}, {}, {}) }
+        still(out, "phone-home.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
+        still(out, "phone-campaign.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
+        still(out, "phone-upright-campaign.png", 1080, 2340, 2.75f) { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
+        still(out, "phone-settings.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }
         still(out, "net-lobby.png") {
             nl.tankarena.ui.compose.extended.NetworkLobbyScreen(
                 "FLAGISLE",
@@ -67,8 +82,12 @@ class ScreenDumpTest {
         }
     }
 
-    private fun still(out: String, name: String, content: @androidx.compose.runtime.Composable () -> Unit) {
-        ImageComposeScene(1280, 960, content = content).use { scene ->
+    private fun still(out: String, name: String, width: Int = 1280, height: Int = 960, density: Float = 1f, content: @androidx.compose.runtime.Composable () -> Unit) {
+        // A phone-sized render (density above 1) is a touch screen.
+        val touch: @androidx.compose.runtime.Composable () -> Unit = {
+            androidx.compose.runtime.CompositionLocalProvider(nl.tankarena.app.LocalTouchScreen provides (density > 1f), content = content)
+        }
+        ImageComposeScene(width, height, density = androidx.compose.ui.unit.Density(density), content = touch).use { scene ->
             val start = System.nanoTime()
             repeat(40) {
                 scene.render(System.nanoTime() - start)

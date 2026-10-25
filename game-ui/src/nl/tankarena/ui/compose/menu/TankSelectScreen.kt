@@ -68,13 +68,22 @@ private const val BORDER_BOTH = 64
 internal fun allowedTanks(mapContents: Int, wins: List<Int>, losersTank: Int = 0): List<Boolean> =
     DualVehicles.allowed(mapContents, wins, losersTank)
 
+/** The vehicle whose window (see the overlay of [TankSelectScreen]) holds the point [x], [y] of the 320×200 screen. */
+internal fun tankAt(x: Int, y: Int): Int? {
+    val column = (x - 16).floorDiv(76)
+    val row = (y - 26).floorDiv(86)
+    if (column !in 0..3 || row !in 0..1 || (x - 16) % 76 >= WINDOW || (y - 26) % 86 >= WINDOW) return null
+    return row * 4 + column
+}
+
 internal fun autoSelect(chosen: List<Int>, allowed: List<Boolean>): List<Int> = DualVehicles.autoSelect(chosen, allowed)
 
 /**
  * Legacy select_tanks() (original/src/game/seltank.c), before every player-vs-player round: the SELECT
  * map plays live behind eight 60×60 windows, one on each vehicle. Each player moves a coloured
  * frame with their own drive keys and confirms with fire (the losers tank only when behind);
- * Enter confirms both, ESC leaves the match. Vehicles the map has no room for are grey.
+ * Enter confirms both, ESC leaves the match. Vehicles the map has no room for are grey. Not in the
+ * original: a tap or click on a vehicle moves player one's frame there, and on the framed one confirms.
  */
 @Composable
 fun TankSelectScreen(
@@ -154,6 +163,12 @@ fun TankSelectScreen(
         chosen = chosen.toMutableList().also { it[player] = next.coerceIn(0, CHOICES - 1) }
     }
 
+    fun tap(x: Int, y: Int) {
+        val tank = tankAt(x, y) ?: return
+        if (leaving || confirmed and 1 != 0) return
+        if (chosen[0] == tank) act(0, SelectionKey.FIRE) else chosen = chosen.toMutableList().also { it[0] = tank }
+    }
+
     LaunchedEffect(match) {
         while (true) {
             val actions = withFrameNanos { padActions() }
@@ -175,6 +190,7 @@ fun TankSelectScreen(
             }
             true
         },
+        onTap = ::tap,
         overlay = {
             val current = frame
             for (tank in 0 until CHOICES) {

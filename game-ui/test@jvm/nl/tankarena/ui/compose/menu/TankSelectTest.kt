@@ -29,6 +29,17 @@ class TankSelectTest {
     }
 
     @Test
+    fun `a tap finds the vehicle whose window it is on`() {
+        // The windows: 60×60 at x 16 + 76 per column, y 26 + 86 per row.
+        assertEquals(0, tankAt(16, 26))
+        assertEquals(3, tankAt(16 + 3 * 76 + 59, 26 + 59))
+        assertEquals(5, tankAt(100, 120))
+        assertEquals(null, tankAt(16 + 60, 30))
+        assertEquals(null, tankAt(15, 30))
+        assertEquals(null, tankAt(30, 26 + 2 * 86))
+    }
+
+    @Test
     fun `a match of three rounds is decided once a player has won two`() {
         val mission = MissionEntry("FLAGISLE", "flagisle", "", MapSceneSidecar(metadata = MapMetadata("FLAGISLE", 10, 10, "FLAGISLE")), testMap())
         var match = DualMatch(mission)

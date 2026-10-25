@@ -13,13 +13,12 @@ class ExtendedHomeActions(
     val settings: () -> Unit,
     val help: () -> Unit,
     val quit: () -> Unit,
-    val classic: () -> Unit,
     val networkGame: (() -> Unit)? = null,
 )
 
 /**
- * The Extended main menu (ADR 0023): every way into the game on one screen, with the mouse or the
- * keyboard. ESC quits.
+ * The Extended main menu (ADR 0023): every way into the game on one screen, with the mouse, the
+ * keyboard, a pad or a finger. ESC quits; Ctrl+Shift+M switches to Classic (handled by the app).
  */
 @Composable
 fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifier) {
@@ -32,15 +31,15 @@ fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifi
         ListEntry("Map editor", "", enabled = actions.mapEditor != null) to (actions.mapEditor ?: {}),
         ListEntry("Settings", "controls, video, sound, match rules") to actions.settings,
         ListEntry("Help", "how to play, the keys") to actions.help,
-        ListEntry("Switch to Classic", "the original game and its menus") to actions.classic,
-        ListEntry("Quit") to actions.quit,
     )
     ExtendedPage(
         title = "TANK ARENA",
         // Extended's name: its initials spell TANK.
         subtitle = "Next Kombat",
         onBack = actions.quit,
-        footer = "Up/Down and Enter, or the mouse",
+        backLabel = "Quit",
+        // Classic is played with the keyboard, so only a keyboard switches to it (not shown on a touch screen).
+        footer = "Up/Down and Enter, or the mouse · Ctrl+Shift+M: Classic",
         onKey = keys::handle,
         modifier = modifier,
     ) {

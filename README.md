@@ -10,7 +10,8 @@ other. The rewrite runs on Linux, Windows and Android, and plays in two ways:
   menus, keyboard and mouse controls, gamepads, up to four players, network play, replays and a map
   editor.
 
-The choice is made at the first start and can be changed in the settings.
+The game starts as Next Kombat; Classic is played with the keyboard, so Ctrl+Shift+M at the main
+menu switches between the two (or start with `--classic`).
 
 ## What Next Kombat adds
 

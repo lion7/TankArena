@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,13 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.menu.MissionEntry
 import nl.tankarena.ui.compose.menu.MissionRecord
@@ -69,29 +60,20 @@ fun CampaignScreen(
         title = title,
         subtitle = if (mode == GameMode.DUAL_PLAYER_VS_COMPUTER) "Two players against the computer" else "Your missions, one after another",
         onBack = { if (entering) entering = false else onBack() },
-        footer = if (entering) "Enter starts the mission, ESC goes back" else "Enter plays the mission; the list holds every code you have reached",
+        footer = if (entering) "Enter starts the mission, ESC goes back" else "Enter plays the mission",
+        actions = if (entering) listOf(PageAction("Start") { if (typed.isNotBlank()) onStart(typed.trim()) }) else emptyList(),
         onKey = { event -> if (entering) false else keys.handle(event) },
     ) {
         ListWithDetails(
             list = {
                 if (entering) {
                     LaunchedEffect(Unit) { fieldFocus.requestFocus() }
-                    OutlinedTextField(
+                    RetroTextField(
                         value = typed,
                         onValueChange = { typed = it.uppercase().take(20) },
-                        label = { Text("Mission code") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(fieldFocus)
-                            .onPreviewKeyEvent { event ->
-                                if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
-                                    if (typed.isNotBlank()) onStart(typed.trim())
-                                    true
-                                } else {
-                                    false
-                                }
-                            },
+                        label = "Mission code",
+                        onDone = { if (typed.isNotBlank()) onStart(typed.trim()) },
+                        modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
                     )
                 } else {
                     ExtendedList(
@@ -107,21 +89,21 @@ fun CampaignScreen(
                 val mission = reached.getOrNull(selected - 1)?.second
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     if (mission == null || entering) {
-                        Text("A mission code starts a mission and every one after it.", color = ExtendedColors.dim, fontSize = 16.sp)
+                        RetroText("A mission code starts a mission and every one after it.", color = RetroColors.dim)
                     } else {
                         val metadata = mission.sidecar.metadata
-                        Text(metadata.name.ifBlank { mission.baseName.uppercase() }, color = ExtendedColors.accent, fontSize = 22.sp)
-                        Text(
+                        RetroText(metadata.name.ifBlank { mission.baseName.uppercase() }, color = RetroColors.accent)
+                        RetroText(
                             "${metadata.world.name.lowercase()}${if (metadata.night) ", night" else ""} — ${metadata.widthTiles}×${metadata.heightTiles}",
-                            color = ExtendedColors.dim,
-                            fontSize = 14.sp,
+                            color = RetroColors.dim,
+                            font = RetroFont.SMALL,
                         )
-                        Text(recordOf(mission)?.text() ?: "Not played yet", color = ExtendedColors.text, fontSize = 15.sp)
+                        RetroText(recordOf(mission)?.text() ?: "Not played yet", color = RetroColors.normal)
                         otherRecordOf(mission)?.let { (way, record) ->
-                            Text("$way: ${record.text().replaceFirstChar { it.lowercase() }}", color = ExtendedColors.dim, fontSize = 14.sp)
+                            RetroText("$way: ${record.text().replaceFirstChar { it.lowercase() }}", color = RetroColors.dim)
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Text(mission.sidecar.missionText.briefing.trim(), color = ExtendedColors.text, fontSize = 15.sp)
+                        Spacer(Modifier.height(retroDp(8)))
+                        RetroText(mission.sidecar.missionText.briefing.trim())
                     }
                 }
             },

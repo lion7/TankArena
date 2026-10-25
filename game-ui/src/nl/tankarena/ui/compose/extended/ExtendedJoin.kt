@@ -27,6 +27,9 @@ import nl.tankarena.input.Seat
 import nl.tankarena.input.keyName
 import nl.tankarena.ui.compose.menu.ControlAction
 import nl.tankarena.ui.compose.menu.PlayerControls
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Spacer
 
 /**
  * "Press to join" (ADR 0026): players take the free places in order, each with a key set (by pressing
@@ -112,7 +115,15 @@ fun JoinScreen(
             else -> "Press fire on your keys or A on a gamepad to join"
         },
         onBack = onBack,
-        footer = if (seats.size >= minPlayers) "Enter or START begins · Delete or B takes the last one out" else "At least $minPlayers players",
+        note = "At least $minPlayers players".takeIf { seats.size < minPlayers },
+        footer = if (seats.size >= minPlayers) "Enter or START begins · Delete or B takes the last one out" else "Delete or B takes the last one out",
+        actions = listOfNotNull(
+            PageAction("Begin") { begin() }.takeIf { seats.size >= minPlayers },
+            PageAction("Take out") {
+                state.leave()
+                seats = state.seats
+            }.takeIf { seats.size > (if (first != null) 1 else 0) },
+        ),
         onKey = { event ->
             when (event.key) {
                 Key.Enter, Key.NumPadEnter -> begin()
@@ -123,41 +134,24 @@ fun JoinScreen(
             true
         },
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            for (place in 0 until maxPlayers) {
-                val seat = seats.getOrNull(place)
-                Column(
-                    modifier = Modifier
-                        .width(344.dp)
-                        .height(320.dp)
-                        .background(if (seat != null) ExtendedColors.selected else ExtendedColors.panel, RoundedCornerShape(10.dp))
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Player ${place + 1}", color = ExtendedColors.accent, fontSize = 20.sp)
-                    val text = when {
-                        seat == null -> if (place < minPlayers) "waiting…" else "free"
-                        seat.mouse -> "keyboard and mouse"
-                        seat.pad != null -> "gamepad ${seat.pad + 1}"
-                        else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { keyName(it) } ?: "-"})"
-                    }
-                    Text(text, color = if (seat != null) ExtendedColors.text else ExtendedColors.dim, fontSize = 16.sp)
-                    // The bottom half: what this player plays with.
-                    if (seat != null) {
-                        Column(
-                            modifier = Modifier.padding(top = 14.dp).fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            for ((label, controls) in controlsOf(place, seat, seats)) {
-                                Row {
-                                    Text(label, color = ExtendedColors.dim, fontSize = 14.sp, modifier = Modifier.width(100.dp))
-                                    Text(controls, color = ExtendedColors.text, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) { PlaceBoxes(maxPlayers) { place ->
+            val seat = seats.getOrNull(place)
+            RetroText("Player ${place + 1}", color = if (seat != null) RetroColors.high else RetroColors.normal, maxLines = 1)
+            val text = when {
+                seat == null -> if (place < minPlayers) "waiting…" else "free"
+                seat.mouse -> "keyboard and mouse"
+                seat.pad != null -> "gamepad ${seat.pad + 1}"
+                else -> "keys of player ${seat.keys!! + 1} (fire: ${keySets[seat.keys].key(ControlAction.FIRE)?.let { keyName(it) } ?: "-"})"
+            }
+            RetroText(text, color = if (seat != null) RetroColors.text else RetroColors.dim)
+            // The bottom half: what this player plays with.
+            if (seat != null) {
+                Spacer(Modifier.height(retroDp(4)))
+                for ((label, controls) in controlsOf(place, seat, seats)) {
+                    RetroText(label, color = RetroColors.dim, font = RetroFont.SMALL)
+                    RetroText(controls, color = RetroColors.text)
                 }
             }
-        }
+        } }
     }
 }

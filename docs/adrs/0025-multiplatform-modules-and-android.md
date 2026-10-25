@@ -43,8 +43,9 @@ game-protocol <- game-content <- game-sim <- game-net <- game-ui <- app-desktop,
   older versions draw without them. Gamepads come from key and motion events (A and START are Enter,
   B, BACK and the back button Esc in menus). On a touch screen without a pad, player one gets a
   virtual controller over the game (`TouchControls`: a floating move stick that steers directly, an
-  aim stick, FIRE, SHIELD, weapon buttons, PAUSE and EXIT); other players need gamepads. Taps go
-  through the intro, texts, Classic menus and yes/no questions.
+  aim stick, FIRE, SHIELD, weapon buttons, in Extended NEXT for the next vehicle, PAUSE and EXIT);
+  other players need gamepads. Taps go through the intro, texts, messages, yes/no questions, the
+  tank selection and every Extended page; Classic is played with the keyboard.
 - **Packages:** `packaging/package-android.sh` makes debug and release APKs and a release bundle
   (R8-shrunk) in `build/dist/android`. Without a `KEYSTORE` the release build is signed with the
   debug key.

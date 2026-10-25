@@ -305,7 +305,10 @@ internal class DesktopControls {
         val pad = padFor(playerId)?.let { reading -> if (extended && twinSticks && devices != null) reading.twinStick() else reading.inputState(controls!!) }
         var state = pad?.let { p.state().and(it) } ?: p.state()
         // A touch screen's controller is player one's.
-        if (playerId == 0) touch?.state()?.let { state = state.and(it) }
+        if (playerId == 0) touch?.let { touchPad ->
+            touchPad.state()?.let { state = state.and(it) }
+            if (extended && touchPad.takeNext()) nextTank = true
+        }
         if (devices?.mouse == true) state = withMouse(state, ownTank(seat, frame))
         // The pad's button asks once when pressed; Classic has only F1–F10.
         val padNext = extended && pad?.nextTank == true

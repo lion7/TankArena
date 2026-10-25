@@ -27,10 +27,11 @@ import kotlin.math.roundToInt
 /**
  * Player one's controls on a touch screen, written by [TouchControls] and read with the other
  * devices for every game tick: a move stick (steering directly, as a stick does), an aim stick for
- * the turret, fire, shield and the weapon before and after.
+ * the turret, fire, shield, the weapon before and after, and (Extended) the next vehicle.
  */
 class TouchPad {
     @Volatile private var current: InputState? = null
+    private val next = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /** What the fingers hold now, or null when none is down. */
     fun state(): InputState? = current
@@ -38,9 +39,16 @@ class TouchPad {
     internal fun set(state: InputState?) {
         current = state
     }
+
+    /** Whether NEXT was tapped since the last call: one tap asks for one vehicle, however long it is held. */
+    fun takeNext(): Boolean = next.getAndSet(false)
+
+    internal fun pressNext() {
+        next.set(true)
+    }
 }
 
-private enum class TouchRole { MOVE, AIM, FIRE, SHIELD, WEAPON_LEFT, WEAPON_RIGHT, PAUSE, EXIT }
+private enum class TouchRole { MOVE, AIM, FIRE, SHIELD, WEAPON_LEFT, WEAPON_RIGHT, NEXT, PAUSE, EXIT }
 
 /** A round control on the screen: centre and radius in pixels. */
 private data class Spot(val role: TouchRole, val centre: Offset, val radius: Float, val label: String)
@@ -48,10 +56,11 @@ private data class Spot(val role: TouchRole, val centre: Offset, val radius: Flo
 /**
  * The virtual controller over the game (Extended's look, cyan rings): the left half of the screen
  * is a move stick wherever the thumb lands, the right has the aim stick, FIRE, SHIELD and the weapon
- * buttons, the top PAUSE and EXIT. Every finger keeps the role of what it first touched.
+ * buttons (and with [nextVehicle], Extended, NEXT for the next friendly vehicle above them), the top
+ * PAUSE and EXIT. Every finger keeps the role of what it first touched.
  */
 @Composable
-internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Unit, modifier: Modifier = Modifier) {
+internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Unit, modifier: Modifier = Modifier, nextVehicle: Boolean = false) {
     val measurer = rememberTextMeasurer()
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val w = constraints.maxWidth.toFloat()
@@ -61,12 +70,13 @@ internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Uni
         val moveHome = Offset(margin + stick, h - margin - stick)
         val aimHome = Offset(w - margin - stick, h - margin - stick)
         val fire = Offset(aimHome.x - stick * 0.2f, aimHome.y - stick - h * 0.15f)
-        val spots = remember(w, h) {
-            listOf(
+        val spots = remember(w, h, nextVehicle) {
+            listOfNotNull(
                 Spot(TouchRole.FIRE, fire, h * 0.09f, "FIRE"),
                 Spot(TouchRole.SHIELD, Offset(fire.x - h * 0.23f, fire.y + h * 0.06f), h * 0.07f, "SHIELD"),
                 Spot(TouchRole.WEAPON_LEFT, Offset(fire.x - h * 0.2f, fire.y - h * 0.17f), h * 0.055f, "◀"),
                 Spot(TouchRole.WEAPON_RIGHT, Offset(fire.x + h * 0.02f, fire.y - h * 0.2f), h * 0.055f, "▶"),
+                Spot(TouchRole.NEXT, Offset(fire.x - h * 0.42f, fire.y - h * 0.1f), h * 0.06f, "NEXT").takeIf { nextVehicle },
                 Spot(TouchRole.PAUSE, Offset(w / 2 - h * 0.09f, h * 0.07f), h * 0.045f, "II"),
                 Spot(TouchRole.EXIT, Offset(w / 2 + h * 0.09f, h * 0.07f), h * 0.045f, "✕"),
             )
@@ -118,6 +128,7 @@ internal fun TouchControls(pad: TouchPad, onPause: () -> Unit, onExit: () -> Uni
                                     when (role) {
                                         TouchRole.PAUSE -> onPause()
                                         TouchRole.EXIT -> onExit()
+                                        TouchRole.NEXT -> pad.pressNext()
                                         else -> Unit
                                     }
                                 }

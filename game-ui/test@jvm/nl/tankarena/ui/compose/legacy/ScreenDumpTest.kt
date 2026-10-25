@@ -58,7 +58,7 @@ class ScreenDumpTest {
             )
         }
         // Extended's menus in the original's look, on a desktop window and on a phone.
-        val home = nl.tankarena.ui.compose.extended.ExtendedHomeActions({}, {}, {}, {}, {}, {}, {}, {}, {})
+        val home = nl.tankarena.ui.compose.extended.ExtendedHomeActions({}, {}, {}, {}, {}, {}, {}, {})
         still(out, "ext-home.png") { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
         still(out, "ext-settings.png") { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }
         val codes = listOf("FLAGISLE", "BEGIN1", "BEGIN3")

@@ -106,8 +106,6 @@ sealed interface DesktopShellScreen {
     /** A play-test of the map being edited, as it is now; afterwards back to [editing]. */
     data class PlayTest(val editing: Editor, val mission: MissionEntry, val mode: GameMode) : DesktopShellScreen
 
-    /** First start: Classic or Extended (ADR 0023). */
-    data object RulesetChoice : DesktopShellScreen
 
     /** Extended: the main menu, shown wherever Classic shows its main or game mode menu. */
     data object ExtendedMenu : DesktopShellScreen

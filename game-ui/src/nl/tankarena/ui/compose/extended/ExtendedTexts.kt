@@ -74,28 +74,6 @@ fun ExtendedTextPage(title: String, text: String, onClose: () -> Unit, footer: S
 
 private suspend fun androidx.compose.foundation.ScrollState.animateScrollBy(by: Float) = animateScrollTo((value + by.toInt()).coerceIn(0, maxValue))
 
-/**
- * The first start (ADR 0023): Classic plays and looks like the original, Extended has this look and
- * more. The choice is kept and can be changed later.
- */
-@Composable
-fun RulesetChoicePage(onChoose: (Ruleset) -> Unit, onExit: () -> Unit) {
-    val keys = remember { KeyRouter() }
-    val choices = listOf(
-        ListEntry("Classic", "the original game of 1997, as it was") to Ruleset.CLASSIC,
-        ListEntry("Extended", "new menus, replays, a wider view and more to come") to Ruleset.EXTENDED,
-    )
-    ExtendedPage(
-        title = "TANK ARENA",
-        subtitle = "How would you like to play?",
-        onBack = onExit,
-        footer = "You can switch later: to Classic in Extended's settings, to Extended by starting with --extended",
-        onKey = keys::handle,
-    ) {
-        ExtendedList(choices.map { it.first }, onPick = { onChoose(choices[it].second) }, keys = keys)
-    }
-}
-
 /** The rows of Extended's controls page. */
 private sealed interface ControlRow {
     data object Plays : ControlRow

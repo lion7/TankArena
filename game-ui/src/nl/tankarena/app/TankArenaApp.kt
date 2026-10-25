@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -90,7 +92,6 @@ import nl.tankarena.ui.compose.extended.ExtendedTextPage
 import nl.tankarena.ui.compose.extended.JoinScreen
 import nl.tankarena.ui.compose.extended.LocalGameScreen
 import nl.tankarena.ui.compose.extended.VersusMapsScreen
-import nl.tankarena.ui.compose.extended.RulesetChoicePage
 import nl.tankarena.ui.compose.gammaCorrection
 import nl.tankarena.ui.compose.menu.ControlsSetupScreen
 import nl.tankarena.ui.compose.menu.Credits
@@ -155,13 +156,8 @@ fun TankArenaApp(
     // Legacy TANK.CFG: the game options, saved whenever they change.
     val settings = remember {
         GameSettings(GameOptionsStore()).also { settings ->
-            // --classic / --extended choose the ruleset and keep the choice (ADR 0023).
-            val forced = when {
-                "--classic" in args -> Ruleset.CLASSIC
-                "--extended" in args -> Ruleset.EXTENDED
-                else -> null
-            }
-            forced?.let { settings.update(settings.options.copy(ruleset = it)) }
+            // Every start is Extended, or Classic with --classic (ADR 0023); Ctrl+Shift+M switches at the main menu.
+            settings.update(settings.options.copy(ruleset = if ("--classic" in args) Ruleset.CLASSIC else Ruleset.EXTENDED))
         }
     }
     val options = settings.options
@@ -242,7 +238,9 @@ fun TankArenaApp(
     }
 
     SideEffect {
-        keyHook.handler = { event -> handleGlobalKeys(event, screen, controls, settings) { saveScreenshot(platform, settings) } }
+        keyHook.handler = { event ->
+            switchRuleset(event, screen, settings) || handleGlobalKeys(event, screen, controls, settings) { saveScreenshot(platform, settings) }
+        }
     }
     Box(modifier = Modifier.fillMaxSize()) {
         // Outside a game the gamepads work the menus as the keyboard does (ADR 0026).
@@ -263,7 +261,6 @@ fun TankArenaApp(
             Surface(modifier = Modifier.fillMaxSize().gammaCorrection(options.gamma), color = Color.Black) {
                 val atMenu = screen == DesktopShellScreen.MainMenu || screen == DesktopShellScreen.GameModeSelect
                 val shown = when {
-                    atMenu && options.ruleset == null -> DesktopShellScreen.RulesetChoice
                     // After a game, Extended goes back to where it was started from.
                     atMenu && extended -> if (screen == DesktopShellScreen.GameModeSelect) extendedReturn ?: DesktopShellScreen.ExtendedMenu else DesktopShellScreen.ExtendedMenu
                     else -> screen
@@ -293,14 +290,6 @@ fun TankArenaApp(
                         onControls = if (extended) null else ({ screen = DesktopShellScreen.ControlsSetup(next = DesktopShellScreen.Options) }),
                     )
 
-                    DesktopShellScreen.RulesetChoice -> RulesetChoicePage(
-                        onChoose = { ruleset ->
-                            settings.update(options.copy(ruleset = ruleset))
-                            screen = DesktopShellScreen.MainMenu
-                        },
-                        onExit = platform::quit,
-                    )
-
                     DesktopShellScreen.ExtendedMenu -> {
                         // Back home: the next game asks again who plays with what.
                         SideEffect { controls.seats = null }
@@ -316,7 +305,6 @@ fun TankArenaApp(
                                 settings = { screen = DesktopShellScreen.ExtendedSettings },
                                 help = { screen = DesktopShellScreen.ExtendedHelp },
                                 quit = platform::quit,
-                                classic = { settings.update(options.copy(ruleset = Ruleset.CLASSIC)) },
                                 networkGame = { screen = DesktopShellScreen.NetworkMenu },
                             ),
                         )
@@ -795,7 +783,6 @@ fun TankArenaApp(
                         onMapEditor = { screen = DesktopShellScreen.EditorOpen },
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
-                        onExtended = { settings.update(options.copy(ruleset = Ruleset.EXTENDED)) },
                     )
 
                     DesktopShellScreen.ExtendedKeys -> ExtendedTextPage(
@@ -1195,6 +1182,7 @@ private fun GameplayScreen(
             },
             // Legacy ESC: the game ends (with Extended's question first).
             onExit = controls::askToLeave,
+            nextVehicle = controls.extended,
         )
     }
     if (controls.extended) PausedOverlay(controls, platform::gamepads)
@@ -1273,6 +1261,20 @@ private fun gameplayStep(
     }
 }
 
+
+/**
+ * Ctrl+Shift+M at the main menu (Classic's or Extended's home) switches between the rulesets
+ * (ADR 0023). Classic is played with the keyboard only, so its way in and out needs one too.
+ */
+private fun switchRuleset(event: KeyEvent, screen: DesktopShellScreen, settings: GameSettings): Boolean {
+    if (screen != DesktopShellScreen.MainMenu && screen != DesktopShellScreen.ExtendedMenu) return false
+    if (event.key != Key.M || !event.isCtrlPressed || !event.isShiftPressed) return false
+    if (event.type == KeyEventType.KeyDown) {
+        val options = settings.options
+        settings.update(options.copy(ruleset = if (options.ruleset == Ruleset.CLASSIC) Ruleset.EXTENDED else Ruleset.CLASSIC))
+    }
+    return true
+}
 
 /**
  * Legacy read_controls() (original/src/game/controls.c) in a game: ESC leaves, P pauses until the next key,

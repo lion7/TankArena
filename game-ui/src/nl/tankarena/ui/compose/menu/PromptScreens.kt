@@ -60,7 +60,7 @@ fun PromptBarScreen(
     }
 }
 
-/** Legacy `message_key` (original/src/game/prompt.c): a one-line message band; any key dismisses it. */
+/** Legacy `message_key` (original/src/game/prompt.c): a one-line message band; any key (or a tap) dismisses it. */
 @Composable
 fun MessageBarScreen(
     message: String,
@@ -73,6 +73,7 @@ fun MessageBarScreen(
             onDismiss()
             true
         },
+        onTap = { _, _ -> onDismiss() },
     ) {
         val length = message.length * 6
         panel()

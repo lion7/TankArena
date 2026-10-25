@@ -16,9 +16,12 @@ import nl.tankarena.ui.compose.MissionOutcome
 class MissionGate(
     private val passwords: PasswordStore,
     private val settings: GameSettings = GameSettings(),
-    /** Every campaign mission's record, kept across restarts. */
-    val stats: MissionStatsStore = MissionStatsStore(),
+    /** Every campaign mission's record per ruleset, kept across restarts (the rules differ, so the records do). */
+    private val statsByRuleset: Map<Ruleset, MissionStatsStore> = Ruleset.entries.associateWith { MissionStatsStore.of(it) },
 ) {
+    /** The active ruleset's mission records. */
+    val stats: MissionStatsStore get() = statsByRuleset.getValue(settings.options.ruleset)
+
     /**
      * Extended: the record of the series against each other since the players last joined, per map
      * and over every map. Classic's matches stand alone, like the original.

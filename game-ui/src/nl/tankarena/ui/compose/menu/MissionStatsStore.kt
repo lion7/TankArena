@@ -3,6 +3,7 @@ package nl.tankarena.ui.compose.menu
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import nl.tankarena.app.AppDirs
+import nl.tankarena.sim.Ruleset
 import nl.tankarena.ui.compose.GameMode
 import nl.tankarena.ui.compose.MissionOutcome
 import java.io.File
@@ -19,10 +20,10 @@ private data class MissionStatsFile(val modes: Map<String, Map<String, MissionRe
 
 /**
  * The record of every campaign mission, one player and together against the computer apart, kept as
- * JSON in the user's config directory next to the reached codes. Like [PasswordStore], IO failures
- * degrade to "nothing played" or "not saved".
+ * JSON in the user's config directory next to the reached codes; each ruleset has its own ([of]).
+ * Like [PasswordStore], IO failures degrade to "nothing played" or "not saved".
  */
-class MissionStatsStore(private val file: File = File(AppDirs.config, "mission-stats.json")) {
+class MissionStatsStore(private val file: File) {
     private var cache: MissionStatsFile? = null
 
     private fun load(): MissionStatsFile = cache ?: try {
@@ -56,8 +57,11 @@ class MissionStatsStore(private val file: File = File(AppDirs.config, "mission-s
         }
     }
 
-    private companion object {
-        val json = Json {
+    companion object {
+        /** [ruleset]'s records: `mission-stats-classic.json` or `mission-stats-extended.json`. */
+        fun of(ruleset: Ruleset) = MissionStatsStore(File(AppDirs.config, "mission-stats-${ruleset.name.lowercase()}.json"))
+
+        private val json = Json {
             ignoreUnknownKeys = true
             prettyPrint = true
         }

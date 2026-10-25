@@ -32,6 +32,10 @@ One game core with a **ruleset**, `Ruleset.CLASSIC` or `Ruleset.EXTENDED` (`:gam
   menu (Classic's or Extended's home) switches, and only a keyboard can do it. Classic's menu stays
   the original's ([parity.md](../parity.md#intentional-deviations)). Before, a screen at the first
   start asked, the choice was kept, and both main menus had a "Switch to" entry.
+- **Settings apart** (since 2026-10-25): each ruleset has its own options, match rules included, so
+  a change in one does not reach the other; only the volumes, gamma and the screenshot numbering are
+  shared. Campaign records are kept per ruleset, the reached codes are shared
+  ([ADR 0020](0020-user-data-as-json.md)).
 - **Extended's menu** (`ui.compose.extended`): home with campaign (the reached codes with each
   mission's world, size and briefing), local game (first the choice: against each other or together
   against the computer, then who plays, then a map with rounds, laps and the losers tank, or a

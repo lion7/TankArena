@@ -50,7 +50,7 @@ content reaches the rewrite through `PICTURES.DAT`.
 
 | Original | In the rewrite |
 |---|---|
-| `TANK.CFG` | `settings.json` in the player's config folder (options, controls, last codes, victory count, …) |
+| `TANK.CFG` | `settings.json` in the player's config folder, its `classic` part (options, controls, last codes, victory count, …) |
 | `PASSWD.DAT` | `passwd.json` in the player's config folder |
 
 See [ADR 0020](adrs/0020-user-data-as-json.md). Neither original file is in the repository.

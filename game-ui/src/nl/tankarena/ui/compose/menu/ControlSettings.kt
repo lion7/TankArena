@@ -121,16 +121,6 @@ fun List<PlayerControls>.withKey(player: Int, action: ControlAction, key: Key?):
     }
 }
 
-/**
- * Settings saved before a key was added get its default ([defaults]), unless that key is taken
- * already by one of [others] or by these controls; then it has none.
- */
-fun PlayerControls.withNewKeys(defaults: PlayerControls, others: List<PlayerControls> = emptyList()): PlayerControls {
-    if (keys.size >= defaults.keys.size) return this
-    val taken = (others.flatMap { it.keys } + keys).filter { it != 0L }.toSet()
-    return copy(keys = keys + defaults.keys.drop(keys.size).map { if (it in taken) 0L else it })
-}
-
 fun List<PlayerControls>.withMode(player: Int, mode: ControlMode): List<PlayerControls> =
     mapIndexed { index, controls -> if (index == player) controls.copy(mode = mode) else controls }
 

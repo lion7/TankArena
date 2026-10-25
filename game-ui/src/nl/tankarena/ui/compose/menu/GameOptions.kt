@@ -20,10 +20,11 @@ import nl.tankarena.sim.Ruleset
 import nl.tankarena.ui.compose.legacy.Mode13View
 
 /**
- * The game options of legacy menu.c and the other settings TANK.CFG keeps (original/src/game/settings.c):
- * `race_laps`, `rnds`, `lose`, `gamcor`, `music_volume`, `sound_volume` and `victory_count`.
+ * The options the game plays with: the active [ruleset]'s own (saved apart, see [SavedSettings]) and
+ * the shared ones. Classic's are the game options of legacy menu.c and the other settings TANK.CFG
+ * keeps (original/src/game/settings.c): `race_laps`, `rnds`, `lose`, `gamcor`, `music_volume`,
+ * `sound_volume` and `victory_count`.
  */
-@Serializable
 data class GameOptions(
     /** Legacy `race_laps`: 1..6. */
     val raceLaps: Int = 3,
@@ -38,8 +39,8 @@ data class GameOptions(
     val soundVolume: Int = 255,
     /** Legacy `victory_count`: missions won since THUNDER.FLI last played. */
     val victoryCount: Int = 0,
-    /** Classic or Extended (ADR 0023); null until the player has chosen. Not in TANK.CFG. */
-    val ruleset: Ruleset? = null,
+    /** Classic or Extended (ADR 0023): whose options these are. Not saved: every start is Extended. */
+    val ruleset: Ruleset = Ruleset.CLASSIC,
     /**
      * Legacy `single_code`, `dual_v_computer_code` and `dual_map_name` in TANK.CFG: the text the code
      * prompt of each game mode starts with, by [GameMode] name.
@@ -152,31 +153,128 @@ data class GameOptions(
     }
 }
 
-/** Saved settings from before a key was added get its default where that key is free. */
-internal fun GameOptions.withNewKeys(): GameOptions {
-    val players = controls.mapIndexed { i, c -> DEFAULT_CONTROLS.getOrNull(i)?.let { c.withNewKeys(it, listOf(mouseControls)) } ?: c }
-    return copy(controls = players, mouseControls = mouseControls.withNewKeys(MOUSE_PLAYER_CONTROLS, players))
-}
-
 private const val CONTROLS_SETUP = "Controls setup"
+
+/** Shared by both rulesets: what is about the player's ears and screen, and the screenshots' numbering. */
+@Serializable
+data class SharedSettings(
+    val musicVolume: Int = 255,
+    val soundVolume: Int = 255,
+    val gamma: Int = 0,
+    val screenshotNumber: Int = 0,
+)
+
+/** Classic's own settings: what the original's TANK.CFG holds. */
+@Serializable
+data class ClassicSettings(
+    val raceLaps: Int = 3,
+    val rounds: Int = 3,
+    val losersTank: Int = 0,
+    val victoryCount: Int = 0,
+    val lastCodes: Map<String, String> = emptyMap(),
+    val showRadar: Boolean = true,
+    val windowSize: Int = 0,
+    val controls: List<PlayerControls> = DEFAULT_CONTROLS,
+)
+
+/**
+ * Extended's own settings. Its gamepads in the original's joystick mode have the default buttons:
+ * the buttons are set in Classic's setup only.
+ */
+@Serializable
+data class ExtendedSettings(
+    val raceLaps: Int = 3,
+    val rounds: Int = 3,
+    val losersTank: Int = 0,
+    val victoryCount: Int = 0,
+    val lastCodes: Map<String, String> = emptyMap(),
+    val showRadar: Boolean = true,
+    val windowSize: Int = 0,
+    val mouseControls: PlayerControls = MOUSE_PLAYER_CONTROLS,
+    val twinSticks: Boolean = true,
+    val smoothMotion: Boolean = true,
+    val fillWindow: Boolean = true,
+    val wideView: Boolean = true,
+    val relay: String = DEFAULT_RELAY,
+)
+
+/**
+ * `settings.json`: the shared settings and each ruleset's own. A file of another [version] (or none)
+ * starts clean.
+ */
+@Serializable
+data class SavedSettings(
+    val version: Int = 0,
+    val shared: SharedSettings = SharedSettings(),
+    val classic: ClassicSettings = ClassicSettings(),
+    val extended: ExtendedSettings = ExtendedSettings(),
+) {
+    /** The options [ruleset] plays with. */
+    fun options(ruleset: Ruleset): GameOptions {
+        val shared = GameOptions(
+            ruleset = ruleset,
+            musicVolume = shared.musicVolume,
+            soundVolume = shared.soundVolume,
+            gamma = shared.gamma,
+            screenshotNumber = shared.screenshotNumber,
+        )
+        return when (ruleset) {
+            Ruleset.CLASSIC -> with(classic) {
+                shared.copy(
+                    raceLaps = raceLaps, rounds = rounds, losersTank = losersTank, victoryCount = victoryCount,
+                    lastCodes = lastCodes, showRadar = showRadar, windowSize = windowSize, controls = controls,
+                )
+            }
+            Ruleset.EXTENDED -> with(extended) {
+                shared.copy(
+                    raceLaps = raceLaps, rounds = rounds, losersTank = losersTank, victoryCount = victoryCount,
+                    lastCodes = lastCodes, showRadar = showRadar, windowSize = windowSize, mouseControls = mouseControls,
+                    twinSticks = twinSticks, smoothMotion = smoothMotion, fillWindow = fillWindow, wideView = wideView, relay = relay,
+                )
+            }
+        }
+    }
+
+    /** [options] (of their ruleset) kept: the shared ones and that ruleset's own; the other ruleset's stay. */
+    fun with(options: GameOptions): SavedSettings = with(options) {
+        val kept = copy(shared = SharedSettings(musicVolume, soundVolume, gamma, screenshotNumber))
+        when (ruleset) {
+            Ruleset.CLASSIC -> kept.copy(
+                classic = ClassicSettings(raceLaps, rounds, losersTank, victoryCount, lastCodes, showRadar, windowSize, controls),
+            )
+            Ruleset.EXTENDED -> kept.copy(
+                extended = ExtendedSettings(
+                    raceLaps, rounds, losersTank, victoryCount, lastCodes, showRadar, windowSize,
+                    mouseControls, twinSticks, smoothMotion, fillWindow, wideView, relay,
+                ),
+            )
+        }
+    }
+
+    companion object {
+        /** Settings of an older layout are not read, but replaced. */
+        const val VERSION = 2
+    }
+}
 
 /**
  * The settings in the user's config directory (`settings.json` next to the known passwords).
  * Like [PasswordStore], IO failures fall back to the defaults or leave the file as it was.
  */
 class GameOptionsStore(private val file: File = File(AppDirs.config, "settings.json")) {
-    fun load(): GameOptions = try {
-        if (file.isFile) json.decodeFromString(GameOptions.serializer(), file.readText()).withNewKeys() else GameOptions()
+    fun load(): SavedSettings = try {
+        val saved = if (file.isFile) json.decodeFromString(SavedSettings.serializer(), file.readText()) else null
+        saved?.takeIf { it.version == SavedSettings.VERSION } ?: SavedSettings(version = SavedSettings.VERSION)
     } catch (e: Exception) {
         System.err.println("Cannot read settings from $file: ${e.message}")
-        GameOptions()
+        SavedSettings(version = SavedSettings.VERSION)
     }
 
     /** Legacy save_settings(). */
-    fun save(options: GameOptions) {
+    fun save(settings: SavedSettings) {
         try {
             file.parentFile?.mkdirs()
-            file.writeText(json.encodeToString(GameOptions.serializer(), options))
+            file.writeText(json.encodeToString(SavedSettings.serializer(), settings))
         } catch (e: Exception) {
             System.err.println("Cannot save settings to $file: ${e.message}")
         }
@@ -192,17 +290,25 @@ class GameOptionsStore(private val file: File = File(AppDirs.config, "settings.j
 }
 
 /**
- * The options in play, observable by the UI; every change is saved to [store] (legacy
- * save_settings()). Without a store they only live in memory (the tests).
+ * The options in play, observable by the UI: those of the active ruleset; every change is saved to
+ * [store] (legacy save_settings()). Without a store they only live in memory (the tests). An update
+ * with another ruleset switches to that ruleset's options and changes nothing else.
  */
 class GameSettings(private val store: GameOptionsStore? = null) {
-    var options: GameOptions by mutableStateOf(store?.load() ?: GameOptions())
+    private var saved: SavedSettings = store?.load() ?: SavedSettings(version = SavedSettings.VERSION)
+
+    var options: GameOptions by mutableStateOf(saved.options(Ruleset.CLASSIC))
         private set
 
     fun update(changed: GameOptions) {
         if (changed == options) return
+        if (changed.ruleset != options.ruleset) {
+            options = saved.options(changed.ruleset)
+            return
+        }
+        saved = saved.with(changed)
         options = changed
-        store?.save(changed)
+        store?.save(saved)
     }
 }
 

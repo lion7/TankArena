@@ -18,7 +18,7 @@ class VersusSeriesTest {
     private fun gate(ruleset: Ruleset) = MissionGate(
         PasswordStore(dir.resolve("passwd.json").toFile()),
         GameSettings().also { it.update(it.options.copy(ruleset = ruleset)) },
-        MissionStatsStore(dir.resolve("mission-stats.json").toFile()),
+        Ruleset.entries.associateWith { MissionStatsStore(dir.resolve("mission-stats-$it.json").toFile()) },
     )
 
     @Test

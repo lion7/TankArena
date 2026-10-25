@@ -73,19 +73,50 @@ class GameOptionsTest {
     }
 
     @Test
-    fun `the ruleset is unchosen in old settings and kept once chosen`() {
+    fun `settings of the old flat layout are thrown away`() {
         val file = Files.createTempDirectory("settings").resolve("settings.json").toFile()
-        file.writeText("""{"raceLaps":4}""")
-        assertNull(GameSettings(GameOptionsStore(file)).options.ruleset)
-        GameSettings(GameOptionsStore(file)).let { it.update(it.options.copy(ruleset = Ruleset.EXTENDED)) }
-        assertEquals(GameOptions(raceLaps = 4, ruleset = Ruleset.EXTENDED), GameSettings(GameOptionsStore(file)).options)
+        file.writeText("""{"raceLaps":4,"keyboardSecond":true,"twinSticks":false,"ruleset":"EXTENDED"}""")
+        assertEquals(GameOptions(), GameSettings(GameOptionsStore(file)).options)
     }
 
     @Test
-    fun `settings with the dropped second keyboard player still load`() {
+    fun `each ruleset keeps its own options and shares the volumes and gamma`() {
         val file = Files.createTempDirectory("settings").resolve("settings.json").toFile()
-        file.writeText("""{"raceLaps":4,"keyboardSecond":true,"twinSticks":false}""")
-        assertEquals(GameOptions(raceLaps = 4, twinSticks = false), GameSettings(GameOptionsStore(file)).options)
+        GameSettings(GameOptionsStore(file)).apply {
+            update(options.copy(rounds = 5, musicVolume = 85, gamma = 2))
+            update(options.copy(ruleset = Ruleset.EXTENDED))
+            assertEquals(3, options.rounds, "Extended has its own rounds")
+            assertEquals(85 to 2, options.musicVolume to options.gamma, "the music and gamma are shared")
+            update(options.copy(rounds = 9, twinSticks = false))
+        }
+        val restarted = GameSettings(GameOptionsStore(file))
+        assertEquals(5, restarted.options.rounds, "Classic first, as it was saved")
+        restarted.update(restarted.options.copy(ruleset = Ruleset.EXTENDED))
+        assertEquals(9, restarted.options.rounds)
+        assertFalse(restarted.options.twinSticks)
+    }
+
+    @Test
+    fun `switching the ruleset changes nothing else`() {
+        val settings = GameSettings()
+        settings.update(settings.options.copy(ruleset = Ruleset.EXTENDED, rounds = 7))
+        assertEquals(3, settings.options.rounds)
+        settings.update(settings.options.copy(ruleset = Ruleset.CLASSIC))
+        assertEquals(3, settings.options.rounds)
+    }
+
+    @Test
+    fun `the campaign records are kept per ruleset`() {
+        val dir = Files.createTempDirectory("tankarena-records")
+        val settings = GameSettings()
+        val gate = MissionGate(
+            PasswordStore(dir.resolve("passwd.json").toFile()), settings,
+            Ruleset.entries.associateWith { MissionStatsStore(dir.resolve("stats-$it.json").toFile()) },
+        )
+        gate.stats.record(GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin1", MissionOutcome.WON)
+        assertEquals(1, gate.stats.of(GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin1")?.won)
+        settings.update(settings.options.copy(ruleset = Ruleset.EXTENDED))
+        assertNull(gate.stats.of(GameMode.SINGLE_PLAYER_VS_COMPUTER, "begin1"), "Extended's are its own")
     }
 
     @Test

@@ -909,7 +909,7 @@ fun TankArenaApp(
                         smoothMotion = extended && options.smoothMotion,
                         fill = extended && options.fillWindow,
                         wide = extended && options.wideView,
-                        ruleset = options.ruleset ?: Ruleset.CLASSIC,
+                        ruleset = options.ruleset,
                         cheats = cheats,
                         dual = current.dual?.let { match ->
                             DualSetup(tankTypes = current.tankTypes, raceLaps = match.options.raceLaps, round = match.round, wins = match.wins)
@@ -986,7 +986,7 @@ fun TankArenaApp(
                         smoothMotion = extended && options.smoothMotion,
                         fill = extended && options.fillWindow,
                         wide = extended && options.wideView,
-                        ruleset = options.ruleset ?: Ruleset.CLASSIC,
+                        ruleset = options.ruleset,
                         cheats = cheats,
                         dual = if (current.mode == GameMode.PLAYER_VS_PLAYER) DualSetup() else null,
                         record = false,

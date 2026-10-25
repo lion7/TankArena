@@ -18,14 +18,20 @@ purpose for the rewrite.
   `%USERPROFILE%\.config\…`). Android uses the app's own storage (`filesDir/config`, and the app's
   external files folder for data).
 - Config folder (`~/.config/tankarena/`):
-  - `settings.json` (`GameOptionsStore`): the game options (laps, rounds, losers tank, gamma, music and
-    sound volume), the victory count, the ruleset, the last code per mode and the last
-    player-vs-player map, radar on or off, window size, screenshot number, each player's controls
-    (keys, RELATIVE or DIRECT, keyboard or joystick, buttons, sensitivity), Extended's screen and
-    control options, and the relay address;
+  - `settings.json` (`GameOptionsStore`, `SavedSettings`, since 2026-10-25 in three parts; a file of
+    another `version` is replaced, not converted):
+    - `shared`: music and sound volume, gamma, the screenshot number;
+    - `classic`: what `TANK.CFG` holds: laps, rounds, losers tank, the victory count, the last code
+      per mode and the last player-vs-player map, radar on or off, window size, and both players'
+      controls (keys, RELATIVE or DIRECT, keyboard or joystick, buttons, sensitivity);
+    - `extended`: its own laps, rounds, losers tank, victory count, last codes, radar and window size,
+      player one's keys and steering, the gamepad mode, the screen options and the relay address.
+    The ruleset is not saved: every start is Extended ([ADR 0023](0023-classic-and-extended-rulesets.md));
   - `passwd.json` (`PasswordStore`, a port of `original/src/game/passwd.c`): the reached mission codes.
-  - `mission-stats.json` (`MissionStatsStore`, not in the original): per way of playing and mission,
-    how often it was played, won and lost (a mission left with ESC counts as played only).
+  - `mission-stats-classic.json` and `mission-stats-extended.json` (`MissionStatsStore`, not in the
+    original): per ruleset, way of playing and mission, how often it was played, won and lost (a
+    mission left with ESC counts as played only). The rules differ, so the records do; the reached
+    codes in `passwd.json` are shared.
 - Data folder (`~/.local/share/tankarena/`): `maps/` (maps saved in the editor; exported `.MAP`
   files in `maps/export/`), `recordings/` ([ADR 0014](0014-simulation-thread-and-recordings.md)) and
   `screenshots/` (`TANK<n>.png`).

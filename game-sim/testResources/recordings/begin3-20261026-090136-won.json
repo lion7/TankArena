@@ -1,0 +1,1686 @@
+{
+    "rulesVersion": 10,
+    "ruleset": "EXTENDED",
+    "mission": "begin3",
+    "mode": "SINGLE",
+    "inputs": [
+        {
+            "tick": 0,
+            "playerId": 0,
+            "intent": {
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 7,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 88,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 93,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 94,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 152,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 154,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 163,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 193,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 197,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 238,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 252,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 253,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 262,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 265,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 276,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 277,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 311,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 313,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 318,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 322,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 343,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 346,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 348,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 382,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 388,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "aimRight": true
+            }
+        },
+        {
+            "tick": 396,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 397,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 418,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 446,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 475,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 489,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 496,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 499,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 503,
+            "playerId": 0,
+            "intent": {
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 562,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 572,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 574,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 619,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 622,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 636,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 637,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 739,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "cycleWeaponRight": true
+            }
+        },
+        {
+            "tick": 752,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 757,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "cycleWeaponRight": true
+            }
+        },
+        {
+            "tick": 770,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 778,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 781,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 784,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 790,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 814,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 817,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 821,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 826,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1032,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1033,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1042,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1045,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1049,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1054,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1060,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1063,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1073,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1075,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1113,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 1128,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1131,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1132,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1148,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 1163,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1192,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1195,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1201,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1204,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1210,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1212,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1219,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1232,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 1241,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1275,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1276,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1278,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 1281,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1312,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1330,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1333,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1362,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1363,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1413,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1414,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1425,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1426,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1462,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1465,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1469,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1474,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1487,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1489,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1491,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1498,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1508,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1510,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1512,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1519,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1523,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1528,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1544,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1546,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1573,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1576,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1598,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1600,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1703,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1705,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1708,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1714,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1739,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1741,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1764,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1765,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1775,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1777,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1830,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1831,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1848,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1849,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1867,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1870,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1877,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1879,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1885,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1888,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1915,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1918,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1920,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 1927,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1965,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1966,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1973,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 1975,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 1999,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2002,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2012,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2014,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2023,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2026,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2064,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2065,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2070,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2074,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2075,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2083,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2093,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2095,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2102,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2104,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2109,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2113,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2115,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2122,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2187,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2188,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2198,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2200,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2219,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 2235,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2238,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2239,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2243,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2275,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2315,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2317,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2322,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2326,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2366,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2368,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2372,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2377,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2411,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2413,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2422,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2425,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2454,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2455,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2510,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2512,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2518,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2521,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2618,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 2639,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2688,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2689,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2696,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2698,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2738,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2740,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2753,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2755,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 2766,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 2797,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 2860,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 2892,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 2907,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 2973,
+            "playerId": 0,
+            "intent": {
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 2983,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3017,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 3037,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 3048,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 3049,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 3067,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3125,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 3128,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 3130,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 3155,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3174,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnRight": true
+            }
+        },
+        {
+            "tick": 3187,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3224,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 3226,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 3237,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3308,
+            "playerId": 0,
+            "intent": {
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 3321,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3360,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 3387,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3417,
+            "playerId": 0,
+            "intent": {
+                "firePrimary": true
+            }
+        },
+        {
+            "tick": 3430,
+            "playerId": 0,
+            "intent": {}
+        },
+        {
+            "tick": 3492,
+            "playerId": 0,
+            "intent": {
+                "forward": true,
+                "turnLeft": true
+            }
+        },
+        {
+            "tick": 3502,
+            "playerId": 0,
+            "intent": {
+                "forward": true
+            }
+        },
+        {
+            "tick": 3506,
+            "playerId": 0,
+            "intent": {}
+        }
+    ],
+    "result": {
+        "won": true,
+        "reason": "GOALS_CAPTURED",
+        "kills": 0,
+        "goalGood": 100,
+        "goalBad": 0,
+        "tick": 3495
+    },
+    "ticks": 3855
+}

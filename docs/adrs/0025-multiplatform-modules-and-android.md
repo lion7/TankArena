@@ -55,13 +55,16 @@ game-protocol <- game-content <- game-sim <- game-net <- game-ui <- app-desktop,
   other players need gamepads. Taps go through the intro, texts, messages, yes/no questions, the
   tank selection and every Extended page; Classic is played with the keyboard.
 - **Packages:** `packaging/package-android.sh` makes debug and release APKs and a release bundle
-  (R8-shrunk) in `build/dist/android`. Without a `KEYSTORE` the release build is signed with the
-  debug key.
+  (R8-shrunk) in `build/dist/android`. The release APK and the bundle are signed with the Play
+  upload key (Play App Signing re-signs with Google's app signing key): `KEYSTORE`, or by default
+  `~/Sync/Secrets/tank-arena-play-store.jks` when the machine has it. The R8 mapping file is kept
+  beside the bundle for Play Console. Without a keystore the release APK is signed with the debug
+  key and the bundle is left unsigned.
 
 ## Consequences
 
 - The shipped apps carry no converter code; extractors live in `tools-mapconv`.
 - Common modules use only JVM APIs that Android also has (`java.io.File`, threads). A web target
   would need those replaced; it is not planned.
-- Open: release signing with a real key, a try on a real phone, and the simulation's per-tick
+- Open: a try on a real phone, and the simulation's per-tick
   garbage on Android ([performance.md](../performance.md)).

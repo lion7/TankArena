@@ -28,7 +28,7 @@ app. Self-contained packages build for Linux, Windows and Android. All 401 autom
 | Controls: input layer, gamepads, mouse, touch | Done | [ADR 0026](adrs/0026-input-and-gamepads.md), [ADR 0029](adrs/0029-extended-controls.md) |
 | Four players in two teams | Done (Extended) | [ADR 0027](adrs/0027-four-players-two-teams.md) |
 | Network play: LAN, dedicated server, relay | Built and tested; not yet tried between two real machines | [ADR 0024](adrs/0024-networking.md), [ADR 0028](adrs/0028-internet-relay-and-lobby.md) |
-| Android | Runs on the emulator; release signing and a real phone open | [ADR 0025](adrs/0025-multiplatform-modules-and-android.md) |
+| Android | Runs on the emulator; signed release bundle for Google Play; a real phone open | [ADR 0025](adrs/0025-multiplatform-modules-and-android.md) |
 | Assets | All runtime assets converted and bundled; sounds and backgrounds copied, not yet extracted by a tool | [assets.md](assets.md) |
 | Maps | 69 maps as `.tamap` (2.7 MB); every `.MAP` imports and exports byte for byte | [content-format.md](content-format.md) |
 | Tests | 401 green; no current recordings (the six v11 ones are obsolete); 143 map boots; 9 reference renders | [testing-strategy.md](testing-strategy.md) |
@@ -45,7 +45,7 @@ The [roadmap](roadmap.md) holds every open item. The most important:
 1. **New recordings** under rules v16: without them no whole-mission regression test runs.
 2. **Conveyors** must carry mines, bonuses, flags and other small objects, as the original's do.
 3. **Exported maps tried in DOSBox**, and editor validation and overview.
-4. **Network play between two real machines**, and the Android release (signing, a real phone).
+4. **Network play between two real machines**, and the Android release on a real phone.
 5. **Publishing the packages** on the website.
 
 No decisions are pending.

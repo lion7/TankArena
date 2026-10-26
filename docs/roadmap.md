@@ -39,7 +39,7 @@ The open points in [parity.md](parity.md), most important first:
 ## 4. Platforms and delivery
 
 - [ ] Publish the desktop and Android packages under `releases/` on www.tankarena.nl.
-- [ ] Android: release signing with a real key; a try on a real phone.
+- [ ] Android: a try on a real phone.
 - [ ] Android: the simulation's per-tick garbage (iterators, boxing, lists in the AI, trains, mission
       checks and views); sites and approach in [performance.md](performance.md#later-the-simulations-garbage).
 - [ ] Windows: player data under `%APPDATA%` instead of `%USERPROFILE%\.config`

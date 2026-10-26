@@ -6,7 +6,7 @@
 #   packaging/package.sh appimage   also an AppImage (needs appimagetool)
 #   packaging/package.sh rpm        also an .rpm (needs rpmbuild); likewise deb (needs dpkg-deb)
 #
-# VERSION=1.2.0 sets the version. KOTLIN_SHARED_CACHE moves the Kotlin toolchain's download cache.
+# VERSION=1.2.0 sets the version; by default it comes from git (packaging/version.sh). KOTLIN_SHARED_CACHE moves the Kotlin toolchain's download cache.
 # JPACKAGE=/path/to/jpackage picks the JDK tool; by default it comes from JAVA_HOME, then the JDK
 # the Kotlin toolchain provisioned, then PATH.
 set -euo pipefail
@@ -15,7 +15,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 name="TankArena"
-version="${VERSION:-1.0.0}"
+version="${VERSION:-$(packaging/version.sh)}"
 dist="build/dist"
 cache="${KOTLIN_SHARED_CACHE:-$HOME/.cache/JetBrains/Kotlin}"
 kotlin=(./kotlin "--shared-cache-dir=$cache")
@@ -60,7 +60,8 @@ echo "$(ls "$input" | wc -l) jars on the class path"
 
 common=(
     --name "$name"
-    --app-version "$version"
+    # jpackage takes numbers only: "0.7.5-dirty" installs as 0.7.5 (the file names keep it).
+    --app-version "${version%-dirty}"
     --vendor "TankArena"
     --description "Tank Arena, rewritten in Kotlin"
     --input "$input"

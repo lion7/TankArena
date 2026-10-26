@@ -32,6 +32,8 @@ fun RetroMenuScreen(
     modifier: Modifier = Modifier,
     initialSelection: Int = items.indexOfFirst { it.enabled }.coerceAtLeast(0),
     onCancel: (() -> Unit)? = null,
+    /** Small text in the bottom right corner (the main menu's version), not in the original. */
+    corner: String? = null,
 ) {
     var selected by remember(items.map { it.label }) {
         mutableIntStateOf(initialSelection.coerceIn(0, (items.size - 1).coerceAtLeast(0)))
@@ -58,6 +60,7 @@ fun RetroMenuScreen(
         },
     ) {
         drawMenu(title, items.map { it.label }, selected)
+        if (corner != null) writeText(Mode13Screen.WIDTH - 6 - corner.length * LegacyFonts.SMALL_PITCH, Mode13Screen.HEIGHT - 8, LegacyColors.NORMAL, corner)
     }
 }
 

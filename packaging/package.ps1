@@ -5,7 +5,7 @@
 #   packaging\package.ps1           app image + .zip in build\dist
 #   packaging\package.ps1 msi       also an .msi installer (needs WiX 3 on the PATH)
 #
-# VERSION sets the version, KOTLIN_SHARED_CACHE moves the Kotlin toolchain's download cache. jpackage
+# VERSION sets the version (build-windows.sh passes the one from git), KOTLIN_SHARED_CACHE moves the Kotlin toolchain's download cache. jpackage
 # comes from JAVA_HOME (a JDK 25).
 param([string[]]$Types = @())
 
@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
 $name = 'TankArena'
-$version = if ($env:VERSION) { $env:VERSION } else { '1.0.0' }
+$version = if ($env:VERSION) { $env:VERSION } else { '0.0.0' }
 $dist = 'build\dist'
 $cache = if ($env:KOTLIN_SHARED_CACHE) { $env:KOTLIN_SHARED_CACHE } else { "$env:LOCALAPPDATA\JetBrains\Kotlin" }
 # Keeps upgrades of the installed game in place instead of installing a second copy.
@@ -60,7 +60,8 @@ Write-Host "$((Get-ChildItem $inputDir).Count) jars on the class path"
 
 $common = @(
     '--name', $name,
-    '--app-version', $version,
+    # jpackage takes numbers only: "0.7.5-dirty" installs as 0.7.5 (the file names keep it).
+    '--app-version', ($version -replace '-dirty$', ''),
     '--vendor', 'TankArena',
     '--description', 'Tank Arena, rewritten in Kotlin',
     '--input', $inputDir,

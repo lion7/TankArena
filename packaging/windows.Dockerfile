@@ -9,7 +9,7 @@ ENV PATH="C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerS
 
 FROM base AS build
 WORKDIR C:/workspace
-ARG VERSION=1.0.0
+ARG VERSION=0.0.0
 COPY . .
 RUN powershell -NoProfile -ExecutionPolicy Bypass -File packaging\\package.ps1 msi
 # One source for the package stage: copying several from this layer mounts it twice at once, which the

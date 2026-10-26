@@ -21,7 +21,7 @@ class ExtendedHomeActions(
  * keyboard, a pad or a finger. ESC quits; Ctrl+Shift+M switches to Classic (handled by the app).
  */
 @Composable
-fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifier) {
+fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifier, version: String? = null) {
     val keys = remember { KeyRouter() }
     val entries = listOf(
         ListEntry("Campaign", "missions one after another") to actions.campaign,
@@ -40,6 +40,7 @@ fun ExtendedHomeScreen(actions: ExtendedHomeActions, modifier: Modifier = Modifi
         backLabel = "Quit",
         // Classic is played with the keyboard, so only a keyboard switches to it (not shown on a touch screen).
         footer = "Up/Down and Enter, or the mouse · Ctrl+Shift+M: Classic",
+        note = version?.let { "Version $it" },
         onKey = keys::handle,
         modifier = modifier,
     ) {

@@ -53,6 +53,9 @@ private class DesktopPlatform(private val exit: () -> Unit) : GamePlatform {
 
     override fun quit() = exit()
 
+    // jpackage names the packaged game's version; run from the sources, git does (packaging/version.sh).
+    override val version: String? = System.getProperty("jpackage.app-version") ?: versionFromGit()
+
     override fun screenshot(file: File): Boolean {
         val content = (window as? javax.swing.JFrame)?.contentPane ?: return false
         return try {
@@ -63,6 +66,16 @@ private class DesktopPlatform(private val exit: () -> Unit) : GamePlatform {
             false
         }
     }
+}
+
+/** The version packaging/version.sh derives, when the game runs from a checkout with git and bash; else null. */
+private fun versionFromGit(): String? = try {
+    val script = File("packaging/version.sh").takeIf { it.isFile } ?: return null
+    val process = ProcessBuilder("bash", script.path).redirectError(ProcessBuilder.Redirect.DISCARD).start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    output.takeIf { process.waitFor() == 0 && it.isNotEmpty() }
+} catch (e: Exception) {
+    null
 }
 
 /** Posts a key press and release to the window's focused component, as if typed. */

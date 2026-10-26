@@ -62,7 +62,8 @@ is described in [content-format.md](content-format.md#making-the-files).
 
 Self-contained Linux and Windows packages are built in containers with `packaging/build-linux.sh` and
 `packaging/build-windows.sh`; see [ADR 0017](adrs/0017-desktop-packaging.md) and
-[`packaging/README.md`](../packaging/README.md). Do not ship `./kotlin package -f executable-jar`
+[`packaging/README.md`](../packaging/README.md). The version comes from git (`packaging/version.sh`). It is the
+last `<major>.<minor>` tag plus the commits since it, for example `0.7.5`; see the README. Do not ship `./kotlin package -f executable-jar`
 output: Compose 1.12's same-named jars collide in it.
 
 ## Relay image

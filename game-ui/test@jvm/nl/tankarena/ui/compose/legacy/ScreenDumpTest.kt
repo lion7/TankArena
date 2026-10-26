@@ -63,12 +63,13 @@ class ScreenDumpTest {
         }
         // Extended's menus in the original's look, on a desktop window and on a phone.
         val home = nl.tankarena.ui.compose.extended.ExtendedHomeActions({}, {}, {}, {}, {}, {}, {}, {})
-        still(out, "ext-home.png") { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
+        still(out, "ext-home.png") { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home, version = "0.7.12") }
+        still(out, "main-menu.png") { nl.tankarena.ui.compose.menu.MainMenuScreen({}, {}, version = "0.7.12-dirty") }
         still(out, "ext-settings.png") { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }
         val codes = listOf("FLAGISLE", "BEGIN1", "BEGIN3")
         still(out, "ext-campaign.png") { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
         still(out, "ext-versus.png") { nl.tankarena.ui.compose.extended.VersusMapsScreen(missions, GameOptions(), "flagisle", {}, {}, {}) }
-        still(out, "phone-home.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home) }
+        still(out, "phone-home.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedHomeScreen(home, version = "0.7.12") }
         still(out, "phone-campaign.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
         still(out, "phone-upright-campaign.png", 1080, 2340, 2.75f) { nl.tankarena.ui.compose.extended.CampaignScreen(missions, codes, "BEGIN1", {}, {}) }
         still(out, "phone-settings.png", 2340, 1080, 2.75f) { nl.tankarena.ui.compose.extended.ExtendedSettingsPage(GameOptions(), {}, {}, {}) }

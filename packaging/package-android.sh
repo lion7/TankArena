@@ -11,15 +11,16 @@
 # Without them the release APK is signed with the Android debug key (~/.android/debug.keystore) and
 # named "-release-debugkey": installable for testing, not for a store. The bundle is left unsigned.
 #
-# ANDROID_HOME defaults to ~/Android/Sdk. VERSION overrides the version in app-android/module.yaml
-# for the file names only.
+# ANDROID_HOME defaults to ~/Android/Sdk. The version comes from git (packaging/version.sh); VERSION overrides
+# it. It is stamped into app-android/module.yaml (versionName, versionCode) for the build and put back after.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-version="${VERSION:-$(sed -nE 's/^ *versionName: *//p' app-android/module.yaml)}"
+version="${VERSION:-$(packaging/version.sh)}"
+code="$(packaging/version.sh --code)"
 dist="build/dist/android"
 mkdir -p "$dist"
 
@@ -33,6 +34,12 @@ for arg in "$@"; do
     esac
 done
 [[ ${#targets[@]} -eq 0 ]] && targets=(debug)
+
+# The version goes into module.yaml for the build only; the checkout keeps its placeholder.
+module="app-android/module.yaml"
+cp "$module" "$module.orig"
+trap 'mv "$root/$module.orig" "$root/$module"' EXIT
+sed -i -E "s/^( *versionName:).*/\1 $version/; s/^( *versionCode:).*/\1 $code/" "$module"
 
 build_tools="$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -n 1)"
 apksigner="$build_tools/apksigner"

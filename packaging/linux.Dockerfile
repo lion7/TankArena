@@ -7,7 +7,7 @@ RUN curl -fL -o /usr/local/bin/appimagetool \
 
 FROM base AS build
 WORKDIR /workspace
-ARG VERSION=1.0.0
+ARG VERSION=0.0.0
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/JetBrains/Kotlin \
     VERSION=${VERSION} packaging/package.sh appimage

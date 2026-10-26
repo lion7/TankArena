@@ -308,6 +308,7 @@ fun TankArenaApp(
                                 quit = platform::quit,
                                 networkGame = { screen = DesktopShellScreen.NetworkMenu },
                             ),
+                            version = platform.version,
                         )
                     }
 
@@ -782,6 +783,7 @@ fun TankArenaApp(
                         onMapEditor = { screen = DesktopShellScreen.EditorOpen },
                         onArenaInfo = { screen = DesktopShellScreen.Help(HelpFile.ARENA_INFO) },
                         onDefaultKeys = { screen = DesktopShellScreen.Help(HelpFile.DEFAULT_KEYS) },
+                        version = platform.version,
                     )
 
                     DesktopShellScreen.ExtendedKeys -> ExtendedTextPage(

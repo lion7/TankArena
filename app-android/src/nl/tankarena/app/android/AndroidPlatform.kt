@@ -39,6 +39,9 @@ class AndroidPlatform(private val activity: Activity) : GamePlatform {
 
     override val deviceName: String = android.os.Build.MODEL ?: "Android"
 
+    // Stamped into the manifest by packaging/package-android.sh; "0.0.0-dev" from a plain build.
+    override val version: String? = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName
+
     override val touchScreen: Boolean = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
 
     override fun quit() = activity.finishAndRemoveTask()

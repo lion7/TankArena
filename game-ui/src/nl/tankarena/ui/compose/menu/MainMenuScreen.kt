@@ -12,6 +12,8 @@ fun MainMenuScreen(
     onMapEditor: (() -> Unit)? = null,
     onArenaInfo: (() -> Unit)? = null,
     onDefaultKeys: (() -> Unit)? = null,
+    /** The game's version, small in the corner; not in the original. */
+    version: String? = null,
 ) {
     val items = listOf(
         RetroMenuItem(label = "Start new game", onActivate = onStartNewGame),
@@ -26,5 +28,6 @@ fun MainMenuScreen(
         items = items,
         modifier = modifier,
         onCancel = onExit,
+        corner = version?.let { "v$it" },
     )
 }

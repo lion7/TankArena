@@ -18,6 +18,31 @@ Players unpack the `.tar.gz` or `.zip` anywhere and start `TankArena/bin/TankAre
 run the AppImage directly, or install the MSI (Start menu and desktop shortcuts; a newer MSI upgrades an older
 one). Settings, passwords and recordings go to the player's own folders, never into the game folder.
 
+## Versions
+
+Every package takes its version from git, as the blocks and altus do. `packaging/version.sh` prints it:
+
+- `0.7.5`: the last `<major>.<minor>` tag (`0.7`), then the number of commits since that tag.
+- `0.7.5-dirty`: the same, with uncommitted changes in the checkout.
+- `0.0.<commits>`: a clone without the tags (a shallow one).
+- `packaging/version.sh --code` prints the number of commits: Android's `versionCode`, which only grows on `main`.
+
+A new minor version starts with an annotated tag:
+
+```bash
+git tag -a 0.8 -m "TankArena 0.8" && git push origin 0.8
+```
+
+- **Overrides:** `VERSION=…` overrides it in every script.
+- **Containers:** they get no `.git`, so `build-linux.sh` and `build-windows.sh` work out the version on the host
+  and pass it in.
+- **jpackage:** it only takes numbers, so an installed `-dirty` build reports `0.7.5`; the file names keep
+  `-dirty`.
+- **In the game:** the version is shown on both home screens.
+  - Packaged desktop builds read it from jpackage.
+  - The game run from the sources (`./kotlin run`) asks `version.sh`.
+  - Android reads it from its manifest.
+
 ## Inside the containers
 
 `package.sh` (Linux) and `package.ps1` (Windows) do the same steps and can also run outside a container:
@@ -58,7 +83,9 @@ packaging/package-android.sh bundle            # ...-release.aab for Google Play
 packaging/package-android.sh debug --install   # and install it on the connected phone or emulator
 ```
 
-The version comes from `versionName` in `app-android/module.yaml`. It runs on this machine, no container: it
+The script stamps the version from git into `versionName` and `versionCode` of `app-android/module.yaml` for the
+build, and puts the file back afterwards. A plain `./kotlin build -m app-android` is `0.0.0-dev` with versionCode 1,
+which Android refuses to install over a packaged build (uninstall it first). It runs on this machine, no container: it
 needs the Android SDK in `~/Android/Sdk` (or `ANDROID_HOME`). The debug APK and the release APK can be installed
 directly (`adb install -r`, or copied to a phone that allows apps from unknown sources); the release one is about
 10 MB instead of 25.

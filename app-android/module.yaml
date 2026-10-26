@@ -15,5 +15,6 @@ settings:
     namespace: nl.tankarena.android
     applicationId: nl.tankarena
     minSdk: 26
+    # packaging/package-android.sh stamps both from git (packaging/version.sh) while it builds.
     versionCode: 1
-    versionName: 0.7.0
+    versionName: 0.0.0-dev

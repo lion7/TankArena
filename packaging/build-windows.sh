@@ -3,7 +3,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-version="${VERSION:-1.0.0}"
+# The version from git (packaging/version.sh): the containers get no .git.
+version="${VERSION:-$(packaging/version.sh)}"
 docker buildx build --builder "${BUILDER:-win2k22}" -f packaging/windows.Dockerfile --platform=windows/amd64 \
     --build-arg "VERSION=$version" -o type=tar,dest=build/windows.tar .
 mkdir -p build/dist/windows
